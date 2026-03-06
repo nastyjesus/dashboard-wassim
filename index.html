@@ -1,0 +1,2102 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>WASSIM — Dashboard Elite v3</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;700;800&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,300&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0a0f;
+    --surface: #111118;
+    --surface2: #1a1a25;
+    --border: #1e1e2e;
+    --accent: #e63946;
+    --gold: #f4a261;
+    --green: #2a9d8f;
+    --blue: #4361ee;
+    --text: #e8e8f0;
+    --muted: #6b6b85;
+    --font-head: 'Syne', sans-serif;
+    --font-body: 'DM Sans', sans-serif;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font-body);
+    font-size: 14px;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* ─── LAYOUT ─── */
+  .app { display: flex; min-height: 100vh; }
+
+  /* ─── SIDEBAR ─── */
+  .sidebar {
+    width: 220px;
+    min-height: 100vh;
+    background: var(--surface);
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    position: fixed;
+    left: 0; top: 0; bottom: 0;
+    z-index: 100;
+  }
+
+  .sidebar-logo {
+    padding: 28px 24px 20px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .sidebar-logo .name {
+    font-family: var(--font-head);
+    font-size: 22px;
+    font-weight: 800;
+    color: var(--text);
+    letter-spacing: -0.5px;
+  }
+
+  .sidebar-logo .tagline {
+    font-size: 10px;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    margin-top: 3px;
+  }
+
+  .sidebar-logo .dot {
+    display: inline-block;
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: var(--accent);
+    margin-right: 6px;
+    position: relative;
+    top: -1px;
+  }
+
+  .nav { padding: 16px 0; flex: 1; }
+
+  .nav-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 24px;
+    color: var(--muted);
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 500;
+    transition: all 0.15s;
+    border-left: 3px solid transparent;
+  }
+
+  .nav-item:hover { color: var(--text); background: var(--surface2); }
+  .nav-item.active { color: var(--text); border-left-color: var(--accent); background: var(--surface2); }
+
+  .nav-item .icon { font-size: 16px; width: 20px; text-align: center; }
+  .nav-section { padding: 16px 24px 6px; font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 2px; }
+
+  .sidebar-footer {
+    padding: 16px 24px;
+    border-top: 1px solid var(--border);
+    font-size: 11px;
+    color: var(--muted);
+  }
+
+  /* ─── MAIN ─── */
+  .main {
+    margin-left: 220px;
+    flex: 1;
+    padding: 32px 36px;
+    max-width: calc(100% - 220px);
+  }
+
+  /* ─── PAGES ─── */
+  .page { display: none; animation: fadeIn 0.2s ease; }
+  .page.active { display: block; }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+
+  /* ─── PAGE HEADER ─── */
+  .page-header { margin-bottom: 32px; }
+  .page-title { font-family: var(--font-head); font-size: 28px; font-weight: 800; color: var(--text); }
+  .page-sub { color: var(--muted); font-size: 13px; margin-top: 4px; }
+
+  /* ─── GRID ─── */
+  .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 24px; }
+  .grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; margin-bottom: 24px; }
+  .grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 24px; }
+
+  /* ─── CARDS ─── */
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px;
+  }
+
+  .card-title {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    color: var(--muted);
+    margin-bottom: 12px;
+    font-weight: 500;
+  }
+
+  /* ─── STAT CARDS ─── */
+  .stat-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .stat-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+  }
+
+  .stat-card.red::before { background: var(--accent); }
+  .stat-card.gold::before { background: var(--gold); }
+  .stat-card.green::before { background: var(--green); }
+  .stat-card.blue::before { background: var(--blue); }
+
+  .stat-label { font-size: 11px; text-transform: uppercase; letter-spacing: 1.5px; color: var(--muted); margin-bottom: 8px; }
+  .stat-value { font-family: var(--font-head); font-size: 30px; font-weight: 800; color: var(--text); line-height: 1; }
+  .stat-sub { font-size: 12px; color: var(--muted); margin-top: 6px; }
+  .stat-badge { display: inline-block; padding: 2px 8px; border-radius: 20px; font-size: 11px; font-weight: 500; margin-top: 8px; }
+  .stat-badge.up { background: rgba(42,157,143,0.15); color: var(--green); }
+  .stat-badge.down { background: rgba(230,57,70,0.15); color: var(--accent); }
+
+  /* ─── ACTIVITY CARDS ─── */
+  .activity-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+  }
+
+  .activity-header {
+    padding: 16px 20px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .activity-icon {
+    width: 40px; height: 40px;
+    border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px;
+    flex-shrink: 0;
+  }
+
+  .activity-icon.photo { background: rgba(230,57,70,0.12); }
+  .activity-icon.web { background: rgba(67,97,238,0.12); }
+  .activity-icon.game { background: rgba(244,162,97,0.12); }
+
+  .activity-name { font-family: var(--font-head); font-size: 16px; font-weight: 700; }
+  .activity-status { font-size: 11px; color: var(--muted); }
+
+  .activity-body { padding: 16px 20px; }
+
+  .metric-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 0;
+    border-bottom: 1px solid var(--border);
+    font-size: 13px;
+  }
+
+  .metric-row:last-child { border-bottom: none; }
+  .metric-label { color: var(--muted); }
+  .metric-value { font-weight: 500; color: var(--text); }
+  .metric-value.accent { color: var(--accent); }
+  .metric-value.gold { color: var(--gold); }
+  .metric-value.green { color: var(--green); }
+
+  /* ─── SPRINT CARD ─── */
+  .sprint-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+    margin-bottom: 16px;
+  }
+
+  .sprint-header {
+    padding: 16px 20px;
+    display: grid;
+    grid-template-columns: 60px 1fr auto;
+    align-items: center;
+    gap: 16px;
+    cursor: pointer;
+  }
+
+  .sprint-number {
+    font-family: var(--font-head);
+    font-size: 32px;
+    font-weight: 800;
+    color: var(--muted);
+    line-height: 1;
+  }
+
+  .sprint-number.active-sprint { color: var(--accent); }
+  .sprint-number.done { color: var(--green); }
+
+  .sprint-info .sprint-theme { font-size: 14px; font-weight: 600; color: var(--text); }
+  .sprint-info .sprint-period { font-size: 12px; color: var(--muted); margin-top: 2px; }
+  .sprint-badge {
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+  }
+
+  .sprint-badge.current { background: rgba(230,57,70,0.15); color: var(--accent); }
+  .sprint-badge.upcoming { background: rgba(107,107,133,0.15); color: var(--muted); }
+  .sprint-badge.done { background: rgba(42,157,143,0.15); color: var(--green); }
+
+  .sprint-body {
+    border-top: 1px solid var(--border);
+    padding: 20px;
+    display: none;
+  }
+
+  .sprint-body.open { display: block; }
+
+  .kpi-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 16px; }
+
+  .kpi-item {
+    background: var(--surface2);
+    border-radius: 8px;
+    padding: 12px;
+  }
+
+  .kpi-name { font-size: 11px; color: var(--muted); margin-bottom: 4px; }
+  .kpi-target { font-size: 13px; font-weight: 600; color: var(--text); }
+  .kpi-current { font-size: 11px; color: var(--muted); margin-top: 2px; }
+
+  .kpi-input {
+    background: transparent;
+    border: none;
+    border-bottom: 1px solid var(--border);
+    color: var(--gold);
+    font-size: 12px;
+    font-family: var(--font-body);
+    width: 100%;
+    margin-top: 4px;
+    padding: 2px 0;
+    outline: none;
+  }
+
+  .kpi-input:focus { border-bottom-color: var(--gold); }
+  .kpi-input::placeholder { color: var(--muted); }
+
+  /* ─── ACTIONS TABLE ─── */
+  .actions-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .actions-table th {
+    text-align: left;
+    padding: 8px 12px;
+    color: var(--muted);
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    border-bottom: 1px solid var(--border);
+    font-weight: 500;
+  }
+
+  .actions-table td { padding: 10px 12px; border-bottom: 1px solid rgba(30,30,46,0.6); vertical-align: top; }
+  .actions-table tr:last-child td { border-bottom: none; }
+  .actions-table tr:hover td { background: var(--surface2); }
+
+  .check-btn {
+    width: 18px; height: 18px;
+    border: 2px solid var(--border);
+    border-radius: 4px;
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 11px;
+    transition: all 0.15s;
+    flex-shrink: 0;
+  }
+
+  .check-btn.checked { background: var(--green); border-color: var(--green); }
+  .action-done { text-decoration: line-through; color: var(--muted); }
+
+  /* ─── CRM ─── */
+  .crm-filters { display: flex; gap: 8px; margin-bottom: 20px; }
+
+  .filter-btn {
+    padding: 6px 14px;
+    border-radius: 6px;
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--muted);
+    font-size: 12px;
+    cursor: pointer;
+    font-family: var(--font-body);
+    transition: all 0.15s;
+  }
+
+  .filter-btn:hover, .filter-btn.active {
+    background: var(--surface2);
+    color: var(--text);
+    border-color: var(--accent);
+  }
+
+  .client-table { width: 100%; border-collapse: collapse; }
+  .client-table th {
+    text-align: left;
+    padding: 10px 14px;
+    color: var(--muted);
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    border-bottom: 1px solid var(--border);
+    font-weight: 500;
+  }
+
+  .client-table td { padding: 12px 14px; border-bottom: 1px solid rgba(30,30,46,0.6); font-size: 13px; }
+  .client-table tr:hover td { background: var(--surface2); }
+  .client-table tr:last-child td { border-bottom: none; }
+
+  .status-pill {
+    display: inline-block;
+    padding: 3px 10px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: 600;
+  }
+
+  .status-pill.prospect { background: rgba(67,97,238,0.15); color: var(--blue); }
+  .status-pill.en-cours { background: rgba(244,162,97,0.15); color: var(--gold); }
+  .status-pill.client { background: rgba(42,157,143,0.15); color: var(--green); }
+  .status-pill.perdu { background: rgba(107,107,133,0.15); color: var(--muted); }
+
+  .activity-tag {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  .activity-tag.photo { background: rgba(230,57,70,0.12); color: var(--accent); }
+  .activity-tag.web { background: rgba(67,97,238,0.12); color: var(--blue); }
+  .activity-tag.game { background: rgba(244,162,97,0.12); color: var(--gold); }
+
+  /* ─── BTN ─── */
+  .btn {
+    padding: 8px 16px;
+    border-radius: 8px;
+    border: none;
+    font-family: var(--font-body);
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.15s;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .btn-primary { background: var(--accent); color: white; }
+  .btn-primary:hover { background: #c1121f; }
+  .btn-ghost { background: var(--surface2); color: var(--text); border: 1px solid var(--border); }
+  .btn-ghost:hover { border-color: var(--accent); }
+  .btn-sm { padding: 5px 10px; font-size: 12px; }
+
+  /* ─── MODAL ─── */
+  .modal-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.7);
+    z-index: 1000;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .modal-overlay.open { display: flex; }
+
+  .modal {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    width: 480px;
+    max-height: 90vh;
+    overflow-y: auto;
+    padding: 28px;
+  }
+
+  .modal-title { font-family: var(--font-head); font-size: 20px; font-weight: 800; margin-bottom: 20px; }
+
+  .form-group { margin-bottom: 16px; }
+  .form-label { display: block; font-size: 12px; color: var(--muted); margin-bottom: 6px; text-transform: uppercase; letter-spacing: 1px; }
+
+  .form-input {
+    width: 100%;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 14px;
+    color: var(--text);
+    font-family: var(--font-body);
+    font-size: 13px;
+    outline: none;
+    transition: border-color 0.15s;
+  }
+
+  .form-input:focus { border-color: var(--accent); }
+  .form-input option { background: var(--surface2); }
+
+  .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+
+  /* ─── PROGRESS BAR ─── */
+  .progress-bar {
+    height: 4px;
+    background: var(--border);
+    border-radius: 2px;
+    margin-top: 8px;
+    overflow: hidden;
+  }
+
+  .progress-fill {
+    height: 100%;
+    border-radius: 2px;
+    transition: width 0.4s ease;
+  }
+
+  /* ─── CA CHART ─── */
+  .chart-area {
+    height: 120px;
+    display: flex;
+    align-items: flex-end;
+    gap: 6px;
+    padding: 10px 0;
+  }
+
+  .chart-bar {
+    flex: 1;
+    border-radius: 4px 4px 0 0;
+    position: relative;
+    min-height: 4px;
+    transition: height 0.3s ease;
+    cursor: pointer;
+  }
+
+  .chart-bar:hover::after {
+    content: attr(data-label);
+    position: absolute;
+    top: -24px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 11px;
+    white-space: nowrap;
+    color: var(--text);
+  }
+
+  .chart-labels {
+    display: flex;
+    gap: 6px;
+    margin-top: 4px;
+  }
+
+  .chart-label-item {
+    flex: 1;
+    text-align: center;
+    font-size: 10px;
+    color: var(--muted);
+  }
+
+  /* ─── DIVIDER ─── */
+  .divider { border: none; border-top: 1px solid var(--border); margin: 20px 0; }
+
+  /* ─── SECTION TITLE ─── */
+  .section-title { font-family: var(--font-head); font-size: 16px; font-weight: 700; margin-bottom: 16px; color: var(--text); }
+
+  /* ─── TOP BAR ─── */
+  .topbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 28px;
+  }
+
+  .topbar-date { font-size: 12px; color: var(--muted); }
+
+  /* ─── SPRINT TIMELINE ─── */
+  .timeline { display: flex; gap: 0; margin-bottom: 24px; }
+  .timeline-item {
+    flex: 1;
+    padding: 10px 12px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-right: none;
+    font-size: 11px;
+    position: relative;
+  }
+
+  .timeline-item:first-child { border-radius: 8px 0 0 8px; }
+  .timeline-item:last-child { border-radius: 0 8px 8px 0; border-right: 1px solid var(--border); }
+  .timeline-item.active { background: rgba(230,57,70,0.08); border-color: var(--accent); }
+  .timeline-item.done { background: rgba(42,157,143,0.06); }
+  .timeline-sprint { font-weight: 700; font-family: var(--font-head); font-size: 13px; }
+  .timeline-period { color: var(--muted); font-size: 10px; margin-top: 2px; }
+
+  /* ─── RESPONSIVE HELPERS ─── */
+  .flex-between { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+
+  .text-muted { color: var(--muted); }
+  .text-accent { color: var(--accent); }
+  .text-gold { color: var(--gold); }
+  .text-green { color: var(--green); }
+
+  /* scrollbar */
+  ::-webkit-scrollbar { width: 4px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+    <div class="sidebar-logo">
+      <div class="name"><span class="dot"></span>WASSIM</div>
+      <div class="tagline">Communication Premium · Rennes</div>
+    </div>
+    <nav class="nav">
+      <div class="nav-section">Navigation</div>
+      <div class="nav-item active" onclick="navigate('dashboard')">
+        <span class="icon">⚡</span> Dashboard
+      </div>
+      <div class="nav-item" onclick="navigate('sprints')">
+        <span class="icon">🎯</span> Sprints 90J
+      </div>
+      <div class="nav-item" onclick="navigate('activites')">
+        <span class="icon">📁</span> Activités
+      </div>
+      <div class="nav-item" onclick="navigate('crm')">
+        <span class="icon">👥</span> Clients & Prospects
+      </div>
+      <div class="nav-item" onclick="navigate('ca')">
+        <span class="icon">📈</span> CA & Revenus
+      </div>
+      <div class="nav-item" onclick="navigate('notion')">
+        <span class="icon">🔗</span> Notion Sync
+      </div>
+    </nav>
+    <div class="sidebar-footer">
+      Plan Élite · 24 mois<br>Sprint actif : <strong class="text-accent">S1</strong>
+    </div>
+  </aside>
+
+  <!-- MAIN CONTENT -->
+  <main class="main">
+
+    <!-- ─── DASHBOARD ─── -->
+    <div class="page active" id="page-dashboard">
+      <div class="topbar">
+        <div class="page-header" style="margin:0">
+          <div class="page-title">Bonjour, Wassim 👋</div>
+          <div class="page-sub" id="today-date"></div>
+        </div>
+        <div style="display:flex;gap:8px;">
+          <button class="btn btn-ghost btn-sm" onclick="navigate('ca')">+ Saisir CA</button>
+          <button class="btn btn-primary btn-sm" onclick="openModal('add-client')">+ Client</button>
+        </div>
+      </div>
+
+      <!-- STAT CARDS -->
+      <div class="grid-4">
+        <div class="stat-card red">
+          <div class="stat-label">CA ce mois</div>
+          <div class="stat-value" id="stat-ca-mois">0 €</div>
+          <div class="stat-sub">Objectif : 2 500 €</div>
+          <div class="progress-bar" style="margin-top:10px">
+            <div class="progress-fill" id="prog-ca" style="background:var(--accent);width:0%"></div>
+          </div>
+        </div>
+        <div class="stat-card gold">
+          <div class="stat-label">MRR Récurrents</div>
+          <div class="stat-value" id="stat-mrr">0 €</div>
+          <div class="stat-sub">Abonnements SEO actifs</div>
+          <div class="stat-badge" id="badge-mrr" style="background:rgba(244,162,97,0.1);color:var(--gold)">0 clients</div>
+        </div>
+        <div class="stat-card green">
+          <div class="stat-label">Clients actifs</div>
+          <div class="stat-value" id="stat-clients">0</div>
+          <div class="stat-sub">Prospects en cours</div>
+          <div class="stat-badge up" id="badge-prospects">0 prospects</div>
+        </div>
+        <div class="stat-card blue">
+          <div class="stat-label">Sprint actif</div>
+          <div class="stat-value">S1</div>
+          <div class="stat-sub">Fondations & Tarifs</div>
+          <div class="stat-badge" style="background:rgba(230,57,70,0.15);color:var(--accent)">J <span id="sprint-days">1</span>/90</div>
+        </div>
+      </div>
+
+      <!-- ACTIVITIES OVERVIEW -->
+      <div class="section-title">Activités</div>
+      <div class="grid-3">
+        <div class="activity-card">
+          <div class="activity-header">
+            <div class="activity-icon photo">📸</div>
+            <div>
+              <div class="activity-name">Photographie</div>
+              <div class="activity-status">Pro · Particuliers</div>
+            </div>
+          </div>
+          <div class="activity-body">
+            <div class="metric-row"><span class="metric-label">Panier moyen Pro</span><span class="metric-value accent" id="ph-panier">650 €</span></div>
+            <div class="metric-row"><span class="metric-label">Cible sprint S1</span><span class="metric-value gold">900 € HT</span></div>
+            <div class="metric-row"><span class="metric-label">Séances / mois max</span><span class="metric-value">4</span></div>
+            <div class="metric-row"><span class="metric-label">CA photo ce mois</span><span class="metric-value green" id="ph-ca">0 €</span></div>
+          </div>
+        </div>
+        <div class="activity-card">
+          <div class="activity-header">
+            <div class="activity-icon web">🌐</div>
+            <div>
+              <div class="activity-name">Web & SEO</div>
+              <div class="activity-status">Audit · Refonte · Abonnement</div>
+            </div>
+          </div>
+          <div class="activity-body">
+            <div class="metric-row"><span class="metric-label">Abonnements actifs</span><span class="metric-value accent" id="web-abo">0</span></div>
+            <div class="metric-row"><span class="metric-label">MRR SEO</span><span class="metric-value gold" id="web-mrr">0 €</span></div>
+            <div class="metric-row"><span class="metric-label">Tarif abo cible S1</span><span class="metric-value">300 € /mois</span></div>
+            <div class="metric-row"><span class="metric-label">CA web ce mois</span><span class="metric-value green" id="web-ca">0 €</span></div>
+          </div>
+        </div>
+        <div class="activity-card">
+          <div class="activity-header">
+            <div class="activity-icon game">🎮</div>
+            <div>
+              <div class="activity-name">Jeu en ligne</div>
+              <div class="activity-status">Gestion · Premium</div>
+            </div>
+          </div>
+          <div class="activity-body">
+            <div class="metric-row"><span class="metric-label">Joueurs inscrits</span><span class="metric-value accent" id="game-players">250</span></div>
+            <div class="metric-row"><span class="metric-label">Revenus / mois</span><span class="metric-value gold" id="game-revenue">55 €</span></div>
+            <div class="metric-row"><span class="metric-label">Objectif S1</span><span class="metric-value">350 joueurs</span></div>
+            <div class="metric-row"><span class="metric-label">Bugs corrigés</span><span class="metric-value green" id="game-bugs">0/5</span></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- RECENT CLIENTS -->
+      <div class="flex-between">
+        <div class="section-title" style="margin:0">Derniers contacts</div>
+        <button class="btn btn-ghost btn-sm" onclick="navigate('crm')">Voir tout →</button>
+      </div>
+      <div class="card" style="padding:0">
+        <table class="client-table">
+          <thead>
+            <tr>
+              <th>Contact</th>
+              <th>Activité</th>
+              <th>Statut</th>
+              <th>Valeur</th>
+              <th>Dernière action</th>
+            </tr>
+          </thead>
+          <tbody id="recent-clients-body">
+            <tr><td colspan="5" style="text-align:center;color:var(--muted);padding:24px">Aucun contact — ajoute ton premier prospect</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ─── SPRINTS ─── -->
+    <div class="page" id="page-sprints">
+      <div class="page-header">
+        <div class="page-title">Sprints 90 Jours</div>
+        <div class="page-sub">8 sprints · 24 mois · Mars 2026 → Février 2028</div>
+      </div>
+
+      <!-- TIMELINE -->
+      <div class="timeline" id="sprint-timeline"></div>
+
+      <!-- SPRINT CARDS -->
+      <div id="sprints-container"></div>
+    </div>
+
+    <!-- ─── ACTIVITÉS ─── -->
+    <div class="page" id="page-activites">
+      <div class="page-header">
+        <div class="page-title">Mes Activités</div>
+        <div class="page-sub">3 machines — photo, web/SEO, jeu</div>
+      </div>
+
+      <!-- PHOTO -->
+      <div class="card" style="margin-bottom:16px">
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;border-bottom:1px solid var(--border);padding-bottom:14px">
+          <div class="activity-icon photo" style="font-size:22px">📸</div>
+          <div>
+            <div style="font-family:var(--font-head);font-size:18px;font-weight:700">Photographie</div>
+            <div style="color:var(--muted);font-size:12px">Portraits Pro · Reportages · Particuliers</div>
+          </div>
+        </div>
+        <div class="grid-3" style="margin-bottom:16px">
+          <div class="kpi-item">
+            <div class="kpi-name">Tarif actuel portrait pro</div>
+            <div class="kpi-target text-accent">650 € HT</div>
+            <div class="kpi-current">Cible S1 : 900 € HT</div>
+          </div>
+          <div class="kpi-item">
+            <div class="kpi-name">Pack Pro + LinkedIn</div>
+            <div class="kpi-target text-gold">À créer</div>
+            <div class="kpi-current">Cible : 1 500 € HT</div>
+          </div>
+          <div class="kpi-item">
+            <div class="kpi-name">Reportage entreprise</div>
+            <div class="kpi-target text-muted">Non proposé</div>
+            <div class="kpi-current">Cible S3 : 3 500 € HT</div>
+          </div>
+        </div>
+        <div class="section-title" style="font-size:13px">Tarification cible — 24 mois</div>
+        <table class="actions-table">
+          <thead><tr><th>Prestation</th><th>Tarif actuel</th><th>Cible S1</th><th>Cible final</th></tr></thead>
+          <tbody>
+            <tr><td>Portrait Pro</td><td class="text-muted">650 € HT</td><td class="text-gold">900 € HT</td><td class="text-green">1 200 € HT</td></tr>
+            <tr><td>Pack Pro + LinkedIn</td><td class="text-muted">—</td><td class="text-gold">1 500 € HT</td><td class="text-green">2 000 € HT</td></tr>
+            <tr><td>Reportage entreprise</td><td class="text-muted">—</td><td class="text-muted">—</td><td class="text-green">3 500 – 7 000 €</td></tr>
+            <tr><td>Photo particulier</td><td class="text-muted">350 € TTC</td><td class="text-gold">500 € TTC</td><td class="text-green">700 € TTC</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- WEB -->
+      <div class="card" style="margin-bottom:16px">
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;border-bottom:1px solid var(--border);padding-bottom:14px">
+          <div class="activity-icon web" style="font-size:22px">🌐</div>
+          <div>
+            <div style="font-family:var(--font-head);font-size:18px;font-weight:700">Création Web & SEO</div>
+            <div style="color:var(--muted);font-size:12px">Audit · Refonte · Abonnement mensuel</div>
+          </div>
+        </div>
+        <div class="grid-3" style="margin-bottom:16px">
+          <div class="kpi-item">
+            <div class="kpi-name">Abonnements actifs</div>
+            <div class="kpi-target text-accent" id="act-web-abo">0</div>
+            <div class="kpi-current">Cible S1 : 2 abonnements</div>
+          </div>
+          <div class="kpi-item">
+            <div class="kpi-name">MRR SEO</div>
+            <div class="kpi-target text-gold" id="act-web-mrr">0 €</div>
+            <div class="kpi-current">Cible S2 : 1 200 € / mois</div>
+          </div>
+          <div class="kpi-item">
+            <div class="kpi-name">Taux abonnement cible</div>
+            <div class="kpi-target text-green">300 → 500 €</div>
+            <div class="kpi-current">Progression par sprint</div>
+          </div>
+        </div>
+        <table class="actions-table">
+          <thead><tr><th>Offre</th><th>Tarif actuel</th><th>Cible S1</th><th>Cible final</th></tr></thead>
+          <tbody>
+            <tr><td>Audit SEO</td><td class="text-muted">350 €</td><td class="text-gold">600 €</td><td class="text-green">700 €</td></tr>
+            <tr><td>Abonnement SEO</td><td class="text-muted">150 – 200 €</td><td class="text-gold">300 € / mois</td><td class="text-green">500 € / mois</td></tr>
+            <tr><td>Refonte site</td><td class="text-muted">Non structuré</td><td class="text-gold">3 000 €</td><td class="text-green">3 000 – 6 000 €</td></tr>
+            <tr><td>Pack annuel Communication</td><td class="text-muted">—</td><td class="text-muted">—</td><td class="text-green">8 000 – 15 000 €</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- JEU -->
+      <div class="card">
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;border-bottom:1px solid var(--border);padding-bottom:14px">
+          <div class="activity-icon game" style="font-size:22px">🎮</div>
+          <div>
+            <div style="font-family:var(--font-head);font-size:18px;font-weight:700">Jeu en ligne</div>
+            <div style="color:var(--muted);font-size:12px">250 joueurs · Premium · Mobile à venir</div>
+          </div>
+        </div>
+        <div class="grid-4" style="margin-bottom:16px">
+          <div class="kpi-item">
+            <div class="kpi-name">Joueurs inscrits</div>
+            <div class="kpi-target text-accent" id="act-game-players">250</div>
+            <input class="kpi-input" type="number" placeholder="Mettre à jour..." onchange="updateGameStat('players', this.value)">
+          </div>
+          <div class="kpi-item">
+            <div class="kpi-name">Revenus / mois</div>
+            <div class="kpi-target text-gold" id="act-game-rev">55 €</div>
+            <input class="kpi-input" type="number" placeholder="Mettre à jour..." onchange="updateGameStat('revenue', this.value)">
+          </div>
+          <div class="kpi-item">
+            <div class="kpi-name">Bugs corrigés / 5</div>
+            <div class="kpi-target text-green" id="act-game-bugs2">0 / 5</div>
+            <input class="kpi-input" type="number" min="0" max="5" placeholder="0-5" onchange="updateGameStat('bugs', this.value)">
+          </div>
+          <div class="kpi-item">
+            <div class="kpi-name">Vidéos YouTube</div>
+            <div class="kpi-target" id="act-game-yt">0</div>
+            <input class="kpi-input" type="number" placeholder="Nb vidéos" onchange="updateGameStat('youtube', this.value)">
+          </div>
+        </div>
+        <table class="actions-table">
+          <thead><tr><th>Axe</th><th>Action</th><th>Objectif</th><th>Sprint</th></tr></thead>
+          <tbody>
+            <tr><td>🔧 Technique</td><td>Corriger 5 bugs prioritaires</td><td>Stabilité</td><td class="text-accent">S1</td></tr>
+            <tr><td>📹 Acquisition</td><td>Lancer YouTube (1 vidéo / mois)</td><td>350 joueurs</td><td class="text-accent">S2</td></tr>
+            <tr><td>💰 Monétisation</td><td>3 paliers premium : 5 / 10 / 15 €</td><td>200 € / mois</td><td class="text-gold">S3</td></tr>
+            <tr><td>📱 Mobile</td><td>Version mobile beta</td><td>800 joueurs</td><td class="text-gold">S4</td></tr>
+            <tr><td>🤝 Délégation</td><td>Modérateur communauté</td><td>1 000 joueurs</td><td class="text-green">S6</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ─── CRM ─── -->
+    <div class="page" id="page-crm">
+      <div class="flex-between">
+        <div class="page-header" style="margin:0">
+          <div class="page-title">Clients & Prospects</div>
+          <div class="page-sub">Gestion de ta base commerciale</div>
+        </div>
+        <button class="btn btn-primary" onclick="openModal('add-client')">+ Nouveau contact</button>
+      </div>
+
+      <div style="margin-top:24px">
+        <div class="crm-filters">
+          <button class="filter-btn active" onclick="filterCRM('all', this)">Tous</button>
+          <button class="filter-btn" onclick="filterCRM('prospect', this)">Prospects</button>
+          <button class="filter-btn" onclick="filterCRM('en-cours', this)">En cours</button>
+          <button class="filter-btn" onclick="filterCRM('client', this)">Clients</button>
+          <button class="filter-btn" onclick="filterCRM('perdu', this)">Perdus</button>
+        </div>
+
+        <div class="card" style="padding:0">
+          <table class="client-table">
+            <thead>
+              <tr>
+                <th>Contact</th>
+                <th>Activité</th>
+                <th>Statut</th>
+                <th>Valeur estimée</th>
+                <th>Dernière action</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="crm-body">
+              <tr><td colspan="6" style="text-align:center;color:var(--muted);padding:32px">Aucun contact — ajoute ton premier prospect</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ─── CA & REVENUS ─── -->
+    <div class="page" id="page-ca">
+      <div class="flex-between">
+        <div class="page-header" style="margin:0">
+          <div class="page-title">CA & Revenus</div>
+          <div class="page-sub">Suivi mensuel · Objectif 70 000 € / an</div>
+        </div>
+        <button class="btn btn-primary" onclick="openModal('add-ca')">+ Saisir encaissement</button>
+      </div>
+
+      <div class="grid-3" style="margin-top:24px">
+        <div class="stat-card red">
+          <div class="stat-label">CA total cumulé</div>
+          <div class="stat-value" id="ca-total">0 €</div>
+          <div class="stat-sub">Depuis le début</div>
+        </div>
+        <div class="stat-card gold">
+          <div class="stat-label">CA ce mois</div>
+          <div class="stat-value" id="ca-mois-detail">0 €</div>
+          <div class="stat-sub">Objectif : 2 500 €</div>
+        </div>
+        <div class="stat-card green">
+          <div class="stat-label">MRR total</div>
+          <div class="stat-value" id="mrr-total">0 €</div>
+          <div class="stat-sub">Récurrents abonnements</div>
+        </div>
+      </div>
+
+      <!-- CHART -->
+      <div class="card" style="margin-bottom:16px">
+        <div class="card-title">Évolution CA — 12 derniers mois</div>
+        <div class="chart-area" id="ca-chart"></div>
+        <div class="chart-labels" id="ca-chart-labels"></div>
+      </div>
+
+      <!-- CA by activity -->
+      <div class="grid-3">
+        <div class="card">
+          <div class="card-title">📸 Photographie</div>
+          <div style="font-family:var(--font-head);font-size:28px;font-weight:800;color:var(--accent)" id="ca-photo">0 €</div>
+          <div class="progress-bar"><div class="progress-fill" id="prog-photo" style="background:var(--accent);width:0%"></div></div>
+          <div style="font-size:11px;color:var(--muted);margin-top:6px">Cible mensuelle : 1 500 €</div>
+        </div>
+        <div class="card">
+          <div class="card-title">🌐 Web & SEO</div>
+          <div style="font-family:var(--font-head);font-size:28px;font-weight:800;color:var(--blue)" id="ca-web">0 €</div>
+          <div class="progress-bar"><div class="progress-fill" id="prog-web" style="background:var(--blue);width:0%"></div></div>
+          <div style="font-size:11px;color:var(--muted);margin-top:6px">Cible mensuelle : 600 €</div>
+        </div>
+        <div class="card">
+          <div class="card-title">🎮 Jeu</div>
+          <div style="font-family:var(--font-head);font-size:28px;font-weight:800;color:var(--gold)" id="ca-game">0 €</div>
+          <div class="progress-bar"><div class="progress-fill" id="prog-game" style="background:var(--gold);width:0%"></div></div>
+          <div style="font-size:11px;color:var(--muted);margin-top:6px">Cible mensuelle : 60 €</div>
+        </div>
+      </div>
+
+      <!-- TRANSACTIONS TABLE -->
+      <div class="flex-between">
+        <div class="section-title" style="margin:0">Encaissements</div>
+      </div>
+      <div class="card" style="margin-top:12px;padding:0">
+        <table class="client-table">
+          <thead>
+            <tr><th>Date</th><th>Client</th><th>Activité</th><th>Description</th><th>Montant</th><th></th></tr>
+          </thead>
+          <tbody id="transactions-body">
+            <tr><td colspan="6" style="text-align:center;color:var(--muted);padding:24px">Aucun encaissement — saisis ton premier</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ─── NOTION PAGE ─── -->
+    <div class="page" id="page-notion">
+      <div class="page-header">
+        <div class="page-title">🔗 Notion Sync</div>
+        <div class="page-sub">Synchronise ta base "Suivi contrats" · Lecture seule depuis Notion</div>
+      </div>
+
+  <div class="card" style="margin-bottom:20px;border-color:var(--gold)">
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px">
+      <span style="font-size:18px">⚙️</span>
+      <span style="font-family:var(--font-head);font-weight:700;font-size:15px">Configuration</span>
+      <span id="notion-status-dot" style="margin-left:auto;width:8px;height:8px;border-radius:50%;background:var(--muted)"></span>
+      <span id="notion-status-label" style="font-size:11px;color:var(--muted)">Non configuré</span>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">Integration Token (secret_...)</label>
+        <input class="form-input" id="notion-token" type="password" placeholder="secret_xxxxxxxxxxxxxxxxxxxx" value="" autocomplete="off">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Database ID</label>
+        <input class="form-input" id="notion-dbid" type="text" value="17e243720b9249599dbe37793a7b9b45" placeholder="32 caractères depuis l'URL Notion">
+      </div>
+    </div>
+    <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+      <button class="btn btn-primary" onclick="saveNotionConfig()">💾 Enregistrer la config</button>
+      <button class="btn btn-ghost" onclick="syncNotion()" id="btn-sync" style="display:none">
+        <span id="sync-icon">🔄</span> Synchroniser maintenant
+      </button>
+      <button class="btn btn-ghost" onclick="clearNotionConfig()" id="btn-clear" style="display:none;color:var(--accent)">Déconnecter</button>
+      <span id="last-sync-label" style="font-size:11px;color:var(--muted);margin-left:auto"></span>
+    </div>
+  </div>
+
+  <div style="background:rgba(244,162,97,0.08);border:1px solid rgba(244,162,97,0.3);border-radius:10px;padding:14px 18px;margin-bottom:20px;font-size:13px;color:var(--gold)">
+    ⚠️ <strong>Proxy CORS requis.</strong> Saisis le proxy Netlify ci-dessous puis clique Enregistrer avant de synchroniser.
+  </div>
+
+  <div class="card" style="margin-bottom:20px">
+    <div class="card-title">Proxy CORS</div>
+    <div class="form-group">
+      <label class="form-label">URL du proxy</label>
+      <input class="form-input" id="notion-proxy" type="text" value="https://nimble-begonia-763a5d.netlify.app/notion-proxy/" placeholder="https://corsproxy.io/?url=">
+    </div>
+    <div style="font-size:12px;color:var(--muted);margin-top:8px">
+      Proxy public utilisé : <code style="background:var(--surface2);padding:2px 6px;border-radius:4px">ton site Netlify</code> — nécessite le fichier <code style="background:var(--surface2);padding:2px 6px;border-radius:4px">netlify.toml</code> déployé.
+    </div>
+  </div>
+
+  <div class="card" style="margin-bottom:20px">
+    <div class="card-title">Mapping colonnes Notion → Dashboard</div>
+    <table class="actions-table">
+      <thead><tr><th>Colonne Notion</th><th>Rôle</th><th>Valeurs reconnues</th></tr></thead>
+      <tbody>
+        <tr><td><code>Clients</code></td><td>Nom du client</td><td>Texte libre</td></tr>
+        <tr><td><code>Date</code></td><td>Date de la transaction</td><td>Date Notion</td></tr>
+        <tr><td><code>Tarif prestation</code></td><td>Montant HT (€)</td><td>Nombre</td></tr>
+        <tr><td><code>Type</code></td><td>Activité → Photo / Web / Jeu</td><td><span class="activity-tag photo">Portrait Particulier</span> <span class="activity-tag photo">Production</span> <span class="activity-tag web">Site Web</span> <span class="activity-tag web">SEO</span> <span class="activity-tag web">Commission BNI</span></td></tr>
+        <tr><td><code>Origine contact</code></td><td>Source</td><td>BNI, Plato, Groupon…</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="flex-between">
+    <div class="section-title" style="margin:0">Données importées depuis Notion</div>
+    <span id="notion-count" style="font-size:12px;color:var(--muted)"></span>
+  </div>
+  <div class="card" style="margin-top:12px;padding:0">
+    <table class="client-table">
+      <thead><tr><th>Date</th><th>Client</th><th>Type Notion</th><th>Activité</th><th>Origine</th><th>Montant</th></tr></thead>
+      <tbody id="notion-preview-body">
+        <tr><td colspan="6" style="text-align:center;color:var(--muted);padding:32px">Configure le token et clique "Synchroniser"</td></tr>
+      </tbody>
+    </table>
+  </div>
+    </div>
+
+  </main>
+</div>
+
+<!-- ─── MODAL : ADD CLIENT ─── -->
+<div class="modal-overlay" id="modal-add-client">
+  <div class="modal">
+    <div class="modal-title">Nouveau contact</div>
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">Nom / Entreprise</label>
+        <input class="form-input" id="inp-name" type="text" placeholder="Ex: Cabinet Martin">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Email</label>
+        <input class="form-input" id="inp-email" type="email" placeholder="contact@exemple.fr">
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">Activité</label>
+        <select class="form-input" id="inp-activity">
+          <option value="photo">📸 Photographie</option>
+          <option value="web">🌐 Web & SEO</option>
+          <option value="game">🎮 Jeu</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Statut</label>
+        <select class="form-input" id="inp-status">
+          <option value="prospect">Prospect</option>
+          <option value="en-cours">En cours</option>
+          <option value="client">Client</option>
+          <option value="perdu">Perdu</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">Valeur estimée (€)</label>
+        <input class="form-input" id="inp-value" type="number" placeholder="900">
+      </div>
+      <div class="form-group">
+        <label class="form-label">MRR (si abonnement)</label>
+        <input class="form-input" id="inp-mrr" type="number" placeholder="0">
+      </div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Dernière action / Note</label>
+      <input class="form-input" id="inp-note" type="text" placeholder="Ex: Devis envoyé le 01/03">
+    </div>
+    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:20px">
+      <button class="btn btn-ghost" onclick="closeModal('add-client')">Annuler</button>
+      <button class="btn btn-primary" onclick="saveClient()">Enregistrer</button>
+    </div>
+  </div>
+</div>
+
+<!-- ─── MODAL : ADD CA ─── -->
+<div class="modal-overlay" id="modal-add-ca">
+  <div class="modal">
+    <div class="modal-title">Saisir un encaissement</div>
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">Date</label>
+        <input class="form-input" id="ca-date" type="date">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Montant (€ HT)</label>
+        <input class="form-input" id="ca-montant" type="number" placeholder="900">
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">Activité</label>
+        <select class="form-input" id="ca-activity">
+          <option value="photo">📸 Photographie</option>
+          <option value="web">🌐 Web & SEO</option>
+          <option value="game">🎮 Jeu</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Client</label>
+        <input class="form-input" id="ca-client" type="text" placeholder="Nom du client">
+      </div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Description</label>
+      <input class="form-input" id="ca-desc" type="text" placeholder="Ex: Portrait pro + retouches">
+    </div>
+    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:20px">
+      <button class="btn btn-ghost" onclick="closeModal('add-ca')">Annuler</button>
+      <button class="btn btn-primary" onclick="saveCA()">Enregistrer</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ─── DATA ───────────────────────────────────────────────────────────────────
+
+const SPRINTS_DATA = [
+  { id: 'S1', theme: 'Fondations & Tarifs', period: 'Mars – Mai 2026', ca: '2 000 – 2 800 € / mois', status: 'current',
+    actions: [
+      { text: 'Augmenter tarif portrait pro à 900 € HT', livrable: 'Site + devis mis à jour', deadline: 'Sem. 1' },
+      { text: 'Créer offre Pack Pro + LinkedIn à 1 500 € HT', livrable: 'Fiche offre créée', deadline: 'Sem. 2' },
+      { text: 'Restructurer offres Web/SEO (3 offres claires)', livrable: 'Audit 600€ / Refonte 3k / Abo 300€', deadline: 'Sem. 3' },
+      { text: 'Créer template devis premium avec CGV', livrable: 'PDF pro envoyable', deadline: 'Sem. 3' },
+      { text: 'Ouvrir 2 abonnements SEO récurrents à 300€/mois', livrable: '2 clients signés', deadline: 'Fin sprint' },
+      { text: 'Corriger 5 bugs prioritaires du jeu', livrable: 'Liste priorisée + corrections', deadline: 'Mois 2' },
+      { text: 'Publier 2 posts LinkedIn / semaine', livrable: 'Planning 12 sem. + 20 posts', deadline: 'Continu' },
+      { text: 'SOP Onboarding client photo', livrable: 'Doc process devis → livraison', deadline: 'Mois 2' },
+    ],
+    kpis: [
+      { name: 'CA total encaissé', target: '> 6 000 €' },
+      { name: 'Panier moyen photo pro', target: '> 850 € HT' },
+      { name: 'Abonnements SEO actifs', target: '2 minimum' },
+      { name: 'Propositions envoyées', target: '> 10' },
+      { name: 'Posts LinkedIn', target: '> 20' },
+      { name: 'Bugs jeu corrigés', target: '5 bugs' },
+    ]
+  },
+  { id: 'S2', theme: 'Système & Prospection', period: 'Juin – Août 2026', ca: '2 800 – 3 800 € / mois', status: 'upcoming',
+    actions: [
+      { text: 'Système prospection LinkedIn (50 msg / sem)', livrable: 'CRM Notion actif', deadline: 'Sem. 1' },
+      { text: 'Passer abonnement SEO à 350 € (nouveaux)', livrable: 'Tarif mis à jour', deadline: 'Sem. 2' },
+      { text: 'Viser 4 abonnements SEO actifs', livrable: '2 nouveaux clients', deadline: 'Fin sprint' },
+      { text: 'Créer 1 cas client détaillé photo (LinkedIn)', livrable: 'Post avec chiffres + avant/après', deadline: 'Mois 5' },
+      { text: 'Lancer YouTube jeu — 1re vidéo', livrable: 'Vidéo de présentation publiée', deadline: 'Mois 5' },
+      { text: 'SOP Devis et relance commerciale', livrable: 'Process relance J+3 / J+7 / J+14', deadline: 'Mois 4' },
+      { text: 'Identifier 3 prescripteurs locaux', livrable: '1er contact établi avec chacun', deadline: 'Mois 6' },
+    ],
+    kpis: [
+      { name: 'CA total encaissé', target: '> 9 000 €' },
+      { name: 'MRR abonnements SEO', target: '> 1 200 €' },
+      { name: 'Panier moyen photo pro', target: '> 1 000 € HT' },
+      { name: 'Messages LinkedIn envoyés', target: '> 150' },
+      { name: 'Joueurs jeu inscrits', target: '> 320' },
+      { name: 'SOPs documentées', target: '> 3' },
+    ]
+  },
+  { id: 'S3', theme: 'Montée en Gamme', period: 'Sep – Nov 2026', ca: '3 800 – 5 000 € / mois', status: 'upcoming',
+    actions: [
+      { text: 'Tarif portrait pro à 1 200 € HT', livrable: 'Site + devis mis à jour', deadline: 'Sem. 1' },
+      { text: 'Lancer 1er reportage entreprise à 3 500€ HT', livrable: '1 client signé', deadline: 'Mois 8' },
+      { text: 'Abonnement SEO à 400 € / mois', livrable: 'Pour tout nouveau client', deadline: 'Sem. 1' },
+      { text: 'Viser 6 abonnements SEO actifs', livrable: '2 nouveaux ce sprint', deadline: 'Fin sprint' },
+      { text: 'Déléguer retouche photo (freelance)', livrable: '1 freelance testé sur 1 mission', deadline: 'Mois 7' },
+      { text: 'Jeu : 2 vidéos YouTube / mois', livrable: '6 vidéos publiées', deadline: 'Fin sprint' },
+      { text: 'Obtenir 5 avis Google 5 étoiles', livrable: 'Demande systématique post-mission', deadline: 'Fin sprint' },
+    ],
+    kpis: [
+      { name: 'CA total encaissé', target: '> 12 000 €' },
+      { name: 'MRR abonnements SEO', target: '> 2 000 €' },
+      { name: 'Panier moyen photo', target: '> 1 200 € HT' },
+      { name: 'Joueurs jeu', target: '> 450' },
+      { name: 'Avis Google 5 étoiles', target: '> 5' },
+      { name: 'Vidéos YouTube publiées', target: '> 6' },
+    ]
+  },
+  { id: 'S4', theme: 'Marque & Référence Locale', period: 'Déc 2026 – Fév 2027', ca: '5 000 – 6 000 € / mois', status: 'upcoming',
+    actions: [
+      { text: '10 avis Google 5 étoiles', livrable: 'Avec textes détaillés', deadline: 'Fin sprint' },
+      { text: 'Apparaître dans 1 média local Rennes', livrable: 'Podcast / article / interview', deadline: 'Mois 11' },
+      { text: 'Lancer liste d\'attente sur le site', livrable: '\'Prochain créneau en X semaines\'', deadline: 'Mois 10' },
+      { text: 'Refuser projets < 1 000 € HT', livrable: 'Systématiser sans culpabilité', deadline: 'Mois 10' },
+      { text: 'Créer offre annuelle Pack Communication', livrable: '8 000 € / an — 1 client signé', deadline: 'Mois 11' },
+      { text: 'Jeu : lancer beta mobile', livrable: 'Version mobile disponible', deadline: 'Mois 11' },
+    ],
+    kpis: [
+      { name: 'CA total encaissé', target: '> 15 000 €' },
+      { name: 'MRR abonnements SEO', target: '> 2 800 €' },
+      { name: 'Pack annuel Communication signé', target: '1 minimum' },
+      { name: 'Avis Google 5 étoiles', target: '> 10' },
+      { name: 'Joueurs jeu', target: '> 600' },
+      { name: 'CA année 1 total', target: '> 42 000 €' },
+    ]
+  },
+  { id: 'S5', theme: 'Offres Haute Valeur', period: 'Mar – Mai 2027', ca: '6 000 – 7 000 € / mois', status: 'upcoming',
+    actions: [
+      { text: 'Vendre 3 packs annuels Communication', livrable: '3 clients à 8 000+ € / an', deadline: 'Fin sprint' },
+      { text: 'Lancer offre Reportage premium 3k-7k', livrable: 'Portfolio 3 réalisations', deadline: 'Mois 13' },
+      { text: 'Abonnement SEO à 500 € / mois', livrable: 'Nouveaux clients uniquement', deadline: 'Sem. 1' },
+      { text: 'Viser 8 abonnements SEO actifs', livrable: '4 000 € MRR SEO seul', deadline: 'Fin sprint' },
+      { text: 'Jeu : 3 niveaux premium (5/10/15€)', livrable: 'Monétisation révisée', deadline: 'Mois 14' },
+      { text: 'Assistant virtuel 10h/semaine', livrable: 'Admin + messagerie déléguées', deadline: 'Mois 13' },
+    ],
+    kpis: [
+      { name: 'CA total encaissé', target: '> 18 000 €' },
+      { name: 'MRR abonnements SEO', target: '> 3 500 €' },
+      { name: 'Packs annuels actifs', target: '> 3' },
+      { name: 'Revenus jeu / mois', target: '> 200 €' },
+      { name: 'Joueurs jeu', target: '> 800' },
+      { name: 'Heures déléguées / sem.', target: '> 10h' },
+    ]
+  },
+  { id: 'S6', theme: 'Délégation Phase 1', period: 'Juin – Août 2027', ca: '6 500 – 7 500 € / mois', status: 'upcoming',
+    actions: [
+      { text: 'Déléguer retouche photo (250€/mois)', livrable: 'Freelance stable recruté', deadline: 'Mois 16' },
+      { text: 'Déléguer gestion messagerie', livrable: 'Assistant virtuel 15h/semaine', deadline: 'Mois 16' },
+      { text: 'Déléguer rédaction contenu LinkedIn', livrable: 'Copywriter freelance 1 post/sem', deadline: 'Mois 17' },
+      { text: '10 SOPs documentées', livrable: 'Tous les process répétés', deadline: 'Fin sprint' },
+      { text: 'Jeu : déléguer support communauté', livrable: 'Modérateur bénévole ou stagiaire', deadline: 'Mois 17' },
+      { text: 'Jeu : 1 000 joueurs actifs', livrable: 'Cap symbolique communiqué', deadline: 'Fin sprint' },
+    ],
+    kpis: [
+      { name: 'CA total encaissé', target: '> 20 000 €' },
+      { name: 'MRR total', target: '> 5 000 €' },
+      { name: 'Heures libérées / semaine', target: '> 15h' },
+      { name: 'SOPs documentées', target: '> 10' },
+      { name: 'Joueurs jeu', target: '> 1 000' },
+      { name: 'Revenus jeu / mois', target: '> 300 €' },
+    ]
+  },
+  { id: 'S7', theme: 'Scale & Automatisation', period: 'Sep – Nov 2027', ca: '7 500 – 8 500 € / mois', status: 'upcoming',
+    actions: [
+      { text: 'Test 2 semaines sans intervention opérationnelle', livrable: 'Note de ce qui casse', deadline: 'Mois 19' },
+      { text: 'Automatiser reporting SEO clients', livrable: 'Rapport auto mensuel Looker Studio', deadline: 'Mois 20' },
+      { text: 'Lancer 1 workshop photo ou SEO (500€/pers)', livrable: '10 participants minimum', deadline: 'Mois 20' },
+      { text: 'Viser 10 packs annuels actifs', livrable: '10 clients × 8-15k€/an', deadline: 'Fin sprint' },
+      { text: 'Jeu : app mobile complète (iOS/Android)', livrable: 'App disponible sur stores', deadline: 'Mois 21' },
+    ],
+    kpis: [
+      { name: 'CA total encaissé', target: '> 22 000 €' },
+      { name: 'MRR total', target: '> 6 500 €' },
+      { name: 'Packs annuels actifs', target: '> 8' },
+      { name: 'Heures travail / semaine', target: '< 35h' },
+      { name: 'Revenus jeu / mois', target: '> 400 €' },
+      { name: 'Workshop réalisé', target: 'OUI' },
+    ]
+  },
+  { id: 'S8', theme: 'Liberté & Consolidation', period: 'Déc 2027 – Fév 2028', ca: '8 000 – 9 000 € / mois', status: 'upcoming',
+    actions: [
+      { text: 'Consolider 10 packs annuels + 2 nouveaux', livrable: '12 clients premium actifs', deadline: 'Mois 22' },
+      { text: 'Bilan 2 ans complet (CA, marge, satisfaction)', livrable: 'Rapport financier + KPIs', deadline: 'Fin sprint' },
+      { text: 'Prendre 3 semaines de vacances', livrable: 'Test réel du système', deadline: 'Mois 23' },
+      { text: 'Jeu : 1 500 joueurs — 500 € / mois', livrable: 'Communauté établie', deadline: 'Fin sprint' },
+      { text: 'Définir phase 3 (après 24 mois)', livrable: 'Plan : agence ? embauche ? formation ?', deadline: 'Mois 24' },
+    ],
+    kpis: [
+      { name: 'CA annuel (mois 13-24)', target: '> 80 000 €' },
+      { name: 'MRR total', target: '> 7 000 €' },
+      { name: 'Marge nette', target: '> 35 %' },
+      { name: 'Heures travail / semaine', target: '< 35h' },
+      { name: 'Revenus jeu / mois', target: '> 500 €' },
+      { name: 'Semaines vacances prises', target: '> 3' },
+    ]
+  },
+];
+
+// ─── STATE ──────────────────────────────────────────────────────────────────
+
+function loadData() {
+  return {
+    clients: JSON.parse(localStorage.getItem('w_clients') || '[]'),
+    transactions: JSON.parse(localStorage.getItem('w_transactions') || '[]'),
+    sprintActions: JSON.parse(localStorage.getItem('w_sprint_actions') || '{}'),
+    sprintKpis: JSON.parse(localStorage.getItem('w_sprint_kpis') || '{}'),
+    gameStats: JSON.parse(localStorage.getItem('w_game_stats') || '{"players":250,"revenue":55,"bugs":0,"youtube":0}'),
+  };
+}
+
+function saveData(key, value) {
+  localStorage.setItem(key, JSON.stringify(value));
+}
+
+let state = loadData();
+
+// ─── NAVIGATION ─────────────────────────────────────────────────────────────
+
+function navigate(page) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.getElementById('page-' + page).classList.add('active');
+  document.querySelectorAll('.nav-item').forEach(n => {
+    if (n.getAttribute('onclick').includes("'" + page + "'")) n.classList.add('active');
+  });
+  if (page === 'crm') renderCRM();
+  if (page === 'ca') renderCA();
+  if (page === 'sprints') renderSprints();
+  if (page === 'activites') renderActivites();
+  if (page === 'dashboard') renderDashboard();
+  if (page === 'notion') initNotionPage();
+}
+
+// ─── DASHBOARD ──────────────────────────────────────────────────────────────
+
+function renderDashboard() {
+  state = loadData();
+  const now = new Date();
+
+  // Date
+  document.getElementById('today-date').textContent =
+    now.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+
+  // Sprint day counter (starts March 1, 2026)
+  const sprintStart = new Date('2026-03-01');
+  const diffDays = Math.max(1, Math.min(90, Math.floor((now - sprintStart) / 86400000) + 1));
+  document.getElementById('sprint-days').textContent = diffDays;
+
+  // CA ce mois
+  const thisMonth = now.getMonth();
+  const thisYear = now.getFullYear();
+  const monthTransactions = state.transactions.filter(t => {
+    const d = new Date(t.date);
+    return d.getMonth() === thisMonth && d.getFullYear() === thisYear;
+  });
+
+  const caMois = monthTransactions.reduce((s, t) => s + t.montant, 0);
+  const caPhoto = monthTransactions.filter(t => t.activity === 'photo').reduce((s, t) => s + t.montant, 0);
+  const caWeb = monthTransactions.filter(t => t.activity === 'web').reduce((s, t) => s + t.montant, 0);
+  const caGame = monthTransactions.filter(t => t.activity === 'game').reduce((s, t) => s + t.montant, 0);
+
+  document.getElementById('stat-ca-mois').textContent = fmt(caMois);
+  document.getElementById('ph-ca').textContent = fmt(caPhoto);
+  document.getElementById('web-ca').textContent = fmt(caWeb);
+
+  const pct = Math.min(100, Math.round(caMois / 2500 * 100));
+  document.getElementById('prog-ca').style.width = pct + '%';
+
+  // MRR
+  const mrrClients = state.clients.filter(c => c.mrr > 0 && c.status === 'client');
+  const mrr = mrrClients.reduce((s, c) => s + Number(c.mrr), 0);
+  const webAbo = state.clients.filter(c => c.activity === 'web' && c.status === 'client' && c.mrr > 0).length;
+
+  document.getElementById('stat-mrr').textContent = fmt(mrr);
+  document.getElementById('badge-mrr').textContent = webAbo + ' client' + (webAbo > 1 ? 's' : '');
+  document.getElementById('web-abo').textContent = webAbo;
+  document.getElementById('web-mrr').textContent = fmt(mrr);
+
+  // Clients
+  const clients = state.clients.filter(c => c.status === 'client').length;
+  const prospects = state.clients.filter(c => c.status === 'prospect').length;
+  document.getElementById('stat-clients').textContent = clients;
+  document.getElementById('badge-prospects').textContent = prospects + ' prospect' + (prospects > 1 ? 's' : '');
+
+  // Game stats
+  document.getElementById('game-players').textContent = state.gameStats.players;
+  document.getElementById('game-revenue').textContent = fmt(state.gameStats.revenue);
+  document.getElementById('game-bugs').textContent = state.gameStats.bugs + '/5';
+  document.getElementById('ph-panier').textContent = '900 €';
+
+  // Recent clients
+  const tbody = document.getElementById('recent-clients-body');
+  const recent = [...state.clients].reverse().slice(0, 5);
+  if (recent.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--muted);padding:24px">Aucun contact — ajoute ton premier prospect</td></tr>';
+  } else {
+    tbody.innerHTML = recent.map(c => `
+      <tr>
+        <td><strong>${c.name}</strong><br><span style="color:var(--muted);font-size:11px">${c.email || '—'}</span></td>
+        <td><span class="activity-tag ${c.activity}">${actLabel(c.activity)}</span></td>
+        <td><span class="status-pill ${c.status}">${statusLabel(c.status)}</span></td>
+        <td class="text-gold">${fmt(c.value)}</td>
+        <td class="text-muted">${c.note || '—'}</td>
+      </tr>
+    `).join('');
+  }
+}
+
+// ─── SPRINTS ────────────────────────────────────────────────────────────────
+
+function renderSprints() {
+  state = loadData();
+
+  // Timeline
+  const timeline = document.getElementById('sprint-timeline');
+  timeline.innerHTML = SPRINTS_DATA.map(s => `
+    <div class="timeline-item ${s.status}" onclick="toggleSprint('${s.id}')">
+      <div class="timeline-sprint">${s.id}</div>
+      <div class="timeline-period">${s.period.split('–')[0].trim()}</div>
+    </div>
+  `).join('');
+
+  // Sprint cards
+  const container = document.getElementById('sprints-container');
+  container.innerHTML = SPRINTS_DATA.map(s => {
+    const actions = state.sprintActions[s.id] || {};
+    const kpis = state.sprintKpis[s.id] || {};
+
+    const actionsHTML = s.actions.map((a, i) => {
+      const done = actions[i];
+      return `
+        <tr>
+          <td style="width:24px">
+            <div class="check-btn ${done ? 'checked' : ''}" onclick="toggleAction('${s.id}', ${i})">
+              ${done ? '✓' : ''}
+            </div>
+          </td>
+          <td class="${done ? 'action-done' : ''}">${a.text}</td>
+          <td class="text-muted" style="font-size:12px">${a.livrable}</td>
+          <td class="text-accent" style="font-size:12px;white-space:nowrap">${a.deadline}</td>
+        </tr>
+      `;
+    }).join('');
+
+    const kpisHTML = s.kpis.map((k, i) => {
+      const val = kpis[i] || '';
+      return `
+        <div class="kpi-item">
+          <div class="kpi-name">${k.name}</div>
+          <div class="kpi-target">${k.target}</div>
+          <input class="kpi-input" value="${val}" placeholder="Ton résultat..." 
+            onchange="saveKPI('${s.id}', ${i}, this.value)">
+        </div>
+      `;
+    }).join('');
+
+    const statusBadge = s.status === 'current' ? 'current" style=""' : s.status === 'done' ? 'done' : 'upcoming';
+    const statusLabel = s.status === 'current' ? 'En cours' : s.status === 'done' ? 'Terminé' : 'À venir';
+    const numColor = s.status === 'current' ? 'active-sprint' : s.status === 'done' ? 'done' : '';
+
+    return `
+      <div class="sprint-card" id="card-${s.id}">
+        <div class="sprint-header" onclick="toggleSprint('${s.id}')">
+          <div class="sprint-number ${numColor}">${s.id}</div>
+          <div class="sprint-info">
+            <div class="sprint-theme">${s.theme}</div>
+            <div class="sprint-period">${s.period} · ${s.ca}</div>
+          </div>
+          <span class="sprint-badge ${s.status}">${statusLabel}</span>
+        </div>
+        <div class="sprint-body" id="body-${s.id}">
+          <div class="section-title" style="font-size:13px;margin-bottom:12px">✅ Actions du sprint</div>
+          <table class="actions-table">
+            <thead><tr><th style="width:24px"></th><th>Action</th><th>Livrable</th><th>Deadline</th></tr></thead>
+            <tbody>${actionsHTML}</tbody>
+          </table>
+          <hr class="divider">
+          <div class="section-title" style="font-size:13px;margin-bottom:12px">📊 KPIs — Saisis tes résultats</div>
+          <div class="kpi-grid">${kpisHTML}</div>
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  // Auto-open current sprint
+  toggleSprint('S1');
+}
+
+function toggleSprint(id) {
+  const body = document.getElementById('body-' + id);
+  if (body) body.classList.toggle('open');
+}
+
+function toggleAction(sprintId, actionIdx) {
+  const actions = state.sprintActions[sprintId] || {};
+  actions[actionIdx] = !actions[actionIdx];
+  state.sprintActions[sprintId] = actions;
+  saveData('w_sprint_actions', state.sprintActions);
+  renderSprints();
+}
+
+function saveKPI(sprintId, kpiIdx, value) {
+  const kpis = state.sprintKpis[sprintId] || {};
+  kpis[kpiIdx] = value;
+  state.sprintKpis[sprintId] = kpis;
+  saveData('w_sprint_kpis', state.sprintKpis);
+}
+
+// ─── CRM ────────────────────────────────────────────────────────────────────
+
+let crmFilter = 'all';
+
+function renderCRM(filter) {
+  if (filter) crmFilter = filter;
+  state = loadData();
+  const tbody = document.getElementById('crm-body');
+  let clients = state.clients;
+  if (crmFilter !== 'all') clients = clients.filter(c => c.status === crmFilter);
+
+  if (clients.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:32px">Aucun contact ${crmFilter !== 'all' ? 'dans cette catégorie' : '— ajoute ton premier prospect'}</td></tr>`;
+    return;
+  }
+
+  tbody.innerHTML = clients.map((c, i) => `
+    <tr>
+      <td>
+        <strong>${c.name}</strong>
+        ${c.email ? `<br><span style="color:var(--muted);font-size:11px">${c.email}</span>` : ''}
+      </td>
+      <td><span class="activity-tag ${c.activity}">${actLabel(c.activity)}</span></td>
+      <td>
+        <select class="form-input" style="padding:4px 8px;font-size:12px;width:auto" 
+          onchange="updateClientStatus(${state.clients.indexOf(c)}, this.value)">
+          <option value="prospect" ${c.status === 'prospect' ? 'selected' : ''}>Prospect</option>
+          <option value="en-cours" ${c.status === 'en-cours' ? 'selected' : ''}>En cours</option>
+          <option value="client" ${c.status === 'client' ? 'selected' : ''}>Client</option>
+          <option value="perdu" ${c.status === 'perdu' ? 'selected' : ''}>Perdu</option>
+        </select>
+      </td>
+      <td class="text-gold">${fmt(c.value)}</td>
+      <td class="text-muted" style="font-size:12px">${c.note || '—'}</td>
+      <td>
+        <button class="btn btn-ghost btn-sm" onclick="deleteClient(${state.clients.indexOf(c)})" style="color:var(--accent)">✕</button>
+      </td>
+    </tr>
+  `).join('');
+}
+
+function filterCRM(filter, btn) {
+  crmFilter = filter;
+  document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  renderCRM();
+}
+
+function updateClientStatus(idx, status) {
+  state.clients[idx].status = status;
+  saveData('w_clients', state.clients);
+  renderDashboard();
+}
+
+function deleteClient(idx) {
+  if (!confirm('Supprimer ce contact ?')) return;
+  state.clients.splice(idx, 1);
+  saveData('w_clients', state.clients);
+  renderCRM();
+  renderDashboard();
+}
+
+// ─── CA ─────────────────────────────────────────────────────────────────────
+
+function renderCA() {
+  state = loadData();
+  const now = new Date();
+  const thisMonth = now.getMonth();
+  const thisYear = now.getFullYear();
+
+  const total = state.transactions.reduce((s, t) => s + t.montant, 0);
+  const moisTx = state.transactions.filter(t => {
+    const d = new Date(t.date);
+    return d.getMonth() === thisMonth && d.getFullYear() === thisYear;
+  });
+
+  const caMois = moisTx.reduce((s, t) => s + t.montant, 0);
+  const caPhoto = moisTx.filter(t => t.activity === 'photo').reduce((s, t) => s + t.montant, 0);
+  const caWeb = moisTx.filter(t => t.activity === 'web').reduce((s, t) => s + t.montant, 0);
+  const caGame = moisTx.filter(t => t.activity === 'game').reduce((s, t) => s + t.montant, 0);
+
+  const mrr = state.clients.filter(c => c.status === 'client' && c.mrr > 0).reduce((s, c) => s + Number(c.mrr), 0);
+
+  document.getElementById('ca-total').textContent = fmt(total);
+  document.getElementById('ca-mois-detail').textContent = fmt(caMois);
+  document.getElementById('mrr-total').textContent = fmt(mrr);
+  document.getElementById('ca-photo').textContent = fmt(caPhoto);
+  document.getElementById('ca-web').textContent = fmt(caWeb);
+  document.getElementById('ca-game').textContent = fmt(caGame);
+
+  document.getElementById('prog-photo').style.width = Math.min(100, caPhoto / 1500 * 100) + '%';
+  document.getElementById('prog-web').style.width = Math.min(100, caWeb / 600 * 100) + '%';
+  document.getElementById('prog-game').style.width = Math.min(100, caGame / 60 * 100) + '%';
+
+  // Chart — last 6 months
+  const months = [];
+  for (let i = 5; i >= 0; i--) {
+    const d = new Date(thisYear, thisMonth - i, 1);
+    months.push({ month: d.getMonth(), year: d.getFullYear(), label: d.toLocaleDateString('fr-FR', { month: 'short' }) });
+  }
+
+  const monthlyCA = months.map(m =>
+    state.transactions
+      .filter(t => { const d = new Date(t.date); return d.getMonth() === m.month && d.getFullYear() === m.year; })
+      .reduce((s, t) => s + t.montant, 0)
+  );
+
+  const maxCA = Math.max(...monthlyCA, 100);
+  const chart = document.getElementById('ca-chart');
+  const labels = document.getElementById('ca-chart-labels');
+
+  chart.innerHTML = monthlyCA.map((v, i) => `
+    <div class="chart-bar" 
+      style="height:${Math.max(4, v / maxCA * 100)}%;background:${v > 0 ? 'var(--accent)' : 'var(--border)'};opacity:${i === 5 ? 1 : 0.5}"
+      data-label="${fmt(v)}">
+    </div>
+  `).join('');
+
+  labels.innerHTML = months.map(m => `<div class="chart-label-item">${m.label}</div>`).join('');
+
+  // Transactions
+  const tbody = document.getElementById('transactions-body');
+  const sorted = [...state.transactions].reverse();
+  if (sorted.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:24px">Aucun encaissement</td></tr>';
+  } else {
+    tbody.innerHTML = sorted.map((t, i) => `
+      <tr>
+        <td>${new Date(t.date).toLocaleDateString('fr-FR')}</td>
+        <td>${t.client || '—'}</td>
+        <td><span class="activity-tag ${t.activity}">${actLabel(t.activity)}</span></td>
+        <td class="text-muted" style="font-size:12px">${t.desc || '—'}</td>
+        <td class="text-green" style="font-weight:600">+ ${fmt(t.montant)}</td>
+        <td><button class="btn btn-ghost btn-sm" onclick="deleteTransaction(${state.transactions.length - 1 - i})" style="color:var(--accent)">✕</button></td>
+      </tr>
+    `).join('');
+  }
+}
+
+function deleteTransaction(idx) {
+  if (!confirm('Supprimer cet encaissement ?')) return;
+  state.transactions.splice(idx, 1);
+  saveData('w_transactions', state.transactions);
+  renderCA();
+  renderDashboard();
+}
+
+// ─── ACTIVITÉS ──────────────────────────────────────────────────────────────
+
+function renderActivites() {
+  state = loadData();
+  const webAbo = state.clients.filter(c => c.activity === 'web' && c.status === 'client' && c.mrr > 0).length;
+  const mrr = state.clients.filter(c => c.activity === 'web' && c.status === 'client').reduce((s, c) => s + Number(c.mrr || 0), 0);
+
+  document.getElementById('act-web-abo').textContent = webAbo;
+  document.getElementById('act-web-mrr').textContent = fmt(mrr);
+  document.getElementById('act-game-players').textContent = state.gameStats.players;
+  document.getElementById('act-game-rev').textContent = fmt(state.gameStats.revenue);
+  document.getElementById('act-game-bugs2').textContent = state.gameStats.bugs + ' / 5';
+  document.getElementById('act-game-yt').textContent = state.gameStats.youtube;
+}
+
+function updateGameStat(key, value) {
+  state.gameStats[key] = Number(value);
+  saveData('w_game_stats', state.gameStats);
+}
+
+// ─── MODALS ─────────────────────────────────────────────────────────────────
+
+function openModal(name) {
+  if (name === 'add-ca') {
+    document.getElementById('ca-date').value = new Date().toISOString().split('T')[0];
+  }
+  document.getElementById('modal-' + name).classList.add('open');
+}
+
+function closeModal(name) {
+  document.getElementById('modal-' + name).classList.remove('open');
+}
+
+function saveClient() {
+  const client = {
+    name: document.getElementById('inp-name').value.trim(),
+    email: document.getElementById('inp-email').value.trim(),
+    activity: document.getElementById('inp-activity').value,
+    status: document.getElementById('inp-status').value,
+    value: Number(document.getElementById('inp-value').value) || 0,
+    mrr: Number(document.getElementById('inp-mrr').value) || 0,
+    note: document.getElementById('inp-note').value.trim(),
+    date: new Date().toISOString(),
+  };
+
+  if (!client.name) { alert('Saisis un nom'); return; }
+  state.clients.push(client);
+  saveData('w_clients', state.clients);
+  closeModal('add-client');
+
+  // Reset
+  ['inp-name','inp-email','inp-value','inp-mrr','inp-note'].forEach(id => document.getElementById(id).value = '');
+  renderDashboard();
+  if (document.getElementById('page-crm').classList.contains('active')) renderCRM();
+}
+
+function saveCA() {
+  const tx = {
+    date: document.getElementById('ca-date').value,
+    montant: Number(document.getElementById('ca-montant').value) || 0,
+    activity: document.getElementById('ca-activity').value,
+    client: document.getElementById('ca-client').value.trim(),
+    desc: document.getElementById('ca-desc').value.trim(),
+  };
+
+  if (!tx.montant) { alert('Saisis un montant'); return; }
+  state.transactions.push(tx);
+  saveData('w_transactions', state.transactions);
+  closeModal('add-ca');
+
+  ['ca-montant','ca-client','ca-desc'].forEach(id => document.getElementById(id).value = '');
+  renderDashboard();
+  if (document.getElementById('page-ca').classList.contains('active')) renderCA();
+}
+
+// ─── NOTION ─────────────────────────────────────────────────────────────────
+
+const NOTION_DB_ID = '17e243720b9249599dbe37793a7b9b45';
+
+// Map Notion "Type" values → dashboard activity
+function mapTypeToActivity(type) {
+  if (!type) return 'photo';
+  const t = type.toLowerCase();
+  if (t.includes('site web') || t.includes('seo') || t.includes('commission bni') || t.includes('audit')) return 'web';
+  if (t.includes('jeu') || t.includes('game')) return 'game';
+  // Portrait, Production, Immobilier, Particulier → photo
+  return 'photo';
+}
+
+function loadNotionConfig() {
+  return {
+    token: localStorage.getItem('n_token') || '',
+    dbid: localStorage.getItem('n_dbid') || NOTION_DB_ID,
+    proxy: localStorage.getItem('n_proxy') || 'https://nimble-begonia-763a5d.netlify.app/notion-proxy/',
+    lastSync: localStorage.getItem('n_last_sync') || '',
+  };
+}
+
+function saveNotionConfig() {
+  const token = document.getElementById('notion-token').value.trim();
+  const dbid = document.getElementById('notion-dbid').value.trim();
+  const proxy = document.getElementById('notion-proxy').value.trim();
+
+  if (!token || (!token.startsWith('secret_') && !token.startsWith('ntn_'))) {
+    alert('Le token doit commencer par "secret_" ou "ntn_"');
+    return;
+  }
+  if (!dbid || dbid.length < 32) {
+    alert('L\'ID de la base doit faire 32 caractères');
+    return;
+  }
+
+  localStorage.setItem('n_token', token);
+  localStorage.setItem('n_dbid', dbid);
+  localStorage.setItem('n_proxy', proxy);
+
+  updateNotionUI();
+  alert('✅ Config enregistrée — clique "Synchroniser" pour importer tes données.');
+}
+
+function clearNotionConfig() {
+  if (!confirm('Déconnecter Notion et supprimer les données importées ?')) return;
+  ['n_token','n_dbid','n_proxy','n_last_sync','n_transactions'].forEach(k => localStorage.removeItem(k));
+  updateNotionUI();
+  document.getElementById('notion-preview-body').innerHTML =
+    '<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:32px">Notion déconnecté</td></tr>';
+  document.getElementById('notion-count').textContent = '';
+}
+
+function updateNotionUI() {
+  const cfg = loadNotionConfig();
+  const connected = !!cfg.token;
+
+  document.getElementById('notion-status-dot').style.background = connected ? 'var(--green)' : 'var(--muted)';
+  document.getElementById('notion-status-label').textContent = connected ? 'Connecté' : 'Non configuré';
+  document.getElementById('notion-status-label').style.color = connected ? 'var(--green)' : 'var(--muted)';
+
+  document.getElementById('btn-sync').style.display = connected ? 'inline-flex' : 'none';
+  document.getElementById('btn-clear').style.display = connected ? 'inline-flex' : 'none';
+
+  if (cfg.token) document.getElementById('notion-token').value = cfg.token;
+  if (cfg.dbid) document.getElementById('notion-dbid').value = cfg.dbid;
+  if (cfg.proxy) document.getElementById('notion-proxy').value = cfg.proxy;
+  if (cfg.lastSync) {
+    document.getElementById('last-sync-label').textContent =
+      'Dernière sync : ' + new Date(cfg.lastSync).toLocaleString('fr-FR');
+  }
+}
+
+async function syncNotion() {
+  const cfg = loadNotionConfig();
+  if (!cfg.token) { alert('Configure le token d\'abord'); return; }
+
+  const btn = document.getElementById('btn-sync');
+  const icon = document.getElementById('sync-icon');
+  btn.disabled = true;
+  icon.textContent = '⏳';
+
+  const tbody = document.getElementById('notion-preview-body');
+  tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:24px">⏳ Connexion à Notion en cours...</td></tr>';
+
+  try {
+    const allResults = [];
+    let cursor = undefined;
+    let pageNum = 0;
+
+    while (true) {
+      pageNum++;
+      const bodyPayload = { page_size: 100 };
+      if (cursor) bodyPayload.start_cursor = cursor;
+
+      const notionUrl = `https://api.notion.com/v1/databases/${cfg.dbid}/query`;
+      const proxyBase = (cfg.proxy || '').trim().replace(/\/$/, '');
+      
+      // Build final URL
+      let finalUrl;
+      if (!proxyBase) {
+        finalUrl = notionUrl;
+      } else if (proxyBase.includes('corsproxy.io') || proxyBase.includes('allorigins')) {
+        finalUrl = proxyBase + '/?url=' + encodeURIComponent(notionUrl);
+      } else {
+        // Cloudflare Worker or custom proxy — forward Notion path directly
+        const notionPath = '/v1/databases/' + cfg.dbid + '/query';
+        finalUrl = proxyBase + notionPath;
+      }
+
+      const res = await fetch(finalUrl, {
+        method: 'POST',
+        headers: {
+          'Authorization': 'Bearer ' + cfg.token,
+          'Notion-Version': '2022-06-28',
+          'Content-Type': 'application/json',
+          'x-requested-with': 'XMLHttpRequest',
+        },
+        body: JSON.stringify(bodyPayload),
+      });
+
+      if (!res.ok) {
+        let errMsg = `HTTP ${res.status}`;
+        try { const e = await res.json(); errMsg += ': ' + (e.message || e.code || JSON.stringify(e)); } catch(e) {}
+        throw new Error(errMsg);
+      }
+
+      const data = await res.json();
+
+      if (!data.results) {
+        throw new Error('Réponse inattendue de l\'API : ' + JSON.stringify(data).slice(0, 200));
+      }
+
+      allResults.push(...data.results);
+      tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:24px">⏳ ${allResults.length} lignes chargées...</td></tr>`;
+
+      if (!data.has_more) break;
+      cursor = data.next_cursor;
+      if (pageNum > 20) break;
+    }
+
+    // Parse results — log raw first row to console for debugging
+    if (allResults.length > 0) {
+      console.log('Notion raw row example:', JSON.stringify(allResults[0].properties, null, 2));
+    }
+
+    const transactions = allResults.map(row => {
+      const props = row.properties;
+
+      // Client — try title first, then rich_text
+      let client = '';
+      const cp = props['Clients'] || props['Client'] || props['Nom'] || props['Name'];
+      if (cp?.title) client = cp.title.map(t => t.plain_text).join('').trim();
+      else if (cp?.rich_text) client = cp.rich_text.map(t => t.plain_text).join('').trim();
+
+      // Date
+      let date = '';
+      const dp = props['Date'] || props['date'];
+      if (dp?.date?.start) date = dp.date.start;
+      else if (dp?.created_time) date = dp.created_time.split('T')[0];
+
+      // Montant
+      let montant = 0;
+      const mp = props['Tarif prestation'] || props['Tarif'] || props['Montant'] || props['Prix'];
+      if (mp?.number != null) montant = mp.number;
+      else if (mp?.formula?.number != null) montant = mp.formula.number;
+
+      // Type
+      let type = '';
+      const tp = props['Type'] || props['type'];
+      if (tp?.select?.name) type = tp.select.name;
+      else if (tp?.multi_select?.[0]?.name) type = tp.multi_select[0].name;
+      else if (tp?.rich_text) type = tp.rich_text.map(t => t.plain_text).join('').trim();
+
+      // Origine contact
+      let origine = '';
+      const op = props['Origine contact'] || props['Origine'] || props['Source'];
+      if (op?.select?.name) origine = op.select.name;
+      else if (op?.rich_text) origine = op.rich_text.map(t => t.plain_text).join('').trim();
+
+      // Type client
+      let typeClient = '';
+      const tcp = props['Type client'] || props['Categorie'];
+      if (tcp?.select?.name) typeClient = tcp.select.name;
+
+      const activity = mapTypeToActivity(type);
+
+      return { client, date, montant, type, origine, typeClient, activity, source: 'notion', notionId: row.id };
+    }).filter(t => t.date && t.montant > 0 && new Date(t.date) >= new Date('2025-09-01'));
+
+    localStorage.setItem('n_transactions', JSON.stringify(transactions));
+    localStorage.setItem('n_last_sync', new Date().toISOString());
+
+    renderNotionPreview(transactions);
+    updateNotionUI();
+    mergeNotionIntoCA(transactions);
+
+    const skipped = allResults.length - transactions.length;
+    document.getElementById('notion-count').textContent =
+      `✅ ${transactions.length} transactions importées${skipped > 0 ? ` (${skipped} lignes sans date ou montant ignorées)` : ''}`;
+
+  } catch (err) {
+    console.error('Notion sync error:', err);
+    tbody.innerHTML = `
+      <tr><td colspan="6" style="padding:20px 24px">
+        <div style="color:var(--accent);font-weight:700;margin-bottom:10px;font-size:14px">❌ Erreur : ${err.message}</div>
+        <div style="color:var(--muted);font-size:13px;line-height:1.8">
+          <strong style="color:var(--text)">Causes possibles :</strong><br>
+          1. Le proxy CORS bloque les requêtes POST → essaie de vider le champ proxy et relance<br>
+          2. Token invalide ou expiré → régénère-le sur notion.so/my-integrations<br>
+          3. La base n'est pas connectée à l'intégration → dans Notion, ouvre la base → ··· → Connections<br>
+          4. L'ID de la base est incorrect → vérifie l'URL Notion
+        </div>
+        <button class="btn btn-ghost btn-sm" style="margin-top:12px" onclick="testNotionDirect()">🔍 Tester sans proxy</button>
+      </td></tr>`;
+  }
+
+  btn.disabled = false;
+  icon.textContent = '🔄';
+}
+
+function renderNotionPreview(transactions) {
+  const tbody = document.getElementById('notion-preview-body');
+  if (!transactions.length) {
+    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:24px">Aucune transaction trouvée avec montant et date</td></tr>';
+    return;
+  }
+
+  const sorted = [...transactions].sort((a, b) => new Date(b.date) - new Date(a.date));
+  tbody.innerHTML = sorted.map(t => `
+    <tr>
+      <td>${t.date ? new Date(t.date).toLocaleDateString('fr-FR') : '—'}</td>
+      <td><strong>${t.client || '—'}</strong></td>
+      <td><span style="color:var(--muted);font-size:12px">${t.type || '—'}</span></td>
+      <td><span class="activity-tag ${t.activity}">${actLabel(t.activity)}</span></td>
+      <td><span style="color:var(--muted);font-size:11px">${t.origine || '—'}</span></td>
+      <td class="text-green" style="font-weight:600">+ ${fmt(t.montant)}</td>
+    </tr>
+  `).join('');
+}
+
+function mergeNotionIntoCA(notionTx) {
+  // Remove previously imported notion transactions, keep manual ones
+  let manual = state.transactions.filter(t => t.source !== 'notion');
+
+  // Convert notion transactions to dashboard format
+  const converted = notionTx.map(t => ({
+    date: t.date,
+    montant: t.montant,
+    activity: t.activity,
+    client: t.client,
+    desc: t.type + (t.origine ? ' · ' + t.origine : ''),
+    source: 'notion',
+    notionId: t.notionId,
+  }));
+
+  const merged = [...manual, ...converted];
+  state.transactions = merged;
+  saveData('w_transactions', merged);
+}
+
+function initNotionPage() {
+  updateNotionUI();
+  const cached = localStorage.getItem('n_transactions');
+  if (cached) {
+    try {
+      const data = JSON.parse(cached);
+      renderNotionPreview(data);
+      document.getElementById('notion-count').textContent =
+        `${data.length} entrées (cache) — clique "Synchroniser" pour rafraîchir`;
+    } catch(e) {}
+  }
+}
+
+// Test without proxy — useful to diagnose CORS vs token issues
+async function testNotionDirect() {
+  const cfg = loadNotionConfig();
+  const tbody = document.getElementById('notion-preview-body');
+  tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:24px">🔍 Test direct en cours...</td></tr>';
+
+  try {
+    const notionUrl = `https://api.notion.com/v1/databases/${cfg.dbid}/query`;
+    // Try with no proxy at all — will fail due to CORS but gives a specific error
+    const res = await fetch(notionUrl, {
+      method: 'POST',
+      headers: {
+        'Authorization': 'Bearer ' + cfg.token,
+        'Notion-Version': '2022-06-28',
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ page_size: 1 }),
+    });
+    const data = await res.json();
+    tbody.innerHTML = `<tr><td colspan="6" style="padding:16px;color:var(--green)">
+      ✅ Connexion directe OK — ${data.results?.length || 0} résultat(s). L'API fonctionne.<br>
+      <span style="font-size:12px;color:var(--muted)">Vide le champ proxy et resynchronise.</span>
+    </td></tr>`;
+  } catch(err) {
+    if (err.message.includes('Failed to fetch') || err.message.includes('NetworkError') || err.message.includes('CORS')) {
+      tbody.innerHTML = `<tr><td colspan="6" style="padding:16px">
+        <div style="color:var(--gold);font-weight:600">⚠️ CORS bloqué — c'est normal depuis un navigateur</div>
+        <div style="color:var(--muted);font-size:13px;margin-top:8px;line-height:1.7">
+          Le token et l'ID semblent corrects, mais le navigateur bloque l'appel direct à Notion.<br>
+          <strong style="color:var(--text)">Solution recommandée :</strong> utilise 
+          <a href="https://notion-proxy.netlify.app" target="_blank" style="color:var(--blue)">notion-cors-proxy</a> 
+          ou déploie le fichier <code style="background:var(--surface2);padding:2px 5px;border-radius:3px">netlify.toml</code> 
+          ci-dessous pour créer ton propre proxy via Netlify Functions.
+        </div>
+        <div style="background:var(--surface2);border-radius:8px;padding:12px;margin-top:12px;font-size:12px;font-family:monospace;color:var(--text)">
+          # netlify.toml à la racine de ton site<br>
+          [[redirects]]<br>
+          &nbsp;&nbsp;from = "/notion-proxy/*"<br>
+          &nbsp;&nbsp;to = "https://api.notion.com/:splat"<br>
+          &nbsp;&nbsp;status = 200<br>
+          &nbsp;&nbsp;force = true<br>
+          &nbsp;&nbsp;headers = {Access-Control-Allow-Origin = "*"}
+        </div>
+        <div style="color:var(--muted);font-size:12px;margin-top:8px">
+          Ensuite mets <code style="background:var(--surface2);padding:2px 5px;border-radius:3px">https://TON-SITE.netlify.app/notion-proxy/</code> comme proxy.
+        </div>
+      </td></tr>`;
+    } else {
+      tbody.innerHTML = `<tr><td colspan="6" style="padding:16px;color:var(--accent)">
+        ❌ Erreur : ${err.message}<br>
+        <span style="font-size:12px;color:var(--muted)">Vérifie le token et l'ID de la base.</span>
+      </td></tr>`;
+    }
+  }
+}
+
+// ─── HELPERS ────────────────────────────────────────────────────────────────
+
+function fmt(n) {
+  if (!n || n === 0) return '0 €';
+  return n.toLocaleString('fr-FR') + ' €';
+}
+
+function actLabel(a) {
+  return { photo: '📸 Photo', web: '🌐 Web', game: '🎮 Jeu' }[a] || a;
+}
+
+function statusLabel(s) {
+  return { prospect: 'Prospect', 'en-cours': 'En cours', client: 'Client', perdu: 'Perdu' }[s] || s;
+}
+
+// Close modals on overlay click
+document.querySelectorAll('.modal-overlay').forEach(overlay => {
+  overlay.addEventListener('click', e => {
+    if (e.target === overlay) overlay.classList.remove('open');
+  });
+});
+
+// ─── INIT ───────────────────────────────────────────────────────────────────
+
+renderDashboard();
+</script>
+</body>
+</html>
