@@ -3,6 +3,7 @@
 // - Cron qui lance /sync trois fois par jour.
 
 import { BridgeClient } from './bridge-client.js';
+import { QontoClient, hasQontoCreds } from './qonto-client.js';
 import { NotionClient, runSync } from './notion-sync.js';
 import { jsonResponse, preflightResponse } from './cors.js';
 import { logger } from './logger.js';
@@ -31,16 +32,14 @@ export default {
 
     try {
       if (path === '/accounts' && request.method === 'GET') {
-        const bridge = new BridgeClient(env);
-        const accounts = await bridge.listAccounts();
-        return jsonResponse({ accounts, mock: bridge.mock }, 200, request, env);
+        const { accounts, mock, sources } = await listAllAccounts(env);
+        return jsonResponse({ accounts, mock, sources }, 200, request, env);
       }
 
       if (path === '/transactions' && request.method === 'GET') {
-        const bridge = new BridgeClient(env);
         const since = url.searchParams.get('since') || undefined;
-        const transactions = await bridge.listTransactions({ since });
-        return jsonResponse({ transactions, mock: bridge.mock }, 200, request, env);
+        const { transactions, mock, sources } = await listAllTransactions(env, { since });
+        return jsonResponse({ transactions, mock, sources }, 200, request, env);
       }
 
       if (path === '/auth/connect' && request.method === 'POST') {
@@ -108,10 +107,48 @@ async function safeJson(request) {
 }
 
 async function doSync(env) {
-  const bridge = new BridgeClient(env);
   const notion = new NotionClient(env);
-  const accounts = await bridge.listAccounts();
-  const transactions = await bridge.listTransactions({});
+  const { accounts, mock } = await listAllAccounts(env);
+  const { transactions } = await listAllTransactions(env, {});
   const result = await runSync(notion, { accounts, transactions });
-  return { ...result, mock: bridge.mock };
+  return { ...result, mock };
+}
+
+/**
+ * Compose les comptes depuis Bridge (ou mocks) + Qonto si credentials présents.
+ * Les comptes Bridge `bank_name === 'Qonto'` sont écrasés par les vrais Qonto.
+ */
+async function listAllAccounts(env) {
+  const bridge = new BridgeClient(env);
+  const bridgeAccounts = await bridge.listAccounts();
+  if (!hasQontoCreds(env)) {
+    return { accounts: bridgeAccounts, mock: bridge.mock, sources: ['bridge'] };
+  }
+  const qonto = new QontoClient(env);
+  const qontoAccounts = await qonto.listAccounts();
+  const merged = [
+    ...bridgeAccounts.filter((a) => a.bank_name !== 'Qonto'),
+    ...qontoAccounts,
+  ];
+  return { accounts: merged, mock: bridge.mock, sources: ['bridge', 'qonto'] };
+}
+
+/**
+ * Compose les transactions. Tout ce qui appartenait à un compte Bridge Qonto
+ * (mock) est retiré et remplacé par les transactions Qonto réelles.
+ */
+async function listAllTransactions(env, opts) {
+  const bridge = new BridgeClient(env);
+  const bridgeTx = await bridge.listTransactions(opts);
+  if (!hasQontoCreds(env)) {
+    return { transactions: bridgeTx, mock: bridge.mock, sources: ['bridge'] };
+  }
+  const bridgeAccounts = await bridge.listAccounts();
+  const qontoBridgeAccountIds = new Set(
+    bridgeAccounts.filter((a) => a.bank_name === 'Qonto').map((a) => a.id),
+  );
+  const filtered = bridgeTx.filter((t) => !qontoBridgeAccountIds.has(t.account_id));
+  const qonto = new QontoClient(env);
+  const qontoTx = await qonto.listTransactions(opts);
+  return { transactions: [...filtered, ...qontoTx], mock: bridge.mock, sources: ['bridge', 'qonto'] };
 }
