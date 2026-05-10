@@ -3,6 +3,10 @@ name: Deploy bridge-proxy worker
 on:
   workflow_dispatch:
     inputs:
+      ref:
+        description: "Branch/ref to deploy from"
+        type: string
+        default: claude/finances-dashboard-bridge-pxzlE
       provision-secrets:
         description: "Provision/refresh Notion + auth secrets before deploy"
         type: boolean
@@ -19,6 +23,8 @@ jobs:
       CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref }}
 
       - uses: actions/setup-node@v4
         with:
