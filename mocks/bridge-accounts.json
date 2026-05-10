@@ -1,0 +1,62 @@
+{
+  "mock": true,
+  "generated_at": "2026-05-10T00:00:00.000Z",
+  "accounts": [
+    {
+      "id": "acct_fortuneo",
+      "item_id": "item_fortuneo",
+      "name": "Fortuneo Compte Courant",
+      "bank_name": "Fortuneo",
+      "iban_last4": "4521",
+      "type": "Perso",
+      "currency_code": "EUR",
+      "balance": 4280.55,
+      "accounting_balance": 4280.55,
+      "instant_balance": 4180.55,
+      "data_access": "enabled",
+      "last_refresh_status": "ok"
+    },
+    {
+      "id": "acct_traderepublic",
+      "item_id": "item_traderepublic",
+      "name": "Trade Republic — Cash & PEA",
+      "bank_name": "Trade Republic",
+      "iban_last4": "8842",
+      "type": "Perso",
+      "currency_code": "EUR",
+      "balance": 12750.0,
+      "accounting_balance": 12750.0,
+      "instant_balance": 12750.0,
+      "data_access": "enabled",
+      "last_refresh_status": "ok"
+    },
+    {
+      "id": "acct_bp",
+      "item_id": "item_bp",
+      "name": "Banque Populaire — SOWPHOTO",
+      "bank_name": "Banque Populaire",
+      "iban_last4": "0091",
+      "type": "Pro",
+      "currency_code": "EUR",
+      "balance": 8943.12,
+      "accounting_balance": 8943.12,
+      "instant_balance": 8843.12,
+      "data_access": "enabled",
+      "last_refresh_status": "ok"
+    },
+    {
+      "id": "acct_qonto",
+      "item_id": "item_qonto",
+      "name": "Qonto Basic — SOWPHOTO",
+      "bank_name": "Qonto",
+      "iban_last4": "7733",
+      "type": "Pro",
+      "currency_code": "EUR",
+      "balance": 1820.4,
+      "accounting_balance": 1820.4,
+      "instant_balance": 1820.4,
+      "data_access": "enabled",
+      "last_refresh_status": "ok"
+    }
+  ]
+}

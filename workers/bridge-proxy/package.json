@@ -1,0 +1,18 @@
+{
+  "name": "bridge-proxy-wassim",
+  "version": "1.0.0",
+  "description": "Cloudflare Worker — proxy Bridge API v3 + sync Notion pour le dashboard Wassim",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "tail": "wrangler tail",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "devDependencies": {
+    "vitest": "^1.6.0",
+    "wrangler": "^3.78.0"
+  }
+}
