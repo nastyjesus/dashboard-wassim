@@ -780,13 +780,12 @@
     <div class="header-inner">
       <div class="header-logo"><span class="dot"></span>WASSIM</div>
       <nav class="nav">
-        <button class="nav-item active" onclick="navigate('dashboard')">Dashboard</button>
-        <button class="nav-item" onclick="navigate('sprints')">Sprints</button>
-        <button class="nav-item" onclick="navigate('activites')">Activités</button>
-        <button class="nav-item" onclick="navigate('crm')">Clients</button>
-        <button class="nav-item" onclick="navigate('ca')">CA</button>
-        <button class="nav-item" onclick="navigate('finances')">Finances</button>
-        <button class="nav-item" onclick="navigate('notion')">Notion</button>
+        <button class="nav-item active" onclick="navigate('apercu')">Aperçu</button>
+        <button class="nav-item" onclick="navigate('qonto')">Qonto</button>
+        <button class="nav-item" onclick="navigate('traderepublic')">Trade Republic</button>
+        <button class="nav-item" onclick="navigate('bpo')">BPO</button>
+        <button class="nav-item" onclick="navigate('fortuneo')">Fortuneo</button>
+        <button class="nav-item" onclick="navigate('myefarm')">MyeFarm</button>
       </nav>
     </div>
   </header>
@@ -794,589 +793,219 @@
   <!-- MAIN CONTENT -->
   <main class="main">
 
-    <!-- ─── DASHBOARD ─── -->
-    <div class="page active" id="page-dashboard">
-      <div class="topbar">
-        <div class="page-header" style="margin:0">
-          <div class="page-title">Bonjour, Wassim 👋</div>
-          <div class="page-sub" id="today-date"></div>
+    <!-- ─── APERÇU (vue d'ensemble) ─── -->
+    <div class="page active" id="page-apercu">
+      <div class="page-header">
+        <div>
+          <div class="page-title">Aperçu</div>
+          <div class="page-sub" id="apercu-sub">Tous tes comptes en un coup d'œil</div>
         </div>
-        <div style="display:flex;gap:8px;">
-          <button class="btn btn-ghost btn-sm" onclick="navigate('ca')">+ Saisir CA</button>
-          <button class="btn btn-primary btn-sm" onclick="openModal('add-client')">+ Client</button>
-        </div>
+        <div id="apercu-status" class="fi-status"><span class="dot" style="background:var(--muted-2)"></span>Chargement…</div>
       </div>
 
-      <!-- STAT CARDS -->
-      <div class="grid-4">
-        <div class="stat-card red">
-          <div class="stat-label">CA ce mois</div>
-          <div class="stat-value" id="stat-ca-mois">0 €</div>
-          <div class="stat-sub">Objectif : 2 500 €</div>
-          <div class="progress-bar" style="margin-top:10px">
-            <div class="progress-fill" id="prog-ca" style="background:var(--accent);width:0%"></div>
-          </div>
+      <div class="grid-2" style="margin-bottom:24px">
+        <div class="card">
+          <div class="card-title">Patrimoine total</div>
+          <div class="fi-kpi-value" id="apercu-total">— €</div>
+          <div class="fi-kpi-sub" id="apercu-total-sub">Somme des 5 comptes</div>
         </div>
-        <div class="stat-card gold">
-          <div class="stat-label">MRR Récurrents</div>
-          <div class="stat-value" id="stat-mrr">0 €</div>
-          <div class="stat-sub">Abonnements SEO actifs</div>
-          <div class="stat-badge" id="badge-mrr" style="background:rgba(244,162,97,0.1);color:var(--gold)">0 clients</div>
-        </div>
-        <div class="stat-card green">
-          <div class="stat-label">Clients actifs</div>
-          <div class="stat-value" id="stat-clients">0</div>
-          <div class="stat-sub">Prospects en cours</div>
-          <div class="stat-badge up" id="badge-prospects">0 prospects</div>
-        </div>
-        <div class="stat-card blue">
-          <div class="stat-label">Sprint actif</div>
-          <div class="stat-value">S1</div>
-          <div class="stat-sub">Fondations & Tarifs</div>
-          <div class="stat-badge" style="background:rgba(230,57,70,0.15);color:var(--accent)">J <span id="sprint-days">1</span>/90</div>
-        </div>
-      </div>
-
-      <!-- ACTIVITIES OVERVIEW -->
-      <div class="section-title">Activités</div>
-      <div class="grid-3">
-        <div class="activity-card">
-          <div class="activity-header">
-            <div class="activity-icon photo">📸</div>
+        <div class="card">
+          <div class="card-title">Solde Pro / Perso</div>
+          <div style="display:flex;gap:24px;align-items:baseline">
             <div>
-              <div class="activity-name">Photographie</div>
-              <div class="activity-status">Pro · Particuliers</div>
+              <div class="fi-kpi-value" id="apercu-pro" style="font-size:22px">— €</div>
+              <div class="fi-kpi-sub">Pro · Qonto + BPO + MyeFarm</div>
             </div>
-          </div>
-          <div class="activity-body">
-            <div class="metric-row"><span class="metric-label">Panier moyen Pro</span><span class="metric-value accent" id="ph-panier">650 €</span></div>
-            <div class="metric-row"><span class="metric-label">Cible sprint S1</span><span class="metric-value gold">900 € HT</span></div>
-            <div class="metric-row"><span class="metric-label">Séances / mois max</span><span class="metric-value">4</span></div>
-            <div class="metric-row"><span class="metric-label">CA photo ce mois</span><span class="metric-value green" id="ph-ca">0 €</span></div>
-          </div>
-        </div>
-        <div class="activity-card">
-          <div class="activity-header">
-            <div class="activity-icon web">🌐</div>
             <div>
-              <div class="activity-name">Web & SEO</div>
-              <div class="activity-status">Audit · Refonte · Abonnement</div>
+              <div class="fi-kpi-value" id="apercu-perso" style="font-size:22px">— €</div>
+              <div class="fi-kpi-sub">Perso · Fortuneo + Trade Republic</div>
             </div>
-          </div>
-          <div class="activity-body">
-            <div class="metric-row"><span class="metric-label">Abonnements actifs</span><span class="metric-value accent" id="web-abo">0</span></div>
-            <div class="metric-row"><span class="metric-label">MRR SEO</span><span class="metric-value gold" id="web-mrr">0 €</span></div>
-            <div class="metric-row"><span class="metric-label">Tarif abo cible S1</span><span class="metric-value">300 € /mois</span></div>
-            <div class="metric-row"><span class="metric-label">CA web ce mois</span><span class="metric-value green" id="web-ca">0 €</span></div>
-          </div>
-        </div>
-        <div class="activity-card">
-          <div class="activity-header">
-            <div class="activity-icon game">🎮</div>
-            <div>
-              <div class="activity-name">Jeu en ligne</div>
-              <div class="activity-status">Gestion · Premium</div>
-            </div>
-          </div>
-          <div class="activity-body">
-            <div class="metric-row"><span class="metric-label">Joueurs inscrits</span><span class="metric-value accent" id="game-players">250</span></div>
-            <div class="metric-row"><span class="metric-label">Revenus / mois</span><span class="metric-value gold" id="game-revenue">55 €</span></div>
-            <div class="metric-row"><span class="metric-label">Objectif S1</span><span class="metric-value">350 joueurs</span></div>
-            <div class="metric-row"><span class="metric-label">Bugs corrigés</span><span class="metric-value green" id="game-bugs">0/5</span></div>
           </div>
         </div>
       </div>
 
-      <!-- RECENT CLIENTS -->
-      <div class="flex-between">
-        <div class="section-title" style="margin:0">Derniers contacts</div>
-        <button class="btn btn-ghost btn-sm" onclick="navigate('crm')">Voir tout →</button>
-      </div>
       <div class="card" style="padding:0">
-        <table class="client-table">
-          <thead>
-            <tr>
-              <th>Contact</th>
-              <th>Activité</th>
-              <th>Statut</th>
-              <th>Valeur</th>
-              <th>Dernière action</th>
-            </tr>
-          </thead>
-          <tbody id="recent-clients-body">
-            <tr><td colspan="5" style="text-align:center;color:var(--muted);padding:24px">Aucun contact — ajoute ton premier prospect</td></tr>
-          </tbody>
-        </table>
+        <div style="padding:16px 20px;border-bottom:1px solid var(--border)">
+          <div class="card-title" style="margin:0">Détail par compte</div>
+        </div>
+        <div id="apercu-list">
+          <p style="padding:32px;color:var(--muted);text-align:center">Chargement…</p>
+        </div>
       </div>
     </div>
 
-    <!-- ─── SPRINTS ─── -->
-    <div class="page" id="page-sprints">
+    <!-- ─── QONTO ─── -->
+    <div class="page" id="page-qonto">
       <div class="page-header">
-        <div class="page-title">Sprints 90 Jours</div>
-        <div class="page-sub">8 sprints · 24 mois · Mars 2026 → Février 2028</div>
+        <div>
+          <div class="page-title">Qonto</div>
+          <div class="page-sub">Pro · API directe</div>
+        </div>
+        <div id="bank-status-qonto" class="fi-status"><span class="dot" style="background:var(--muted-2)"></span>Chargement…</div>
       </div>
 
-      <!-- TIMELINE -->
-      <div class="timeline" id="sprint-timeline"></div>
-
-      <!-- SPRINT CARDS -->
-      <div id="sprints-container"></div>
-    </div>
-
-    <!-- ─── ACTIVITÉS ─── -->
-    <div class="page" id="page-activites">
-      <div class="page-header">
-        <div class="page-title">Mes Activités</div>
-        <div class="page-sub">3 machines — photo, web/SEO, jeu</div>
-      </div>
-
-      <!-- PHOTO -->
-      <div class="card" style="margin-bottom:16px">
-        <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;border-bottom:1px solid var(--border);padding-bottom:14px">
-          <div class="activity-icon photo" style="font-size:22px">📸</div>
-          <div>
-            <div style="font-family:var(--font-head);font-size:18px;font-weight:700">Photographie</div>
-            <div style="color:var(--muted);font-size:12px">Portraits Pro · Reportages · Particuliers</div>
-          </div>
-        </div>
-        <div class="grid-3" style="margin-bottom:16px">
-          <div class="kpi-item">
-            <div class="kpi-name">Tarif actuel portrait pro</div>
-            <div class="kpi-target text-accent">650 € HT</div>
-            <div class="kpi-current">Cible S1 : 900 € HT</div>
-          </div>
-          <div class="kpi-item">
-            <div class="kpi-name">Pack Pro + LinkedIn</div>
-            <div class="kpi-target text-gold">À créer</div>
-            <div class="kpi-current">Cible : 1 500 € HT</div>
-          </div>
-          <div class="kpi-item">
-            <div class="kpi-name">Reportage entreprise</div>
-            <div class="kpi-target text-muted">Non proposé</div>
-            <div class="kpi-current">Cible S3 : 3 500 € HT</div>
-          </div>
-        </div>
-        <div class="section-title" style="font-size:13px">Tarification cible — 24 mois</div>
-        <table class="actions-table">
-          <thead><tr><th>Prestation</th><th>Tarif actuel</th><th>Cible S1</th><th>Cible final</th></tr></thead>
-          <tbody>
-            <tr><td>Portrait Pro</td><td class="text-muted">650 € HT</td><td class="text-gold">900 € HT</td><td class="text-green">1 200 € HT</td></tr>
-            <tr><td>Pack Pro + LinkedIn</td><td class="text-muted">—</td><td class="text-gold">1 500 € HT</td><td class="text-green">2 000 € HT</td></tr>
-            <tr><td>Reportage entreprise</td><td class="text-muted">—</td><td class="text-muted">—</td><td class="text-green">3 500 – 7 000 €</td></tr>
-            <tr><td>Photo particulier</td><td class="text-muted">350 € TTC</td><td class="text-gold">500 € TTC</td><td class="text-green">700 € TTC</td></tr>
-          </tbody>
-        </table>
-      </div>
-
-      <!-- WEB -->
-      <div class="card" style="margin-bottom:16px">
-        <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;border-bottom:1px solid var(--border);padding-bottom:14px">
-          <div class="activity-icon web" style="font-size:22px">🌐</div>
-          <div>
-            <div style="font-family:var(--font-head);font-size:18px;font-weight:700">Création Web & SEO</div>
-            <div style="color:var(--muted);font-size:12px">Audit · Refonte · Abonnement mensuel</div>
-          </div>
-        </div>
-        <div class="grid-3" style="margin-bottom:16px">
-          <div class="kpi-item">
-            <div class="kpi-name">Abonnements actifs</div>
-            <div class="kpi-target text-accent" id="act-web-abo">0</div>
-            <div class="kpi-current">Cible S1 : 2 abonnements</div>
-          </div>
-          <div class="kpi-item">
-            <div class="kpi-name">MRR SEO</div>
-            <div class="kpi-target text-gold" id="act-web-mrr">0 €</div>
-            <div class="kpi-current">Cible S2 : 1 200 € / mois</div>
-          </div>
-          <div class="kpi-item">
-            <div class="kpi-name">Taux abonnement cible</div>
-            <div class="kpi-target text-green">300 → 500 €</div>
-            <div class="kpi-current">Progression par sprint</div>
-          </div>
-        </div>
-        <table class="actions-table">
-          <thead><tr><th>Offre</th><th>Tarif actuel</th><th>Cible S1</th><th>Cible final</th></tr></thead>
-          <tbody>
-            <tr><td>Audit SEO</td><td class="text-muted">350 €</td><td class="text-gold">600 €</td><td class="text-green">700 €</td></tr>
-            <tr><td>Abonnement SEO</td><td class="text-muted">150 – 200 €</td><td class="text-gold">300 € / mois</td><td class="text-green">500 € / mois</td></tr>
-            <tr><td>Refonte site</td><td class="text-muted">Non structuré</td><td class="text-gold">3 000 €</td><td class="text-green">3 000 – 6 000 €</td></tr>
-            <tr><td>Pack annuel Communication</td><td class="text-muted">—</td><td class="text-muted">—</td><td class="text-green">8 000 – 15 000 €</td></tr>
-          </tbody>
-        </table>
-      </div>
-
-      <!-- JEU -->
-      <div class="card">
-        <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;border-bottom:1px solid var(--border);padding-bottom:14px">
-          <div class="activity-icon game" style="font-size:22px">🎮</div>
-          <div>
-            <div style="font-family:var(--font-head);font-size:18px;font-weight:700">Jeu en ligne</div>
-            <div style="color:var(--muted);font-size:12px">250 joueurs · Premium · Mobile à venir</div>
-          </div>
-        </div>
-        <div class="grid-4" style="margin-bottom:16px">
-          <div class="kpi-item">
-            <div class="kpi-name">Joueurs inscrits</div>
-            <div class="kpi-target text-accent" id="act-game-players">250</div>
-            <input class="kpi-input" type="number" placeholder="Mettre à jour..." onchange="updateGameStat('players', this.value)">
-          </div>
-          <div class="kpi-item">
-            <div class="kpi-name">Revenus / mois</div>
-            <div class="kpi-target text-gold" id="act-game-rev">55 €</div>
-            <input class="kpi-input" type="number" placeholder="Mettre à jour..." onchange="updateGameStat('revenue', this.value)">
-          </div>
-          <div class="kpi-item">
-            <div class="kpi-name">Bugs corrigés / 5</div>
-            <div class="kpi-target text-green" id="act-game-bugs2">0 / 5</div>
-            <input class="kpi-input" type="number" min="0" max="5" placeholder="0-5" onchange="updateGameStat('bugs', this.value)">
-          </div>
-          <div class="kpi-item">
-            <div class="kpi-name">Vidéos YouTube</div>
-            <div class="kpi-target" id="act-game-yt">0</div>
-            <input class="kpi-input" type="number" placeholder="Nb vidéos" onchange="updateGameStat('youtube', this.value)">
-          </div>
-        </div>
-        <table class="actions-table">
-          <thead><tr><th>Axe</th><th>Action</th><th>Objectif</th><th>Sprint</th></tr></thead>
-          <tbody>
-            <tr><td>🔧 Technique</td><td>Corriger 5 bugs prioritaires</td><td>Stabilité</td><td class="text-accent">S1</td></tr>
-            <tr><td>📹 Acquisition</td><td>Lancer YouTube (1 vidéo / mois)</td><td>350 joueurs</td><td class="text-accent">S2</td></tr>
-            <tr><td>💰 Monétisation</td><td>3 paliers premium : 5 / 10 / 15 €</td><td>200 € / mois</td><td class="text-gold">S3</td></tr>
-            <tr><td>📱 Mobile</td><td>Version mobile beta</td><td>800 joueurs</td><td class="text-gold">S4</td></tr>
-            <tr><td>🤝 Délégation</td><td>Modérateur communauté</td><td>1 000 joueurs</td><td class="text-green">S6</td></tr>
-          </tbody>
-        </table>
-      </div>
-    </div>
-
-    <!-- ─── CRM ─── -->
-    <div class="page" id="page-crm">
-      <div class="flex-between">
-        <div class="page-header" style="margin:0">
-          <div class="page-title">Clients & Prospects</div>
-          <div class="page-sub">Gestion de ta base commerciale</div>
-        </div>
-        <button class="btn btn-primary" onclick="openModal('add-client')">+ Nouveau contact</button>
-      </div>
-
-      <div style="margin-top:24px">
-        <div class="crm-filters">
-          <button class="filter-btn active" onclick="filterCRM('all', this)">Tous</button>
-          <button class="filter-btn" onclick="filterCRM('prospect', this)">Prospects</button>
-          <button class="filter-btn" onclick="filterCRM('en-cours', this)">En cours</button>
-          <button class="filter-btn" onclick="filterCRM('client', this)">Clients</button>
-          <button class="filter-btn" onclick="filterCRM('perdu', this)">Perdus</button>
-        </div>
-
-        <div class="card" style="padding:0">
-          <table class="client-table">
-            <thead>
-              <tr>
-                <th>Contact</th>
-                <th>Activité</th>
-                <th>Statut</th>
-                <th>Valeur estimée</th>
-                <th>Dernière action</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody id="crm-body">
-              <tr><td colspan="6" style="text-align:center;color:var(--muted);padding:32px">Aucun contact — ajoute ton premier prospect</td></tr>
-            </tbody>
-          </table>
-        </div>
-      </div>
-    </div>
-
-    <!-- ─── CA & REVENUS ─── -->
-    <div class="page" id="page-ca">
-      <div class="flex-between">
-        <div class="page-header" style="margin:0">
-          <div class="page-title">CA & Revenus</div>
-          <div class="page-sub">Suivi mensuel · Objectif 70 000 € / an</div>
-        </div>
-        <button class="btn btn-primary" onclick="openModal('add-ca')">+ Saisir encaissement</button>
-      </div>
-
-      <div class="grid-3" style="margin-top:24px">
-        <div class="stat-card red">
-          <div class="stat-label">CA total cumulé</div>
-          <div class="stat-value" id="ca-total">0 €</div>
-          <div class="stat-sub">Depuis le début</div>
-        </div>
-        <div class="stat-card gold">
-          <div class="stat-label">CA ce mois</div>
-          <div class="stat-value" id="ca-mois-detail">0 €</div>
-          <div class="stat-sub">Objectif : 2 500 €</div>
-        </div>
-        <div class="stat-card green">
-          <div class="stat-label">MRR total</div>
-          <div class="stat-value" id="mrr-total">0 €</div>
-          <div class="stat-sub">Récurrents abonnements</div>
-        </div>
-      </div>
-
-      <!-- CHART -->
-      <div class="card" style="margin-bottom:16px">
-        <div class="card-title">Évolution CA — 12 derniers mois</div>
-        <div class="chart-area" id="ca-chart"></div>
-        <div class="chart-labels" id="ca-chart-labels"></div>
-      </div>
-
-      <!-- CA by activity -->
-      <div class="grid-3">
+      <div class="grid-2">
         <div class="card">
-          <div class="card-title">📸 Photographie</div>
-          <div style="font-family:var(--font-head);font-size:28px;font-weight:800;color:var(--accent)" id="ca-photo">0 €</div>
-          <div class="progress-bar"><div class="progress-fill" id="prog-photo" style="background:var(--accent);width:0%"></div></div>
-          <div style="font-size:11px;color:var(--muted);margin-top:6px">Cible mensuelle : 1 500 €</div>
+          <div class="card-title">Solde actuel</div>
+          <div class="fi-kpi-value" id="bank-balance-qonto">— €</div>
+          <div class="fi-kpi-sub" id="bank-meta-qonto">—</div>
         </div>
         <div class="card">
-          <div class="card-title">🌐 Web & SEO</div>
-          <div style="font-family:var(--font-head);font-size:28px;font-weight:800;color:var(--blue)" id="ca-web">0 €</div>
-          <div class="progress-bar"><div class="progress-fill" id="prog-web" style="background:var(--blue);width:0%"></div></div>
-          <div style="font-size:11px;color:var(--muted);margin-top:6px">Cible mensuelle : 600 €</div>
+          <div class="card-title">Transactions (30j)</div>
+          <div class="fi-kpi-value" id="bank-txcount-qonto">—</div>
+          <div class="fi-kpi-sub" id="bank-txlast-qonto">Dernière : —</div>
+        </div>
+      </div>
+
+      <div class="card" style="padding:0">
+        <div style="padding:16px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between">
+          <div class="card-title" style="margin:0">Dernières opérations</div>
+          <button class="btn btn-ghost btn-sm" onclick="reloadBank('qonto')">Actualiser</button>
+        </div>
+        <div id="bank-txlist-qonto">
+          <p style="padding:32px;color:var(--muted);text-align:center">Chargement…</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- ─── TRADE REPUBLIC ─── -->
+    <div class="page" id="page-traderepublic">
+      <div class="page-header">
+        <div>
+          <div class="page-title">Trade Republic</div>
+          <div class="page-sub">Perso · Cash &amp; PEA</div>
+        </div>
+        <div id="bank-status-traderepublic" class="fi-status"><span class="dot" style="background:var(--muted-2)"></span>Mock — en attente Bridge</div>
+      </div>
+
+      <div class="grid-2">
+        <div class="card">
+          <div class="card-title">Solde actuel</div>
+          <div class="fi-kpi-value" id="bank-balance-traderepublic">— €</div>
+          <div class="fi-kpi-sub" id="bank-meta-traderepublic">—</div>
         </div>
         <div class="card">
-          <div class="card-title">🎮 Jeu</div>
-          <div style="font-family:var(--font-head);font-size:28px;font-weight:800;color:var(--gold)" id="ca-game">0 €</div>
-          <div class="progress-bar"><div class="progress-fill" id="prog-game" style="background:var(--gold);width:0%"></div></div>
-          <div style="font-size:11px;color:var(--muted);margin-top:6px">Cible mensuelle : 60 €</div>
+          <div class="card-title">Transactions (30j)</div>
+          <div class="fi-kpi-value" id="bank-txcount-traderepublic">—</div>
+          <div class="fi-kpi-sub" id="bank-txlast-traderepublic">Dernière : —</div>
         </div>
       </div>
 
-      <!-- TRANSACTIONS TABLE -->
-      <div class="flex-between">
-        <div class="section-title" style="margin:0">Encaissements</div>
-      </div>
-      <div class="card" style="margin-top:12px;padding:0">
-        <table class="client-table">
-          <thead>
-            <tr><th>Date</th><th>Client</th><th>Activité</th><th>Description</th><th>Montant</th><th></th></tr>
-          </thead>
-          <tbody id="transactions-body">
-            <tr><td colspan="6" style="text-align:center;color:var(--muted);padding:24px">Aucun encaissement — saisis ton premier</td></tr>
-          </tbody>
-        </table>
+      <div class="card" style="padding:0">
+        <div style="padding:16px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between">
+          <div class="card-title" style="margin:0">Dernières opérations</div>
+          <button class="btn btn-ghost btn-sm" onclick="reloadBank('traderepublic')">Actualiser</button>
+        </div>
+        <div id="bank-txlist-traderepublic">
+          <p style="padding:32px;color:var(--muted);text-align:center">Chargement…</p>
+        </div>
       </div>
     </div>
 
-    <!-- ─── FINANCES PAGE ─── -->
-    <div class="page" id="page-finances">
+    <!-- ─── BPO (Banque Populaire) ─── -->
+    <div class="page" id="page-bpo">
       <div class="page-header">
-        <div class="page-title">🏦 Finances</div>
-        <div class="page-sub">Agrégation Bridge API · 4 comptes · perso & pro SOWPHOTO</div>
+        <div>
+          <div class="page-title">Banque Populaire</div>
+          <div class="page-sub">Pro · BPO</div>
+        </div>
+        <div id="bank-status-bpo" class="fi-status"><span class="dot" style="background:var(--muted-2)"></span>Mock — en attente Bridge</div>
       </div>
 
-      <div class="fi-toolbar">
-        <div class="fi-segmented" id="fi-scope" role="tablist" aria-label="Filtrer perso ou pro">
-          <button class="active" data-scope="all" aria-label="Voir tous les comptes">Tout</button>
-          <button data-scope="perso" class="perso" aria-label="Filtrer comptes personnels">Perso</button>
-          <button data-scope="pro" class="pro" aria-label="Filtrer comptes pro">Pro</button>
+      <div class="grid-2">
+        <div class="card">
+          <div class="card-title">Solde actuel</div>
+          <div class="fi-kpi-value" id="bank-balance-bpo">— €</div>
+          <div class="fi-kpi-sub" id="bank-meta-bpo">—</div>
         </div>
-        <div class="fi-segmented" id="fi-period" role="tablist" aria-label="Période d'analyse">
-          <button data-period="7">7j</button>
-          <button class="active" data-period="30">30j</button>
-          <button data-period="90">3 mois</button>
-          <button data-period="365">12 mois</button>
-        </div>
-        <button class="btn btn-ghost btn-sm" onclick="toggleAnonymousMode()" id="fi-anonymous-btn" aria-label="Activer ou désactiver le mode anonyme">👁️ Anonymiser</button>
-        <div class="fi-spacer"></div>
-        <span class="fi-status-pill" id="fi-status">
-          <span class="dot"></span>
-          <span id="fi-status-label">Initialisation…</span>
-        </span>
-        <button class="btn btn-primary btn-sm" onclick="syncFinances()" id="fi-sync-btn" aria-label="Lancer une synchronisation Bridge maintenant">🔄 Synchroniser</button>
-        <button class="btn btn-ghost btn-sm" onclick="exportFinancesCSV()" aria-label="Exporter les transactions filtrées en CSV">⤓ CSV</button>
-      </div>
-
-      <!-- KPI Cards -->
-      <div class="fi-kpi-grid" aria-label="Indicateurs clés finances">
-        <div class="fi-kpi total"><div class="fi-kpi-label">Solde total</div><div class="fi-kpi-value" id="fi-kpi-total">— €</div><div class="fi-kpi-sub" id="fi-kpi-total-sub">4 comptes</div></div>
-        <div class="fi-kpi pro"><div class="fi-kpi-label">Solde Pro</div><div class="fi-kpi-value" id="fi-kpi-pro">— €</div><div class="fi-kpi-sub" id="fi-kpi-pro-sub">BP + Qonto</div></div>
-        <div class="fi-kpi perso"><div class="fi-kpi-label">Solde Perso</div><div class="fi-kpi-value" id="fi-kpi-perso">— €</div><div class="fi-kpi-sub" id="fi-kpi-perso-sub">Fortuneo + TR</div></div>
-        <div class="fi-kpi cashflow"><div class="fi-kpi-label">Cashflow <span id="fi-kpi-cashflow-period">30j</span></div><div class="fi-kpi-value" id="fi-kpi-cashflow">— €</div><div class="fi-kpi-sub" id="fi-kpi-cashflow-sub">entrées − sorties</div></div>
-      </div>
-
-      <!-- Évolution des soldes -->
-      <div class="fi-chart-card">
-        <div class="fi-chart-header">
-          <div class="fi-chart-title">Évolution des soldes</div>
-          <div class="fi-chart-meta" id="fi-balance-period">30 derniers jours</div>
-        </div>
-        <div id="fi-balance-chart" aria-label="Graphique d'évolution des soldes par compte"></div>
-        <div class="fi-legend" id="fi-balance-legend"></div>
-      </div>
-
-      <div class="fi-grid-2">
-        <!-- Cashflow mensuel -->
-        <div class="fi-chart-card">
-          <div class="fi-chart-header">
-            <div class="fi-chart-title">Cashflow mensuel</div>
-            <div class="fi-chart-meta">12 derniers mois</div>
-          </div>
-          <div id="fi-cashflow-chart" aria-label="Graphique cashflow mensuel : entrées vs sorties"></div>
-          <div class="fi-legend">
-            <div class="fi-legend-item"><span class="fi-legend-dot" style="background:var(--fi-pos)"></span>Entrées</div>
-            <div class="fi-legend-item"><span class="fi-legend-dot" style="background:var(--fi-neg)"></span>Sorties</div>
-            <div class="fi-legend-item"><span class="fi-legend-dot" style="background:var(--gold)"></span>Net</div>
-          </div>
-        </div>
-
-        <!-- Dépenses par catégorie -->
-        <div class="fi-chart-card">
-          <div class="fi-chart-header">
-            <div class="fi-chart-title">Top dépenses par catégorie</div>
-            <div class="fi-chart-meta" id="fi-category-meta">Période active</div>
-          </div>
-          <div id="fi-category-chart" aria-label="Top 10 catégories de dépenses"></div>
+        <div class="card">
+          <div class="card-title">Transactions (30j)</div>
+          <div class="fi-kpi-value" id="bank-txcount-bpo">—</div>
+          <div class="fi-kpi-sub" id="bank-txlast-bpo">Dernière : —</div>
         </div>
       </div>
 
-      <!-- Tableau transactions -->
-      <div class="fi-chart-card" style="padding:0;overflow:hidden">
-        <div class="fi-chart-header" style="padding:18px 20px 12px">
-          <div class="fi-chart-title">Transactions</div>
-          <div class="fi-chart-meta" id="fi-tx-count">—</div>
+      <div class="card" style="padding:0">
+        <div style="padding:16px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between">
+          <div class="card-title" style="margin:0">Dernières opérations</div>
+          <button class="btn btn-ghost btn-sm" onclick="reloadBank('bpo')">Actualiser</button>
         </div>
-        <div class="fi-search-row">
-          <input class="form-input" id="fi-search" type="search" placeholder="🔍 Rechercher description, banque, catégorie…" aria-label="Recherche dans les transactions">
-          <select class="form-input" id="fi-filter-cat" aria-label="Filtrer par catégorie">
-            <option value="">Toutes catégories</option>
-          </select>
-          <select class="form-input" id="fi-filter-amount" aria-label="Filtrer par type de mouvement">
-            <option value="">Tous mouvements</option>
-            <option value="in">Entrées uniquement</option>
-            <option value="out">Sorties uniquement</option>
-          </select>
-        </div>
-        <div style="overflow-x:auto">
-          <table class="fi-tx-table">
-            <thead><tr><th>Date</th><th>Description</th><th>Banque</th><th>Catégorie</th><th style="text-align:right">Montant</th><th>Note</th></tr></thead>
-            <tbody id="fi-tx-body"></tbody>
-          </table>
-        </div>
-        <div class="fi-tx-pagination">
-          <span id="fi-tx-pager-label">—</span>
-          <div style="display:flex;gap:8px">
-            <button class="btn btn-ghost btn-sm" onclick="financesPagePrev()" aria-label="Page précédente">← Précédent</button>
-            <button class="btn btn-ghost btn-sm" onclick="financesPageNext()" aria-label="Page suivante">Suivant →</button>
-          </div>
+        <div id="bank-txlist-bpo">
+          <p style="padding:32px;color:var(--muted);text-align:center">Chargement…</p>
         </div>
       </div>
-
-      <!-- Insights -->
-      <div class="fi-chart-card">
-        <div class="fi-chart-header">
-          <div class="fi-chart-title">Alertes & Insights</div>
-          <div class="fi-chart-meta">Détectés sur la période active</div>
-        </div>
-        <div id="fi-insights"></div>
-      </div>
-
-      <!-- Configuration repliable -->
-      <details class="card" style="margin-top:20px">
-        <summary style="cursor:pointer;color:var(--muted);font-size:13px;padding:6px 0">⚙️ Configuration Bridge / Worker</summary>
-        <div style="margin-top:14px;font-size:12px;color:var(--muted);line-height:1.7">
-          <p>Le dashboard appelle le worker Cloudflare <code style="background:var(--surface2);padding:2px 5px;border-radius:3px">bridge-proxy-wassim</code>. Tant que les credentials Bridge ne sont pas configurés, les données affichées proviennent de <code style="background:var(--surface2);padding:2px 5px;border-radius:3px">mocks/bridge-*.json</code>.</p>
-          <div class="form-row" style="margin-top:12px">
-            <div class="form-group">
-              <label class="form-label">URL du worker</label>
-              <input class="form-input" id="fi-worker-url" type="text" placeholder="https://bridge-proxy-wassim.loumiwassim.workers.dev">
-            </div>
-            <div class="form-group">
-              <label class="form-label">Header X-Wassim-Auth</label>
-              <input class="form-input" id="fi-worker-auth" type="password" placeholder="Secret partagé">
-            </div>
-          </div>
-          <div style="display:flex;gap:8px">
-            <button class="btn btn-primary btn-sm" onclick="saveFinancesConfig()">💾 Enregistrer</button>
-            <button class="btn btn-ghost btn-sm" onclick="testFinancesWorker()">🧪 Tester /health</button>
-            <button class="btn btn-ghost btn-sm" onclick="clearFinancesConfig()" style="color:var(--accent);margin-left:auto">Réinitialiser</button>
-          </div>
-          <p style="margin-top:10px">Voir <code>docs/README-finances.md</code> pour la procédure complète.</p>
-        </div>
-      </details>
     </div>
 
-    <!-- ─── NOTION PAGE ─── -->
-    <div class="page" id="page-notion">
+    <!-- ─── FORTUNEO ─── -->
+    <div class="page" id="page-fortuneo">
       <div class="page-header">
-        <div class="page-title">🔗 Notion Sync</div>
-        <div class="page-sub">Synchronise ta base "Suivi contrats" · Lecture seule depuis Notion</div>
+        <div>
+          <div class="page-title">Fortuneo</div>
+          <div class="page-sub">Perso · Compte courant</div>
+        </div>
+        <div id="bank-status-fortuneo" class="fi-status"><span class="dot" style="background:var(--muted-2)"></span>Mock — en attente Bridge</div>
       </div>
 
-  <div class="card" style="margin-bottom:20px;border-color:var(--gold)">
-    <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px">
-      <span style="font-size:18px">⚙️</span>
-      <span style="font-family:var(--font-head);font-weight:700;font-size:15px">Configuration</span>
-      <span id="notion-status-dot" style="margin-left:auto;width:8px;height:8px;border-radius:50%;background:var(--muted)"></span>
-      <span id="notion-status-label" style="font-size:11px;color:var(--muted)">Non configuré</span>
-    </div>
-    <div class="form-row">
-      <div class="form-group">
-        <label class="form-label">Integration Token (secret_...)</label>
-        <input class="form-input" id="notion-token" type="password" placeholder="secret_xxxxxxxxxxxxxxxxxxxx" value="" autocomplete="off">
+      <div class="grid-2">
+        <div class="card">
+          <div class="card-title">Solde actuel</div>
+          <div class="fi-kpi-value" id="bank-balance-fortuneo">— €</div>
+          <div class="fi-kpi-sub" id="bank-meta-fortuneo">—</div>
+        </div>
+        <div class="card">
+          <div class="card-title">Transactions (30j)</div>
+          <div class="fi-kpi-value" id="bank-txcount-fortuneo">—</div>
+          <div class="fi-kpi-sub" id="bank-txlast-fortuneo">Dernière : —</div>
+        </div>
       </div>
-      <div class="form-group">
-        <label class="form-label">Database ID</label>
-        <input class="form-input" id="notion-dbid" type="text" value="17e243720b9249599dbe37793a7b9b45" placeholder="32 caractères depuis l'URL Notion">
+
+      <div class="card" style="padding:0">
+        <div style="padding:16px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between">
+          <div class="card-title" style="margin:0">Dernières opérations</div>
+          <button class="btn btn-ghost btn-sm" onclick="reloadBank('fortuneo')">Actualiser</button>
+        </div>
+        <div id="bank-txlist-fortuneo">
+          <p style="padding:32px;color:var(--muted);text-align:center">Chargement…</p>
+        </div>
       </div>
     </div>
-    <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
-      <button class="btn btn-primary" onclick="saveNotionConfig()">💾 Enregistrer la config</button>
-      <button class="btn btn-ghost" onclick="syncNotion()" id="btn-sync" style="display:none">
-        <span id="sync-icon">🔄</span> Synchroniser maintenant
-      </button>
-      <button class="btn btn-ghost" onclick="clearNotionConfig()" id="btn-clear" style="display:none;color:var(--accent)">Déconnecter</button>
-      <span id="last-sync-label" style="font-size:11px;color:var(--muted);margin-left:auto"></span>
+
+    <!-- ─── MYEFARM (Stripe) ─── -->
+    <div class="page" id="page-myefarm">
+      <div class="page-header">
+        <div>
+          <div class="page-title">MyeFarm</div>
+          <div class="page-sub">Stripe · paiements jeu en ligne</div>
+        </div>
+        <div id="bank-status-myefarm" class="fi-status"><span class="dot" style="background:var(--gold)"></span>Stripe non configuré</div>
+      </div>
+
+      <div class="grid-2">
+        <div class="card">
+          <div class="card-title">Solde disponible (net)</div>
+          <div class="fi-kpi-value" id="bank-balance-myefarm">— €</div>
+          <div class="fi-kpi-sub" id="bank-meta-myefarm">En attente d'intégration Stripe</div>
+        </div>
+        <div class="card">
+          <div class="card-title">Paiements ce mois</div>
+          <div class="fi-kpi-value" id="bank-txcount-myefarm">—</div>
+          <div class="fi-kpi-sub" id="bank-txlast-myefarm">Dernier paiement : —</div>
+        </div>
+      </div>
+
+      <div class="card" style="padding:0">
+        <div style="padding:16px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between">
+          <div class="card-title" style="margin:0">Derniers paiements</div>
+          <button class="btn btn-ghost btn-sm" onclick="reloadBank('myefarm')">Actualiser</button>
+        </div>
+        <div id="bank-txlist-myefarm">
+          <div style="padding:28px;color:var(--muted);text-align:center;font-size:13px">
+            Pour brancher Stripe, il me faudra ta <strong>Restricted API key</strong> en lecture seule
+            (<em>read-only</em> sur balance, charges, payouts). On la configurera à l'étape suivante.
+          </div>
+        </div>
+      </div>
     </div>
-  </div>
-
-  <div style="background:rgba(244,162,97,0.08);border:1px solid rgba(244,162,97,0.3);border-radius:10px;padding:14px 18px;margin-bottom:20px;font-size:13px;color:var(--gold)">
-    ⚠️ <strong>Proxy CORS requis.</strong> Saisis le proxy Netlify ci-dessous puis clique Enregistrer avant de synchroniser.
-  </div>
-
-  <div class="card" style="margin-bottom:20px">
-    <div class="card-title">Proxy CORS</div>
-    <div class="form-group">
-      <label class="form-label">URL du proxy</label>
-      <input class="form-input" id="notion-proxy" type="text" value="https://nimble-begonia-763a5d.netlify.app/notion-proxy/" placeholder="https://corsproxy.io/?url=">
-    </div>
-    <div style="font-size:12px;color:var(--muted);margin-top:8px">
-      Proxy public utilisé : <code style="background:var(--surface2);padding:2px 6px;border-radius:4px">ton site Netlify</code> — nécessite le fichier <code style="background:var(--surface2);padding:2px 6px;border-radius:4px">netlify.toml</code> déployé.
-    </div>
-  </div>
-
-  <div class="card" style="margin-bottom:20px">
-    <div class="card-title">Mapping colonnes Notion → Dashboard</div>
-    <table class="actions-table">
-      <thead><tr><th>Colonne Notion</th><th>Rôle</th><th>Valeurs reconnues</th></tr></thead>
-      <tbody>
-        <tr><td><code>Clients</code></td><td>Nom du client</td><td>Texte libre</td></tr>
-        <tr><td><code>Date</code></td><td>Date de la transaction</td><td>Date Notion</td></tr>
-        <tr><td><code>Tarif prestation</code></td><td>Montant HT (€)</td><td>Nombre</td></tr>
-        <tr><td><code>Type</code></td><td>Activité → Photo / Web / Jeu</td><td><span class="activity-tag photo">Portrait Particulier</span> <span class="activity-tag photo">Production</span> <span class="activity-tag web">Site Web</span> <span class="activity-tag web">SEO</span> <span class="activity-tag web">Commission BNI</span></td></tr>
-        <tr><td><code>Origine contact</code></td><td>Source</td><td>BNI, Plato, Groupon…</td></tr>
-      </tbody>
-    </table>
-  </div>
-
-  <div class="flex-between">
-    <div class="section-title" style="margin:0">Données importées depuis Notion</div>
-    <span id="notion-count" style="font-size:12px;color:var(--muted)"></span>
-  </div>
-  <div class="card" style="margin-top:12px;padding:0">
-    <table class="client-table">
-      <thead><tr><th>Date</th><th>Client</th><th>Type Notion</th><th>Activité</th><th>Origine</th><th>Montant</th></tr></thead>
-      <tbody id="notion-preview-body">
-        <tr><td colspan="6" style="text-align:center;color:var(--muted);padding:32px">Configure le token et clique "Synchroniser"</td></tr>
-      </tbody>
-    </table>
-  </div>
-    </div>
-
   </main>
 </div>
 
@@ -1648,17 +1277,194 @@ let state = loadData();
 function navigate(page) {
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
-  document.getElementById('page-' + page).classList.add('active');
+  const pageEl = document.getElementById('page-' + page);
+  if (pageEl) pageEl.classList.add('active');
   document.querySelectorAll('.nav-item').forEach(n => {
-    if (n.getAttribute('onclick').includes("'" + page + "'")) n.classList.add('active');
+    const onclick = n.getAttribute('onclick') || '';
+    if (onclick.includes("'" + page + "'")) n.classList.add('active');
   });
-  if (page === 'crm') renderCRM();
-  if (page === 'ca') renderCA();
-  if (page === 'sprints') renderSprints();
-  if (page === 'activites') renderActivites();
-  if (page === 'dashboard') renderDashboard();
-  if (page === 'notion') initNotionPage();
-  if (page === 'finances') initFinances();
+  if (page === 'apercu') renderApercu();
+  else if (['qonto', 'traderepublic', 'bpo', 'fortuneo'].includes(page)) renderBankPage(page);
+}
+
+// ─── BANK PAGES (Aperçu + 5 comptes) ────────────────────────────────────────
+
+const BANK_BY_SLUG = {
+  qonto: 'Qonto',
+  traderepublic: 'Trade Republic',
+  bpo: 'Banque Populaire',
+  fortuneo: 'Fortuneo',
+};
+
+function bankSlugOf(bankName) {
+  return Object.entries(BANK_BY_SLUG).find(([, n]) => n === bankName)?.[0];
+}
+
+function getWorkerConfig() {
+  try {
+    const raw = sessionStorage.getItem('wassim:finances:config');
+    if (raw) return JSON.parse(raw);
+  } catch {}
+  return null;
+}
+
+function configureWorker() {
+  const cfg = getWorkerConfig() || {};
+  const url = prompt('URL du worker', cfg.workerUrl || 'https://bridge-proxy-wassim.loumiwassim.workers.dev');
+  if (!url) return;
+  const token = prompt('Token X-Wassim-Auth', cfg.authToken || '');
+  if (!token) return;
+  sessionStorage.setItem('wassim:finances:config', JSON.stringify({ workerUrl: url, authToken: token }));
+  const active = document.querySelector('.nav-item.active')?.getAttribute('onclick') || '';
+  const match = active.match(/'([^']+)'/);
+  if (match) navigate(match[1]);
+}
+
+async function fetchBankData() {
+  const cfg = getWorkerConfig();
+  if (!cfg || !cfg.workerUrl || !cfg.authToken) return { error: 'config-missing' };
+  const base = cfg.workerUrl.replace(/\/$/, '');
+  const headers = { 'X-Wassim-Auth': cfg.authToken };
+  try {
+    const [accRes, txRes] = await Promise.all([
+      fetch(base + '/accounts', { headers }),
+      fetch(base + '/transactions', { headers }),
+    ]);
+    if (!accRes.ok || !txRes.ok) return { error: 'worker-' + (accRes.ok ? txRes.status : accRes.status) };
+    const accData = await accRes.json();
+    const txData = await txRes.json();
+    return { accounts: accData.accounts || [], transactions: txData.transactions || [], sources: accData.sources || [] };
+  } catch (e) {
+    return { error: 'network', message: e.message };
+  }
+}
+
+function formatAmount(n, currency = 'EUR') {
+  if (n == null || isNaN(n)) return '— €';
+  return new Intl.NumberFormat('fr-FR', { style: 'currency', currency }).format(n);
+}
+
+function escapeHtml(s) {
+  return String(s || '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+function renderConfigMissing(listEl, statusEl) {
+  if (statusEl) statusEl.innerHTML = '<span class="dot" style="background:var(--gold)"></span>Worker non configuré';
+  if (listEl) listEl.innerHTML = '<div style="padding:32px;text-align:center"><div style="color:var(--muted);margin-bottom:12px">Worker non configuré dans cette session.</div><button class="btn btn-primary" onclick="configureWorker()">Configurer le worker</button></div>';
+}
+
+async function renderBankPage(slug) {
+  const bankName = BANK_BY_SLUG[slug];
+  if (!bankName) return;
+  const balEl = document.getElementById('bank-balance-' + slug);
+  const metaEl = document.getElementById('bank-meta-' + slug);
+  const cntEl = document.getElementById('bank-txcount-' + slug);
+  const lastEl = document.getElementById('bank-txlast-' + slug);
+  const listEl = document.getElementById('bank-txlist-' + slug);
+  const statusEl = document.getElementById('bank-status-' + slug);
+  if (!balEl) return;
+
+  if (listEl) listEl.innerHTML = '<p style="padding:32px;color:var(--muted);text-align:center">Chargement…</p>';
+  const data = await fetchBankData();
+  if (data.error === 'config-missing') return renderConfigMissing(listEl, statusEl);
+  if (data.error) {
+    if (statusEl) statusEl.innerHTML = '<span class="dot" style="background:var(--red)"></span>Erreur worker';
+    if (listEl) listEl.innerHTML = '<p style="padding:32px;color:var(--red);text-align:center">' + escapeHtml(data.error) + ' ' + escapeHtml(data.message || '') + '</p>';
+    return;
+  }
+  const acc = data.accounts.find(a => a.bank_name === bankName);
+  if (!acc) {
+    if (statusEl) statusEl.innerHTML = '<span class="dot" style="background:var(--red)"></span>Compte introuvable';
+    balEl.textContent = '— €';
+    if (listEl) listEl.innerHTML = '<p style="padding:32px;color:var(--muted);text-align:center">Pas de compte ' + escapeHtml(bankName) + ' trouvé.</p>';
+    return;
+  }
+  const isLive = !String(acc.id).startsWith('acct_');
+  if (statusEl) statusEl.innerHTML = isLive
+    ? '<span class="dot" style="background:var(--green)"></span>Connecté · données réelles'
+    : '<span class="dot" style="background:var(--gold)"></span>Mock — en attente Bridge';
+  balEl.textContent = formatAmount(acc.balance, acc.currency_code);
+  if (metaEl) metaEl.textContent = (acc.iban_last4 ? 'IBAN ••••' + acc.iban_last4 : '') + (acc.type ? ' · ' + acc.type : '');
+
+  const txs = data.transactions
+    .filter(t => t.account_id === acc.id)
+    .sort((a, b) => new Date(b.date) - new Date(a.date));
+  const last30 = txs.filter(t => (Date.now() - new Date(t.date).getTime()) < 30 * 86400000);
+  if (cntEl) cntEl.textContent = last30.length;
+  if (lastEl) lastEl.textContent = 'Dernière : ' + (txs[0] ? new Date(txs[0].date).toLocaleDateString('fr-FR') : '—');
+
+  if (!listEl) return;
+  if (txs.length === 0) {
+    listEl.innerHTML = '<p style="padding:32px;color:var(--muted);text-align:center">Aucune transaction sur ce compte.</p>';
+    return;
+  }
+  listEl.innerHTML = '<table class="data-table" style="border:none;border-radius:0">' +
+    '<thead><tr><th>Date</th><th>Description</th><th class="num">Montant</th></tr></thead>' +
+    '<tbody>' + txs.slice(0, 20).map(t =>
+      '<tr><td>' + new Date(t.date).toLocaleDateString('fr-FR') + '</td>' +
+      '<td>' + escapeHtml(t.description || '') + '</td>' +
+      '<td class="num ' + (t.amount >= 0 ? 'amount-pos' : 'amount-neg') + '">' + formatAmount(t.amount, t.currency_code) + '</td></tr>'
+    ).join('') + '</tbody></table>';
+}
+
+async function renderApercu() {
+  const sumEl = document.getElementById('apercu-total');
+  const proEl = document.getElementById('apercu-pro');
+  const persoEl = document.getElementById('apercu-perso');
+  const listEl = document.getElementById('apercu-list');
+  const statusEl = document.getElementById('apercu-status');
+
+  const data = await fetchBankData();
+  if (data.error === 'config-missing') return renderConfigMissing(listEl, statusEl);
+  if (data.error) {
+    if (statusEl) statusEl.innerHTML = '<span class="dot" style="background:var(--red)"></span>Erreur worker';
+    if (listEl) listEl.innerHTML = '<p style="padding:32px;color:var(--red);text-align:center">' + escapeHtml(data.error) + ' ' + escapeHtml(data.message || '') + '</p>';
+    return;
+  }
+
+  const accs = data.accounts;
+  const proSum = accs.filter(a => a.type === 'Pro').reduce((s, a) => s + (a.balance || 0), 0);
+  const persoSum = accs.filter(a => a.type === 'Perso').reduce((s, a) => s + (a.balance || 0), 0);
+  if (sumEl) sumEl.textContent = formatAmount(proSum + persoSum);
+  if (proEl) proEl.textContent = formatAmount(proSum);
+  if (persoEl) persoEl.textContent = formatAmount(persoSum);
+  if (statusEl) statusEl.innerHTML = '<span class="dot" style="background:var(--green)"></span>Sync ' + new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+
+  if (!listEl) return;
+  const rows = accs.map(a => {
+    const isLive = !String(a.id).startsWith('acct_');
+    const slug = bankSlugOf(a.bank_name);
+    const clickAttr = slug ? ' onclick="navigate(\'' + slug + '\')" style="cursor:pointer"' : ' style="opacity:0.6"';
+    return '<div' + clickAttr + ' onmouseover="this.style.background=\'var(--surface2)\'" onmouseout="this.style.background=\'\'" style="padding:14px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:16px;cursor:pointer">' +
+      '<div style="flex:1">' +
+        '<div style="font-weight:600;font-size:14px">' + escapeHtml(a.bank_name) + '</div>' +
+        '<div style="font-size:12px;color:var(--muted);margin-top:2px">' + (a.type || '') + (a.iban_last4 ? ' · ••••' + a.iban_last4 : '') + '</div>' +
+      '</div>' +
+      '<div style="text-align:right">' +
+        '<div style="font-weight:600;font-variant-numeric:tabular-nums">' + formatAmount(a.balance, a.currency_code) + '</div>' +
+        '<div style="font-size:11px;color:var(--muted);margin-top:2px">' + (isLive ? '🟢 Live' : '🟡 Mock') + '</div>' +
+      '</div>' +
+    '</div>';
+  }).join('');
+
+  // Add MyeFarm placeholder
+  const myefarmRow = '<div onclick="navigate(\'myefarm\')" onmouseover="this.style.background=\'var(--surface2)\'" onmouseout="this.style.background=\'\'" style="padding:14px 20px;display:flex;align-items:center;gap:16px;cursor:pointer">' +
+    '<div style="flex:1">' +
+      '<div style="font-weight:600;font-size:14px">MyeFarm</div>' +
+      '<div style="font-size:12px;color:var(--muted);margin-top:2px">Pro · Stripe (jeu en ligne)</div>' +
+    '</div>' +
+    '<div style="text-align:right">' +
+      '<div style="font-weight:600;color:var(--muted)">— €</div>' +
+      '<div style="font-size:11px;color:var(--muted);margin-top:2px">⚙️ À configurer</div>' +
+    '</div>' +
+  '</div>';
+
+  listEl.innerHTML = rows + myefarmRow;
+}
+
+function reloadBank(slug) {
+  if (slug === 'apercu') return renderApercu();
+  return renderBankPage(slug);
 }
 
 // ─── DASHBOARD ──────────────────────────────────────────────────────────────
@@ -3067,7 +2873,7 @@ function svgHorizontalBars(rows, { height = 280 }) {
 
 // ─── INIT ───────────────────────────────────────────────────────────────────
 
-renderDashboard();
+navigate('apercu');
 </script>
 </body>
 </html>
