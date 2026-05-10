@@ -1,0 +1,58 @@
+name: Deploy bridge-proxy worker
+
+on:
+  workflow_dispatch:
+    inputs:
+      provision-secrets:
+        description: "Provision/refresh Notion + auth secrets before deploy"
+        type: boolean
+        default: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: workers/bridge-proxy
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: workers/bridge-proxy/package-lock.json
+
+      - run: npm ci
+
+      - name: Provision secrets
+        if: ${{ inputs.provision-secrets }}
+        env:
+          NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
+          NOTION_DB_ACCOUNTS_ID: ${{ secrets.NOTION_DB_ACCOUNTS_ID }}
+          NOTION_DB_TRANSACTIONS_ID: ${{ secrets.NOTION_DB_TRANSACTIONS_ID }}
+          NOTION_DB_CATEGORIES_ID: ${{ secrets.NOTION_DB_CATEGORIES_ID }}
+          WASSIM_AUTH_TOKEN: ${{ secrets.WASSIM_AUTH_TOKEN }}
+        run: |
+          printf '%s' "$NOTION_TOKEN"             | npx wrangler secret put NOTION_TOKEN
+          printf '%s' "$NOTION_DB_ACCOUNTS_ID"    | npx wrangler secret put NOTION_DB_ACCOUNTS_ID
+          printf '%s' "$NOTION_DB_TRANSACTIONS_ID"| npx wrangler secret put NOTION_DB_TRANSACTIONS_ID
+          printf '%s' "$NOTION_DB_CATEGORIES_ID"  | npx wrangler secret put NOTION_DB_CATEGORIES_ID
+          printf '%s' "$WASSIM_AUTH_TOKEN"        | npx wrangler secret put WASSIM_AUTH_TOKEN
+
+      - run: npx wrangler deploy
+
+      - name: Smoke test /health
+        run: |
+          for i in 1 2 3 4 5; do
+            sleep 3
+            out=$(curl -fsS "https://bridge-proxy-wassim.${CF_SUBDOMAIN:-workers}.workers.dev/health" || true)
+            echo "$out"
+            echo "$out" | grep -q '"ok":true' && exit 0
+          done
+          echo "Worker did not become healthy in time" >&2
+          exit 1
+        continue-on-error: true
