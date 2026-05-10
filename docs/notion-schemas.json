@@ -1,0 +1,139 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "Schémas exacts des 3 bases Notion à créer pour la page Finances. Utilisé par scripts/create-notion-dbs.js (création automatique) et comme référence si tu préfères les créer à la main.",
+  "parent_workspace_id": "150fe946-b384-8040-807a-fe386df26fdd",
+  "databases": {
+    "accounts": {
+      "title": "💳 Comptes bancaires",
+      "icon": "💳",
+      "properties": {
+        "Nom du compte": { "type": "title" },
+        "Banque": {
+          "type": "select",
+          "options": [
+            { "name": "Fortuneo", "color": "blue" },
+            { "name": "Trade Republic", "color": "purple" },
+            { "name": "Banque Populaire", "color": "green" },
+            { "name": "Qonto", "color": "yellow" }
+          ]
+        },
+        "Type": {
+          "type": "select",
+          "options": [
+            { "name": "Perso", "color": "blue" },
+            { "name": "Pro", "color": "orange" }
+          ]
+        },
+        "IBAN (4 derniers)": { "type": "rich_text" },
+        "Solde actuel": { "type": "number", "format": "euro" },
+        "Devise": {
+          "type": "select",
+          "options": [{ "name": "EUR", "color": "default" }]
+        },
+        "bridge_account_id": { "type": "rich_text" },
+        "Dernière synchro": { "type": "date" },
+        "Statut": {
+          "type": "select",
+          "options": [
+            { "name": "🟢 OK", "color": "green" },
+            { "name": "🟡 Reconnect", "color": "yellow" },
+            { "name": "🔴 Erreur", "color": "red" }
+          ]
+        }
+      }
+    },
+    "transactions": {
+      "title": "📊 Transactions",
+      "icon": "📊",
+      "properties": {
+        "Description": { "type": "title" },
+        "Date": { "type": "date" },
+        "Montant": { "type": "number", "format": "euro" },
+        "Compte": {
+          "type": "relation",
+          "relation_target": "accounts"
+        },
+        "Catégorie": {
+          "type": "relation",
+          "relation_target": "categories"
+        },
+        "Catégorie auto Bridge": { "type": "rich_text" },
+        "Type": {
+          "type": "select",
+          "options": [
+            { "name": "Perso", "color": "blue" },
+            { "name": "Pro", "color": "orange" },
+            { "name": "Mixte", "color": "gray" }
+          ]
+        },
+        "Récurrent": { "type": "checkbox" },
+        "Note": { "type": "rich_text" },
+        "bridge_transaction_id": { "type": "rich_text" },
+        "updated_at": { "type": "date" }
+      }
+    },
+    "categories": {
+      "title": "🏷️ Catégories",
+      "icon": "🏷️",
+      "properties": {
+        "Nom": { "type": "title" },
+        "Type": {
+          "type": "select",
+          "options": [
+            { "name": "Pro", "color": "orange" },
+            { "name": "Perso", "color": "blue" },
+            { "name": "Mixte", "color": "gray" }
+          ]
+        },
+        "Couleur": {
+          "type": "select",
+          "options": [
+            { "name": "rouge", "color": "red" },
+            { "name": "orange", "color": "orange" },
+            { "name": "jaune", "color": "yellow" },
+            { "name": "vert", "color": "green" },
+            { "name": "bleu", "color": "blue" },
+            { "name": "violet", "color": "purple" },
+            { "name": "rose", "color": "pink" },
+            { "name": "gris", "color": "gray" }
+          ]
+        },
+        "Budget mensuel": { "type": "number", "format": "euro" },
+        "Mots-clés mapping": {
+          "type": "multi_select",
+          "options": []
+        }
+      }
+    }
+  },
+  "categories_seed": [
+    { "name": "Logiciels SaaS", "type": "Pro", "couleur": "violet", "keywords": ["stripe", "subscription", "abonnement", "saas", "figma", "adobe", "github", "notion", "slack", "zoom", "openai", "anthropic", "cloudflare", "vercel", "netlify"] },
+    { "name": "URSSAF", "type": "Pro", "couleur": "rouge", "keywords": ["urssaf"] },
+    { "name": "Impôts pro", "type": "Pro", "couleur": "rouge", "keywords": ["dgfip", "tresor public", "impots", "tva"] },
+    { "name": "Honoraires expert-compta", "type": "Pro", "couleur": "orange", "keywords": ["comptable", "expert-compt", "cabinet"] },
+    { "name": "Achats matériel", "type": "Pro", "couleur": "jaune", "keywords": ["apple store", "fnac pro", "darty pro", "materiel.net", "ldlc"] },
+    { "name": "Frais bancaires pro", "type": "Pro", "couleur": "gris", "keywords": ["frais bancaire", "cotisation carte", "commission"] },
+    { "name": "Communication/Marketing", "type": "Pro", "couleur": "rose", "keywords": ["google ads", "meta ads", "facebook ads", "linkedin ads", "mailchimp"] },
+    { "name": "Formation/Livres", "type": "Pro", "couleur": "vert", "keywords": ["udemy", "coursera", "amazon livres", "fnac livre"] },
+    { "name": "Hébergement web", "type": "Pro", "couleur": "bleu", "keywords": ["ovh", "hostinger", "aws", "gcp", "azure", "digitalocean", "hetzner"] },
+    { "name": "Téléphone/Internet pro", "type": "Pro", "couleur": "bleu", "keywords": ["orange pro", "free pro", "sfr pro", "bouygues pro"] },
+    { "name": "Déplacements pro", "type": "Pro", "couleur": "jaune", "keywords": ["sncf pro", "uber pro"] },
+
+    { "name": "Alimentation", "type": "Perso", "couleur": "vert", "keywords": ["carrefour", "leclerc", "lidl", "monoprix", "auchan", "intermarche", "super u", "biocoop"] },
+    { "name": "Restauration", "type": "Perso", "couleur": "orange", "keywords": ["restaurant", "mcdonald", "burger king", "kfc", "sushi", "pizz", "kebab", "uber eats", "deliveroo"] },
+    { "name": "Transport", "type": "Perso", "couleur": "bleu", "keywords": ["sncf", "ratp", "uber", "bolt", "navigo", "oui.sncf", "flixbus", "blablacar"] },
+    { "name": "Santé", "type": "Perso", "couleur": "vert", "keywords": ["pharmacie", "medecin", "cpam", "mutuelle", "dentiste", "kine"] },
+    { "name": "Loisirs", "type": "Perso", "couleur": "rose", "keywords": ["cinema", "theatre", "spotify", "netflix", "deezer", "disney+", "fitness", "salle de sport"] },
+    { "name": "Vêtements", "type": "Perso", "couleur": "rose", "keywords": ["zara", "h&m", "uniqlo", "kiabi", "decathlon"] },
+    { "name": "Cadeaux", "type": "Perso", "couleur": "rose", "keywords": ["cadeau", "fleurs", "interflora"] },
+    { "name": "Famille", "type": "Perso", "couleur": "rose", "keywords": ["creche", "ecole", "garderie"] },
+    { "name": "Logement", "type": "Perso", "couleur": "rouge", "keywords": ["loyer", "foncia", "syndic"] },
+    { "name": "Énergie", "type": "Perso", "couleur": "jaune", "keywords": ["edf", "engie", "totalenergies", "enedis"] },
+    { "name": "Téléphone perso", "type": "Perso", "couleur": "bleu", "keywords": ["free mobile", "sosh", "red sfr", "bouygues telecom"] },
+    { "name": "Abonnements perso", "type": "Perso", "couleur": "violet", "keywords": ["netflix", "spotify", "disney+", "amazon prime"] },
+
+    { "name": "Carburant", "type": "Mixte", "couleur": "gris", "keywords": ["total", "esso", "shell", "bp ", "station", "carburant", "essence"] },
+    { "name": "Repas pro/perso", "type": "Mixte", "couleur": "gris", "keywords": ["repas", "dejeuner", "brunch"] },
+    { "name": "Voyages", "type": "Mixte", "couleur": "gris", "keywords": ["air france", "easyjet", "ryanair", "booking", "airbnb", "hotel"] }
+  ]
+}

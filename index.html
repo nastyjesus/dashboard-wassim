@@ -576,6 +576,176 @@
   ::-webkit-scrollbar { width: 4px; }
   ::-webkit-scrollbar-track { background: transparent; }
   ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+  /* ─── FINANCES ─── */
+  :root {
+    --fi-pro: #B8873A;
+    --fi-perso: #5B7B9A;
+    --fi-fortuneo: #5B7B9A;
+    --fi-tr: #8b6bd8;
+    --fi-bp: #2a9d8f;
+    --fi-qonto: #B8873A;
+    --fi-pos: #2a9d8f;
+    --fi-neg: #e63946;
+  }
+  .fi-toolbar {
+    display: flex; flex-wrap: wrap; gap: 10px; align-items: center;
+    margin-bottom: 24px;
+  }
+  .fi-segmented {
+    display: inline-flex; background: var(--surface); border: 1px solid var(--border);
+    border-radius: 8px; overflow: hidden;
+  }
+  .fi-segmented button {
+    background: transparent; color: var(--muted); border: none;
+    padding: 8px 14px; font-family: var(--font-body); font-size: 12px;
+    font-weight: 500; cursor: pointer; transition: all 0.15s;
+    text-transform: uppercase; letter-spacing: 0.5px;
+  }
+  .fi-segmented button:hover { color: var(--text); }
+  .fi-segmented button.active { background: var(--surface2); color: var(--text); }
+  .fi-segmented button.active.pro { color: var(--fi-pro); }
+  .fi-segmented button.active.perso { color: var(--fi-perso); }
+  .fi-spacer { flex: 1; }
+  .fi-status-pill {
+    display: inline-flex; align-items: center; gap: 6px;
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 20px; padding: 6px 12px; font-size: 11px; color: var(--muted);
+  }
+  .fi-status-pill .dot {
+    width: 6px; height: 6px; border-radius: 50%; background: var(--muted);
+  }
+  .fi-status-pill.live .dot { background: var(--green); }
+  .fi-status-pill.mock .dot { background: var(--gold); }
+
+  /* KPI cards finances : variantes pro / perso / global */
+  .fi-kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 16px;
+    margin-bottom: 24px;
+  }
+  @media (max-width: 900px) {
+    .fi-kpi-grid { grid-template-columns: repeat(2, 1fr); }
+  }
+  .fi-kpi {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 18px 20px;
+    position: relative; overflow: hidden;
+  }
+  .fi-kpi::before {
+    content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px;
+  }
+  .fi-kpi.pro::before { background: var(--fi-pro); }
+  .fi-kpi.perso::before { background: var(--fi-perso); }
+  .fi-kpi.total::before { background: var(--gold); }
+  .fi-kpi.cashflow::before { background: var(--blue); }
+  .fi-kpi-label {
+    font-size: 10px; text-transform: uppercase; letter-spacing: 1.5px;
+    color: var(--muted); margin-bottom: 8px; font-weight: 500;
+  }
+  .fi-kpi-value {
+    font-family: var(--font-head); font-size: 26px; font-weight: 800;
+    color: var(--text); line-height: 1;
+  }
+  .fi-kpi-sub { font-size: 11px; color: var(--muted); margin-top: 6px; }
+  .fi-kpi-sub.pos { color: var(--fi-pos); }
+  .fi-kpi-sub.neg { color: var(--fi-neg); }
+  .fi-kpi.is-blurred .fi-kpi-value { filter: blur(8px); user-select: none; }
+
+  /* Carte graphique */
+  .fi-chart-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 18px 20px;
+    margin-bottom: 16px;
+  }
+  .fi-chart-card .fi-chart-header {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 14px;
+  }
+  .fi-chart-card .fi-chart-title {
+    font-family: var(--font-head); font-size: 14px; font-weight: 700;
+  }
+  .fi-chart-card .fi-chart-meta { font-size: 11px; color: var(--muted); }
+  .fi-chart-svg { width: 100%; height: auto; display: block; }
+  .fi-legend { display: flex; flex-wrap: wrap; gap: 14px; margin-top: 12px; font-size: 11px; }
+  .fi-legend-item { display: flex; align-items: center; gap: 6px; color: var(--muted); }
+  .fi-legend-dot { width: 10px; height: 10px; border-radius: 2px; }
+
+  .fi-grid-2 {
+    display: grid; grid-template-columns: 1.4fr 1fr; gap: 16px;
+    margin-bottom: 16px;
+  }
+  @media (max-width: 1100px) { .fi-grid-2 { grid-template-columns: 1fr; } }
+
+  /* Tableau transactions */
+  .fi-tx-table {
+    width: 100%; border-collapse: collapse; font-size: 13px;
+  }
+  .fi-tx-table th {
+    text-align: left; padding: 10px 14px; font-size: 11px;
+    color: var(--muted); text-transform: uppercase; letter-spacing: 1px;
+    border-bottom: 1px solid var(--border); background: var(--surface);
+    font-weight: 500;
+  }
+  .fi-tx-table td {
+    padding: 10px 14px; border-bottom: 1px solid var(--border);
+    color: var(--text); vertical-align: middle;
+  }
+  .fi-tx-table tr:hover td { background: var(--surface2); }
+  .fi-tx-amount.pos { color: var(--fi-pos); font-weight: 600; }
+  .fi-tx-amount.neg { color: var(--fi-neg); font-weight: 600; }
+  .fi-tx-amount.is-blurred { filter: blur(6px); user-select: none; }
+  .fi-tx-cat-input, .fi-tx-note-input {
+    background: transparent; border: 1px dashed transparent;
+    color: var(--text); font-family: inherit; font-size: 12px;
+    padding: 4px 6px; border-radius: 4px; width: 100%;
+  }
+  .fi-tx-cat-input:focus, .fi-tx-note-input:focus {
+    outline: none; border-color: var(--accent); background: var(--surface2);
+  }
+  .fi-tx-bank {
+    display: inline-flex; align-items: center; gap: 6px;
+    font-size: 11px; padding: 2px 8px; border-radius: 12px;
+    background: var(--surface2); color: var(--muted);
+  }
+  .fi-tx-bank .bank-dot { width: 6px; height: 6px; border-radius: 50%; }
+  .fi-tx-pagination {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 12px 14px; font-size: 12px; color: var(--muted);
+    border-top: 1px solid var(--border);
+  }
+  .fi-tx-cat-badge {
+    display: inline-block; font-size: 11px; padding: 2px 8px; border-radius: 10px;
+    background: var(--surface2); color: var(--text);
+  }
+  .fi-tx-cat-badge.untagged { background: rgba(244,162,97,0.15); color: var(--gold); }
+
+  .fi-search-row {
+    display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 10px;
+    padding: 12px; border-bottom: 1px solid var(--border);
+  }
+  @media (max-width: 700px) {
+    .fi-search-row { grid-template-columns: 1fr; }
+  }
+
+  /* Insights panel */
+  .fi-insight {
+    display: flex; gap: 12px; align-items: flex-start;
+    padding: 12px 14px; border-radius: 8px;
+    background: var(--surface2); border: 1px solid var(--border);
+    margin-bottom: 8px;
+  }
+  .fi-insight.warn { border-color: rgba(244,162,97,0.4); }
+  .fi-insight.alert { border-color: rgba(230,57,70,0.4); }
+  .fi-insight-icon { font-size: 18px; flex-shrink: 0; }
+  .fi-insight-body { flex: 1; font-size: 13px; line-height: 1.5; }
+  .fi-insight-title { font-weight: 600; margin-bottom: 2px; }
+  .fi-insight-meta { color: var(--muted); font-size: 11px; }
 </style>
 </head>
 <body>
@@ -603,6 +773,9 @@
       </div>
       <div class="nav-item" onclick="navigate('ca')">
         <span class="icon">📈</span> CA & Revenus
+      </div>
+      <div class="nav-item" onclick="navigate('finances')">
+        <span class="icon">🏦</span> Finances
       </div>
       <div class="nav-item" onclick="navigate('notion')">
         <span class="icon">🔗</span> Notion Sync
@@ -984,6 +1157,144 @@
       </div>
     </div>
 
+    <!-- ─── FINANCES PAGE ─── -->
+    <div class="page" id="page-finances">
+      <div class="page-header">
+        <div class="page-title">🏦 Finances</div>
+        <div class="page-sub">Agrégation Bridge API · 4 comptes · perso & pro SOWPHOTO</div>
+      </div>
+
+      <div class="fi-toolbar">
+        <div class="fi-segmented" id="fi-scope" role="tablist" aria-label="Filtrer perso ou pro">
+          <button class="active" data-scope="all" aria-label="Voir tous les comptes">Tout</button>
+          <button data-scope="perso" class="perso" aria-label="Filtrer comptes personnels">Perso</button>
+          <button data-scope="pro" class="pro" aria-label="Filtrer comptes pro">Pro</button>
+        </div>
+        <div class="fi-segmented" id="fi-period" role="tablist" aria-label="Période d'analyse">
+          <button data-period="7">7j</button>
+          <button class="active" data-period="30">30j</button>
+          <button data-period="90">3 mois</button>
+          <button data-period="365">12 mois</button>
+        </div>
+        <button class="btn btn-ghost btn-sm" onclick="toggleAnonymousMode()" id="fi-anonymous-btn" aria-label="Activer ou désactiver le mode anonyme">👁️ Anonymiser</button>
+        <div class="fi-spacer"></div>
+        <span class="fi-status-pill" id="fi-status">
+          <span class="dot"></span>
+          <span id="fi-status-label">Initialisation…</span>
+        </span>
+        <button class="btn btn-primary btn-sm" onclick="syncFinances()" id="fi-sync-btn" aria-label="Lancer une synchronisation Bridge maintenant">🔄 Synchroniser</button>
+        <button class="btn btn-ghost btn-sm" onclick="exportFinancesCSV()" aria-label="Exporter les transactions filtrées en CSV">⤓ CSV</button>
+      </div>
+
+      <!-- KPI Cards -->
+      <div class="fi-kpi-grid" aria-label="Indicateurs clés finances">
+        <div class="fi-kpi total"><div class="fi-kpi-label">Solde total</div><div class="fi-kpi-value" id="fi-kpi-total">— €</div><div class="fi-kpi-sub" id="fi-kpi-total-sub">4 comptes</div></div>
+        <div class="fi-kpi pro"><div class="fi-kpi-label">Solde Pro</div><div class="fi-kpi-value" id="fi-kpi-pro">— €</div><div class="fi-kpi-sub" id="fi-kpi-pro-sub">BP + Qonto</div></div>
+        <div class="fi-kpi perso"><div class="fi-kpi-label">Solde Perso</div><div class="fi-kpi-value" id="fi-kpi-perso">— €</div><div class="fi-kpi-sub" id="fi-kpi-perso-sub">Fortuneo + TR</div></div>
+        <div class="fi-kpi cashflow"><div class="fi-kpi-label">Cashflow <span id="fi-kpi-cashflow-period">30j</span></div><div class="fi-kpi-value" id="fi-kpi-cashflow">— €</div><div class="fi-kpi-sub" id="fi-kpi-cashflow-sub">entrées − sorties</div></div>
+      </div>
+
+      <!-- Évolution des soldes -->
+      <div class="fi-chart-card">
+        <div class="fi-chart-header">
+          <div class="fi-chart-title">Évolution des soldes</div>
+          <div class="fi-chart-meta" id="fi-balance-period">30 derniers jours</div>
+        </div>
+        <div id="fi-balance-chart" aria-label="Graphique d'évolution des soldes par compte"></div>
+        <div class="fi-legend" id="fi-balance-legend"></div>
+      </div>
+
+      <div class="fi-grid-2">
+        <!-- Cashflow mensuel -->
+        <div class="fi-chart-card">
+          <div class="fi-chart-header">
+            <div class="fi-chart-title">Cashflow mensuel</div>
+            <div class="fi-chart-meta">12 derniers mois</div>
+          </div>
+          <div id="fi-cashflow-chart" aria-label="Graphique cashflow mensuel : entrées vs sorties"></div>
+          <div class="fi-legend">
+            <div class="fi-legend-item"><span class="fi-legend-dot" style="background:var(--fi-pos)"></span>Entrées</div>
+            <div class="fi-legend-item"><span class="fi-legend-dot" style="background:var(--fi-neg)"></span>Sorties</div>
+            <div class="fi-legend-item"><span class="fi-legend-dot" style="background:var(--gold)"></span>Net</div>
+          </div>
+        </div>
+
+        <!-- Dépenses par catégorie -->
+        <div class="fi-chart-card">
+          <div class="fi-chart-header">
+            <div class="fi-chart-title">Top dépenses par catégorie</div>
+            <div class="fi-chart-meta" id="fi-category-meta">Période active</div>
+          </div>
+          <div id="fi-category-chart" aria-label="Top 10 catégories de dépenses"></div>
+        </div>
+      </div>
+
+      <!-- Tableau transactions -->
+      <div class="fi-chart-card" style="padding:0;overflow:hidden">
+        <div class="fi-chart-header" style="padding:18px 20px 12px">
+          <div class="fi-chart-title">Transactions</div>
+          <div class="fi-chart-meta" id="fi-tx-count">—</div>
+        </div>
+        <div class="fi-search-row">
+          <input class="form-input" id="fi-search" type="search" placeholder="🔍 Rechercher description, banque, catégorie…" aria-label="Recherche dans les transactions">
+          <select class="form-input" id="fi-filter-cat" aria-label="Filtrer par catégorie">
+            <option value="">Toutes catégories</option>
+          </select>
+          <select class="form-input" id="fi-filter-amount" aria-label="Filtrer par type de mouvement">
+            <option value="">Tous mouvements</option>
+            <option value="in">Entrées uniquement</option>
+            <option value="out">Sorties uniquement</option>
+          </select>
+        </div>
+        <div style="overflow-x:auto">
+          <table class="fi-tx-table">
+            <thead><tr><th>Date</th><th>Description</th><th>Banque</th><th>Catégorie</th><th style="text-align:right">Montant</th><th>Note</th></tr></thead>
+            <tbody id="fi-tx-body"></tbody>
+          </table>
+        </div>
+        <div class="fi-tx-pagination">
+          <span id="fi-tx-pager-label">—</span>
+          <div style="display:flex;gap:8px">
+            <button class="btn btn-ghost btn-sm" onclick="financesPagePrev()" aria-label="Page précédente">← Précédent</button>
+            <button class="btn btn-ghost btn-sm" onclick="financesPageNext()" aria-label="Page suivante">Suivant →</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Insights -->
+      <div class="fi-chart-card">
+        <div class="fi-chart-header">
+          <div class="fi-chart-title">Alertes & Insights</div>
+          <div class="fi-chart-meta">Détectés sur la période active</div>
+        </div>
+        <div id="fi-insights"></div>
+      </div>
+
+      <!-- Configuration repliable -->
+      <details class="card" style="margin-top:20px">
+        <summary style="cursor:pointer;color:var(--muted);font-size:13px;padding:6px 0">⚙️ Configuration Bridge / Worker</summary>
+        <div style="margin-top:14px;font-size:12px;color:var(--muted);line-height:1.7">
+          <p>Le dashboard appelle le worker Cloudflare <code style="background:var(--surface2);padding:2px 5px;border-radius:3px">bridge-proxy-wassim</code>. Tant que les credentials Bridge ne sont pas configurés, les données affichées proviennent de <code style="background:var(--surface2);padding:2px 5px;border-radius:3px">mocks/bridge-*.json</code>.</p>
+          <div class="form-row" style="margin-top:12px">
+            <div class="form-group">
+              <label class="form-label">URL du worker</label>
+              <input class="form-input" id="fi-worker-url" type="text" placeholder="https://bridge-proxy-wassim.loumiwassim.workers.dev">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Header X-Wassim-Auth</label>
+              <input class="form-input" id="fi-worker-auth" type="password" placeholder="Secret partagé">
+            </div>
+          </div>
+          <div style="display:flex;gap:8px">
+            <button class="btn btn-primary btn-sm" onclick="saveFinancesConfig()">💾 Enregistrer</button>
+            <button class="btn btn-ghost btn-sm" onclick="testFinancesWorker()">🧪 Tester /health</button>
+            <button class="btn btn-ghost btn-sm" onclick="clearFinancesConfig()" style="color:var(--accent);margin-left:auto">Réinitialiser</button>
+          </div>
+          <p style="margin-top:10px">Voir <code>docs/README-finances.md</code> pour la procédure complète.</p>
+        </div>
+      </details>
+    </div>
+
     <!-- ─── NOTION PAGE ─── -->
     <div class="page" id="page-notion">
       <div class="page-header">
@@ -1342,6 +1653,7 @@ function navigate(page) {
   if (page === 'activites') renderActivites();
   if (page === 'dashboard') renderDashboard();
   if (page === 'notion') initNotionPage();
+  if (page === 'finances') initFinances();
 }
 
 // ─── DASHBOARD ──────────────────────────────────────────────────────────────
@@ -2093,6 +2405,660 @@ document.querySelectorAll('.modal-overlay').forEach(overlay => {
     if (e.target === overlay) overlay.classList.remove('open');
   });
 });
+
+// ─── FINANCES ───────────────────────────────────────────────────────────────
+// État runtime (rien n'est persisté en localStorage : le brief l'interdit
+// pour cette page). La config worker peut être saisie depuis la section
+// Configuration repliable et est conservée le temps de la session.
+
+const FI_FMT = new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR', maximumFractionDigits: 2 });
+const FI_FMT_INT = new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 });
+const FI_DATE_FMT = new Intl.DateTimeFormat('fr-FR', { day: '2-digit', month: '2-digit', year: '2-digit' });
+
+const FI = {
+  config: {
+    workerUrl: '',          // ex: https://bridge-proxy-wassim.loumiwassim.workers.dev
+    authToken: '',          // X-Wassim-Auth
+    mocks: { accounts: 'mocks/bridge-accounts.json', transactions: 'mocks/bridge-transactions.json' },
+  },
+  data: { accounts: [], transactions: [], loaded: false, mock: true, lastSync: null },
+  ui: { scope: 'all', period: 30, page: 0, pageSize: 50, search: '', filterCat: '', filterAmount: '', anonymous: false },
+  edits: new Map(),         // bridge_transaction_id -> { category, note }
+};
+
+// Règles de catégorisation côté front (mêmes que le worker — utiles en mode mock).
+const FI_RULES = [
+  { name: 'Logiciels SaaS', type: 'Pro', color: 'violet', kw: ['stripe','subscription','abonnement','saas','figma','adobe','github','notion','slack','zoom','openai','anthropic','cloudflare','vercel','netlify'] },
+  { name: 'URSSAF', type: 'Pro', color: 'rouge', kw: ['urssaf'] },
+  { name: 'Impôts pro', type: 'Pro', color: 'rouge', kw: ['dgfip','tresor public','impots','tva'] },
+  { name: 'Honoraires expert-compta', type: 'Pro', color: 'orange', kw: ['comptable','expert-compt','cabinet'] },
+  { name: 'Hébergement web', type: 'Pro', color: 'bleu', kw: ['ovh','hostinger','aws','gcp','azure','digitalocean','hetzner'] },
+  { name: 'Communication/Marketing', type: 'Pro', color: 'rose', kw: ['google ads','meta ads','facebook ads','linkedin ads','mailchimp'] },
+  { name: 'Frais bancaires pro', type: 'Pro', color: 'gris', kw: ['frais bancaire','cotisation carte','commission','stripe frais'] },
+  { name: 'Alimentation', type: 'Perso', color: 'vert', kw: ['carrefour','leclerc','lidl','monoprix','auchan','intermarche','super u','biocoop'] },
+  { name: 'Restauration', type: 'Perso', color: 'orange', kw: ['restaurant','mcdonald','burger king','sushi','pizz','kebab','uber eats','deliveroo','bistrot'] },
+  { name: 'Transport', type: 'Perso', color: 'bleu', kw: ['sncf','ratp','uber','bolt','navigo','flixbus','blablacar'] },
+  { name: 'Santé', type: 'Perso', color: 'vert', kw: ['pharmacie','medecin','cpam','mutuelle','dentiste','kine'] },
+  { name: 'Loisirs', type: 'Perso', color: 'rose', kw: ['cinema','spotify','netflix','deezer','disney','fitness','salle de sport'] },
+  { name: 'Logement', type: 'Perso', color: 'rouge', kw: ['loyer','foncia','syndic'] },
+  { name: 'Énergie', type: 'Perso', color: 'jaune', kw: ['edf','engie','totalenergies','enedis'] },
+  { name: 'Téléphone perso', type: 'Perso', color: 'bleu', kw: ['free mobile','sosh','red sfr','bouygues telecom'] },
+  { name: 'Carburant', type: 'Mixte', color: 'gris', kw: ['total','esso','shell','station','carburant','essence'] },
+  { name: 'Voyages', type: 'Mixte', color: 'gris', kw: ['air france','easyjet','ryanair','booking','airbnb','hotel'] },
+  { name: 'Investissement', type: 'Perso', color: 'violet', kw: ['etf','pea','dividend','versement','bourse'] },
+  { name: 'Revenus', type: 'Mixte', color: 'vert', kw: ['vir ','salaire','dividende','income'] },
+];
+
+function fiCategorize(tx) {
+  const h = ((tx.description || '') + ' ' + (tx.bridge_category || '')).toLowerCase();
+  if (!h.trim()) return null;
+  for (const r of FI_RULES) if (r.kw.some(k => h.includes(k))) return r;
+  return null;
+}
+
+function fiAmount(n) { return FI_FMT.format(Number(n) || 0); }
+function fiAmountShort(n) {
+  const v = Number(n) || 0;
+  if (Math.abs(v) >= 10000) return FI_FMT_INT.format(v);
+  return FI_FMT.format(v);
+}
+function fiBankColor(bank) {
+  return ({ 'Fortuneo': 'var(--fi-fortuneo)', 'Trade Republic': 'var(--fi-tr)', 'Banque Populaire': 'var(--fi-bp)', 'Qonto': 'var(--fi-qonto)' })[bank] || 'var(--muted)';
+}
+
+// ─── Init / chargement ──────────────────────────────────────────────────────
+
+function initFinances() {
+  // Restore config depuis sessionStorage (volatile, pas de localStorage).
+  try {
+    const raw = sessionStorage.getItem('fi_cfg');
+    if (raw) Object.assign(FI.config, JSON.parse(raw));
+  } catch (_) {}
+
+  if (FI.config.workerUrl) document.getElementById('fi-worker-url').value = FI.config.workerUrl;
+  if (FI.config.authToken) document.getElementById('fi-worker-auth').value = FI.config.authToken;
+
+  // Bind segmented controls une seule fois.
+  if (!FI._bound) {
+    FI._bound = true;
+    document.querySelectorAll('#fi-scope button').forEach(b => {
+      b.addEventListener('click', () => {
+        document.querySelectorAll('#fi-scope button').forEach(x => x.classList.remove('active'));
+        b.classList.add('active');
+        FI.ui.scope = b.dataset.scope;
+        renderFinances();
+      });
+    });
+    document.querySelectorAll('#fi-period button').forEach(b => {
+      b.addEventListener('click', () => {
+        document.querySelectorAll('#fi-period button').forEach(x => x.classList.remove('active'));
+        b.classList.add('active');
+        FI.ui.period = Number(b.dataset.period);
+        document.getElementById('fi-kpi-cashflow-period').textContent = ({ 7: '7j', 30: '30j', 90: '3 mois', 365: '12 mois' })[FI.ui.period] || `${FI.ui.period}j`;
+        renderFinances();
+      });
+    });
+    document.getElementById('fi-search').addEventListener('input', e => { FI.ui.search = e.target.value.toLowerCase(); FI.ui.page = 0; renderFinancesTransactions(); });
+    document.getElementById('fi-filter-cat').addEventListener('change', e => { FI.ui.filterCat = e.target.value; FI.ui.page = 0; renderFinancesTransactions(); });
+    document.getElementById('fi-filter-amount').addEventListener('change', e => { FI.ui.filterAmount = e.target.value; FI.ui.page = 0; renderFinancesTransactions(); });
+  }
+
+  if (!FI.data.loaded) loadFinancesData();
+  else renderFinances();
+}
+
+async function loadFinancesData() {
+  setFinancesStatus('loading', 'Chargement…');
+  try {
+    let accounts = [], transactions = [], mock = true;
+
+    if (FI.config.workerUrl) {
+      const headers = { 'Content-Type': 'application/json', 'x-requested-with': 'XMLHttpRequest' };
+      if (FI.config.authToken) headers['X-Wassim-Auth'] = FI.config.authToken;
+      const base = FI.config.workerUrl.replace(/\/$/, '');
+      const [aRes, tRes] = await Promise.all([
+        fetch(`${base}/accounts`, { headers }),
+        fetch(`${base}/transactions`, { headers }),
+      ]);
+      if (!aRes.ok || !tRes.ok) throw new Error(`worker HTTP ${aRes.status}/${tRes.status}`);
+      const aJson = await aRes.json();
+      const tJson = await tRes.json();
+      accounts = aJson.accounts || [];
+      transactions = tJson.transactions || [];
+      mock = Boolean(aJson.mock || tJson.mock);
+    } else {
+      const [a, t] = await Promise.all([
+        fetch(FI.config.mocks.accounts).then(r => r.json()),
+        fetch(FI.config.mocks.transactions).then(r => r.json()),
+      ]);
+      accounts = a.accounts || [];
+      transactions = t.transactions || [];
+      mock = true;
+    }
+
+    // Tri par date desc et enrichissement.
+    transactions.sort((a, b) => new Date(b.date) - new Date(a.date));
+    transactions = transactions.map(t => {
+      const acc = accounts.find(a => a.id === t.account_id) || {};
+      const cat = fiCategorize(t);
+      return {
+        ...t,
+        bank_name: acc.bank_name || '—',
+        account_type: acc.type || 'Perso',
+        _cat: cat ? cat.name : null,
+        _catType: cat ? cat.type : null,
+      };
+    });
+
+    FI.data.accounts = accounts;
+    FI.data.transactions = transactions;
+    FI.data.mock = mock;
+    FI.data.loaded = true;
+    FI.data.lastSync = new Date();
+
+    setFinancesStatus(mock ? 'mock' : 'live', mock ? `Mode mock · ${transactions.length} tx` : `Connecté · ${transactions.length} tx`);
+    populateCategoryFilter();
+    renderFinances();
+  } catch (err) {
+    console.error('[finances] load error', err.message);
+    setFinancesStatus('error', `Erreur : ${err.message}`);
+  }
+}
+
+function setFinancesStatus(level, msg) {
+  const pill = document.getElementById('fi-status');
+  if (!pill) return;
+  pill.classList.remove('live', 'mock');
+  if (level === 'live') pill.classList.add('live');
+  else if (level === 'mock') pill.classList.add('mock');
+  document.getElementById('fi-status-label').textContent = msg;
+}
+
+function populateCategoryFilter() {
+  const sel = document.getElementById('fi-filter-cat');
+  const cats = new Set();
+  FI.data.transactions.forEach(t => { if (t._cat) cats.add(t._cat); });
+  const current = sel.value;
+  sel.innerHTML = '<option value="">Toutes catégories</option><option value="__none__">— Sans catégorie</option>'
+    + Array.from(cats).sort().map(c => `<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`).join('');
+  sel.value = current;
+}
+
+// ─── Filtrage des transactions ──────────────────────────────────────────────
+
+function fiFilteredTransactions() {
+  const now = new Date();
+  const sinceMs = now.getTime() - FI.ui.period * 86400_000;
+  const scope = FI.ui.scope;
+  return FI.data.transactions.filter(t => {
+    if (new Date(t.date).getTime() < sinceMs) return false;
+    if (scope === 'pro' && t.account_type !== 'Pro') return false;
+    if (scope === 'perso' && t.account_type !== 'Perso') return false;
+    if (FI.ui.filterCat) {
+      if (FI.ui.filterCat === '__none__') { if (t._cat) return false; }
+      else if (t._cat !== FI.ui.filterCat) return false;
+    }
+    if (FI.ui.filterAmount === 'in' && t.amount <= 0) return false;
+    if (FI.ui.filterAmount === 'out' && t.amount >= 0) return false;
+    if (FI.ui.search) {
+      const hay = `${t.description} ${t.bank_name} ${t._cat || ''}`.toLowerCase();
+      if (!hay.includes(FI.ui.search)) return false;
+    }
+    return true;
+  });
+}
+
+// ─── Render principal ───────────────────────────────────────────────────────
+
+function renderFinances() {
+  if (!FI.data.loaded) return;
+  renderFinancesKPI();
+  renderFinancesBalanceChart();
+  renderFinancesCashflowChart();
+  renderFinancesCategoryChart();
+  renderFinancesTransactions();
+  renderFinancesInsights();
+}
+
+function renderFinancesKPI() {
+  const accounts = FI.data.accounts;
+  const total = accounts.reduce((s, a) => s + pickBalance(a), 0);
+  const pro = accounts.filter(a => a.type === 'Pro').reduce((s, a) => s + pickBalance(a), 0);
+  const perso = accounts.filter(a => a.type === 'Perso').reduce((s, a) => s + pickBalance(a), 0);
+
+  // Cashflow sur la période + scope.
+  const filtered = fiFilteredTransactions();
+  const inflow = filtered.filter(t => t.amount > 0).reduce((s, t) => s + t.amount, 0);
+  const outflow = filtered.filter(t => t.amount < 0).reduce((s, t) => s + t.amount, 0);
+  const net = inflow + outflow;
+
+  setKPIValue('fi-kpi-total', total);
+  document.getElementById('fi-kpi-total-sub').textContent = `${accounts.length} comptes`;
+  setKPIValue('fi-kpi-pro', pro);
+  document.getElementById('fi-kpi-pro-sub').textContent = accounts.filter(a => a.type === 'Pro').map(a => a.bank_name).join(' + ') || '—';
+  setKPIValue('fi-kpi-perso', perso);
+  document.getElementById('fi-kpi-perso-sub').textContent = accounts.filter(a => a.type === 'Perso').map(a => a.bank_name).join(' + ') || '—';
+  setKPIValue('fi-kpi-cashflow', net);
+  const sub = document.getElementById('fi-kpi-cashflow-sub');
+  sub.textContent = `+${fiAmountShort(inflow)} / ${fiAmountShort(outflow)}`;
+  sub.className = 'fi-kpi-sub ' + (net >= 0 ? 'pos' : 'neg');
+
+  // Mode anonyme : applique blur sur les valeurs.
+  document.querySelectorAll('.fi-kpi').forEach(el => el.classList.toggle('is-blurred', FI.ui.anonymous));
+}
+
+function setKPIValue(id, v) {
+  document.getElementById(id).textContent = fiAmountShort(v);
+}
+function pickBalance(a) {
+  if (a.balance != null) return a.balance;
+  if (a.instant_balance != null) return a.instant_balance;
+  if (a.accounting_balance != null) return a.accounting_balance;
+  return 0;
+}
+
+// ─── Graph 1 : Évolution des soldes (line chart SVG) ───────────────────────
+// On reconstruit les soldes historiques à partir du solde actuel et des
+// transactions du compte (cumul inverse).
+
+function renderFinancesBalanceChart() {
+  const period = FI.ui.period;
+  const accounts = FI.data.accounts.filter(a => {
+    if (FI.ui.scope === 'pro') return a.type === 'Pro';
+    if (FI.ui.scope === 'perso') return a.type === 'Perso';
+    return true;
+  });
+  document.getElementById('fi-balance-period').textContent = ({ 7: '7 derniers jours', 30: '30 derniers jours', 90: '3 derniers mois', 365: '12 derniers mois' })[period];
+
+  const days = Math.min(period, 365);
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const dates = [];
+  for (let i = days - 1; i >= 0; i--) {
+    const d = new Date(today.getTime() - i * 86400_000);
+    dates.push(d);
+  }
+
+  const series = accounts.map(acc => {
+    const txs = FI.data.transactions.filter(t => t.account_id === acc.id);
+    let balance = pickBalance(acc);
+    // On part d'aujourd'hui et on remonte en soustrayant les transactions du jour.
+    const dailyBalances = new Map();
+    dailyBalances.set(today.toISOString().slice(0, 10), balance);
+    let cursor = balance;
+    for (let i = 0; i < days; i++) {
+      const d = new Date(today.getTime() - i * 86400_000);
+      const key = d.toISOString().slice(0, 10);
+      const dayTx = txs.filter(t => t.date.slice(0, 10) === key);
+      const dayDelta = dayTx.reduce((s, t) => s + t.amount, 0);
+      // Solde en fin de journée = balance après les tx du jour.
+      // Pour le jour précédent : on retire les tx du jour courant.
+      cursor = cursor - dayDelta;
+      const prev = new Date(d.getTime() - 86400_000);
+      dailyBalances.set(prev.toISOString().slice(0, 10), cursor);
+    }
+    const points = dates.map(d => ({ x: d, y: dailyBalances.get(d.toISOString().slice(0, 10)) ?? balance }));
+    return { name: acc.bank_name, color: fiBankColor(acc.bank_name), points };
+  });
+
+  const svg = svgLineChart(series, { height: 220, formatY: v => fiAmountShort(v), formatX: d => FI_DATE_FMT.format(d) });
+  document.getElementById('fi-balance-chart').innerHTML = svg;
+  document.getElementById('fi-balance-legend').innerHTML = series.map(s =>
+    `<div class="fi-legend-item"><span class="fi-legend-dot" style="background:${s.color}"></span>${escapeHtml(s.name)}</div>`
+  ).join('');
+}
+
+// ─── Graph 2 : Cashflow mensuel (stacked bar SVG) ──────────────────────────
+
+function renderFinancesCashflowChart() {
+  const months = [];
+  const today = new Date();
+  for (let i = 11; i >= 0; i--) {
+    const d = new Date(today.getFullYear(), today.getMonth() - i, 1);
+    months.push({ year: d.getFullYear(), month: d.getMonth(),
+      label: d.toLocaleDateString('fr-FR', { month: 'short' }) });
+  }
+
+  const scope = FI.ui.scope;
+  const rows = months.map(m => {
+    const monthTx = FI.data.transactions.filter(t => {
+      const d = new Date(t.date);
+      if (d.getFullYear() !== m.year || d.getMonth() !== m.month) return false;
+      if (scope === 'pro' && t.account_type !== 'Pro') return false;
+      if (scope === 'perso' && t.account_type !== 'Perso') return false;
+      return true;
+    });
+    const inflow = monthTx.filter(t => t.amount > 0).reduce((s, t) => s + t.amount, 0);
+    const outflow = Math.abs(monthTx.filter(t => t.amount < 0).reduce((s, t) => s + t.amount, 0));
+    return { label: m.label, inflow, outflow, net: inflow - outflow };
+  });
+
+  document.getElementById('fi-cashflow-chart').innerHTML = svgCashflowBars(rows, { height: 220 });
+}
+
+// ─── Graph 3 : Top dépenses par catégorie (horizontal bar) ─────────────────
+
+function renderFinancesCategoryChart() {
+  const filtered = fiFilteredTransactions().filter(t => t.amount < 0);
+  const byCat = new Map();
+  filtered.forEach(t => {
+    const key = t._cat || '— Sans catégorie';
+    byCat.set(key, (byCat.get(key) || 0) + Math.abs(t.amount));
+  });
+  const rows = Array.from(byCat.entries()).map(([name, value]) => ({ name, value }))
+    .sort((a, b) => b.value - a.value).slice(0, 10);
+  document.getElementById('fi-category-meta').textContent = `${rows.length} catégories · période active`;
+  document.getElementById('fi-category-chart').innerHTML = svgHorizontalBars(rows, { height: 280 });
+}
+
+// ─── Tableau transactions ──────────────────────────────────────────────────
+
+function renderFinancesTransactions() {
+  const list = fiFilteredTransactions();
+  document.getElementById('fi-tx-count').textContent = `${list.length} transactions sur la période`;
+
+  const start = FI.ui.page * FI.ui.pageSize;
+  const slice = list.slice(start, start + FI.ui.pageSize);
+  const tbody = document.getElementById('fi-tx-body');
+  if (!slice.length) {
+    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:32px">Aucune transaction pour ce filtre</td></tr>';
+  } else {
+    tbody.innerHTML = slice.map(t => {
+      const edit = FI.edits.get(t.id) || {};
+      const cat = edit.category || t._cat;
+      const note = edit.note || '';
+      const amountClass = t.amount >= 0 ? 'pos' : 'neg';
+      const blur = FI.ui.anonymous ? 'is-blurred' : '';
+      const catBadge = cat
+        ? `<span class="fi-tx-cat-badge">${escapeHtml(cat)}</span>`
+        : `<span class="fi-tx-cat-badge untagged">À ranger</span>`;
+      return `<tr data-tx-id="${escapeHtml(t.id)}">
+        <td style="white-space:nowrap;color:var(--muted)">${FI_DATE_FMT.format(new Date(t.date))}</td>
+        <td>${escapeHtml(t.description || '—')}${t.is_recurring ? ' <span style="font-size:10px;color:var(--muted)">⟳</span>' : ''}</td>
+        <td><span class="fi-tx-bank"><span class="bank-dot" style="background:${fiBankColor(t.bank_name)}"></span>${escapeHtml(t.bank_name)}</span></td>
+        <td>
+          <input list="fi-cat-list" class="fi-tx-cat-input" value="${escapeHtml(cat || '')}" placeholder="—"
+            onchange="financesEditCategory('${escapeHtml(t.id)}', this.value)" aria-label="Catégorie de la transaction">
+          ${cat ? '' : catBadge}
+        </td>
+        <td style="text-align:right;white-space:nowrap" class="fi-tx-amount ${amountClass} ${blur}">${t.amount >= 0 ? '+' : ''}${fiAmount(t.amount)}</td>
+        <td><input class="fi-tx-note-input" value="${escapeHtml(note)}" placeholder="—"
+          onchange="financesEditNote('${escapeHtml(t.id)}', this.value)" aria-label="Note libre"></td>
+      </tr>`;
+    }).join('');
+  }
+
+  // Datalist des catégories existantes (utilisée par le datalist de l'input).
+  let datalist = document.getElementById('fi-cat-list');
+  if (!datalist) {
+    datalist = document.createElement('datalist');
+    datalist.id = 'fi-cat-list';
+    document.body.appendChild(datalist);
+  }
+  datalist.innerHTML = FI_RULES.map(r => `<option value="${escapeHtml(r.name)}">`).join('');
+
+  document.getElementById('fi-tx-pager-label').textContent =
+    list.length === 0 ? '—' : `${start + 1}–${Math.min(start + FI.ui.pageSize, list.length)} sur ${list.length}`;
+}
+
+function financesPagePrev() { if (FI.ui.page > 0) { FI.ui.page--; renderFinancesTransactions(); } }
+function financesPageNext() {
+  const max = Math.ceil(fiFilteredTransactions().length / FI.ui.pageSize) - 1;
+  if (FI.ui.page < max) { FI.ui.page++; renderFinancesTransactions(); }
+}
+
+function financesEditCategory(txId, value) {
+  const cur = FI.edits.get(txId) || {};
+  cur.category = value.trim();
+  FI.edits.set(txId, cur);
+  // Si worker connecté : on tente de pousser l'edit.
+  if (FI.config.workerUrl && FI.config.authToken) {
+    fetch(`${FI.config.workerUrl.replace(/\/$/, '')}/transactions/${encodeURIComponent(txId)}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', 'X-Wassim-Auth': FI.config.authToken, 'x-requested-with': 'XMLHttpRequest' },
+      body: JSON.stringify({ category: value }),
+    }).catch(err => console.warn('[finances] edit cat failed', err.message));
+  }
+  renderFinancesTransactions();
+}
+
+function financesEditNote(txId, value) {
+  const cur = FI.edits.get(txId) || {};
+  cur.note = value;
+  FI.edits.set(txId, cur);
+  if (FI.config.workerUrl && FI.config.authToken) {
+    fetch(`${FI.config.workerUrl.replace(/\/$/, '')}/transactions/${encodeURIComponent(txId)}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', 'X-Wassim-Auth': FI.config.authToken, 'x-requested-with': 'XMLHttpRequest' },
+      body: JSON.stringify({ note: value }),
+    }).catch(err => console.warn('[finances] edit note failed', err.message));
+  }
+}
+
+// ─── Insights & alertes ────────────────────────────────────────────────────
+
+function renderFinancesInsights() {
+  const ins = [];
+  const accounts = FI.data.accounts;
+
+  accounts.forEach(a => {
+    const bal = pickBalance(a);
+    if (a.type === 'Pro' && bal < 1500) ins.push({ level: 'alert', icon: '⚠️', title: `Solde Pro faible : ${a.bank_name}`, msg: `Compte sous le seuil critique. Solde : ${fiAmount(bal)}.` });
+    else if (a.type === 'Perso' && bal < 500) ins.push({ level: 'alert', icon: '⚠️', title: `Solde Perso faible : ${a.bank_name}`, msg: `Compte sous le seuil critique. Solde : ${fiAmount(bal)}.` });
+    if (a.last_refresh_status && a.last_refresh_status !== 'ok') {
+      ins.push({ level: 'warn', icon: '🔁', title: `Reconnexion à faire : ${a.bank_name}`, msg: `La banque demande une nouvelle authentification.` });
+    }
+  });
+
+  // Transactions non catégorisées sur la période.
+  const filtered = fiFilteredTransactions();
+  const untagged = filtered.filter(t => !t._cat).length;
+  if (untagged > 0) {
+    ins.push({ level: 'warn', icon: '🏷️', title: `${untagged} transactions à ranger`, msg: `Aucune catégorie détectée. Édite la colonne Catégorie pour les classer.` });
+  }
+
+  // Dépenses inhabituelles : par catégorie, montant > 2× moyenne mensuelle.
+  const byCat = new Map();
+  filtered.filter(t => t.amount < 0 && t._cat).forEach(t => {
+    if (!byCat.has(t._cat)) byCat.set(t._cat, []);
+    byCat.get(t._cat).push(Math.abs(t.amount));
+  });
+  byCat.forEach((vals, cat) => {
+    if (vals.length < 3) return;
+    const mean = vals.reduce((s, v) => s + v, 0) / vals.length;
+    const max = Math.max(...vals);
+    if (max > 2 * mean && max > 50) {
+      ins.push({ level: 'warn', icon: '📈', title: `Dépense inhabituelle : ${cat}`, msg: `Montant max ${fiAmount(max)} (×${(max / mean).toFixed(1)} la moyenne ${fiAmount(mean)}).` });
+    }
+  });
+
+  // Échéance URSSAF estimée — toutes les 90 jours après la dernière vue.
+  const urssaf = FI.data.transactions.filter(t => /urssaf/i.test(t.description));
+  if (urssaf.length > 0) {
+    const last = new Date(urssaf[0].date);
+    const next = new Date(last.getTime() + 90 * 86400_000);
+    if (next > new Date()) {
+      ins.push({ level: 'warn', icon: '🗓️', title: `Prochaine URSSAF estimée le ${FI_DATE_FMT.format(next)}`, msg: `Dernière échéance : ${FI_DATE_FMT.format(last)} pour ${fiAmount(Math.abs(urssaf[0].amount))}.` });
+    }
+  }
+
+  const el = document.getElementById('fi-insights');
+  if (!ins.length) {
+    el.innerHTML = '<div style="color:var(--muted);font-size:13px;padding:8px 4px">✨ Aucune alerte. Tout va bien.</div>';
+    return;
+  }
+  el.innerHTML = ins.map(i => `
+    <div class="fi-insight ${i.level}">
+      <span class="fi-insight-icon">${i.icon}</span>
+      <div class="fi-insight-body">
+        <div class="fi-insight-title">${escapeHtml(i.title)}</div>
+        <div class="fi-insight-meta">${escapeHtml(i.msg)}</div>
+      </div>
+    </div>
+  `).join('');
+}
+
+// ─── Actions UI ────────────────────────────────────────────────────────────
+
+async function syncFinances() {
+  const btn = document.getElementById('fi-sync-btn');
+  btn.disabled = true; btn.textContent = '⏳ Sync…';
+  try {
+    if (FI.config.workerUrl) {
+      const res = await fetch(`${FI.config.workerUrl.replace(/\/$/, '')}/sync`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-Wassim-Auth': FI.config.authToken || '', 'x-requested-with': 'XMLHttpRequest' },
+        body: '{}',
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    }
+    await loadFinancesData();
+    btn.textContent = '✓ OK';
+    setTimeout(() => { btn.textContent = '🔄 Synchroniser'; btn.disabled = false; }, 1200);
+  } catch (err) {
+    btn.textContent = '❌ ' + err.message.slice(0, 30);
+    setTimeout(() => { btn.textContent = '🔄 Synchroniser'; btn.disabled = false; }, 2000);
+  }
+}
+
+async function testFinancesWorker() {
+  const url = document.getElementById('fi-worker-url').value.trim();
+  if (!url) { alert('Saisis l\'URL du worker'); return; }
+  try {
+    const res = await fetch(`${url.replace(/\/$/, '')}/health`);
+    const data = await res.json();
+    alert(res.ok ? `✅ Worker OK : ${JSON.stringify(data)}` : `❌ HTTP ${res.status}`);
+  } catch (err) {
+    alert('❌ ' + err.message);
+  }
+}
+
+function saveFinancesConfig() {
+  FI.config.workerUrl = document.getElementById('fi-worker-url').value.trim();
+  FI.config.authToken = document.getElementById('fi-worker-auth').value.trim();
+  // sessionStorage : volatile, expire à la fermeture du navigateur.
+  // Conforme à l'esprit "pas de localStorage" tout en restant utilisable.
+  try {
+    sessionStorage.setItem('fi_cfg', JSON.stringify({ workerUrl: FI.config.workerUrl, authToken: FI.config.authToken }));
+  } catch (_) {}
+  loadFinancesData();
+}
+
+function clearFinancesConfig() {
+  FI.config.workerUrl = '';
+  FI.config.authToken = '';
+  try { sessionStorage.removeItem('fi_cfg'); } catch (_) {}
+  document.getElementById('fi-worker-url').value = '';
+  document.getElementById('fi-worker-auth').value = '';
+  loadFinancesData();
+}
+
+function toggleAnonymousMode() {
+  FI.ui.anonymous = !FI.ui.anonymous;
+  document.getElementById('fi-anonymous-btn').textContent = FI.ui.anonymous ? '🙈 Démasquer' : '👁️ Anonymiser';
+  renderFinances();
+}
+
+function exportFinancesCSV() {
+  const list = fiFilteredTransactions();
+  const headers = ['date', 'description', 'banque', 'type', 'categorie', 'montant_eur', 'recurrent', 'bridge_id'];
+  const rows = list.map(t => [
+    t.date.slice(0, 10),
+    (t.description || '').replace(/"/g, '""'),
+    t.bank_name,
+    t.account_type,
+    t._cat || '',
+    Number(t.amount).toFixed(2).replace('.', ','),
+    t.is_recurring ? 'oui' : 'non',
+    t.id,
+  ]);
+  const csv = [headers.join(';'), ...rows.map(r => r.map(c => `"${c}"`).join(';'))].join('\n');
+  const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `wassim-finances-${new Date().toISOString().slice(0, 10)}.csv`;
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+// ─── Helpers SVG ───────────────────────────────────────────────────────────
+// Tous les graphiques sont rendus en SVG natif, sans dépendance externe.
+
+function escapeHtml(s) {
+  return String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
+}
+
+function svgLineChart(series, { height = 220, formatY, formatX }) {
+  if (!series.length || !series[0].points.length) return '<div style="color:var(--muted);padding:20px;text-align:center">Pas de données</div>';
+  const W = 800, H = height, P = { l: 50, r: 16, t: 12, b: 28 };
+  const allYs = series.flatMap(s => s.points.map(p => p.y));
+  const minY = Math.min(...allYs);
+  const maxY = Math.max(...allYs);
+  const yRange = (maxY - minY) || 1;
+  const padding = yRange * 0.1;
+  const yMin = minY - padding, yMax = maxY + padding;
+  const xs = series[0].points.map(p => p.x.getTime());
+  const xMin = Math.min(...xs), xMax = Math.max(...xs);
+  const sx = x => P.l + ((x - xMin) / (xMax - xMin || 1)) * (W - P.l - P.r);
+  const sy = y => P.t + (1 - (y - yMin) / (yMax - yMin || 1)) * (H - P.t - P.b);
+  const ticks = 4;
+  const yTicks = Array.from({ length: ticks + 1 }, (_, i) => yMin + (i / ticks) * (yMax - yMin));
+  const xTickIdx = [0, Math.floor(xs.length / 2), xs.length - 1];
+
+  const grid = yTicks.map(v => `<line x1="${P.l}" x2="${W - P.r}" y1="${sy(v)}" y2="${sy(v)}" stroke="var(--border)" stroke-dasharray="2,4"/>` +
+    `<text x="${P.l - 6}" y="${sy(v) + 3}" text-anchor="end" fill="var(--muted)" font-size="10">${formatY ? formatY(v) : v.toFixed(0)}</text>`).join('');
+  const xLabels = xTickIdx.map(i => `<text x="${sx(xs[i])}" y="${H - 8}" text-anchor="middle" fill="var(--muted)" font-size="10">${formatX ? formatX(series[0].points[i].x) : ''}</text>`).join('');
+  const lines = series.map(s => {
+    const d = s.points.map((p, i) => `${i === 0 ? 'M' : 'L'}${sx(p.x.getTime())},${sy(p.y)}`).join(' ');
+    return `<path d="${d}" fill="none" stroke="${s.color}" stroke-width="2"/>`;
+  }).join('');
+
+  return `<svg class="fi-chart-svg" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" role="img" aria-label="Évolution des soldes">
+    ${grid}${xLabels}${lines}
+  </svg>`;
+}
+
+function svgCashflowBars(rows, { height = 220 }) {
+  if (!rows.length) return '<div style="color:var(--muted);padding:20px;text-align:center">Pas de données</div>';
+  const W = 600, H = height, P = { l: 44, r: 10, t: 10, b: 36 };
+  const max = Math.max(...rows.map(r => Math.max(r.inflow, r.outflow)), 100);
+  const barW = (W - P.l - P.r) / rows.length * 0.4;
+  const groupW = (W - P.l - P.r) / rows.length;
+  const sy = v => H - P.b - (v / max) * (H - P.t - P.b);
+  const yTicks = [0, max * 0.5, max];
+  const grid = yTicks.map(v => `<line x1="${P.l}" x2="${W - P.r}" y1="${sy(v)}" y2="${sy(v)}" stroke="var(--border)" stroke-dasharray="2,4"/>` +
+    `<text x="${P.l - 6}" y="${sy(v) + 3}" text-anchor="end" fill="var(--muted)" font-size="10">${fiAmountShort(v)}</text>`).join('');
+  const bars = rows.map((r, i) => {
+    const cx = P.l + i * groupW + groupW / 2;
+    const inH = (r.inflow / max) * (H - P.t - P.b);
+    const outH = (r.outflow / max) * (H - P.t - P.b);
+    return `
+      <rect x="${cx - barW - 1}" y="${H - P.b - inH}" width="${barW}" height="${inH}" fill="var(--fi-pos)" rx="2"/>
+      <rect x="${cx + 1}" y="${H - P.b - outH}" width="${barW}" height="${outH}" fill="var(--fi-neg)" rx="2"/>
+      <text x="${cx}" y="${H - 18}" text-anchor="middle" fill="var(--muted)" font-size="10">${escapeHtml(r.label)}</text>
+      <text x="${cx}" y="${H - 6}" text-anchor="middle" fill="${r.net >= 0 ? 'var(--fi-pos)' : 'var(--fi-neg)'}" font-size="9" font-weight="700">${r.net >= 0 ? '+' : ''}${fiAmountShort(r.net)}</text>
+    `;
+  }).join('');
+  return `<svg class="fi-chart-svg" viewBox="0 0 ${W} ${H}" role="img" aria-label="Cashflow mensuel sur 12 mois">${grid}${bars}</svg>`;
+}
+
+function svgHorizontalBars(rows, { height = 280 }) {
+  if (!rows.length) return '<div style="color:var(--muted);padding:20px;text-align:center">Pas de dépenses sur la période</div>';
+  const W = 500, H = Math.max(height, rows.length * 28 + 20), P = { l: 130, r: 60, t: 8, b: 8 };
+  const max = Math.max(...rows.map(r => r.value), 1);
+  const barH = ((H - P.t - P.b) / rows.length) * 0.65;
+  const stride = (H - P.t - P.b) / rows.length;
+  const bars = rows.map((r, i) => {
+    const y = P.t + i * stride + (stride - barH) / 2;
+    const w = (r.value / max) * (W - P.l - P.r);
+    return `
+      <text x="${P.l - 8}" y="${y + barH / 2 + 4}" text-anchor="end" fill="var(--text)" font-size="11">${escapeHtml(r.name)}</text>
+      <rect x="${P.l}" y="${y}" width="${w}" height="${barH}" fill="var(--fi-pro)" rx="3"/>
+      <text x="${P.l + w + 6}" y="${y + barH / 2 + 4}" fill="var(--muted)" font-size="11">${fiAmountShort(r.value)}</text>
+    `;
+  }).join('');
+  return `<svg class="fi-chart-svg" viewBox="0 0 ${W} ${H}" role="img" aria-label="Top dépenses par catégorie">${bars}</svg>`;
+}
 
 // ─── INIT ───────────────────────────────────────────────────────────────────
 

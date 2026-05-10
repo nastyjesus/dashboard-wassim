@@ -1,0 +1,22 @@
+# Secrets & locales
+.env
+.env.local
+.env.*.local
+docs/notion-ids.local.json
+
+# Node / Cloudflare
+node_modules/
+.wrangler/
+**/.wrangler/
+**/dist/
+*.log
+npm-debug.log*
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editors
+.vscode/
+.idea/
+*.swp

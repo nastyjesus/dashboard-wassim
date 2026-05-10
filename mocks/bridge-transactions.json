@@ -1,0 +1,546 @@
+{
+  "mock": true,
+  "generated_at": "2026-05-10T00:00:00.000Z",
+  "transactions": [
+    {
+      "id": "tx_bp_1",
+      "account_id": "acct_bp",
+      "amount": 1500,
+      "currency_code": "EUR",
+      "date": "2026-05-08T00:00:00.000Z",
+      "description": "VIR Cabinet Martin — Portrait Pro",
+      "bridge_category": "Income",
+      "is_recurring": false
+    },
+    {
+      "id": "tx_bp_2",
+      "account_id": "acct_bp",
+      "amount": 900,
+      "currency_code": "EUR",
+      "date": "2026-05-02T00:00:00.000Z",
+      "description": "VIR Studio Lumiere — Production",
+      "bridge_category": "Income",
+      "is_recurring": false
+    },
+    {
+      "id": "tx_bp_3",
+      "account_id": "acct_bp",
+      "amount": -89.99,
+      "currency_code": "EUR",
+      "date": "2026-05-07T00:00:00.000Z",
+      "description": "Adobe Creative Cloud Subscription",
+      "bridge_category": "Software",
+      "is_recurring": true
+    },
+    {
+      "id": "tx_bp_4",
+      "account_id": "acct_bp",
+      "amount": -420.5,
+      "currency_code": "EUR",
+      "date": "2026-04-25T00:00:00.000Z",
+      "description": "URSSAF Cotisations Q1",
+      "bridge_category": "Tax",
+      "is_recurring": true
+    },
+    {
+      "id": "tx_bp_5",
+      "account_id": "acct_bp",
+      "amount": -29,
+      "currency_code": "EUR",
+      "date": "2026-05-05T00:00:00.000Z",
+      "description": "OVH Hebergement — sowphoto.fr",
+      "bridge_category": "Hosting",
+      "is_recurring": true
+    },
+    {
+      "id": "tx_bp_6",
+      "account_id": "acct_bp",
+      "amount": -12,
+      "currency_code": "EUR",
+      "date": "2026-05-03T00:00:00.000Z",
+      "description": "Github Copilot Subscription",
+      "bridge_category": "Software",
+      "is_recurring": true
+    },
+    {
+      "id": "tx_bp_7",
+      "account_id": "acct_bp",
+      "amount": -55,
+      "currency_code": "EUR",
+      "date": "2026-04-28T00:00:00.000Z",
+      "description": "Total Carburant Station Rennes",
+      "bridge_category": "Transport",
+      "is_recurring": false
+    },
+    {
+      "id": "tx_bp_8",
+      "account_id": "acct_bp",
+      "amount": 2400,
+      "currency_code": "EUR",
+      "date": "2026-04-12T00:00:00.000Z",
+      "description": "VIR Mairie Rennes — Reportage",
+      "bridge_category": "Income",
+      "is_recurring": false
+    },
+    {
+      "id": "tx_bp_9",
+      "account_id": "acct_bp",
+      "amount": -180,
+      "currency_code": "EUR",
+      "date": "2026-04-07T00:00:00.000Z",
+      "description": "Cabinet Comptable Dubois",
+      "bridge_category": "Accounting",
+      "is_recurring": true
+    },
+    {
+      "id": "tx_bp_10",
+      "account_id": "acct_bp",
+      "amount": -89.99,
+      "currency_code": "EUR",
+      "date": "2026-04-06T00:00:00.000Z",
+      "description": "Adobe Creative Cloud Subscription",
+      "bridge_category": "Software",
+      "is_recurring": true
+    },
+    {
+      "id": "tx_bp_11",
+      "account_id": "acct_bp",
+      "amount": -29,
+      "currency_code": "EUR",
+      "date": "2026-04-04T00:00:00.000Z",
+      "description": "OVH Hebergement",
+      "bridge_category": "Hosting",
+      "is_recurring": true
+    },
+    {
+      "id": "tx_bp_12",
+      "account_id": "acct_bp",
+      "amount": 600,
+      "currency_code": "EUR",
+      "date": "2026-03-26T00:00:00.000Z",
+      "description": "VIR Audit SEO — Plato Coiffure",
+      "bridge_category": "Income",
+      "is_recurring": false
+    },
+    {
+      "id": "tx_bp_13",
+      "account_id": "acct_bp",
+      "amount": -32,
+      "currency_code": "EUR",
+      "date": "2026-03-21T00:00:00.000Z",
+      "description": "Stripe Frais Transaction",
+      "bridge_category": "Banking",
+      "is_recurring": false
+    },
+    {
+      "id": "tx_bp_14",
+      "account_id": "acct_bp",
+      "amount": -650,
+      "currency_code": "EUR",
+      "date": "2026-03-11T00:00:00.000Z",
+      "description": "URSSAF Cotisations Trimestre",
+      "bridge_category": "Tax",
+      "is_recurring": true
+    },
+    {
+      "id": "tx_bp_15",
+      "account_id": "acct_bp",
+      "amount": 1800,
+      "currency_code": "EUR",
+      "date": "2026-02-27T00:00:00.000Z",
+      "description": "VIR BNI Commission",
+      "bridge_category": "Income",
+      "is_recurring": false
+    },
+    {
+      "id": "tx_qonto_1",
+      "account_id": "acct_qonto",
+      "amount": 300,
+      "currency_code": "EUR",
+      "date": "2026-05-09T00:00:00.000Z",
+      "description": "VIR Abonnement SEO — Cliente Mensuelle",
+      "bridge_category": "Income",
+      "is_recurring": true
+    },
+    {
+      "id": "tx_qonto_2",
+      "account_id": "acct_qonto",
+      "amount": -20,
+      "currency_code": "EUR",
+      "date": "2026-05-06T00:00:00.000Z",
+      "description": "Notion Workspace Pro",
+      "bridge_category": "Software",
+      "is_recurring": true
+    },
+    {
+      "id": "tx_qonto_3",
+      "account_id": "acct_qonto",
+      "amount": -9,
+      "currency_code": "EUR",
+      "date": "2026-05-04T00:00:00.000Z",
+      "description": "Cloudflare Workers",
+      "bridge_category": "Hosting",
+      "is_recurring": true
+    },
+    {
+      "id": "tx_qonto_4",
+      "account_id": "acct_qonto",
+      "amount": -120,
+      "currency_code": "EUR",
+      "date": "2026-04-29T00:00:00.000Z",
+      "description": "Google Ads Campaign",
+      "bridge_category": "Marketing",
+      "is_recurring": false
+    },
+    {
+      "id": "tx_qonto_5",
+      "account_id": "acct_qonto",
+      "amount": 300,
+      "currency_code": "EUR",
+      "date": "2026-04-09T00:00:00.000Z",
+      "description": "VIR Abonnement SEO — Cliente Mensuelle",
+      "bridge_category": "Income",
+      "is_recurring": true
+    },
+    {
+      "id": "tx_qonto_6",
+      "account_id": "acct_qonto",
+      "amount": -20,
+      "currency_code": "EUR",
+      "date": "2026-04-05T00:00:00.000Z",
+      "description": "Notion Workspace Pro",
+      "bridge_category": "Software",
+      "is_recurring": true
+    },
+    {
+      "id": "tx_qonto_7",
+      "account_id": "acct_qonto",
+      "amount": 150,
+      "currency_code": "EUR",
+      "date": "2026-03-31T00:00:00.000Z",
+      "description": "VIR Maintenance Site Web",
+      "bridge_category": "Income",
+      "is_recurring": false
+    },
+    {
+      "id": "tx_qonto_8",
+      "account_id": "acct_qonto",
+      "amount": -9,
+      "currency_code": "EUR",
+      "date": "2026-04-02T00:00:00.000Z",
+      "description": "Cloudflare Workers",
+      "bridge_category": "Hosting",
+      "is_recurring": true
+    },
+    {
+      "id": "tx_qonto_9",
+      "account_id": "acct_qonto",
+      "amount": -45,
+      "currency_code": "EUR",
+      "date": "2026-03-16T00:00:00.000Z",
+      "description": "Mailchimp Newsletter Pro",
+      "bridge_category": "Marketing",
+      "is_recurring": true
+    },
+    {
+      "id": "tx_qonto_10",
+      "account_id": "acct_qonto",
+      "amount": 300,
+      "currency_code": "EUR",
+      "date": "2026-03-09T00:00:00.000Z",
+      "description": "VIR Abonnement SEO",
+      "bridge_category": "Income",
+      "is_recurring": true
+    },
+    {
+      "id": "tx_fo_1",
+      "account_id": "acct_fortuneo",
+      "amount": -85.4,
+      "currency_code": "EUR",
+      "date": "2026-05-08T00:00:00.000Z",
+      "description": "CARREFOUR Rennes Centre",
+      "bridge_category": "Groceries",
+      "is_recurring": false
+    },
+    {
+      "id": "tx_fo_2",
+      "account_id": "acct_fortuneo",
+      "amount": -38.5,
+      "currency_code": "EUR",
+      "date": "2026-05-07T00:00:00.000Z",
+      "description": "Restaurant Le Bistrot",
+      "bridge_category": "Restaurants",
+      "is_recurring": false
+    },
+    {
+      "id": "tx_fo_3",
+      "account_id": "acct_fortuneo",
+      "amount": -15.99,
+      "currency_code": "EUR",
+      "date": "2026-05-05T00:00:00.000Z",
+      "description": "Spotify Premium",
+      "bridge_category": "Entertainment",
+      "is_recurring": true
+    },
+    {
+      "id": "tx_fo_4",
+      "account_id": "acct_fortuneo",
+      "amount": -12.99,
+      "currency_code": "EUR",
+      "date": "2026-05-03T00:00:00.000Z",
+      "description": "Netflix Subscription",
+      "bridge_category": "Entertainment",
+      "is_recurring": true
+    },
+    {
+      "id": "tx_fo_5",
+      "account_id": "acct_fortuneo",
+      "amount": -75,
+      "currency_code": "EUR",
+      "date": "2026-05-02T00:00:00.000Z",
+      "description": "Total Carburant",
+      "bridge_category": "Transport",
+      "is_recurring": false
+    },
+    {
+      "id": "tx_fo_6",
+      "account_id": "acct_fortuneo",
+      "amount": -19.99,
+      "currency_code": "EUR",
+      "date": "2026-04-30T00:00:00.000Z",
+      "description": "Free Mobile Forfait",
+      "bridge_category": "Telecom",
+      "is_recurring": true
+    },
+    {
+      "id": "tx_fo_7",
+      "account_id": "acct_fortuneo",
+      "amount": -650,
+      "currency_code": "EUR",
+      "date": "2026-04-29T00:00:00.000Z",
+      "description": "VIR Loyer Foncia",
+      "bridge_category": "Rent",
+      "is_recurring": true
+    },
+    {
+      "id": "tx_fo_8",
+      "account_id": "acct_fortuneo",
+      "amount": -42.3,
+      "currency_code": "EUR",
+      "date": "2026-04-27T00:00:00.000Z",
+      "description": "EDF Energie",
+      "bridge_category": "Utilities",
+      "is_recurring": true
+    },
+    {
+      "id": "tx_fo_9",
+      "account_id": "acct_fortuneo",
+      "amount": -32.5,
+      "currency_code": "EUR",
+      "date": "2026-04-26T00:00:00.000Z",
+      "description": "Pharmacie de la Place",
+      "bridge_category": "Health",
+      "is_recurring": false
+    },
+    {
+      "id": "tx_fo_10",
+      "account_id": "acct_fortuneo",
+      "amount": 2200,
+      "currency_code": "EUR",
+      "date": "2026-04-12T00:00:00.000Z",
+      "description": "VIR SOWPHOTO Salaire",
+      "bridge_category": "Income",
+      "is_recurring": true
+    },
+    {
+      "id": "tx_fo_11",
+      "account_id": "acct_fortuneo",
+      "amount": -91.25,
+      "currency_code": "EUR",
+      "date": "2026-04-20T00:00:00.000Z",
+      "description": "CARREFOUR Rennes",
+      "bridge_category": "Groceries",
+      "is_recurring": false
+    },
+    {
+      "id": "tx_fo_12",
+      "account_id": "acct_fortuneo",
+      "amount": -54,
+      "currency_code": "EUR",
+      "date": "2026-04-18T00:00:00.000Z",
+      "description": "SNCF Paris Rennes",
+      "bridge_category": "Transport",
+      "is_recurring": false
+    },
+    {
+      "id": "tx_fo_13",
+      "account_id": "acct_fortuneo",
+      "amount": -18.5,
+      "currency_code": "EUR",
+      "date": "2026-04-16T00:00:00.000Z",
+      "description": "Uber Eats Sushi",
+      "bridge_category": "Restaurants",
+      "is_recurring": false
+    },
+    {
+      "id": "tx_fo_14",
+      "account_id": "acct_fortuneo",
+      "amount": -650,
+      "currency_code": "EUR",
+      "date": "2026-03-30T00:00:00.000Z",
+      "description": "VIR Loyer Foncia",
+      "bridge_category": "Rent",
+      "is_recurring": true
+    },
+    {
+      "id": "tx_fo_15",
+      "account_id": "acct_fortuneo",
+      "amount": -19.99,
+      "currency_code": "EUR",
+      "date": "2026-03-31T00:00:00.000Z",
+      "description": "Free Mobile Forfait",
+      "bridge_category": "Telecom",
+      "is_recurring": true
+    },
+    {
+      "id": "tx_fo_16",
+      "account_id": "acct_fortuneo",
+      "amount": -15.99,
+      "currency_code": "EUR",
+      "date": "2026-04-05T00:00:00.000Z",
+      "description": "Spotify Premium",
+      "bridge_category": "Entertainment",
+      "is_recurring": true
+    },
+    {
+      "id": "tx_fo_17",
+      "account_id": "acct_fortuneo",
+      "amount": -12.99,
+      "currency_code": "EUR",
+      "date": "2026-04-03T00:00:00.000Z",
+      "description": "Netflix Subscription",
+      "bridge_category": "Entertainment",
+      "is_recurring": true
+    },
+    {
+      "id": "tx_fo_18",
+      "account_id": "acct_fortuneo",
+      "amount": -120,
+      "currency_code": "EUR",
+      "date": "2026-03-26T00:00:00.000Z",
+      "description": "Decathlon Sport",
+      "bridge_category": "Shopping",
+      "is_recurring": false
+    },
+    {
+      "id": "tx_fo_19",
+      "account_id": "acct_fortuneo",
+      "amount": -34.9,
+      "currency_code": "EUR",
+      "date": "2026-03-21T00:00:00.000Z",
+      "description": "LIDL Rennes",
+      "bridge_category": "Groceries",
+      "is_recurring": false
+    },
+    {
+      "id": "tx_fo_20",
+      "account_id": "acct_fortuneo",
+      "amount": 2200,
+      "currency_code": "EUR",
+      "date": "2026-03-13T00:00:00.000Z",
+      "description": "VIR SOWPHOTO Salaire",
+      "bridge_category": "Income",
+      "is_recurring": true
+    },
+    {
+      "id": "tx_fo_21",
+      "account_id": "acct_fortuneo",
+      "amount": -650,
+      "currency_code": "EUR",
+      "date": "2026-02-27T00:00:00.000Z",
+      "description": "VIR Loyer Foncia",
+      "bridge_category": "Rent",
+      "is_recurring": true
+    },
+    {
+      "id": "tx_fo_22",
+      "account_id": "acct_fortuneo",
+      "amount": -340,
+      "currency_code": "EUR",
+      "date": "2026-02-19T00:00:00.000Z",
+      "description": "Voyage Air France Lisbonne",
+      "bridge_category": "Travel",
+      "is_recurring": false
+    },
+    {
+      "id": "tx_tr_1",
+      "account_id": "acct_traderepublic",
+      "amount": 500,
+      "currency_code": "EUR",
+      "date": "2026-04-25T00:00:00.000Z",
+      "description": "Versement mensuel PEA",
+      "bridge_category": "Transfer",
+      "is_recurring": true
+    },
+    {
+      "id": "tx_tr_2",
+      "account_id": "acct_traderepublic",
+      "amount": -498,
+      "currency_code": "EUR",
+      "date": "2026-04-25T00:00:00.000Z",
+      "description": "Achat ETF World 5 parts",
+      "bridge_category": "Investment",
+      "is_recurring": false
+    },
+    {
+      "id": "tx_tr_3",
+      "account_id": "acct_traderepublic",
+      "amount": 500,
+      "currency_code": "EUR",
+      "date": "2026-03-26T00:00:00.000Z",
+      "description": "Versement mensuel PEA",
+      "bridge_category": "Transfer",
+      "is_recurring": true
+    },
+    {
+      "id": "tx_tr_4",
+      "account_id": "acct_traderepublic",
+      "amount": -495,
+      "currency_code": "EUR",
+      "date": "2026-03-26T00:00:00.000Z",
+      "description": "Achat ETF World 5 parts",
+      "bridge_category": "Investment",
+      "is_recurring": false
+    },
+    {
+      "id": "tx_tr_5",
+      "account_id": "acct_traderepublic",
+      "amount": 500,
+      "currency_code": "EUR",
+      "date": "2026-02-24T00:00:00.000Z",
+      "description": "Versement mensuel PEA",
+      "bridge_category": "Transfer",
+      "is_recurring": true
+    },
+    {
+      "id": "tx_tr_6",
+      "account_id": "acct_traderepublic",
+      "amount": -488,
+      "currency_code": "EUR",
+      "date": "2026-02-24T00:00:00.000Z",
+      "description": "Achat ETF World 5 parts",
+      "bridge_category": "Investment",
+      "is_recurring": false
+    },
+    {
+      "id": "tx_tr_7",
+      "account_id": "acct_traderepublic",
+      "amount": 28.4,
+      "currency_code": "EUR",
+      "date": "2026-03-11T00:00:00.000Z",
+      "description": "Dividendes ETF",
+      "bridge_category": "Income",
+      "is_recurring": false
+    }
+  ]
+}

@@ -1,0 +1,37 @@
+## Worker Cloudflare — bridge-proxy-wassim
+## Agrège les comptes bancaires via Bridge API v3 et pousse vers Notion.
+
+name = "bridge-proxy-wassim"
+main = "src/index.js"
+compatibility_date = "2025-01-15"
+compatibility_flags = ["nodejs_compat"]
+
+# Variables non secrètes (les vrais secrets passent par `wrangler secret put`)
+[vars]
+BRIDGE_BASE_URL = "https://api.bridgeapi.io"
+BRIDGE_VERSION = "2025-01-15"
+NOTION_VERSION = "2022-06-28"
+NOTION_API_BASE = "https://api.notion.com"
+# Active le mode mock tant que les credentials Bridge ne sont pas configurés.
+# Mettre à "false" en production (ou `wrangler secret put MOCK_MODE`).
+MOCK_MODE = "true"
+# Origines autorisées pour CORS (séparées par des virgules).
+ALLOWED_ORIGINS = "https://nastyjesus.github.io,http://localhost:3000,http://localhost:5173,http://localhost:8000"
+
+# Cron : 8h, 13h, 19h heure de Paris (en UTC : 7h, 12h, 18h en heure d'hiver,
+# 6h, 11h, 17h en heure d'été — on prend le créneau d'hiver, c'est suffisant).
+[triggers]
+crons = ["0 7,12,18 * * *"]
+
+# Les secrets à provisionner via `wrangler secret put` :
+#   BRIDGE_CLIENT_ID
+#   BRIDGE_CLIENT_SECRET
+#   BRIDGE_ACCESS_TOKEN
+#   NOTION_TOKEN
+#   NOTION_DB_TRANSACTIONS_ID
+#   NOTION_DB_ACCOUNTS_ID
+#   NOTION_DB_CATEGORIES_ID
+#   WASSIM_AUTH_TOKEN          (header partagé X-Wassim-Auth front <-> worker)
+
+[observability]
+enabled = true
