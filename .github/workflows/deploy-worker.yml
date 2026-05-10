@@ -42,17 +42,19 @@ jobs:
           NOTION_DB_TRANSACTIONS_ID: ${{ secrets.NOTION_DB_TRANSACTIONS_ID }}
           NOTION_DB_CATEGORIES_ID: ${{ secrets.NOTION_DB_CATEGORIES_ID }}
           WASSIM_AUTH_TOKEN: ${{ secrets.WASSIM_AUTH_TOKEN }}
-          QONTO_API_TOKEN: ${{ secrets.QONTO_API_TOKEN }}
+          QONTO_LOGIN: ${{ secrets.QONTO_LOGIN }}
+          QONTO_SECRET_KEY: ${{ secrets.QONTO_SECRET_KEY }}
         run: |
           printf '%s' "$NOTION_TOKEN"             | npx wrangler secret put NOTION_TOKEN
           printf '%s' "$NOTION_DB_ACCOUNTS_ID"    | npx wrangler secret put NOTION_DB_ACCOUNTS_ID
           printf '%s' "$NOTION_DB_TRANSACTIONS_ID"| npx wrangler secret put NOTION_DB_TRANSACTIONS_ID
           printf '%s' "$NOTION_DB_CATEGORIES_ID"  | npx wrangler secret put NOTION_DB_CATEGORIES_ID
           printf '%s' "$WASSIM_AUTH_TOKEN"        | npx wrangler secret put WASSIM_AUTH_TOKEN
-          if [ -n "$QONTO_API_TOKEN" ]; then
-            printf '%s' "$QONTO_API_TOKEN"        | npx wrangler secret put QONTO_API_TOKEN
+          if [ -n "$QONTO_LOGIN" ] && [ -n "$QONTO_SECRET_KEY" ]; then
+            printf '%s' "$QONTO_LOGIN"            | npx wrangler secret put QONTO_LOGIN
+            printf '%s' "$QONTO_SECRET_KEY"       | npx wrangler secret put QONTO_SECRET_KEY
           else
-            echo "QONTO_API_TOKEN not set in repo secrets; skipping (Qonto will stay in Bridge/mock mode)"
+            echo "QONTO_LOGIN/QONTO_SECRET_KEY not both set; Qonto will stay in Bridge/mock mode"
           fi
 
       - run: npx wrangler deploy

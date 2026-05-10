@@ -1,9 +1,15 @@
-// Wrapper Qonto Business API v2 — utilise un Personal Access Token (PAT)
-// pour récupérer les vrais comptes + transactions Qonto en parallèle de
-// l'agrégation Bridge (qui peut encore être en mode mock).
+// Wrapper Qonto Business API v2.
 //
-// Auth : header `Authorization: Bearer <QONTO_API_TOKEN>`
-// Base : https://thirdparty.qonto.com/v2
+// Auth officielle Qonto : header `Authorization: <sign-in>:<secret-key>`,
+// pas de préfixe Bearer, deux valeurs requises.
+// Doc : https://docs.qonto.com/get-started/business-api/authentication/api-key
+//
+// Variables d'environnement attendues :
+//   QONTO_LOGIN       — le sign-in (ex: "wassim-loumi-1234")
+//   QONTO_SECRET_KEY  — la secret key (64 hex chars)
+//
+// Rétro-compat : si QONTO_API_TOKEN est fourni au format "login:secret",
+// on le découpe automatiquement.
 
 import { logger } from './logger.js';
 
@@ -11,7 +17,9 @@ const QONTO_BASE_URL = 'https://thirdparty.qonto.com/v2';
 
 /**
  * @typedef {Object} QontoEnv
- * @property {string} [QONTO_API_TOKEN]
+ * @property {string} [QONTO_LOGIN]
+ * @property {string} [QONTO_SECRET_KEY]
+ * @property {string} [QONTO_API_TOKEN]   // accepte "login:secret" en fallback
  * @property {string} [QONTO_BASE_URL]
  */
 
@@ -20,12 +28,14 @@ export class QontoClient {
   constructor(env) {
     this.env = env;
     this.baseUrl = (env.QONTO_BASE_URL || QONTO_BASE_URL).replace(/\/+$/, '');
-    this.token = env.QONTO_API_TOKEN || '';
+    const { login, secret } = parseQontoCreds(env);
+    this.login = login;
+    this.secret = secret;
   }
 
   headers() {
     return {
-      Authorization: `Bearer ${this.token}`,
+      Authorization: `${this.login}:${this.secret}`,
       Accept: 'application/json',
       'Content-Type': 'application/json',
     };
@@ -130,7 +140,26 @@ function normalizeTransaction(t, account) {
 }
 
 export function hasQontoCreds(env) {
-  return !!(env && env.QONTO_API_TOKEN);
+  if (!env) return false;
+  const { login, secret } = parseQontoCreds(env);
+  return !!(login && secret);
+}
+
+/**
+ * Récupère login + secret depuis l'environnement, en supportant 2 formats :
+ *  1) QONTO_LOGIN + QONTO_SECRET_KEY (préféré)
+ *  2) QONTO_API_TOKEN = "login:secret" (rétro-compat)
+ */
+function parseQontoCreds(env) {
+  const login = env.QONTO_LOGIN || '';
+  const secret = env.QONTO_SECRET_KEY || '';
+  if (login && secret) return { login, secret };
+  const token = env.QONTO_API_TOKEN || '';
+  if (token.includes(':')) {
+    const idx = token.indexOf(':');
+    return { login: token.slice(0, idx), secret: token.slice(idx + 1) };
+  }
+  return { login: '', secret: '' };
 }
 
 export class QontoError extends Error {
