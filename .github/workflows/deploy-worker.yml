@@ -42,12 +42,18 @@ jobs:
           NOTION_DB_TRANSACTIONS_ID: ${{ secrets.NOTION_DB_TRANSACTIONS_ID }}
           NOTION_DB_CATEGORIES_ID: ${{ secrets.NOTION_DB_CATEGORIES_ID }}
           WASSIM_AUTH_TOKEN: ${{ secrets.WASSIM_AUTH_TOKEN }}
+          QONTO_API_TOKEN: ${{ secrets.QONTO_API_TOKEN }}
         run: |
           printf '%s' "$NOTION_TOKEN"             | npx wrangler secret put NOTION_TOKEN
           printf '%s' "$NOTION_DB_ACCOUNTS_ID"    | npx wrangler secret put NOTION_DB_ACCOUNTS_ID
           printf '%s' "$NOTION_DB_TRANSACTIONS_ID"| npx wrangler secret put NOTION_DB_TRANSACTIONS_ID
           printf '%s' "$NOTION_DB_CATEGORIES_ID"  | npx wrangler secret put NOTION_DB_CATEGORIES_ID
           printf '%s' "$WASSIM_AUTH_TOKEN"        | npx wrangler secret put WASSIM_AUTH_TOKEN
+          if [ -n "$QONTO_API_TOKEN" ]; then
+            printf '%s' "$QONTO_API_TOKEN"        | npx wrangler secret put QONTO_API_TOKEN
+          else
+            echo "QONTO_API_TOKEN not set in repo secrets; skipping (Qonto will stay in Bridge/mock mode)"
+          fi
 
       - run: npx wrangler deploy
 
