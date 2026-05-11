@@ -23,6 +23,14 @@ ALLOWED_ORIGINS = "https://nastyjesus.github.io,http://localhost:3000,http://loc
 [triggers]
 crons = ["0 7,12,18 * * *"]
 
+# KV namespace pour stocker les données scrapées via woob (Fortuneo + BPGO).
+# Push depuis GitHub Actions (script Python), lu par /scraped/* endpoints.
+# Avant le 1er deploy, créer le namespace : `npx wrangler kv:namespace create SCRAPED`
+# Cloudflare renverra un id long ; remplir ci-dessous avec.
+[[kv_namespaces]]
+binding = "SCRAPED"
+id = "REPLACE_WITH_KV_ID"
+
 # Les secrets à provisionner via `wrangler secret put` :
 #   BRIDGE_CLIENT_ID
 #   BRIDGE_CLIENT_SECRET
