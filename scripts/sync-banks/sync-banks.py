@@ -176,7 +176,15 @@ def main() -> int:
     # (XDG_CONFIG_HOME et WOOB_WORKDIR ne sont pas tjs respectés par woob v3).
     woob = Woob(workdir=_WOOB_DIR) if _WOOB_DIR else Woob()
     print(f"[debug] Woob instance workdir = {getattr(woob, 'workdir', '?')}", file=sys.stderr)
-    print(f"[debug] Woob instance backends_filename = {getattr(woob, 'backends_filename', '?')}", file=sys.stderr)
+
+    # Met à jour les modules pour éviter VersionsMismatchError quand la cache locale
+    # (issue du tarball) ne matche pas la version installée dans le runner.
+    try:
+        print("[info] updating woob repositories…", file=sys.stderr)
+        woob.repositories.update_repositories(progress=None)
+    except Exception as e:
+        print(f"[warn] update_repositories failed (continuing): {e}", file=sys.stderr)
+
     woob.load_backends(CapBank)
     print(f"[info] loaded {len(list(woob.backend_instances.keys()))} backends: {list(woob.backend_instances.keys())}", file=sys.stderr)
 
