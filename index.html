@@ -749,6 +749,49 @@
   .check-btn.checked { background: var(--accent-soft); color: var(--accent); border-color: var(--accent); }
   .action-done { text-decoration: line-through; color: var(--muted); }
 
+  /* Import zone (CSV drag & drop) */
+  .import-zone {
+    background: var(--surface);
+    border: 1.5px dashed var(--border-strong);
+    border-radius: var(--radius-lg);
+    padding: 28px 20px;
+    text-align: center;
+    cursor: pointer;
+    margin-bottom: 24px;
+    transition: border-color 0.15s, background 0.15s;
+  }
+  .import-zone:hover {
+    border-color: var(--accent);
+    background: var(--accent-soft);
+  }
+  .import-zone.dragover {
+    border-color: var(--accent);
+    background: var(--accent-soft);
+    border-style: solid;
+  }
+  .import-zone.success {
+    border-color: var(--green);
+    background: var(--green-soft);
+  }
+  .import-zone.error {
+    border-color: var(--red);
+    background: var(--red-soft);
+  }
+  .import-icon {
+    font-size: 24px;
+    margin-bottom: 8px;
+  }
+  .import-text {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text);
+    margin-bottom: 4px;
+  }
+  .import-sub {
+    font-size: 12px;
+    color: var(--muted);
+  }
+
   /* Status indicator at bottom of page (Finance) */
   .fi-status {
     font-size: 12px;
@@ -874,16 +917,23 @@
       <div class="page-header">
         <div>
           <div class="page-title">Banque Populaire</div>
-          <div class="page-sub">Pro · BPO</div>
+          <div class="page-sub">Pro · BPO · Import CSV manuel</div>
         </div>
-        <div id="bank-status-bpo" class="fi-status"><span class="dot" style="background:var(--muted-2)"></span>Mock — en attente Bridge</div>
+        <div id="bank-status-bpo" class="fi-status"><span class="dot" style="background:var(--muted-2)"></span>Aucun import</div>
+      </div>
+
+      <div class="import-zone" id="import-zone-bpo" onclick="document.getElementById('csv-input-bpo').click()">
+        <input type="file" id="csv-input-bpo" accept=".csv,.ofx,.qif,.txt" style="display:none" onchange="handleCsvFile(event, 'bpo')">
+        <div class="import-icon">📂</div>
+        <div class="import-text">Glisse ton export CSV Banque Populaire ici</div>
+        <div class="import-sub" id="import-meta-bpo">ou clique pour parcourir · CSV / OFX / QIF acceptés</div>
       </div>
 
       <div class="grid-2">
         <div class="card">
           <div class="card-title">Solde actuel</div>
           <div class="fi-kpi-value" id="bank-balance-bpo">— €</div>
-          <div class="fi-kpi-sub" id="bank-meta-bpo">—</div>
+          <div class="fi-kpi-sub" id="bank-meta-bpo">Aucun import</div>
         </div>
         <div class="card">
           <div class="card-title">Transactions (30j)</div>
@@ -895,10 +945,13 @@
       <div class="card" style="padding:0">
         <div style="padding:16px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between">
           <div class="card-title" style="margin:0">Dernières opérations</div>
-          <button class="btn btn-ghost btn-sm" onclick="reloadBank('bpo')">Actualiser</button>
+          <div style="display:flex;gap:8px">
+            <button class="btn btn-ghost btn-sm" onclick="resetImports('bpo')">Réinitialiser</button>
+            <button class="btn btn-ghost btn-sm" onclick="reloadBank('bpo')">Actualiser</button>
+          </div>
         </div>
         <div id="bank-txlist-bpo">
-          <p style="padding:32px;color:var(--muted);text-align:center">Chargement…</p>
+          <p style="padding:32px;color:var(--muted);text-align:center">Importe un CSV pour voir les transactions.</p>
         </div>
       </div>
     </div>
@@ -908,16 +961,23 @@
       <div class="page-header">
         <div>
           <div class="page-title">Fortuneo</div>
-          <div class="page-sub">Perso · Compte courant</div>
+          <div class="page-sub">Perso · Compte courant · Import CSV manuel</div>
         </div>
-        <div id="bank-status-fortuneo" class="fi-status"><span class="dot" style="background:var(--muted-2)"></span>Mock — en attente Bridge</div>
+        <div id="bank-status-fortuneo" class="fi-status"><span class="dot" style="background:var(--muted-2)"></span>Aucun import</div>
+      </div>
+
+      <div class="import-zone" id="import-zone-fortuneo" onclick="document.getElementById('csv-input-fortuneo').click()">
+        <input type="file" id="csv-input-fortuneo" accept=".csv,.ofx,.qif,.txt" style="display:none" onchange="handleCsvFile(event, 'fortuneo')">
+        <div class="import-icon">📂</div>
+        <div class="import-text">Glisse ton export CSV Fortuneo ici</div>
+        <div class="import-sub" id="import-meta-fortuneo">ou clique pour parcourir · CSV / OFX / QIF acceptés</div>
       </div>
 
       <div class="grid-2">
         <div class="card">
           <div class="card-title">Solde actuel</div>
           <div class="fi-kpi-value" id="bank-balance-fortuneo">— €</div>
-          <div class="fi-kpi-sub" id="bank-meta-fortuneo">—</div>
+          <div class="fi-kpi-sub" id="bank-meta-fortuneo">Aucun import</div>
         </div>
         <div class="card">
           <div class="card-title">Transactions (30j)</div>
@@ -929,10 +989,13 @@
       <div class="card" style="padding:0">
         <div style="padding:16px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between">
           <div class="card-title" style="margin:0">Dernières opérations</div>
-          <button class="btn btn-ghost btn-sm" onclick="reloadBank('fortuneo')">Actualiser</button>
+          <div style="display:flex;gap:8px">
+            <button class="btn btn-ghost btn-sm" onclick="resetImports('fortuneo')">Réinitialiser</button>
+            <button class="btn btn-ghost btn-sm" onclick="reloadBank('fortuneo')">Actualiser</button>
+          </div>
         </div>
         <div id="bank-txlist-fortuneo">
-          <p style="padding:32px;color:var(--muted);text-align:center">Chargement…</p>
+          <p style="padding:32px;color:var(--muted);text-align:center">Importe un CSV pour voir les transactions.</p>
         </div>
       </div>
     </div>
@@ -1252,7 +1315,8 @@ function navigate(page) {
   });
   if (page === 'apercu') renderApercu();
   else if (page === 'myefarm') renderMyefarmPage();
-  else if (['qonto', 'bpo', 'fortuneo'].includes(page)) renderBankPage(page);
+  else if (page === 'qonto') renderBankPage(page);
+  else if (page === 'bpo' || page === 'fortuneo') renderImportedBank(page);
 }
 
 // ─── BANK PAGES (Aperçu + 5 comptes) ────────────────────────────────────────
@@ -1383,59 +1447,430 @@ async function renderApercu() {
   const listEl = document.getElementById('apercu-list');
   const statusEl = document.getElementById('apercu-status');
 
-  const data = await fetchBankData();
-  if (data.error === 'config-missing') return renderConfigMissing(listEl, statusEl);
-  if (data.error) {
+  if (listEl) listEl.innerHTML = '<p style="padding:32px;color:var(--muted);text-align:center">Chargement…</p>';
+
+  const [bankData, stripeData] = await Promise.all([
+    fetchBankData(),
+    fetchStripeSummary(),
+  ]);
+  if (bankData.error === 'config-missing') return renderConfigMissing(listEl, statusEl);
+  if (bankData.error) {
     if (statusEl) statusEl.innerHTML = '<span class="dot" style="background:var(--red)"></span>Erreur worker';
-    if (listEl) listEl.innerHTML = '<p style="padding:32px;color:var(--red);text-align:center">' + escapeHtml(data.error) + ' ' + escapeHtml(data.message || '') + '</p>';
+    if (listEl) listEl.innerHTML = '<p style="padding:32px;color:var(--red);text-align:center">' + escapeHtml(bankData.error) + ' ' + escapeHtml(bankData.message || '') + '</p>';
     return;
   }
 
-  const accs = data.accounts;
-  const proSum = accs.filter(a => a.type === 'Pro').reduce((s, a) => s + (a.balance || 0), 0);
-  const persoSum = accs.filter(a => a.type === 'Perso').reduce((s, a) => s + (a.balance || 0), 0);
+  // Build a unified list: 1 row per logical account.
+  const qontoAccs = bankData.accounts.filter(a => a.bank_name === 'Qonto');
+  const bpoTx = getImportedTransactions('bpo');
+  const bpoMeta = getImportMeta('bpo');
+  const fortuneoTx = getImportedTransactions('fortuneo');
+  const fortuneoMeta = getImportMeta('fortuneo');
+  const balanceFromImport = (txs, meta) => {
+    if (!txs.length) return null;
+    if (meta && meta.latestBalance != null) return meta.latestBalance;
+    return txs.reduce((s, t) => s + (t.amount || 0), 0);
+  };
+  const stripeBal = stripeData && !stripeData.error ? (stripeData.balance?.available_cents || 0) / 100 : null;
+
+  const cards = [
+    ...qontoAccs.map(a => ({
+      bank: 'Qonto', slug: 'qonto', type: 'Pro',
+      sub: a.iban_last4 ? '••••' + a.iban_last4 : a.name,
+      balance: a.balance, currency: a.currency_code || 'EUR',
+      status: 'live',
+    })),
+    {
+      bank: 'Banque Populaire', slug: 'bpo', type: 'Pro',
+      sub: bpoTx.length ? bpoTx.length + ' op. importées' : 'Aucun import',
+      balance: balanceFromImport(bpoTx, bpoMeta),
+      currency: 'EUR',
+      status: bpoTx.length ? 'csv' : 'empty',
+    },
+    {
+      bank: 'Fortuneo', slug: 'fortuneo', type: 'Perso',
+      sub: fortuneoTx.length ? fortuneoTx.length + ' op. importées' : 'Aucun import',
+      balance: balanceFromImport(fortuneoTx, fortuneoMeta),
+      currency: 'EUR',
+      status: fortuneoTx.length ? 'csv' : 'empty',
+    },
+    {
+      bank: 'MyeFarm', slug: 'myefarm', type: 'Pro',
+      sub: 'Stripe · paiements jeu en ligne',
+      balance: stripeBal,
+      currency: 'EUR',
+      status: stripeBal != null ? 'live' : 'empty',
+    },
+  ];
+
+  const proSum = cards.filter(c => c.type === 'Pro').reduce((s, c) => s + (c.balance || 0), 0);
+  const persoSum = cards.filter(c => c.type === 'Perso').reduce((s, c) => s + (c.balance || 0), 0);
   if (sumEl) sumEl.textContent = formatAmount(proSum + persoSum);
   if (proEl) proEl.textContent = formatAmount(proSum);
   if (persoEl) persoEl.textContent = formatAmount(persoSum);
   if (statusEl) statusEl.innerHTML = '<span class="dot" style="background:var(--green)"></span>Sync ' + new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
 
   if (!listEl) return;
-  const rows = accs.map(a => {
-    const isLive = !String(a.id).startsWith('acct_');
-    const slug = bankSlugOf(a.bank_name);
-    const clickAttr = slug ? ' onclick="navigate(\'' + slug + '\')" style="cursor:pointer"' : ' style="opacity:0.6"';
-    return '<div' + clickAttr + ' onmouseover="this.style.background=\'var(--surface2)\'" onmouseout="this.style.background=\'\'" style="padding:14px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:16px;cursor:pointer">' +
+  const badge = (s) => s === 'live' ? '🟢 Live'
+    : s === 'csv' ? '📂 CSV'
+    : '⚙️ À configurer';
+  listEl.innerHTML = cards.map((c, i) => {
+    const isLast = i === cards.length - 1;
+    const borderStyle = isLast ? '' : 'border-bottom:1px solid var(--border);';
+    const balanceTxt = c.balance != null ? formatAmount(c.balance, c.currency) : '— €';
+    const balanceColor = c.balance == null ? 'color:var(--muted)' : '';
+    return '<div onclick="navigate(\'' + c.slug + '\')" onmouseover="this.style.background=\'var(--surface2)\'" onmouseout="this.style.background=\'\'" style="padding:14px 20px;' + borderStyle + 'display:flex;align-items:center;gap:16px;cursor:pointer">' +
       '<div style="flex:1">' +
-        '<div style="font-weight:600;font-size:14px">' + escapeHtml(a.bank_name) + '</div>' +
-        '<div style="font-size:12px;color:var(--muted);margin-top:2px">' + (a.type || '') + (a.iban_last4 ? ' · ••••' + a.iban_last4 : '') + '</div>' +
+        '<div style="font-weight:600;font-size:14px">' + escapeHtml(c.bank) + '</div>' +
+        '<div style="font-size:12px;color:var(--muted);margin-top:2px">' + escapeHtml(c.type) + ' · ' + escapeHtml(c.sub) + '</div>' +
       '</div>' +
       '<div style="text-align:right">' +
-        '<div style="font-weight:600;font-variant-numeric:tabular-nums">' + formatAmount(a.balance, a.currency_code) + '</div>' +
-        '<div style="font-size:11px;color:var(--muted);margin-top:2px">' + (isLive ? '🟢 Live' : '🟡 Mock') + '</div>' +
+        '<div style="font-weight:600;font-variant-numeric:tabular-nums;' + balanceColor + '">' + balanceTxt + '</div>' +
+        '<div style="font-size:11px;color:var(--muted);margin-top:2px">' + badge(c.status) + '</div>' +
       '</div>' +
     '</div>';
   }).join('');
-
-  // Add MyeFarm placeholder
-  const myefarmRow = '<div onclick="navigate(\'myefarm\')" onmouseover="this.style.background=\'var(--surface2)\'" onmouseout="this.style.background=\'\'" style="padding:14px 20px;display:flex;align-items:center;gap:16px;cursor:pointer">' +
-    '<div style="flex:1">' +
-      '<div style="font-weight:600;font-size:14px">MyeFarm</div>' +
-      '<div style="font-size:12px;color:var(--muted);margin-top:2px">Pro · Stripe (jeu en ligne)</div>' +
-    '</div>' +
-    '<div style="text-align:right">' +
-      '<div style="font-weight:600;color:var(--muted)">— €</div>' +
-      '<div style="font-size:11px;color:var(--muted);margin-top:2px">⚙️ À configurer</div>' +
-    '</div>' +
-  '</div>';
-
-  listEl.innerHTML = rows + myefarmRow;
 }
+
+// ─── CSV / OFX IMPORT (Fortuneo + BPO) ──────────────────────────────────────
+
+const IMPORTED_BANKS = ['fortuneo', 'bpo'];
 
 function reloadBank(slug) {
   if (slug === 'apercu') return renderApercu();
   if (slug === 'myefarm') return renderMyefarmPage();
+  if (IMPORTED_BANKS.includes(slug)) return renderImportedBank(slug);
   return renderBankPage(slug);
 }
+
+function getImportedTransactions(slug) {
+  try {
+    const raw = localStorage.getItem('wassim:imports:' + slug);
+    return raw ? JSON.parse(raw) : [];
+  } catch { return []; }
+}
+
+function saveImportedTransactions(slug, list) {
+  list.sort((a, b) => new Date(b.date) - new Date(a.date));
+  localStorage.setItem('wassim:imports:' + slug, JSON.stringify(list));
+}
+
+function getImportMeta(slug) {
+  try {
+    const raw = localStorage.getItem('wassim:imports-meta:' + slug);
+    return raw ? JSON.parse(raw) : null;
+  } catch { return null; }
+}
+
+function setImportMeta(slug, meta) {
+  localStorage.setItem('wassim:imports-meta:' + slug, JSON.stringify(meta));
+}
+
+function resetImports(slug) {
+  if (!confirm('Effacer toutes les transactions importées pour ' + slug + ' ?')) return;
+  localStorage.removeItem('wassim:imports:' + slug);
+  localStorage.removeItem('wassim:imports-meta:' + slug);
+  renderImportedBank(slug);
+}
+
+// Stable hash for transaction dedup: date|description|amount
+function txHashId(t) {
+  const k = (t.date || '') + '|' + (t.description || '').replace(/\s+/g, ' ').trim().toLowerCase() + '|' + Math.round((t.amount || 0) * 100);
+  let h = 0;
+  for (let i = 0; i < k.length; i++) h = ((h << 5) - h + k.charCodeAt(i)) | 0;
+  return 'imp_' + Math.abs(h).toString(36) + '_' + k.length;
+}
+
+// French number: "1 234,56" → 1234.56 ; "(1 234,56)" → -1234.56 ; "-45,20" → -45.20
+function parseAmountFr(s) {
+  if (s == null) return NaN;
+  let str = String(s).trim();
+  if (!str) return NaN;
+  let neg = false;
+  if (str.startsWith('(') && str.endsWith(')')) { neg = true; str = str.slice(1, -1); }
+  str = str.replace(/[€$£\s ]/g, '').replace(/\./g, '').replace(',', '.');
+  const n = parseFloat(str);
+  if (isNaN(n)) return NaN;
+  return neg ? -Math.abs(n) : n;
+}
+
+// Date parsing: tries DD/MM/YYYY, YYYY-MM-DD, DD.MM.YYYY
+function parseDateFr(s) {
+  if (!s) return null;
+  const str = String(s).trim();
+  let m;
+  if ((m = str.match(/^(\d{4})-(\d{2})-(\d{2})/))) return `${m[1]}-${m[2]}-${m[3]}`;
+  if ((m = str.match(/^(\d{1,2})[\/\.-](\d{1,2})[\/\.-](\d{2,4})/))) {
+    const y = m[3].length === 2 ? '20' + m[3] : m[3];
+    return `${y}-${m[2].padStart(2, '0')}-${m[1].padStart(2, '0')}`;
+  }
+  const d = new Date(str);
+  return isNaN(d) ? null : d.toISOString().slice(0, 10);
+}
+
+// Detect separator by counting occurrences on the header-ish line
+function detectSeparator(text) {
+  const sample = text.split(/\r?\n/).filter(l => l.trim()).slice(0, 5);
+  const cands = [';', ',', '\t', '|'];
+  let best = ';', bestCount = 0;
+  for (const sep of cands) {
+    const counts = sample.map(l => l.split(sep).length);
+    const min = Math.min(...counts);
+    if (min > bestCount && min > 1) { bestCount = min; best = sep; }
+  }
+  return best;
+}
+
+// CSV parser with quoted field support
+function parseCsvText(text, sep) {
+  const rows = [];
+  let row = [], field = '', inQuote = false, i = 0;
+  while (i < text.length) {
+    const c = text[i];
+    if (inQuote) {
+      if (c === '"' && text[i + 1] === '"') { field += '"'; i += 2; continue; }
+      if (c === '"') { inQuote = false; i++; continue; }
+      field += c; i++;
+    } else {
+      if (c === '"') { inQuote = true; i++; continue; }
+      if (c === sep) { row.push(field); field = ''; i++; continue; }
+      if (c === '\r') { i++; continue; }
+      if (c === '\n') { row.push(field); rows.push(row); row = []; field = ''; i++; continue; }
+      field += c; i++;
+    }
+  }
+  if (field.length || row.length) { row.push(field); rows.push(row); }
+  return rows.filter(r => r.some(v => v && v.trim()));
+}
+
+// Find header row by looking for known column names. Returns { idx, headers }
+function findHeaderRow(rows) {
+  const keys = ['date', 'libellé', 'libelle', 'description', 'montant', 'débit', 'debit', 'crédit', 'credit', 'amount', 'label'];
+  for (let i = 0; i < Math.min(rows.length, 20); i++) {
+    const lower = rows[i].map(c => (c || '').toLowerCase().trim());
+    if (lower.some(c => keys.includes(c) || keys.some(k => c.startsWith(k)))) {
+      return { idx: i, headers: lower };
+    }
+  }
+  return { idx: 0, headers: rows[0].map(c => (c || '').toLowerCase().trim()) };
+}
+
+// Map header cells to canonical column names
+function buildColumnMap(headers) {
+  const map = {};
+  headers.forEach((h, i) => {
+    const c = h.toLowerCase().trim();
+    if (!map.date && (c === 'date' || c.startsWith('date opération') || c.startsWith('date opera') || c === 'date d\'opération' || c === 'date comptable')) map.date = i;
+    if (!map.dateValue && (c === 'date valeur' || c === 'date de valeur' || c === 'value date')) map.dateValue = i;
+    if (!map.description && (c === 'libellé' || c === 'libelle' || c === 'description' || c === 'label' || c === 'narrative' || c === 'détails' || c === 'details')) map.description = i;
+    if (!map.amount && (c === 'montant' || c === 'amount' || c === 'mouvement')) map.amount = i;
+    if (!map.debit && (c === 'débit' || c === 'debit' || c === 'débit (€)' || c === 'debits' || c === 'sortie')) map.debit = i;
+    if (!map.credit && (c === 'crédit' || c === 'credit' || c === 'crédit (€)' || c === 'credits' || c === 'entrée')) map.credit = i;
+    if (!map.balance && (c === 'solde' || c === 'balance')) map.balance = i;
+    if (!map.category && (c === 'catégorie' || c === 'categorie' || c === 'category')) map.category = i;
+  });
+  // Fallback: if no date column found but first column looks like date, use index 0
+  if (map.date == null && headers[0]) map.date = 0;
+  return map;
+}
+
+function rowToTransaction(row, colMap, slug) {
+  const description = colMap.description != null ? (row[colMap.description] || '').trim() : '';
+  const date = parseDateFr(row[colMap.date] || '');
+  if (!date) return null;
+  let amount = NaN;
+  if (colMap.amount != null) amount = parseAmountFr(row[colMap.amount]);
+  if (isNaN(amount) && colMap.debit != null && colMap.credit != null) {
+    const d = parseAmountFr(row[colMap.debit]);
+    const c = parseAmountFr(row[colMap.credit]);
+    if (!isNaN(d) && d !== 0) amount = -Math.abs(d);
+    else if (!isNaN(c) && c !== 0) amount = Math.abs(c);
+  }
+  if (isNaN(amount)) return null;
+  const balance = colMap.balance != null ? parseAmountFr(row[colMap.balance]) : null;
+  const tx = { date, description: description || '(sans libellé)', amount, currency_code: 'EUR', source: 'csv', bank_slug: slug };
+  if (!isNaN(balance) && balance !== null) tx.balance = balance;
+  tx.id = txHashId(tx);
+  return tx;
+}
+
+// Minimal OFX parser (SGML/XML hybrid) — extracts <STMTTRN> blocks
+function parseOfxText(text, slug) {
+  const txs = [];
+  const blockRe = /<STMTTRN>([\s\S]*?)<\/STMTTRN>/gi;
+  const tag = (block, name) => {
+    const m = block.match(new RegExp('<' + name + '>([^<\\r\\n]+)', 'i'));
+    return m ? m[1].trim() : '';
+  };
+  let m;
+  while ((m = blockRe.exec(text)) !== null) {
+    const b = m[1];
+    const rawDate = tag(b, 'DTPOSTED').slice(0, 8);
+    const date = rawDate.length === 8 ? `${rawDate.slice(0, 4)}-${rawDate.slice(4, 6)}-${rawDate.slice(6, 8)}` : null;
+    const amount = parseFloat(tag(b, 'TRNAMT').replace(',', '.'));
+    const description = (tag(b, 'NAME') || tag(b, 'MEMO') || tag(b, 'PAYEE')).trim();
+    if (!date || isNaN(amount)) continue;
+    const tx = { date, description: description || '(sans libellé)', amount, currency_code: 'EUR', source: 'ofx', bank_slug: slug };
+    tx.id = txHashId(tx);
+    txs.push(tx);
+  }
+  return txs;
+}
+
+async function readFileSmart(file) {
+  // Try UTF-8 first; if it has the replacement character, retry with Windows-1252
+  const buf = await file.arrayBuffer();
+  let text = new TextDecoder('utf-8', { fatal: false }).decode(buf);
+  if (text.includes('�')) {
+    text = new TextDecoder('windows-1252').decode(buf);
+  }
+  // Strip BOM
+  if (text.charCodeAt(0) === 0xFEFF) text = text.slice(1);
+  return text;
+}
+
+async function importFile(file, slug) {
+  const zone = document.getElementById('import-zone-' + slug);
+  const subEl = document.getElementById('import-meta-' + slug);
+  try {
+    if (zone) zone.classList.remove('success', 'error');
+    if (subEl) subEl.textContent = 'Lecture du fichier…';
+
+    const text = await readFileSmart(file);
+    const isOfx = /<OFX>|<STMTTRN>/i.test(text);
+    let parsed;
+    if (isOfx) {
+      parsed = parseOfxText(text, slug);
+    } else {
+      const sep = detectSeparator(text);
+      const rows = parseCsvText(text, sep);
+      if (rows.length < 2) throw new Error('Le fichier ne contient pas de données');
+      const { idx, headers } = findHeaderRow(rows);
+      const colMap = buildColumnMap(headers);
+      if (colMap.date == null) throw new Error('Colonne Date introuvable');
+      if (colMap.amount == null && (colMap.debit == null || colMap.credit == null)) throw new Error('Colonnes Montant ou Débit/Crédit introuvables');
+      parsed = rows.slice(idx + 1).map(r => rowToTransaction(r, colMap, slug)).filter(Boolean);
+    }
+    if (parsed.length === 0) throw new Error('Aucune transaction lisible dans le fichier');
+
+    // Dedup + merge with existing
+    const existing = getImportedTransactions(slug);
+    const existingIds = new Set(existing.map(t => t.id));
+    const fresh = parsed.filter(t => !existingIds.has(t.id));
+    const merged = existing.concat(fresh);
+    saveImportedTransactions(slug, merged);
+
+    // Update meta
+    const latestBalanceTx = merged.find(t => t.balance != null);
+    const meta = {
+      lastImportAt: new Date().toISOString(),
+      lastImportFile: file.name,
+      totalCount: merged.length,
+      latestBalance: latestBalanceTx ? latestBalanceTx.balance : null,
+      latestBalanceDate: latestBalanceTx ? latestBalanceTx.date : null,
+    };
+    setImportMeta(slug, meta);
+
+    if (zone) zone.classList.add('success');
+    if (subEl) subEl.textContent = `✓ ${fresh.length} nouvelle${fresh.length > 1 ? 's' : ''} transaction${fresh.length > 1 ? 's' : ''} (${parsed.length - fresh.length} doublon${(parsed.length - fresh.length) > 1 ? 's' : ''} ignoré${(parsed.length - fresh.length) > 1 ? 's' : ''}) · ${file.name}`;
+    setTimeout(() => { if (zone) zone.classList.remove('success'); }, 3000);
+    renderImportedBank(slug);
+  } catch (e) {
+    if (zone) zone.classList.add('error');
+    if (subEl) subEl.textContent = '❌ ' + e.message;
+    console.error('CSV import error', e);
+  }
+}
+
+function handleCsvFile(event, slug) {
+  const file = event.target.files && event.target.files[0];
+  if (!file) return;
+  importFile(file, slug);
+  event.target.value = '';
+}
+
+function setupDropZone(slug) {
+  const zone = document.getElementById('import-zone-' + slug);
+  if (!zone || zone.dataset.dropWired) return;
+  zone.dataset.dropWired = '1';
+  zone.addEventListener('dragover', (e) => { e.preventDefault(); zone.classList.add('dragover'); });
+  zone.addEventListener('dragleave', () => zone.classList.remove('dragover'));
+  zone.addEventListener('drop', (e) => {
+    e.preventDefault();
+    zone.classList.remove('dragover');
+    const file = e.dataTransfer.files && e.dataTransfer.files[0];
+    if (file) importFile(file, slug);
+  });
+}
+
+function renderImportedBank(slug) {
+  setupDropZone(slug);
+  const bankName = BANK_BY_SLUG[slug];
+  const balEl = document.getElementById('bank-balance-' + slug);
+  const metaEl = document.getElementById('bank-meta-' + slug);
+  const cntEl = document.getElementById('bank-txcount-' + slug);
+  const lastEl = document.getElementById('bank-txlast-' + slug);
+  const listEl = document.getElementById('bank-txlist-' + slug);
+  const statusEl = document.getElementById('bank-status-' + slug);
+  const subEl = document.getElementById('import-meta-' + slug);
+
+  const txs = getImportedTransactions(slug);
+  const meta = getImportMeta(slug);
+
+  if (txs.length === 0) {
+    if (statusEl) statusEl.innerHTML = '<span class="dot" style="background:var(--muted-2)"></span>Aucun import';
+    if (balEl) balEl.textContent = '— €';
+    if (metaEl) metaEl.textContent = 'Aucun import';
+    if (cntEl) cntEl.textContent = '—';
+    if (lastEl) lastEl.textContent = 'Dernière : —';
+    if (listEl) listEl.innerHTML = '<p style="padding:32px;color:var(--muted);text-align:center">Importe un CSV pour voir les transactions.</p>';
+    if (subEl && !subEl.textContent.includes('✓') && !subEl.textContent.includes('❌')) {
+      subEl.textContent = 'ou clique pour parcourir · CSV / OFX / QIF acceptés';
+    }
+    return;
+  }
+
+  if (statusEl) {
+    const ago = meta ? Math.round((Date.now() - new Date(meta.lastImportAt).getTime()) / 86400000) : null;
+    const agoTxt = ago != null ? (ago === 0 ? "aujourd'hui" : ago === 1 ? 'hier' : 'il y a ' + ago + ' jours') : '';
+    statusEl.innerHTML = `<span class="dot" style="background:var(--green)"></span>${txs.length} op. importées · dernier import ${agoTxt}`;
+  }
+
+  // Balance: prefer last known balance from CSV; otherwise sum of all transactions
+  let balance;
+  if (meta && meta.latestBalance != null) {
+    balance = meta.latestBalance;
+  } else {
+    balance = txs.reduce((s, t) => s + (t.amount || 0), 0);
+  }
+  if (balEl) balEl.textContent = formatAmount(balance, 'EUR');
+  if (metaEl) {
+    if (meta && meta.latestBalance != null && meta.latestBalanceDate) {
+      metaEl.textContent = `Solde au ${new Date(meta.latestBalanceDate).toLocaleDateString('fr-FR')}`;
+    } else {
+      metaEl.textContent = `Somme de ${txs.length} op. importées (sans solde de référence dans le CSV)`;
+    }
+  }
+
+  const last30 = txs.filter(t => (Date.now() - new Date(t.date).getTime()) < 30 * 86400000);
+  if (cntEl) cntEl.textContent = last30.length;
+  if (lastEl) lastEl.textContent = 'Dernière : ' + new Date(txs[0].date).toLocaleDateString('fr-FR');
+
+  if (subEl && !subEl.textContent.includes('✓') && !subEl.textContent.includes('❌')) {
+    subEl.textContent = `${txs.length} op. en mémoire · dernier fichier : ${meta?.lastImportFile || '—'}`;
+  }
+
+  if (listEl) {
+    listEl.innerHTML = '<table class="data-table" style="border:none;border-radius:0">' +
+      '<thead><tr><th>Date</th><th>Description</th><th class="num">Montant</th></tr></thead>' +
+      '<tbody>' + txs.slice(0, 50).map(t =>
+        '<tr><td>' + new Date(t.date).toLocaleDateString('fr-FR') + '</td>' +
+        '<td>' + escapeHtml(t.description) + '</td>' +
+        '<td class="num ' + (t.amount >= 0 ? 'amount-pos' : 'amount-neg') + '">' + formatAmount(t.amount, 'EUR') + '</td></tr>'
+      ).join('') + '</tbody></table>';
+  }
+}
+
 
 async function fetchStripeSummary() {
   const cfg = getWorkerConfig();
