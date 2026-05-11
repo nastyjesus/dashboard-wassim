@@ -782,7 +782,6 @@
       <nav class="nav">
         <button class="nav-item active" onclick="navigate('apercu')">Aperçu</button>
         <button class="nav-item" onclick="navigate('qonto')">Qonto</button>
-        <button class="nav-item" onclick="navigate('traderepublic')">Trade Republic</button>
         <button class="nav-item" onclick="navigate('bpo')">BPO</button>
         <button class="nav-item" onclick="navigate('fortuneo')">Fortuneo</button>
         <button class="nav-item" onclick="navigate('myefarm')">MyeFarm</button>
@@ -814,11 +813,11 @@
           <div style="display:flex;gap:24px;align-items:baseline">
             <div>
               <div class="fi-kpi-value" id="apercu-pro" style="font-size:22px">— €</div>
-              <div class="fi-kpi-sub">Pro · Qonto + BPO + MyeFarm</div>
+              <div class="fi-kpi-sub">Qonto + BPO + Fortuneo + MyeFarm</div>
             </div>
             <div>
               <div class="fi-kpi-value" id="apercu-perso" style="font-size:22px">— €</div>
-              <div class="fi-kpi-sub">Perso · Fortuneo + Trade Republic</div>
+              <div class="fi-kpi-sub">Perso · Fortuneo</div>
             </div>
           </div>
         </div>
@@ -868,39 +867,7 @@
       </div>
     </div>
 
-    <!-- ─── TRADE REPUBLIC ─── -->
-    <div class="page" id="page-traderepublic">
-      <div class="page-header">
-        <div>
-          <div class="page-title">Trade Republic</div>
-          <div class="page-sub">Perso · Cash &amp; PEA</div>
-        </div>
-        <div id="bank-status-traderepublic" class="fi-status"><span class="dot" style="background:var(--muted-2)"></span>Mock — en attente Bridge</div>
-      </div>
-
-      <div class="grid-2">
-        <div class="card">
-          <div class="card-title">Solde actuel</div>
-          <div class="fi-kpi-value" id="bank-balance-traderepublic">— €</div>
-          <div class="fi-kpi-sub" id="bank-meta-traderepublic">—</div>
-        </div>
-        <div class="card">
-          <div class="card-title">Transactions (30j)</div>
-          <div class="fi-kpi-value" id="bank-txcount-traderepublic">—</div>
-          <div class="fi-kpi-sub" id="bank-txlast-traderepublic">Dernière : —</div>
-        </div>
-      </div>
-
-      <div class="card" style="padding:0">
-        <div style="padding:16px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between">
-          <div class="card-title" style="margin:0">Dernières opérations</div>
-          <button class="btn btn-ghost btn-sm" onclick="reloadBank('traderepublic')">Actualiser</button>
-        </div>
-        <div id="bank-txlist-traderepublic">
-          <p style="padding:32px;color:var(--muted);text-align:center">Chargement…</p>
-        </div>
-      </div>
-    </div>
+    <!-- ─── TRADE REPUBLIC : retiré du dashboard à la demande de l'utilisateur ─── -->
 
     <!-- ─── BPO (Banque Populaire) ─── -->
     <div class="page" id="page-bpo">
@@ -1285,14 +1252,13 @@ function navigate(page) {
   });
   if (page === 'apercu') renderApercu();
   else if (page === 'myefarm') renderMyefarmPage();
-  else if (['qonto', 'traderepublic', 'bpo', 'fortuneo'].includes(page)) renderBankPage(page);
+  else if (['qonto', 'bpo', 'fortuneo'].includes(page)) renderBankPage(page);
 }
 
 // ─── BANK PAGES (Aperçu + 5 comptes) ────────────────────────────────────────
 
 const BANK_BY_SLUG = {
   qonto: 'Qonto',
-  traderepublic: 'Trade Republic',
   bpo: 'Banque Populaire',
   fortuneo: 'Fortuneo',
 };
