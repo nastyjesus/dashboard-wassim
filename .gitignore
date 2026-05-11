@@ -2,6 +2,9 @@
 .env
 .env.local
 .env.*.local
+scripts/sync-banks/.env
+scripts/sync-banks/sync.log
+scripts/sync-banks/sync.error.log
 docs/notion-ids.local.json
 
 # Node / Cloudflare

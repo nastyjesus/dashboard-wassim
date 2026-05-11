@@ -1,55 +1,111 @@
-# sync-banks — woob scraper Fortuneo + BPGO
+# sync-banks — woob scraper Fortuneo
 
-Lit les comptes et transactions via [woob](https://woob.tech/) et les pousse
-au worker Cloudflare qui les stocke en KV pour consommation par le dashboard.
+Lit les comptes et transactions Fortuneo via [woob](https://woob.tech/) et les
+pousse au worker Cloudflare qui les stocke en KV pour consommation par le
+dashboard.
 
-## Pré-requis local (1ʳᵉ fois)
+> **Pourquoi pas GitHub Actions cron ?** Fortuneo a un WAF qui rejette les IP
+> datacenter (Azure, AWS) avec un 403 systématique. La SCA est aussi liée à
+> l'IP qui l'a déclenchée. Conclusion : le sync doit tourner depuis une IP
+> résidentielle française — c'est-à-dire **chez toi**, pas dans le cloud.
+> On utilise donc `launchd` sur ton Mac (équivalent macOS de cron).
+
+## Setup initial (à faire une fois)
+
+### 1. Pré-requis local
 
 ```bash
+# Python venv + woob
 python3 -m venv ~/woob-env
-source ~/woob-env/bin/activate
-pip install -r requirements.txt
+~/woob-env/bin/pip install -r requirements.txt
 
-# Setup interactif des backends (1× — déclenche la SCA)
-woob config add fortuneo
-woob config add banquepopulaire
-
-# Test que les comptes remontent
-woob bank list
+# Config interactive du backend Fortuneo (déclenche la SCA)
+~/woob-env/bin/woob config add fortuneo
+~/woob-env/bin/woob bank list   # vérifier que ça marche
 ```
 
-Le dossier `~/.config/woob/` contient désormais ta config + sessions.
+### 2. Récupérer le repo localement
 
-## Pousser en CI (GitHub Actions)
+Si pas déjà fait :
+```bash
+cd ~/
+git clone https://github.com/nastyjesus/dashboard-wassim.git
+cd dashboard-wassim/scripts/sync-banks
+```
 
-1. Tarball + base64 du dossier config :
-   ```bash
-   tar -czf woob-config.tar.gz -C ~/.config woob
-   base64 woob-config.tar.gz > woob-config.b64
-   ```
-2. Copie le contenu de `woob-config.b64` dans le secret GitHub `WOOB_CONFIG_B64`.
-3. Le workflow `sync-banks.yml` restaure ce dossier au début de chaque run.
-
-## Rotation tous les ~90 jours (SCA expirée)
+### 3. Renseigner le `.env`
 
 ```bash
-woob bank list
-# → si AuthError ou SCA challenge :
-woob config remove fortuneo
-woob config add fortuneo
-# (re-faire la SCA)
+cp .env.example .env
+nano .env
+```
 
-# Et regénère le tarball/base64 → update GH secret
-tar -czf woob-config.tar.gz -C ~/.config woob
-base64 woob-config.tar.gz | pbcopy   # macOS : copie dans le presse-papier
+Remplis :
+- `WORKER_URL` = URL du worker Cloudflare (probablement déjà bon)
+- `WASSIM_AUTH_TOKEN` = le token X-Wassim-Auth qui marche avec Qonto/Stripe
+
+### 4. Installer le launchd agent
+
+```bash
+./install-mac.sh
+```
+
+Le script va :
+1. Faire un smoke test (un sync manuel)
+2. Si OK, installer `~/Library/LaunchAgents/com.wassim.dashboard.sync-banks.plist`
+3. L'activer pour qu'il tourne **chaque jour à 7h** (ou au réveil si Mac endormi)
+
+## Commandes utiles
+
+```bash
+# Forcer un run manuel maintenant
+launchctl start com.wassim.dashboard.sync-banks
+
+# Voir les logs
+tail -f sync.log sync.error.log
+
+# Désactiver temporairement
+launchctl unload ~/Library/LaunchAgents/com.wassim.dashboard.sync-banks.plist
+
+# Réactiver
+launchctl load ~/Library/LaunchAgents/com.wassim.dashboard.sync-banks.plist
+
+# Test direct sans passer par launchd
+./run-sync.sh
+```
+
+## Rotation SCA tous les ~90 jours
+
+DSP2 impose une re-authentification forte tous les 3 mois. Quand le sync
+commencera à planter avec une AuthError ou un challenge SCA :
+
+```bash
+~/woob-env/bin/woob config remove fortuneo
+~/woob-env/bin/woob config add fortuneo
+# (refais la SCA via SMS ou app Fortuneo Sécurité-Pass)
+~/woob-env/bin/woob bank list   # verify
+```
+
+Pas besoin de retoucher launchd ni le `.env` — le backend est lu depuis
+`~/.config/woob/backends` à chaque run.
+
+## Comment ça pousse au dashboard
+
+```
+launchd 7h
+  → run-sync.sh
+    → sync-banks.py (lit woob → /scraped/ingest sur worker)
+      → KV Cloudflare bucket "bank:fortuneo"
+        → dashboard fetch /scraped/fortuneo
+          → renderImportedBank affiche les data ‹fraîches›
 ```
 
 ## Variables d'environnement
 
 | Var                   | Description                                  |
 |-----------------------|----------------------------------------------|
-| `WORKER_URL`          | URL du worker, ex: https://bridge-proxy-wassim.…workers.dev |
-| `WASSIM_AUTH_TOKEN`   | header `X-Wassim-Auth`                       |
-| `WOOB_DATA_DIR`       | optionnel — répertoire config woob alternatif|
+| `WORKER_URL`          | URL du worker (env via .env)                 |
+| `WASSIM_AUTH_TOKEN`   | header `X-Wassim-Auth` (env via .env)        |
+| `WOOB_DATA_DIR`       | optionnel — surcharge le workdir woob (usage CI uniquement) |
 | `FORTUNEO_BACKEND_NAME` | nom du backend woob (défaut: `fortuneo`)   |
-| `BPGO_BACKEND_NAME`   | nom du backend woob BPGO (défaut: `bpgo`)    |
+| `BPGO_BACKEND_NAME`   | nom du backend woob BPGO (défaut: `bpgo`, non utilisé pour l'instant) |
