@@ -1284,6 +1284,7 @@ function navigate(page) {
     if (onclick.includes("'" + page + "'")) n.classList.add('active');
   });
   if (page === 'apercu') renderApercu();
+  else if (page === 'myefarm') renderMyefarmPage();
   else if (['qonto', 'traderepublic', 'bpo', 'fortuneo'].includes(page)) renderBankPage(page);
 }
 
