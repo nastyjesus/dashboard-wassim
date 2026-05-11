@@ -6,7 +6,7 @@ on:
       ref:
         description: "Branch/ref to deploy from"
         type: string
-        default: claude/finances-dashboard-bridge-pxzlE
+        default: main
       provision-secrets:
         description: "Provision/refresh Notion + auth secrets before deploy"
         type: boolean
