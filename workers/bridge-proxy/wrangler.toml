@@ -32,6 +32,9 @@ crons = ["0 7,12,18 * * *"]
 #   NOTION_DB_ACCOUNTS_ID
 #   NOTION_DB_CATEGORIES_ID
 #   WASSIM_AUTH_TOKEN          (header partagé X-Wassim-Auth front <-> worker)
+#   QONTO_LOGIN                (sign-in Qonto)
+#   QONTO_SECRET_KEY           (secret-key Qonto, 64 hex)
+#   STRIPE_KEY                 (rk_live_… ou sk_test_…, lecture seule — endpoint /stripe/summary)
 
 [observability]
 enabled = true
