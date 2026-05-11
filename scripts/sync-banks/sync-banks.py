@@ -146,22 +146,23 @@ def fetch_bank(woob: Woob, bank_cfg, history_days: int = 365):
 
 
 def push_to_worker(payload: dict, worker_url: str, auth_token: str) -> None:
-    import urllib.request
+    # Utilise `requests` plutôt que urllib parce que Python.framework sur macOS
+    # n'a pas accès aux CA système → SSL: CERTIFICATE_VERIFY_FAILED. `requests`
+    # bundle certifi et règle ça out-of-the-box.
+    import requests
 
-    req = urllib.request.Request(
+    resp = requests.post(
         worker_url.rstrip("/") + "/scraped/ingest",
         data=json.dumps(payload).encode("utf-8"),
-        method="POST",
         headers={
             "Content-Type": "application/json",
             "X-Wassim-Auth": auth_token,
         },
+        timeout=30,
     )
-    with urllib.request.urlopen(req, timeout=30) as resp:
-        body = resp.read().decode("utf-8")
-        if resp.status >= 300:
-            raise RuntimeError(f"worker {resp.status}: {body}")
-        print(f"[info] worker ingest OK: {body}", file=sys.stderr)
+    if resp.status_code >= 300:
+        raise RuntimeError(f"worker {resp.status_code}: {resp.text}")
+    print(f"[info] worker ingest OK: {resp.text}", file=sys.stderr)
 
 
 def main() -> int:
