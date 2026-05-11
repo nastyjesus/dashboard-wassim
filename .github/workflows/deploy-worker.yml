@@ -44,6 +44,7 @@ jobs:
           WASSIM_AUTH_TOKEN: ${{ secrets.WASSIM_AUTH_TOKEN }}
           QONTO_LOGIN: ${{ secrets.QONTO_LOGIN }}
           QONTO_SECRET_KEY: ${{ secrets.QONTO_SECRET_KEY }}
+          STRIPE_KEY: ${{ secrets.STRIPE_KEY }}
         run: |
           printf '%s' "$NOTION_TOKEN"             | npx wrangler secret put NOTION_TOKEN
           printf '%s' "$NOTION_DB_ACCOUNTS_ID"    | npx wrangler secret put NOTION_DB_ACCOUNTS_ID
@@ -55,6 +56,11 @@ jobs:
             printf '%s' "$QONTO_SECRET_KEY"       | npx wrangler secret put QONTO_SECRET_KEY
           else
             echo "QONTO_LOGIN/QONTO_SECRET_KEY not both set; Qonto will stay in Bridge/mock mode"
+          fi
+          if [ -n "$STRIPE_KEY" ]; then
+            printf '%s' "$STRIPE_KEY"             | npx wrangler secret put STRIPE_KEY
+          else
+            echo "STRIPE_KEY not set; /stripe/summary will return 503"
           fi
 
       - run: npx wrangler deploy

@@ -4,6 +4,7 @@
 
 import { BridgeClient } from './bridge-client.js';
 import { QontoClient, hasQontoCreds } from './qonto-client.js';
+import { StripeClient, hasStripeCreds } from './stripe-client.js';
 import { NotionClient, runSync } from './notion-sync.js';
 import { jsonResponse, preflightResponse } from './cors.js';
 import { logger } from './logger.js';
@@ -53,6 +54,15 @@ export default {
       if (path === '/sync' && request.method === 'POST') {
         const result = await doSync(env);
         return jsonResponse(result, 200, request, env);
+      }
+
+      if (path === '/stripe/summary' && request.method === 'GET') {
+        if (!hasStripeCreds(env)) {
+          return jsonResponse({ error: 'stripe_not_configured', message: 'STRIPE_KEY missing' }, 503, request, env);
+        }
+        const stripe = new StripeClient(env);
+        const data = await stripe.summary();
+        return jsonResponse(data, 200, request, env);
       }
 
       return jsonResponse({ error: 'not_found', path }, 404, request, env);

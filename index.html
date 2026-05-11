@@ -1464,7 +1464,89 @@ async function renderApercu() {
 
 function reloadBank(slug) {
   if (slug === 'apercu') return renderApercu();
+  if (slug === 'myefarm') return renderMyefarmPage();
   return renderBankPage(slug);
+}
+
+async function fetchStripeSummary() {
+  const cfg = getWorkerConfig();
+  if (!cfg || !cfg.workerUrl || !cfg.authToken) return { error: 'config-missing' };
+  const base = cfg.workerUrl.replace(/\/$/, '');
+  try {
+    const res = await fetch(base + '/stripe/summary', { headers: { 'X-Wassim-Auth': cfg.authToken } });
+    const body = await res.json().catch(() => ({}));
+    if (!res.ok) return { error: body.error || 'worker-' + res.status, message: body.message || '' };
+    return body;
+  } catch (e) {
+    return { error: 'network', message: e.message };
+  }
+}
+
+async function renderMyefarmPage() {
+  const balEl = document.getElementById('bank-balance-myefarm');
+  const metaEl = document.getElementById('bank-meta-myefarm');
+  const cntEl = document.getElementById('bank-txcount-myefarm');
+  const lastEl = document.getElementById('bank-txlast-myefarm');
+  const listEl = document.getElementById('bank-txlist-myefarm');
+  const statusEl = document.getElementById('bank-status-myefarm');
+  if (!balEl) return;
+
+  if (listEl) listEl.innerHTML = '<p style="padding:32px;color:var(--muted);text-align:center">Chargement…</p>';
+
+  const data = await fetchStripeSummary();
+  if (data.error === 'config-missing') return renderConfigMissing(listEl, statusEl);
+  if (data.error === 'stripe_not_configured') {
+    if (statusEl) statusEl.innerHTML = '<span class="dot" style="background:var(--gold)"></span>STRIPE_KEY non configurée sur le worker';
+    balEl.textContent = '— €';
+    if (listEl) listEl.innerHTML = '<p style="padding:32px;color:var(--muted);text-align:center">STRIPE_KEY manquante côté worker. Provisionne-la via <code>wrangler secret put STRIPE_KEY</code>.</p>';
+    return;
+  }
+  if (data.error) {
+    if (statusEl) statusEl.innerHTML = '<span class="dot" style="background:var(--red)"></span>Erreur Stripe';
+    if (listEl) listEl.innerHTML = '<p style="padding:32px;color:var(--red);text-align:center">' + escapeHtml(data.error) + ' ' + escapeHtml(data.message || '') + '</p>';
+    return;
+  }
+
+  const bal = data.balance || {};
+  const last30 = data.last_30d || {};
+  const next = data.next_payout;
+  const charges = Array.isArray(data.charges) ? data.charges : [];
+  const currency = bal.available_currency || last30.currency || 'EUR';
+  const availEUR = (bal.available_cents || 0) / 100;
+  const pendingEUR = (bal.pending_cents || 0) / 100;
+
+  if (statusEl) statusEl.innerHTML = '<span class="dot" style="background:var(--green)"></span>Stripe connecté · ' + new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+  balEl.textContent = formatAmount(availEUR, currency);
+  if (metaEl) {
+    const pendingTxt = pendingEUR > 0 ? ' · pending ' + formatAmount(pendingEUR, currency) : '';
+    const payoutTxt = next ? ' · prochain payout ' + formatAmount((next.amount_cents || 0) / 100, next.currency || currency) + ' le ' + new Date(next.arrival_date * 1000).toLocaleDateString('fr-FR') : '';
+    metaEl.textContent = 'Solde Stripe' + pendingTxt + payoutTxt;
+  }
+  if (cntEl) cntEl.textContent = last30.charge_count || 0;
+  if (lastEl) {
+    const revenue = (last30.revenue_cents || 0) / 100;
+    const refunded = last30.refunded_count || 0;
+    lastEl.textContent = 'CA 30j : ' + formatAmount(revenue, last30.currency || currency) + (refunded ? ' · ' + refunded + ' refund' + (refunded > 1 ? 's' : '') : '');
+  }
+
+  if (!listEl) return;
+  if (charges.length === 0) {
+    listEl.innerHTML = '<p style="padding:32px;color:var(--muted);text-align:center">Aucun paiement sur les 30 derniers jours.</p>';
+    return;
+  }
+  listEl.innerHTML = '<table class="data-table" style="border:none;border-radius:0">' +
+    '<thead><tr><th>Date</th><th>Client</th><th>Description</th><th>Statut</th><th class="num">Montant</th></tr></thead>' +
+    '<tbody>' + charges.slice(0, 25).map(c => {
+      const amount = (c.amount_cents || 0) / 100;
+      const statusColor = c.status === 'paid' ? 'amount-pos' : (c.status === 'refunded' ? 'amount-neg' : '');
+      const statusLabel = c.status === 'paid' ? 'Payé' : (c.status === 'refunded' ? 'Remboursé' : escapeHtml(c.status || ''));
+      const who = c.customer_name || c.customer_email || '—';
+      return '<tr><td>' + (c.created ? new Date(c.created).toLocaleDateString('fr-FR') : '') + '</td>' +
+        '<td>' + escapeHtml(who) + '</td>' +
+        '<td>' + escapeHtml(c.description || '') + '</td>' +
+        '<td><span class="stat-badge ' + (c.status === 'paid' ? 'up' : (c.status === 'refunded' ? 'down' : '')) + '">' + statusLabel + '</span></td>' +
+        '<td class="num ' + statusColor + '">' + formatAmount(amount, c.currency || currency) + '</td></tr>';
+    }).join('') + '</tbody></table>';
 }
 
 // ─── DASHBOARD ──────────────────────────────────────────────────────────────
