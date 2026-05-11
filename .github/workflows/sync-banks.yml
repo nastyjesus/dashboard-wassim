@@ -1,8 +1,9 @@
 name: Sync banks (woob)
 
 on:
-  schedule:
-    - cron: "0 6 * * *"   # tous les jours à 7h Paris (heure d'été = 6h UTC, hiver = 6h UTC aussi avec slip)
+  # Cron GH Actions désactivé : Fortuneo 403 les IP Azure datacenter (WAF anti-bot).
+  # Le sync tourne désormais en local via launchd sur le Mac (cf. scripts/sync-banks/install-mac.sh).
+  # On garde workflow_dispatch pour debug manuel ponctuel.
   workflow_dispatch:
     inputs:
       banks_only:
