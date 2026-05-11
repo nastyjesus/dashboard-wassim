@@ -1303,7 +1303,7 @@ function bankSlugOf(bankName) {
 
 function getWorkerConfig() {
   try {
-    const raw = sessionStorage.getItem('wassim:finances:config');
+    const raw = localStorage.getItem('wassim:finances:config') || sessionStorage.getItem('wassim:finances:config');
     if (raw) return JSON.parse(raw);
   } catch {}
   return null;
@@ -1315,7 +1315,9 @@ function configureWorker() {
   if (!url) return;
   const token = prompt('Token X-Wassim-Auth', cfg.authToken || '');
   if (!token) return;
-  sessionStorage.setItem('wassim:finances:config', JSON.stringify({ workerUrl: url, authToken: token }));
+  const next = JSON.stringify({ workerUrl: url, authToken: token });
+  localStorage.setItem('wassim:finances:config', next);
+  try { sessionStorage.removeItem('wassim:finances:config'); } catch {}
   const active = document.querySelector('.nav-item.active')?.getAttribute('onclick') || '';
   const match = active.match(/'([^']+)'/);
   if (match) navigate(match[1]);
