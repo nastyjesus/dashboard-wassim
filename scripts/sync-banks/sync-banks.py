@@ -29,7 +29,29 @@ import datetime as dt
 from pathlib import Path
 from typing import Any
 
-# Dynamic import — woob est lourd, on l'importe seulement quand on en a besoin
+# IMPORTANT : on positionne XDG_CONFIG_HOME AVANT d'importer woob, sinon woob
+# cache son chemin de config au moment de l'import et notre override est ignoré.
+_WORKDIR = os.environ.get("WOOB_DATA_DIR")
+if _WORKDIR:
+    Path(_WORKDIR).mkdir(parents=True, exist_ok=True)
+    os.environ["XDG_CONFIG_HOME"] = _WORKDIR
+    os.environ["WOOB_WORKDIR"] = _WORKDIR
+    # Debug : montre où woob va aller chercher
+    print(f"[debug] XDG_CONFIG_HOME = {_WORKDIR}", file=sys.stderr)
+    print(f"[debug] expected backends file: {os.path.join(_WORKDIR, 'woob', 'backends')}", file=sys.stderr)
+    if os.path.exists(os.path.join(_WORKDIR, "woob", "backends")):
+        print(f"[debug] ✓ backends file exists", file=sys.stderr)
+        with open(os.path.join(_WORKDIR, "woob", "backends")) as f:
+            sections = [l.strip() for l in f if l.strip().startswith("[")]
+            print(f"[debug] backends sections: {sections}", file=sys.stderr)
+    else:
+        print(f"[debug] ✗ backends file NOT found at expected location", file=sys.stderr)
+        # Liste l'arbo pour comprendre où ça a été extrait
+        for root, dirs, files in os.walk(_WORKDIR):
+            for f in files:
+                print(f"[debug]   - {os.path.join(root, f)}", file=sys.stderr)
+
+# Maintenant on peut importer woob
 from woob.core import Woob
 from woob.capabilities.bank import CapBank
 
@@ -136,12 +158,6 @@ def main() -> int:
     if not worker_url or not auth_token:
         print("[fatal] WORKER_URL and WASSIM_AUTH_TOKEN must be set", file=sys.stderr)
         return 2
-
-    workdir = os.environ.get("WOOB_DATA_DIR")
-    if workdir:
-        Path(workdir).mkdir(parents=True, exist_ok=True)
-        os.environ["WOOB_WORKDIR"] = workdir
-        os.environ["XDG_CONFIG_HOME"] = workdir
 
     print("[info] loading woob backends…", file=sys.stderr)
     woob = Woob()
