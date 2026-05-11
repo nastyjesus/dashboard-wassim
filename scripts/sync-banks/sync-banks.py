@@ -179,9 +179,18 @@ def main() -> int:
 
     # Met à jour les modules pour éviter VersionsMismatchError quand la cache locale
     # (issue du tarball) ne matche pas la version installée dans le runner.
+    class _SilentProgress:
+        def progress(self, percent, message=""):
+            pass
+        def error(self, message):
+            print(f"[woob.repo.error] {message}", file=sys.stderr)
+        def prompt(self, message):
+            print(f"[woob.repo.prompt] {message} → auto-yes", file=sys.stderr)
+            return True
+
     try:
         print("[info] updating woob repositories…", file=sys.stderr)
-        woob.repositories.update_repositories(progress=None)
+        woob.repositories.update_repositories(progress=_SilentProgress())
     except Exception as e:
         print(f"[warn] update_repositories failed (continuing): {e}", file=sys.stderr)
 
