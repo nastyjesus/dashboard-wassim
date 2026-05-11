@@ -29,24 +29,36 @@ import datetime as dt
 from pathlib import Path
 from typing import Any
 
-# IMPORTANT : on positionne XDG_CONFIG_HOME AVANT d'importer woob, sinon woob
-# cache son chemin de config au moment de l'import et notre override est ignoré.
+# IMPORTANT : woob lit son workdir depuis WOOB_WORKDIR (= dossier qui CONTIENT
+# le fichier `backends`, pas un parent qui contient un sous-dossier `woob/`).
+# Le tarball que fournit le user est structuré en `woob/backends`, donc il faut
+# que WOOB_WORKDIR pointe sur le sous-dossier `woob` du WOOB_DATA_DIR.
 _WORKDIR = os.environ.get("WOOB_DATA_DIR")
+_WOOB_DIR = None
 if _WORKDIR:
     Path(_WORKDIR).mkdir(parents=True, exist_ok=True)
-    os.environ["XDG_CONFIG_HOME"] = _WORKDIR
-    os.environ["WOOB_WORKDIR"] = _WORKDIR
+    # Détecte la structure réelle du tarball (backends à la racine ou dans woob/)
+    candidates = [
+        os.path.join(_WORKDIR, "woob"),  # tarball fait via `tar -C ~/.config woob`
+        _WORKDIR,                          # tarball fait depuis ~/.config/woob directement
+    ]
+    for c in candidates:
+        if os.path.exists(os.path.join(c, "backends")):
+            _WOOB_DIR = c
+            break
+    if _WOOB_DIR:
+        os.environ["WOOB_WORKDIR"] = _WOOB_DIR
+        os.environ["XDG_CONFIG_HOME"] = os.path.dirname(_WOOB_DIR)
     # Debug : montre où woob va aller chercher
-    print(f"[debug] XDG_CONFIG_HOME = {_WORKDIR}", file=sys.stderr)
-    print(f"[debug] expected backends file: {os.path.join(_WORKDIR, 'woob', 'backends')}", file=sys.stderr)
-    if os.path.exists(os.path.join(_WORKDIR, "woob", "backends")):
-        print(f"[debug] ✓ backends file exists", file=sys.stderr)
-        with open(os.path.join(_WORKDIR, "woob", "backends")) as f:
+    print(f"[debug] WOOB_DATA_DIR = {_WORKDIR}", file=sys.stderr)
+    print(f"[debug] resolved WOOB_WORKDIR = {_WOOB_DIR}", file=sys.stderr)
+    if _WOOB_DIR and os.path.exists(os.path.join(_WOOB_DIR, "backends")):
+        print(f"[debug] ✓ backends file found at {os.path.join(_WOOB_DIR, 'backends')}", file=sys.stderr)
+        with open(os.path.join(_WOOB_DIR, "backends")) as f:
             sections = [l.strip() for l in f if l.strip().startswith("[")]
             print(f"[debug] backends sections: {sections}", file=sys.stderr)
     else:
-        print(f"[debug] ✗ backends file NOT found at expected location", file=sys.stderr)
-        # Liste l'arbo pour comprendre où ça a été extrait
+        print(f"[debug] ✗ backends file NOT found — listing {_WORKDIR}", file=sys.stderr)
         for root, dirs, files in os.walk(_WORKDIR):
             for f in files:
                 print(f"[debug]   - {os.path.join(root, f)}", file=sys.stderr)
@@ -160,7 +172,11 @@ def main() -> int:
         return 2
 
     print("[info] loading woob backends…", file=sys.stderr)
-    woob = Woob()
+    # Passe workdir explicitement à Woob() pour pas dépendre des env vars
+    # (XDG_CONFIG_HOME et WOOB_WORKDIR ne sont pas tjs respectés par woob v3).
+    woob = Woob(workdir=_WOOB_DIR) if _WOOB_DIR else Woob()
+    print(f"[debug] Woob instance workdir = {getattr(woob, 'workdir', '?')}", file=sys.stderr)
+    print(f"[debug] Woob instance backends_filename = {getattr(woob, 'backends_filename', '?')}", file=sys.stderr)
     woob.load_backends(CapBank)
     print(f"[info] loaded {len(list(woob.backend_instances.keys()))} backends: {list(woob.backend_instances.keys())}", file=sys.stderr)
 
