@@ -1462,10 +1462,12 @@ async function renderApercu() {
 
   // Build a unified list: 1 row per logical account.
   const qontoAccs = bankData.accounts.filter(a => a.bank_name === 'Qonto');
+  const [bpoScraped, fortuneoScraped] = await Promise.all([fetchScraped('bpo'), fetchScraped('fortuneo')]);
   const bpoTx = getImportedTransactions('bpo');
   const bpoMeta = getImportMeta('bpo');
   const fortuneoTx = getImportedTransactions('fortuneo');
   const fortuneoMeta = getImportMeta('fortuneo');
+  const balanceFromScraped = (s) => s && Array.isArray(s.accounts) && s.accounts.length ? s.accounts.reduce((sum, a) => sum + (a.balance || 0), 0) : null;
   const balanceFromImport = (txs, meta) => {
     if (!txs.length) return null;
     if (meta && meta.manualBalance != null) return meta.manualBalance;
@@ -1473,6 +1475,10 @@ async function renderApercu() {
     return txs.reduce((s, t) => s + (t.amount || 0), 0);
   };
   const stripeBal = stripeData && !stripeData.error ? (stripeData.balance?.available_cents || 0) / 100 : null;
+
+  // Priorité de la source de balance par compte : scraped (woob) > CSV manuel > vide
+  const bpoScrapedBal = balanceFromScraped(bpoScraped);
+  const fortuneoScrapedBal = balanceFromScraped(fortuneoScraped);
 
   const cards = [
     ...qontoAccs.map(a => ({
@@ -1483,17 +1489,17 @@ async function renderApercu() {
     })),
     {
       bank: 'Banque Populaire', slug: 'bpo', type: 'Pro',
-      sub: bpoTx.length ? bpoTx.length + ' op. importées' : 'Aucun import',
-      balance: balanceFromImport(bpoTx, bpoMeta),
+      sub: bpoScrapedBal != null ? bpoScraped.accounts.length + ' compte(s) live' : (bpoTx.length ? bpoTx.length + ' op. importées' : 'Aucun import'),
+      balance: bpoScrapedBal != null ? bpoScrapedBal : balanceFromImport(bpoTx, bpoMeta),
       currency: 'EUR',
-      status: bpoTx.length ? 'csv' : 'empty',
+      status: bpoScrapedBal != null ? 'scraped' : (bpoTx.length ? 'csv' : 'empty'),
     },
     {
       bank: 'Fortuneo', slug: 'fortuneo', type: 'Perso',
-      sub: fortuneoTx.length ? fortuneoTx.length + ' op. importées' : 'Aucun import',
-      balance: balanceFromImport(fortuneoTx, fortuneoMeta),
+      sub: fortuneoScrapedBal != null ? fortuneoScraped.accounts.length + ' compte(s) live' : (fortuneoTx.length ? fortuneoTx.length + ' op. importées' : 'Aucun import'),
+      balance: fortuneoScrapedBal != null ? fortuneoScrapedBal : balanceFromImport(fortuneoTx, fortuneoMeta),
       currency: 'EUR',
-      status: fortuneoTx.length ? 'csv' : 'empty',
+      status: fortuneoScrapedBal != null ? 'scraped' : (fortuneoTx.length ? 'csv' : 'empty'),
     },
     {
       bank: 'MyeFarm', slug: 'myefarm', type: 'Pro',
@@ -1513,6 +1519,7 @@ async function renderApercu() {
 
   if (!listEl) return;
   const badge = (s) => s === 'live' ? '🟢 Live'
+    : s === 'scraped' ? '🤖 Auto'
     : s === 'csv' ? '📂 CSV'
     : '⚙️ À configurer';
   listEl.innerHTML = cards.map((c, i) => {
@@ -1549,6 +1556,24 @@ function getImportedTransactions(slug) {
     const raw = localStorage.getItem('wassim:imports:' + slug);
     return raw ? JSON.parse(raw) : [];
   } catch { return []; }
+}
+
+// Cache RAM des données scrapées (woob via worker) — TTL 60s pour pas re-fetch à chaque navigation
+const SCRAPED_CACHE = {};
+async function fetchScraped(slug) {
+  const now = Date.now();
+  if (SCRAPED_CACHE[slug] && (now - SCRAPED_CACHE[slug].at) < 60_000) return SCRAPED_CACHE[slug].data;
+  const cfg = getWorkerConfig();
+  if (!cfg || !cfg.workerUrl || !cfg.authToken) return null;
+  try {
+    const res = await fetch(cfg.workerUrl.replace(/\/$/, '') + '/scraped/' + slug, {
+      headers: { 'X-Wassim-Auth': cfg.authToken },
+    });
+    if (!res.ok) return null;
+    const body = await res.json();
+    SCRAPED_CACHE[slug] = { at: now, data: body };
+    return body;
+  } catch { return null; }
 }
 
 function saveImportedTransactions(slug, list) {
@@ -1835,7 +1860,7 @@ function setupDropZone(slug) {
   });
 }
 
-function renderImportedBank(slug) {
+async function renderImportedBank(slug) {
   setupDropZone(slug);
   const bankName = BANK_BY_SLUG[slug];
   const balEl = document.getElementById('bank-balance-' + slug);
@@ -1846,6 +1871,43 @@ function renderImportedBank(slug) {
   const statusEl = document.getElementById('bank-status-' + slug);
   const subEl = document.getElementById('import-meta-' + slug);
 
+  // 1) Priorité aux données scrapées via woob (worker /scraped/<slug>)
+  const scraped = await fetchScraped(slug);
+  if (scraped && Array.isArray(scraped.accounts) && scraped.accounts.length > 0) {
+    // Compose la vue à partir du scraped — solde = somme des balances des comptes
+    const totalBalance = scraped.accounts.reduce((s, a) => s + (a.balance || 0), 0);
+    const txs = (scraped.transactions || []).slice().sort((a, b) => new Date(b.date) - new Date(a.date));
+    const last30 = txs.filter(t => (Date.now() - new Date(t.date).getTime()) < 30 * 86400000);
+    const ago = scraped.scraped_at ? Math.round((Date.now() - new Date(scraped.scraped_at).getTime()) / 60000) : null;
+    const agoTxt = ago == null ? '' : ago < 60 ? 'il y a ' + ago + ' min' : ago < 1440 ? 'il y a ' + Math.round(ago / 60) + 'h' : 'il y a ' + Math.round(ago / 1440) + ' j';
+    if (statusEl) statusEl.innerHTML = `<span class="dot" style="background:var(--green)"></span>🤖 Synchro auto (woob) · ${agoTxt}`;
+    if (balEl) balEl.textContent = formatAmount(totalBalance, 'EUR');
+    if (metaEl) {
+      const namesShort = scraped.accounts.map(a => (a.iban_last4 ? '••••' + a.iban_last4 : (a.name || ''))).filter(Boolean).join(' · ');
+      metaEl.textContent = namesShort + ' · solde live API';
+    }
+    if (cntEl) cntEl.textContent = last30.length;
+    if (lastEl) lastEl.textContent = txs[0] ? 'Dernière : ' + new Date(txs[0].date).toLocaleDateString('fr-FR') : 'Aucune op. récente';
+    if (subEl && !subEl.textContent.includes('✓') && !subEl.textContent.includes('❌')) {
+      subEl.textContent = 'Mode auto activé — l\'import CSV reste dispo en secours';
+    }
+    if (listEl) {
+      if (txs.length === 0) {
+        listEl.innerHTML = '<p style="padding:32px;color:var(--muted);text-align:center">Aucune transaction.</p>';
+      } else {
+        listEl.innerHTML = '<table class="data-table" style="border:none;border-radius:0">' +
+          '<thead><tr><th>Date</th><th>Description</th><th class="num">Montant</th></tr></thead>' +
+          '<tbody>' + txs.slice(0, 50).map(t =>
+            '<tr><td>' + new Date(t.date).toLocaleDateString('fr-FR') + '</td>' +
+            '<td>' + escapeHtml(t.description || '') + '</td>' +
+            '<td class="num ' + (t.amount >= 0 ? 'amount-pos' : 'amount-neg') + '">' + formatAmount(t.amount, t.currency_code || 'EUR') + '</td></tr>'
+          ).join('') + '</tbody></table>';
+      }
+    }
+    return;
+  }
+
+  // 2) Fallback : transactions importées manuellement via CSV
   const txs = getImportedTransactions(slug);
   const meta = getImportMeta(slug);
 

@@ -1,0 +1,8 @@
+woob==3.7
+prettytable==3.10.2
+# Deps requises par les modules bancaires (Fortuneo + Banque Populaire)
+python-jose==3.5.0
+chompjs==1.4.0
+pycryptodome==3.21.0
+cryptography==44.0.0
+pyOpenSSL==25.0.0

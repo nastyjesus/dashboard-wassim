@@ -65,6 +65,46 @@ export default {
         return jsonResponse(data, 200, request, env);
       }
 
+      if (path === '/scraped/ingest' && request.method === 'POST') {
+        if (!env.SCRAPED) {
+          return jsonResponse({ error: 'kv_not_bound', message: 'SCRAPED KV namespace not bound' }, 503, request, env);
+        }
+        const body = await safeJson(request);
+        if (!body || !Array.isArray(body.accounts) || !Array.isArray(body.transactions)) {
+          return jsonResponse({ error: 'bad_request', message: 'expected {accounts:[], transactions:[]}' }, 400, request, env);
+        }
+        // Bucket par banque slug (présent sur chaque compte/transaction)
+        const buckets = {};
+        for (const acc of body.accounts) {
+          const slug = acc.bank_slug || 'unknown';
+          (buckets[slug] ||= { accounts: [], transactions: [] }).accounts.push(acc);
+        }
+        const accountIdToSlug = new Map();
+        for (const acc of body.accounts) accountIdToSlug.set(acc.id, acc.bank_slug);
+        for (const tx of body.transactions) {
+          const slug = accountIdToSlug.get(tx.account_id) || 'unknown';
+          (buckets[slug] ||= { accounts: [], transactions: [] }).transactions.push(tx);
+        }
+        const scrapedAt = body.scraped_at || new Date().toISOString();
+        for (const [slug, bucket] of Object.entries(buckets)) {
+          if (slug === 'unknown') continue;
+          await env.SCRAPED.put(`bank:${slug}`, JSON.stringify({ scraped_at: scrapedAt, ...bucket }));
+        }
+        return jsonResponse({ ok: true, banks: Object.keys(buckets), counts: Object.fromEntries(Object.entries(buckets).map(([k, v]) => [k, { accounts: v.accounts.length, transactions: v.transactions.length }])) }, 200, request, env);
+      }
+
+      const scrapedMatch = path.match(/^\/scraped\/([a-z0-9_-]+)$/);
+      if (scrapedMatch && request.method === 'GET') {
+        const slug = scrapedMatch[1];
+        if (slug === 'ingest') return jsonResponse({ error: 'not_found', path }, 404, request, env);
+        if (!env.SCRAPED) {
+          return jsonResponse({ error: 'kv_not_bound', message: 'SCRAPED KV namespace not bound' }, 503, request, env);
+        }
+        const raw = await env.SCRAPED.get(`bank:${slug}`);
+        if (!raw) return jsonResponse({ scraped_at: null, accounts: [], transactions: [], message: 'no data yet — cron has not run' }, 200, request, env);
+        return jsonResponse(JSON.parse(raw), 200, request, env);
+      }
+
       return jsonResponse({ error: 'not_found', path }, 404, request, env);
     } catch (err) {
       logger.error('worker.error', { err: String(err), path });
