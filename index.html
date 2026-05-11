@@ -1468,6 +1468,7 @@ async function renderApercu() {
   const fortuneoMeta = getImportMeta('fortuneo');
   const balanceFromImport = (txs, meta) => {
     if (!txs.length) return null;
+    if (meta && meta.manualBalance != null) return meta.manualBalance;
     if (meta && meta.latestBalance != null) return meta.latestBalance;
     return txs.reduce((s, t) => s + (t.amount || 0), 0);
   };
@@ -1570,6 +1571,37 @@ function resetImports(slug) {
   if (!confirm('Effacer toutes les transactions importées pour ' + slug + ' ?')) return;
   localStorage.removeItem('wassim:imports:' + slug);
   localStorage.removeItem('wassim:imports-meta:' + slug);
+  renderImportedBank(slug);
+}
+
+function promptManualBalance(slug) {
+  const meta = getImportMeta(slug) || {};
+  const current = meta.manualBalance != null ? String(meta.manualBalance).replace('.', ',') : '';
+  const input = prompt(
+    'Saisis ton solde ' + (BANK_BY_SLUG[slug] || slug) + ' réel actuel\n\n' +
+    'Tu trouves cette valeur dans l\'app de ta banque, en haut de la liste des opérations.\n' +
+    'Format : 1234,56 (positif ou négatif).',
+    current
+  );
+  if (input == null) return; // user cancelled
+  if (input === '') {
+    // clear
+    delete meta.manualBalance;
+    delete meta.manualBalanceAt;
+    setImportMeta(slug, meta);
+    renderImportedBank(slug);
+    if (document.getElementById('page-apercu').classList.contains('active')) renderApercu();
+    return;
+  }
+  const n = parseAmountFr(input);
+  if (isNaN(n)) {
+    alert('Format invalide. Tape un nombre comme "9,08" ou "-246,69".');
+    return;
+  }
+  meta.manualBalance = n;
+  meta.manualBalanceAt = new Date().toISOString();
+  meta.manualBalanceAtTxCount = (getImportedTransactions(slug) || []).length;
+  setImportMeta(slug, meta);
   renderImportedBank(slug);
 }
 
@@ -1836,19 +1868,45 @@ function renderImportedBank(slug) {
     statusEl.innerHTML = `<span class="dot" style="background:var(--green)"></span>${txs.length} op. importées · dernier import ${agoTxt}`;
   }
 
-  // Balance: prefer last known balance from CSV; otherwise sum of all transactions
-  let balance;
-  if (meta && meta.latestBalance != null) {
+  // Balance priority:
+  //   1) manual balance saisi par l'user (le plus fiable)
+  //   2) "Solde" column extraite du CSV
+  //   3) somme des transactions (approximation, suppose solde de départ = 0)
+  const txSum = txs.reduce((s, t) => s + (t.amount || 0), 0);
+  let balance, balanceSource;
+  if (meta && meta.manualBalance != null) {
+    // Le user a saisi son solde réel à un moment où il y avait `manualBalanceAtTxCount` transactions
+    // importées. Si des transactions ont été ajoutées DEPUIS, on les rajoute (delta).
+    const txAtSnapshot = meta.manualBalanceAtTxCount || txs.length;
+    if (txs.length > txAtSnapshot) {
+      // Des nouvelles transactions ont été importées depuis la saisie → on ajoute le delta.
+      // On trie par date desc et on additionne les `txs.length - txAtSnapshot` plus anciennes,
+      // mais ce n'est qu'une approximation faible. Le plus sûr : le user resaisit.
+      balance = meta.manualBalance;
+      balanceSource = 'manual-stale';
+    } else {
+      balance = meta.manualBalance;
+      balanceSource = 'manual';
+    }
+  } else if (meta && meta.latestBalance != null) {
     balance = meta.latestBalance;
+    balanceSource = 'csv';
   } else {
-    balance = txs.reduce((s, t) => s + (t.amount || 0), 0);
+    balance = txSum;
+    balanceSource = 'sum';
   }
   if (balEl) balEl.textContent = formatAmount(balance, 'EUR');
   if (metaEl) {
-    if (meta && meta.latestBalance != null && meta.latestBalanceDate) {
-      metaEl.textContent = `Solde au ${new Date(meta.latestBalanceDate).toLocaleDateString('fr-FR')}`;
+    if (balanceSource === 'manual') {
+      const when = new Date(meta.manualBalanceAt).toLocaleDateString('fr-FR');
+      metaEl.innerHTML = `Saisi le ${when} · <a href="#" onclick="promptManualBalance('${slug}');return false" style="color:var(--accent)">modifier</a>`;
+    } else if (balanceSource === 'manual-stale') {
+      const when = new Date(meta.manualBalanceAt).toLocaleDateString('fr-FR');
+      metaEl.innerHTML = `⚠️ Saisi le ${when}, ${txs.length - (meta.manualBalanceAtTxCount || 0)} nouvelles op. depuis → <a href="#" onclick="promptManualBalance('${slug}');return false" style="color:var(--accent)">mettre à jour</a>`;
+    } else if (balanceSource === 'csv') {
+      metaEl.textContent = `Solde du CSV au ${new Date(meta.latestBalanceDate).toLocaleDateString('fr-FR')}`;
     } else {
-      metaEl.textContent = `Somme de ${txs.length} op. importées (sans solde de référence dans le CSV)`;
+      metaEl.innerHTML = `Somme de ${txs.length} op. (le CSV n'a pas de solde) — <a href="#" onclick="promptManualBalance('${slug}');return false" style="color:var(--accent);font-weight:500">saisir le vrai solde</a>`;
     }
   }
 
