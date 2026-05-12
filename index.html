@@ -1386,6 +1386,17 @@ function renderConfigMissing(listEl, statusEl) {
   if (listEl) listEl.innerHTML = '<div style="padding:32px;text-align:center"><div style="color:var(--muted);margin-bottom:12px">Worker non configuré dans cette session.</div><button class="btn btn-primary" onclick="configureWorker()">Configurer le worker</button></div>';
 }
 
+function renderWorkerError(listEl, statusEl, errorCode, message) {
+  const isAuth = String(errorCode).includes('401');
+  if (statusEl) statusEl.innerHTML = '<span class="dot" style="background:var(--red)"></span>' + (isAuth ? 'Token invalide' : 'Erreur worker');
+  if (listEl) {
+    const intro = isAuth
+      ? "Le token X-Wassim-Auth stocké ne match plus celui du worker. Reconfigure-le."
+      : 'Erreur worker (' + escapeHtml(errorCode || '') + ') ' + escapeHtml(message || '');
+    listEl.innerHTML = '<div style="padding:32px;text-align:center"><div style="color:var(--muted);margin-bottom:12px">' + intro + '</div><button class="btn btn-primary" onclick="configureWorker()">Reconfigurer le worker</button></div>';
+  }
+}
+
 async function renderBankPage(slug) {
   const bankName = BANK_BY_SLUG[slug];
   if (!bankName) return;
@@ -1401,8 +1412,7 @@ async function renderBankPage(slug) {
   const data = await fetchBankData();
   if (data.error === 'config-missing') return renderConfigMissing(listEl, statusEl);
   if (data.error) {
-    if (statusEl) statusEl.innerHTML = '<span class="dot" style="background:var(--red)"></span>Erreur worker';
-    if (listEl) listEl.innerHTML = '<p style="padding:32px;color:var(--red);text-align:center">' + escapeHtml(data.error) + ' ' + escapeHtml(data.message || '') + '</p>';
+    renderWorkerError(listEl, statusEl, data.error, data.message);
     return;
   }
   const acc = data.accounts.find(a => a.bank_name === bankName);
