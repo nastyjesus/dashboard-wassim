@@ -5,6 +5,8 @@
 scripts/sync-banks/.env
 scripts/sync-banks/sync.log
 scripts/sync-banks/sync.error.log
+scripts/stripe-export/.env
+scripts/stripe-export/data/
 docs/notion-ids.local.json
 
 # Node / Cloudflare
