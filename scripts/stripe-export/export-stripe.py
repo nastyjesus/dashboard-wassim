@@ -88,7 +88,7 @@ def paginate(path: str, key: str, params: dict | None = None, max_pages: int = 5
 def save_json(name: str, data: list):
     DATA_DIR.mkdir(parents=True, exist_ok=True)
     path = DATA_DIR / f"{name}.json"
-    path.write_text(json.dumps(data, indent=2, ensure_ascii=False))
+    path.write_text(json.dumps(data, indent=2, ensure_ascii=False), encoding="utf-8")
     print(f"  saved → {path.relative_to(Path.cwd()) if path.is_relative_to(Path.cwd()) else path} ({len(data)} items)", file=sys.stderr)
 
 
