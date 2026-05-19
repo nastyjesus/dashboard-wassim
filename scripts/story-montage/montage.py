@@ -37,7 +37,8 @@ WrapStyle: 2
 
 [V4+ Styles]
 Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
-Style: Story,{font},66,&H00FFFFFF,&H00FFFFFF,&H00000000,&H80000000,1,0,0,0,100,100,0,0,1,5,2,2,60,60,260,1
+Style: Story,{font},68,&H00FFFFFF,&H00FFFFFF,&H00000000,&HB0000000,1,0,0,0,100,100,0,0,1,5,3,2,60,60,260,1
+Style: StoryAccent,{font},68,{accent_ass},&H00FFFFFF,&H00000000,&HB0000000,1,0,0,0,100,100,0,0,1,5,3,2,60,60,260,1
 
 [Events]
 Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
@@ -165,14 +166,52 @@ def fmt_time(t: float) -> str:
     return f"{h:01d}:{m:02d}:{s:05.2f}"
 
 
-def write_ass(chunks: list[dict], out_ass: Path, font: str = "DejaVu Sans") -> None:
-    lines = [ASS_HEADER_TEMPLATE.format(font=font)]
+def hex_to_ass_color(hex_color: str) -> str:
+    """Convert #RRGGBB to ASS &H00BBGGRR (BGR byte order, alpha 00 = opaque)."""
+    h = hex_color.lstrip("#")
+    if len(h) != 6:
+        raise ValueError(f"Invalid hex color: {hex_color}")
+    r, g, b = h[0:2], h[2:4], h[4:6]
+    return f"&H00{b}{g}{r}".upper()
+
+
+def hex_to_ass_inline(hex_color: str) -> str:
+    """Inline ASS color override, e.g. {\\c&HBBGGRR&}."""
+    h = hex_color.lstrip("#")
+    r, g, b = h[0:2], h[2:4], h[4:6]
+    return f"&H{b}{g}{r}&".upper()
+
+
+def write_ass(
+    chunks: list[dict],
+    out_ass: Path,
+    font: str = "Montserrat",
+    accent_hex: str = "#2563EB",
+    accent_words: set[str] | None = None,
+) -> None:
+    accent_ass = hex_to_ass_color(accent_hex)
+    accent_inline = hex_to_ass_inline(accent_hex)
+    lines = [ASS_HEADER_TEMPLATE.format(font=font, accent_ass=accent_ass)]
+    accent_words = accent_words or set()
+    accent_words_norm = {strip_accents(w).lower() for w in accent_words}
     for ch in chunks:
         start = fmt_time(ch["start"])
         end = fmt_time(ch["end"])
-        # Pop-in animation: scale 70 -> 100 over 120ms
         text = ch["text"].replace("\n", " ").upper()
-        text_ass = "{\\fad(120,80)\\t(0,120,\\fscx100\\fscy100)\\fscx70\\fscy70}" + text
+        # Color individual accent words inline so a chunk like "MOTS-CLÉS BACKLINKS"
+        # gets the accent color on each matching token.
+        tokens = text.split(" ")
+        styled = []
+        for tok in tokens:
+            tok_norm = strip_accents(re.sub(r"[^\w\-]", "", tok)).lower()
+            if tok_norm in accent_words_norm:
+                styled.append("{\\c" + accent_inline + "}" + tok + "{\\c&HFFFFFF&}")
+            else:
+                styled.append(tok)
+        text_styled = " ".join(styled)
+        text_ass = (
+            "{\\fad(120,80)\\t(0,120,\\fscx100\\fscy100)\\fscx72\\fscy72}" + text_styled
+        )
         lines.append(f"Dialogue: 0,{start},{end},Story,,0,0,0,,{text_ass}")
     out_ass.write_text("\n".join(lines), encoding="utf-8")
 
@@ -247,37 +286,47 @@ def build_filter_complex(
     emoji_files: dict[str, Path],
     duration: float,
     handle: str,
+    accent_hex: str = "#2563EB",
 ) -> str:
-    """Build the ffmpeg filter graph: subtitles + overlays + progress bar + watermark + zoom."""
+    """Build the ffmpeg filter graph: subtitles + overlays + progress bar + watermark."""
     fc = []
     last_label = "[0:v]"
+    accent_ff = "0x" + accent_hex.lstrip("#").upper()  # ffmpeg accepts 0xRRGGBB
 
     # 1. Subtitles (.ass burned-in)
     fc.append(f"{last_label}ass='{chunks_ass.as_posix()}'[v1]")
     last_label = "[v1]"
 
-    # 2. Progress bar (white rectangle that grows). We draw a thin top bar.
-    # Width grows from 40 to 1040 over `duration` seconds, height 8 px at y=40.
+    # 2. Progress bar background pill (subtle white track)
     fc.append(
-        f"{last_label}drawbox=x=40:y=40:w='40+(t/{duration})*1000':h=8:color=white@0.95:t=fill[v2]"
+        f"{last_label}drawbox=x=40:y=40:w=1000:h=8:color=white@0.25:t=fill[v2]"
     )
     last_label = "[v2]"
 
-    # 3. Background pill for progress bar (subtle)
+    # 3. Progress bar fill in brand accent color
     fc.append(
-        f"{last_label}drawbox=x=40:y=40:w=1000:h=8:color=white@0.25:t=fill[v3]"
+        f"{last_label}drawbox=x=40:y=40:w='(t/{duration})*1000':h=8:"
+        f"color={accent_ff}@0.95:t=fill[v3]"
     )
     last_label = "[v3]"
 
-    # 4. Handle watermark bottom-left
+    # 4. Handle watermark bottom-left, dark pill + white text + thin accent underline
     safe_handle = handle.replace("'", r"\'").replace(":", r"\:")
     fc.append(
-        f"{last_label}drawtext=text='{safe_handle}':fontcolor=white@0.85:fontsize=34:"
-        f"box=1:boxcolor=black@0.35:boxborderw=14:x=50:y=h-130[v4]"
+        f"{last_label}drawbox=x=40:y=h-150:w=320:h=70:color=black@0.55:t=fill[v4a]"
+    )
+    last_label = "[v4a]"
+    fc.append(
+        f"{last_label}drawbox=x=40:y=h-82:w=320:h=3:color={accent_ff}@0.95:t=fill[v4b]"
+    )
+    last_label = "[v4b]"
+    fc.append(
+        f"{last_label}drawtext=text='{safe_handle}':fontcolor=white@0.95:fontsize=34:"
+        f"x=64:y=h-130[v4]"
     )
     last_label = "[v4]"
 
-    # 5. Ensure output is 1080x1920 (defensive — most phone videos already are)
+    # 5. Defensive scale to 1080x1920
     fc.append(f"{last_label}scale=1080:1920,setsar=1[v5]")
     last_label = "[v5]"
 
@@ -310,10 +359,24 @@ def main():
     ap = argparse.ArgumentParser(description="Story SEO montage")
     ap.add_argument("--input", required=True, help="Source video path")
     ap.add_argument("--output", default="story_finale.mp4", help="Output file")
-    ap.add_argument("--handle", default="@wassim.seo", help="Watermark handle")
+    ap.add_argument("--handle", default="@wassimloumi", help="Watermark handle")
     ap.add_argument("--model", default="small", help="faster-whisper model size")
     ap.add_argument("--skip-transcribe", action="store_true", help="Reuse existing transcript.json")
-    ap.add_argument("--font", default="DejaVu Sans", help="Subtitle font name")
+    ap.add_argument(
+        "--font",
+        default="Montserrat",
+        help="Subtitle font name (must be installed locally; falls back to default sans)",
+    )
+    ap.add_argument(
+        "--accent",
+        default="#2563EB",
+        help="Brand accent hex color (progress bar, watermark underline, keyword highlights)",
+    )
+    ap.add_argument(
+        "--accent-words",
+        default="seo,google,backlink,backlinks,mots-clés,mot-clé,classement,trafic,algorithme,indexation,référencement",
+        help="Comma-separated list of words to highlight in the accent color in subtitles",
+    )
     args = ap.parse_args()
 
     src = Path(args.input).expanduser().resolve()
@@ -376,7 +439,14 @@ def main():
     print(f"{len(chunks)} caption chunks")
 
     # 5. Write ASS subtitles
-    write_ass(chunks, ass_path, font=args.font)
+    accent_words = {w.strip() for w in args.accent_words.split(",") if w.strip()}
+    write_ass(
+        chunks,
+        ass_path,
+        font=args.font,
+        accent_hex=args.accent,
+        accent_words=accent_words,
+    )
 
     # 6. Find keyword pops and render emoji PNGs
     pops = find_keyword_pops(segments)
@@ -401,7 +471,9 @@ def main():
             inputs += ["-i", str(emoji_files[emoji])]
             pop_inputs_order.append(emoji)
 
-    fc = build_filter_complex(ass_path, pops, emoji_files, duration, args.handle)
+    fc = build_filter_complex(
+        ass_path, pops, emoji_files, duration, args.handle, accent_hex=args.accent
+    )
 
     out_path = Path(args.output).expanduser().resolve()
     cmd = (

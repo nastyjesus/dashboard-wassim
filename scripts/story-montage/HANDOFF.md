@@ -58,12 +58,33 @@ python montage.py --input "/CHEMIN/VERS/VID_20260519_152730.mp4" --output story_
 python montage.py --input "..." --output story_finale.mp4 --skip-transcribe
 ```
 
+## Charte graphique
+
+Brand validée le 19/05/2026 avec Wassim :
+- Ambiance **fond sombre / accent clair** (vu sur sa home wassimloumicorporate.com)
+- Couleur d'accent : **bleu corporate `#2563EB`** (utilisée pour la progress bar,
+  le soulignage du watermark, et le surlignage des mots-clés dans les sous-titres)
+- Police : **Montserrat** (sans-serif moderne, fallback `DejaVu Sans` si non installée)
+- Handle : `@wassimloumi`
+
+**Important sur Claude Desktop** : si tu as un accès web, va vérifier la home
+`https://wassimloumicorporate.com` pour confirmer le hex exact du bleu et la
+police réelle utilisée. Le sandbox web ne pouvait pas accéder au domaine
+(network policy `host_not_allowed`), donc les valeurs ci-dessus sont les
+choix que Wassim a confirmés à l'oral. Si la home utilise une autre nuance
+de bleu ou une autre police (Inter, Poppins…), repasse-les en CLI :
+
+```bash
+python montage.py --input ... --accent "#XXXXXX" --font "Inter"
+```
+
 ## Choses à confirmer avec Wassim au démarrage
 
-1. **Handle/watermark** à afficher (par défaut `@wassim.seo`)
-2. **Couleur d'accent** des sous-titres (par défaut blanc, alternative orange/jaune typique story)
-3. **Veut-il valider la transcription** avant le rendu final ? (recommandé)
-4. **Quels mots-clés** doivent déclencher quelle illustration (le script a une liste par défaut, mais à valider)
+1. **Transcription** : valider `work/transcript.json` avant le rendu final (recommandé)
+2. **Mots-clés à surligner** : la dict `SEO_KEYWORDS` (emojis) et le flag
+   `--accent-words` (couleur bleue dans les sous-titres) ont des valeurs par défaut,
+    à adapter selon le contenu réel de la vidéo
+3. **Couleur exacte de la home** si différente du `#2563EB` actuel
 
 ## Style validé
 
