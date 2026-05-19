@@ -277,12 +277,8 @@ def build_filter_complex(
     )
     last_label = "[v4]"
 
-    # 5. Light zoom on the last 5 seconds (1.0 -> 1.04)
-    fc.append(
-        f"{last_label}scale=1080:1920,zoompan=z='if(gte(t,{max(0, duration-5):.2f}),"
-        f"min(1.04,1+(t-{max(0, duration-5):.2f})*0.008),1)':"
-        f"x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':d=1:s=1080x1920:fps=30[v5]"
-    )
+    # 5. Ensure output is 1080x1920 (defensive — most phone videos already are)
+    fc.append(f"{last_label}scale=1080:1920,setsar=1[v5]")
     last_label = "[v5]"
 
     # 6. Emoji overlays (top-right area, alternating slightly)
