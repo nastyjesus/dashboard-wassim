@@ -294,7 +294,9 @@ def build_filter_complex(
     accent_ff = "0x" + accent_hex.lstrip("#").upper()  # ffmpeg accepts 0xRRGGBB
 
     # 1. Subtitles (.ass burned-in)
-    fc.append(f"{last_label}ass='{chunks_ass.as_posix()}'[v1]")
+    # Escape ':' so Windows drive letters (C:/...) aren't parsed as filter option separators.
+    ass_path = chunks_ass.as_posix().replace(":", r"\:")
+    fc.append(f"{last_label}ass='{ass_path}'[v1]")
     last_label = "[v1]"
 
     # 2. Progress bar background pill (subtle white track)
@@ -320,8 +322,15 @@ def build_filter_complex(
         f"{last_label}drawbox=x=40:y=h-82:w=320:h=3:color={accent_ff}@0.95:t=fill[v4b]"
     )
     last_label = "[v4b]"
+    # drawtext needs an explicit fontfile on Windows builds whose libfontconfig is unconfigured (otherwise: 0xC0000005).
+    drawtext_font = ""
+    if sys.platform == "win32":
+        for candidate in (r"C:/Windows/Fonts/segoeuib.ttf", r"C:/Windows/Fonts/arialbd.ttf"):
+            if os.path.exists(candidate):
+                drawtext_font = f"fontfile='{candidate.replace(':', chr(92) + ':')}':"
+                break
     fc.append(
-        f"{last_label}drawtext=text='{safe_handle}':fontcolor=white@0.95:fontsize=34:"
+        f"{last_label}drawtext={drawtext_font}text='{safe_handle}':fontcolor=white@0.95:fontsize=34:"
         f"x=64:y=h-130[v4]"
     )
     last_label = "[v4]"
@@ -504,7 +513,10 @@ def main():
         ]
     )
     run(cmd)
-    print(f"\n✅ Output: {out_path}")
+    try:
+        print(f"\n✅ Output: {out_path}")
+    except UnicodeEncodeError:
+        print(f"\n[OK] Output: {out_path}")
 
 
 if __name__ == "__main__":
