@@ -1,4 +1,5 @@
 __pycache__/
 work/
-assets/*.png
+work_rvm/
+assets/emoji_*.png
 *.mp4
