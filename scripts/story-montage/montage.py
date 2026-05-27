@@ -745,6 +745,38 @@ def main():
         action="store_true",
         help="Disable the little 'pop' sound played when a brand logo appears",
     )
+    # ---- YouTube Short mode ----
+    ap.add_argument(
+        "--youtube-short",
+        action="store_true",
+        help="Add a background music bed (ducked under the voice) + an animated 'Subscribe' "
+        "button that slides up on the CTA. Use for a YouTube short rendition (in addition to "
+        "the regular story export).",
+    )
+    ap.add_argument(
+        "--music",
+        default=str(ASSETS / "music_chill.mp3"),
+        help="Background music file for --youtube-short (default: assets/music_chill.mp3). "
+        "Run fetch_music.py to download one.",
+    )
+    ap.add_argument(
+        "--music-volume",
+        type=float,
+        default=0.20,
+        help="Background music level for --youtube-short (0..1, before ducking). Default 0.20.",
+    )
+    ap.add_argument(
+        "--subscribe-asset",
+        default=str(ASSETS / "subscribe_button.png"),
+        help="PNG used for the animated subscribe button overlay (default: assets/subscribe_button.png). "
+        "Regenerate via make_subscribe_button.py.",
+    )
+    ap.add_argument(
+        "--subscribe-lead-time",
+        type=float,
+        default=4.5,
+        help="Seconds before the end of the video at which the subscribe button slides in. Default 4.5s.",
+    )
     args = ap.parse_args()
 
     src = Path(args.input).expanduser().resolve()
@@ -937,6 +969,103 @@ def main():
         a_parts.append(f"{mix_in}amix=inputs={len(times) + 1}:normalize=0:duration=first[aout]")
         fc = fc + ";" + ";".join(a_parts)
         audio_map = "[aout]"
+
+    # 7c. YouTube Short mode: add ducked background music + animated subscribe button overlay.
+    #     Music is sidechain-compressed by the voice signal, so it ducks down whenever Wassim talks
+    #     and rises again on pauses — the music never covers the voice. The subscribe button slides
+    #     up from below with an ease-out-back bounce on the last `subscribe_lead_time` seconds.
+    if args.youtube_short:
+        music_path = Path(args.music).expanduser().resolve()
+        sub_path = Path(args.subscribe_asset).expanduser().resolve()
+        if not music_path.exists():
+            print(
+                f"  ! music file not found: {music_path} — run fetch_music.py first or pass --music PATH",
+                file=sys.stderr,
+            )
+            sys.exit(2)
+        if not sub_path.exists():
+            print(
+                f"  ! subscribe button not found: {sub_path} — run make_subscribe_button.py first",
+                file=sys.stderr,
+            )
+            sys.exit(2)
+
+        # ---- Audio: voice + music with sidechain ducking ----
+        music_in_idx = len(inputs) // 2  # next input slot (inputs is flat: -i path -i path ...)
+        # Actually count how many input pairs we already added by counting "-i" occurrences.
+        music_in_idx = sum(1 for x in inputs if x == "-i")
+        inputs += ["-i", str(music_path)]
+        sub_in_idx = sum(1 for x in inputs if x == "-i")
+        inputs += [
+            "-loop",
+            "1",
+            "-t",
+            f"{duration:.3f}",
+            "-r",
+            "30",
+            "-i",
+            str(sub_path),
+        ]
+
+        voice_label = audio_map if audio_map.startswith("[") else "[0:a]"
+        # Build the ducking chain. sidechaincompress takes (signal_to_compress, sidechain_signal).
+        # - threshold low-ish so soft speech still triggers ducking
+        # - ratio 8:1 gives a clear -8 dB drop when voice peaks above threshold
+        # - attack 5ms / release 250ms = music drops quickly when Wassim starts, recovers smoothly on pauses
+        # - amix normalize=0 + makeup level keeps the voice at full original loudness
+        a_yt = []
+        a_yt.append(f"[{music_in_idx}:a]volume={args.music_volume:.3f}[mvol]")
+        a_yt.append(f"{voice_label}asplit=2[va][vb]")
+        a_yt.append(
+            f"[mvol][va]sidechaincompress=threshold=0.03:ratio=8:attack=5:release=250:makeup=1[mducked]"
+        )
+        a_yt.append(f"[vb][mducked]amix=inputs=2:normalize=0:duration=first[aout_yt]")
+        fc = fc + ";" + ";".join(a_yt)
+        audio_map = "[aout_yt]"
+
+        # ---- Video: animated subscribe button overlay on the last seconds ----
+        # Resize the button to a clean width (keep aspect ratio).
+        btn_w = 620
+        # Read source dims to scale height proportionally — fall back to known asset size if read fails.
+        try:
+            from PIL import Image as _Image2
+
+            with _Image2.open(sub_path) as _im:
+                ratio = _im.height / _im.width
+        except Exception:
+            ratio = 212.0 / 752.0
+        btn_h = int(btn_w * ratio)
+
+        start_btn = max(0.0, duration - args.subscribe_lead_time)
+        slide_dur = 0.5  # seconds the slide-up takes
+        y_off = 1920  # below the screen
+        y_on = 1300  # final resting position (above watermark @ h-150=1770)
+
+        # Ease-out-back on p = clip((t-start)/slide_dur, 0, 1):
+        #   q = p-1 ; ease = 1 + c3*q^3 + c1*q^2   (c1=1.70158, c3=2.70158)
+        # p=0 -> ease=0 (button is at y_off), p=1 -> ease=1 (resting), with an overshoot mid-flight.
+        c1, c3 = 1.70158, 2.70158
+        p = f"clip((t-{start_btn:.3f})/{slide_dur}\\,0\\,1)"
+        q = f"({p}-1)"
+        ease = f"(1+{c3:.5f}*{q}*{q}*{q}+{c1:.5f}*{q}*{q})"
+        y_expr = f"({y_off}+({y_on}-{y_off})*{ease})"
+
+        # Re-route the current [vout] label: rename it to [vpre_sub], then overlay the subscribe button on top.
+        # build_filter_complex always emits a single [vout] as the video sink; the audio chain above
+        # only added [aout]/[aout_yt] labels so [vout] is still unique in fc here. We unconditionally
+        # rename it so the subscribe overlay can produce the new [vout].
+        last_vout = fc.rfind("[vout]")
+        if last_vout < 0:
+            print("  ! expected [vout] label in filter_complex but none found", file=sys.stderr)
+            sys.exit(2)
+        fc = fc[:last_vout] + "[vpre_sub]" + fc[last_vout + len("[vout]") :]
+        v_sub_parts = []
+        v_sub_parts.append(f"[{sub_in_idx}:v]scale={btn_w}:{btn_h}[sub_scaled]")
+        v_sub_parts.append(
+            f"[vpre_sub][sub_scaled]overlay=x='(W-w)/2':y='{y_expr}':"
+            f"enable='between(t,{start_btn:.3f},{duration:.3f})'[vout]"
+        )
+        fc = fc + ";" + ";".join(v_sub_parts)
 
     out_path = Path(args.output).expanduser().resolve()
     cmd = (
