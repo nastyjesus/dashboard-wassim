@@ -112,6 +112,7 @@ BRAND_LOGOS = {
     "plexity": "logo_perplexity.png",
     "claude": "logo_claude.png",
     "cloud": "logo_claude.png",
+    "gemini": "logo_gemini.png",
 }
 
 
@@ -721,10 +722,18 @@ def main():
     ap.add_argument(
         "--bg-blur",
         type=float,
-        default=None,
+        default=20.0,
         metavar="SIGMA",
-        help="Replace background with a blurred copy of itself via RVM matting (e.g. --bg-blur 20). "
-        "Slow first run on CPU (matting); the matte is cached for reuse with --skip-matte.",
+        help="Replace background with a blurred copy of itself via RVM matting. ON by default "
+        "(sigma 20). Slow first run on CPU (matting); the matte is cached for reuse with "
+        "--skip-matte. Disable for quick previews via --no-bg-blur.",
+    )
+    ap.add_argument(
+        "--no-bg-blur",
+        dest="bg_blur",
+        action="store_const",
+        const=None,
+        help="Disable background blur (use for fast previews; final renders should keep blur ON).",
     )
     ap.add_argument(
         "--skip-matte",
