@@ -89,6 +89,28 @@ s'appliquent aux 3 disciplines.
 5. **Structure Notion libre par client.** Ne jamais imposer un template. Scanner
    la page existante, comprendre la structure, ajouter sans casser ce qui est
    là.
+6. **Toujours répondre sous forme de tableau d'avancement.** À chaque point
+   d'étape, présenter l'état du programme dans un tableau clair **Fait / En cours
+   / À faire** (cf. « Format de réponse » ci-dessous), pour que Wassim voie d'un
+   coup d'œil où on en est et ce qui reste. Pas de longs pavés de prose pour le
+   suivi : le tableau d'abord, le détail ensuite si besoin.
+
+## Format de réponse — tableau d'avancement (systématique)
+
+Chaque réponse de suivi du programme commence par un **tableau d'avancement**.
+Colonnes : **Étape / Action · Discipline · Statut · Détail ou prochaine action**.
+Statuts normalisés : ✅ Fait · 🔄 En cours · ⏳ À faire · ⛔ Bloqué (préciser le
+blocage). Couvrir les 3 disciplines incluses (SEO, CRO, et GEO si pris) et les
+4 étapes. Exemple de squelette :
+
+| Étape / Action | Discipline | Statut | Détail / prochaine action |
+|----------------|-----------|--------|---------------------------|
+| Contexte Notion | — | ✅ Fait | Page client créée |
+| Audit | SEO | ⛔ Bloqué | En attente export GSC |
+| Stratégie | SEO | ⏳ À faire | Après audit |
+
+Après le tableau : uniquement ce qui demande une décision de Wassim ou une donnée
+à fournir. Tout le reste vit dans Notion (source de vérité).
 
 ## Trigger
 
