@@ -19,6 +19,7 @@ BRANDS = {
     "perplexity": "Perplexity AI logo",
     "claude": "Claude AI logo Anthropic",
     "gemini": "Google Gemini logo",
+    "reddit": "Reddit logo",
 }
 
 

@@ -38,8 +38,8 @@ WrapStyle: 2
 
 [V4+ Styles]
 Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
-Style: Story,{font},68,&H00FFFFFF,&H00FFFFFF,&H00000000,&HB0000000,1,0,0,0,100,100,0,0,1,5,3,2,60,60,260,1
-Style: StoryAccent,{font},68,{accent_ass},&H00FFFFFF,&H00000000,&HB0000000,1,0,0,0,100,100,0,0,1,5,3,2,60,60,260,1
+Style: Story,{font},68,&H00FFFFFF,&H00FFFFFF,&H00000000,&HB0000000,1,0,0,0,100,100,0,0,1,5,3,2,60,60,380,1
+Style: StoryAccent,{font},68,{accent_ass},&H00FFFFFF,&H00000000,&HB0000000,1,0,0,0,100,100,0,0,1,5,3,2,60,60,380,1
 
 [Events]
 Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
@@ -79,7 +79,7 @@ SEO_KEYWORDS = {
 }
 
 # Words that trigger a short "punch zoom" on the video (dynamism on key moments).
-PUNCH_WORDS = {"gpt", "chatgpt", "perplexity", "plexity", "claude", "cloud", "google", "hubspot", "gemini", "mistral"}
+PUNCH_WORDS = {"gpt", "chatgpt", "4gpt", "perplexity", "plexity", "claude", "cloud", "google", "hubspot", "gemini", "gmini", "mistral", "reddit", "clarity"}
 
 # Subtitle spelling fixes: Whisper mis-hears brand/tech names. Normalized token -> correct display word.
 # Applied to the caption text only (keys are lowercased + accent-stripped). Extend as needed.
@@ -90,15 +90,25 @@ SUBTITLE_CORRECTIONS = {
     "rias": "IA",
     "ia": "IA",
     "chatgpt": "ChatGPT",
+    "4gpt": "ChatGPT",
     "gpt": "GPT",
     "hubspot": "HubSpot",
     "perplexity": "Perplexity",
     "perplexi": "Perplexity",
     "plexity": "Perplexity",
     "google": "Google",
+    "gemini": "Gemini",
+    "gmini": "Gemini",
+    "reddit": "Reddit",
     "seo": "SEO",
     "geo": "GEO",
     "cro": "CRO",
+    # Whisper mis-hears the CTA verb "n'hésite" as "hésise"/"hésites".
+    "hesise": "hésite",
+    "hesises": "hésite",
+    "hesites": "hésite",
+    # Whisper entend "Suivant" comme "Sevant".
+    "sevant": "Suivant",
 }
 
 # Brand-name keyword -> filename in assets/ to overlay when that brand is mentioned.
@@ -107,12 +117,16 @@ BRAND_LOGOS = {
     "hubspot": "logo_hubspot.png",
     "chatgpt": "logo_chatgpt.png",
     "gpt": "logo_chatgpt.png",
+    "4gpt": "logo_chatgpt.png",
     "google": "logo_google.png",
     "perplexity": "logo_perplexity.png",
     "plexity": "logo_perplexity.png",
     "claude": "logo_claude.png",
     "cloud": "logo_claude.png",
     "gemini": "logo_gemini.png",
+    "gmini": "logo_gemini.png",
+    "reddit": "logo_reddit.png",
+    "clarity": "logo_clarity.png",
 }
 
 
@@ -430,6 +444,61 @@ def cut_silence(src: Path, out: Path, threshold_db: float, min_silence: float, p
     )
 
 
+def parse_ranges(spec: str, duration: float) -> list[tuple[float, float]]:
+    """Parse '0.0-1.5,12.3-13.0' into clamped, sorted, merged (start,end) ranges to delete."""
+    ranges = []
+    for chunk in spec.split(","):
+        chunk = chunk.strip()
+        if not chunk:
+            continue
+        m = re.match(r"^([\d.]+)\s*-\s*([\d.]+)$", chunk)
+        if not m:
+            raise ValueError(f"Bad range '{chunk}' (expected A-B in seconds)")
+        a, b = float(m.group(1)), float(m.group(2))
+        a, b = max(0.0, min(a, b)), min(duration, max(a, b))
+        if b - a > 0.02:
+            ranges.append((a, b))
+    ranges.sort()
+    merged: list[list[float]] = []
+    for a, b in ranges:
+        if merged and a <= merged[-1][1]:
+            merged[-1][1] = max(merged[-1][1], b)
+        else:
+            merged.append([a, b])
+    return [(a, b) for a, b in merged]
+
+
+def remove_ranges(src: Path, out: Path, removes: list[tuple[float, float]], duration: float) -> None:
+    """Delete the given time ranges (flubs/laughs/false starts) and concat the kept complement.
+    Same trim+concat mechanism as cut_silence, but the cut list is explicit rather than silence-derived."""
+    keeps: list[tuple[float, float]] = []
+    prev = 0.0
+    for a, b in removes:
+        if a > prev:
+            keeps.append((prev, a))
+        prev = max(prev, b)
+    if prev < duration:
+        keeps.append((prev, duration))
+    keeps = [(a, b) for a, b in keeps if b - a > 0.05]
+    cut = sum(b - a for a, b in removes)
+    print(f"Removing {len(removes)} range(s) (~{cut:.1f}s) -> keeping {len(keeps)} segment(s)")
+    if not keeps:
+        raise ValueError("remove-ranges would delete the entire clip")
+    parts = []
+    for i, (a, b) in enumerate(keeps):
+        parts.append(f"[0:v]trim={a:.3f}:{b:.3f},setpts=PTS-STARTPTS[v{i}]")
+        parts.append(f"[0:a]atrim={a:.3f}:{b:.3f},asetpts=PTS-STARTPTS[a{i}]")
+    concat_in = "".join(f"[v{i}][a{i}]" for i in range(len(keeps)))
+    parts.append(f"{concat_in}concat=n={len(keeps)}:v=1:a=1[v][a]")
+    fc = ";".join(parts)
+    run(
+        ["ffmpeg", "-y", "-i", str(src), "-filter_complex", fc,
+         "-map", "[v]", "-map", "[a]",
+         "-c:v", "libx264", "-crf", "18", "-preset", "medium",
+         "-c:a", "aac", "-b:a", "160k", "-movflags", "+faststart", str(out)]
+    )
+
+
 def ensure_pop_sound(path: Path, sr: int = 48000) -> Path:
     """Synthesize a realistic 'bubble pop' once, cached as a stereo WAV.
     Physics of a real pop: a short resonant blip whose pitch RISES as it decays very fast, plus a
@@ -585,6 +654,7 @@ def build_filter_complex(
     accent_hex: str = "#2563EB",
     punch_times: list[float] | None = None,
     brand_overlays: list[dict] | None = None,
+    progress_bar: bool = True,
 ) -> str:
     """Build the ffmpeg filter graph: zoom punches + subtitles + overlays + progress bar + watermark + brand logos."""
     fc = []
@@ -596,8 +666,12 @@ def build_filter_complex(
     #    centers automatically using the frame's actual dimensions.
     if punch_times:
         Z = build_zoom_expression(punch_times)
+        # Pre-scale to 1080x1920 FIRST so the zoom-crop has a frame >= the crop size.
+        # Without this, low-res sources (e.g. 464x832 phone clips) scaled by the small zoom
+        # factor stay below 1080x1920, and `crop=1080:1920` fails with "Invalid too big size".
         fc.append(
-            f"{last_label}scale=w='trunc(iw*{Z}/2)*2':h='trunc(ih*{Z}/2)*2':eval=frame,"
+            f"{last_label}scale=1080:1920,setsar=1,"
+            f"scale=w='trunc(iw*{Z}/2)*2':h='trunc(ih*{Z}/2)*2':eval=frame,"
             f"crop=1080:1920,setsar=1[v0z]"
         )
         last_label = "[v0z]"
@@ -608,18 +682,19 @@ def build_filter_complex(
     fc.append(f"{last_label}ass='{ass_path}'[v1]")
     last_label = "[v1]"
 
-    # 2. Progress bar background pill (subtle white track)
-    fc.append(
-        f"{last_label}drawbox=x=40:y=40:w=1000:h=8:color=white@0.25:t=fill[v2]"
-    )
-    last_label = "[v2]"
+    if progress_bar:
+        # 2. Progress bar background pill (subtle white track)
+        fc.append(
+            f"{last_label}drawbox=x=40:y=40:w=1000:h=8:color=white@0.25:t=fill[v2]"
+        )
+        last_label = "[v2]"
 
-    # 3. Progress bar fill in brand accent color
-    fc.append(
-        f"{last_label}drawbox=x=40:y=40:w='(t/{duration})*1000':h=8:"
-        f"color={accent_ff}@0.95:t=fill[v3]"
-    )
-    last_label = "[v3]"
+        # 3. Progress bar fill in brand accent color
+        fc.append(
+            f"{last_label}drawbox=x=40:y=40:w='(t/{duration})*1000':h=8:"
+            f"color={accent_ff}@0.95:t=fill[v3]"
+        )
+        last_label = "[v3]"
 
     # 4. Handle watermark bottom-left, dark pill + white text + thin accent underline
     safe_handle = handle.replace("'", r"\'").replace(":", r"\:")
@@ -675,7 +750,7 @@ def build_filter_complex(
             start = brand["start"]
             end = brand.get("end", min(duration, start + 2.0))
             base_w = brand.get("base_w", 500)
-            cy = 300 if brand.get("row", 0) == 0 else 560  # alternating rows avoid overlap collisions
+            cy = 300 + brand.get("row", 0) * 260  # stack rows top-down so concurrent logos never overlap
             w_expr = build_pop_scale_expr(base_w, start)
             scaled_label = f"[blogo{i}]"
             new_label = f"[vb{i}]"
@@ -718,6 +793,17 @@ def main():
         "--punch-words",
         default=",".join(sorted(PUNCH_WORDS)),
         help="Comma-separated list of words that trigger a short zoom punch on the video",
+    )
+    ap.add_argument(
+        "--punch-times",
+        default=None,
+        help="Comma-separated explicit timestamps (seconds) for zoom punches. Overrides word-based "
+        "detection — use for music-only clips with no speech (e.g. beat-synced punches).",
+    )
+    ap.add_argument(
+        "--no-progress-bar",
+        action="store_true",
+        help="Hide the story progress bar at the top of the frame.",
     )
     ap.add_argument(
         "--bg-blur",
@@ -771,8 +857,8 @@ def main():
     ap.add_argument(
         "--music-volume",
         type=float,
-        default=0.20,
-        help="Background music level for --youtube-short (0..1, before ducking). Default 0.20.",
+        default=0.12,
+        help="Background music level for --youtube-short (0..1, before ducking). Default 0.12.",
     )
     ap.add_argument(
         "--subscribe-asset",
@@ -785,6 +871,18 @@ def main():
         type=float,
         default=4.5,
         help="Seconds before the end of the video at which the subscribe button slides in. Default 4.5s.",
+    )
+    ap.add_argument(
+        "--no-subscribe-button",
+        action="store_true",
+        help="In --youtube-short mode, keep the ducked background music but skip the animated subscribe button overlay.",
+    )
+    ap.add_argument(
+        "--remove-ranges",
+        default="",
+        help="Comma-separated time ranges to delete from the clip (laughs, flubs, false starts), "
+        "e.g. '0.0-1.5,12.3-13.0'. Times are seconds on the post-silence-cut timeline (what the preview shows). "
+        "Removing ranges shifts the timeline, so transcript + matte are recomputed automatically.",
     )
     args = ap.parse_args()
 
@@ -815,6 +913,23 @@ def main():
             args.skip_transcribe = False
             args.skip_matte = False
         src = tightened
+
+    # 0b. Optional: delete explicit content ranges (laughs, flubs, false starts) from the tightened clip.
+    #     Times are on the post-silence-cut timeline (the preview's timeline). This re-cuts the timeline,
+    #     so audio/transcript/matte are invalidated and recomputed.
+    if args.remove_ranges.strip():
+        src_dur = _probe_duration(src)
+        removes = parse_ranges(args.remove_ranges, src_dur)
+        if removes:
+            trimmed = work / "tightened.mp4"
+            tmp = work / "tightened_trim.mp4"
+            remove_ranges(src, tmp, removes, src_dur)
+            tmp.replace(trimmed)
+            src = trimmed
+            if audio.exists():
+                audio.unlink()
+            args.skip_transcribe = False
+            args.skip_matte = False
 
     # 1. Probe duration
     probe = subprocess.check_output(
@@ -888,12 +1003,17 @@ def main():
 
     # 6b. Punch-zoom timestamps + brand-logo mentions
     punch_words = {w.strip().lower() for w in args.punch_words.split(",") if w.strip()}
-    punch_times = find_punch_times(segments, punch_words)
-    print(f"{len(punch_times)} punch zooms")
+    if args.punch_times:
+        punch_times = sorted(float(t) for t in args.punch_times.split(",") if t.strip())
+        print(f"{len(punch_times)} punch zooms (manual/beat-synced)")
+    else:
+        punch_times = find_punch_times(segments, punch_words)
+        print(f"{len(punch_times)} punch zooms")
 
-    # Brand logos: each shown at its spoken moment (synced), fixed display height. Consecutive mentions
-    # are placed on alternating rows, so when two land close together ("ChatGPT au lieu de Google",
-    # "Perplexity ou Cloud") they stack on different rows instead of hiding each other.
+    # Brand logos: each shown at its spoken moment (synced), fixed display height. Each logo gets the
+    # lowest row not already taken by another logo whose display window overlaps in time, so any number
+    # of logos that land close together ("GPT, Gemini, Claude") stack on distinct rows instead of
+    # hiding each other. Rows that never collide reuse row 0.
     from PIL import Image as _Image
 
     TARGET_H, DWELL = 220, 2.0
@@ -909,7 +1029,11 @@ def main():
         end = min(duration, start + DWELL)
         with _Image.open(logo_path) as im:
             base_w = max(40, int(TARGET_H * im.width / im.height))
-        row = len(brand_overlays) % 2  # consecutive logos alternate rows
+        # smallest row free of any time-overlapping logo already placed
+        busy = {o["row"] for o in brand_overlays if o["start"] < end and start < o["end"]}
+        row = 0
+        while row in busy:
+            row += 1
         brand_overlays.append({"path": logo_path, "start": start, "end": end, "base_w": base_w, "row": row})
     print(f"{len(brand_overlays)} brand overlays")
 
@@ -955,6 +1079,7 @@ def main():
         accent_hex=args.accent,
         punch_times=punch_times,
         brand_overlays=brand_overlays,
+        progress_bar=not args.no_progress_bar,
     )
 
     # 7b. Play a little 'pop' sound at each brand-logo appearance, summed onto the original audio
@@ -992,7 +1117,7 @@ def main():
                 file=sys.stderr,
             )
             sys.exit(2)
-        if not sub_path.exists():
+        if not args.no_subscribe_button and not sub_path.exists():
             print(
                 f"  ! subscribe button not found: {sub_path} — run make_subscribe_button.py first",
                 file=sys.stderr,
@@ -1004,17 +1129,18 @@ def main():
         # Actually count how many input pairs we already added by counting "-i" occurrences.
         music_in_idx = sum(1 for x in inputs if x == "-i")
         inputs += ["-i", str(music_path)]
-        sub_in_idx = sum(1 for x in inputs if x == "-i")
-        inputs += [
-            "-loop",
-            "1",
-            "-t",
-            f"{duration:.3f}",
-            "-r",
-            "30",
-            "-i",
-            str(sub_path),
-        ]
+        if not args.no_subscribe_button:
+            sub_in_idx = sum(1 for x in inputs if x == "-i")
+            inputs += [
+                "-loop",
+                "1",
+                "-t",
+                f"{duration:.3f}",
+                "-r",
+                "30",
+                "-i",
+                str(sub_path),
+            ]
 
         voice_label = audio_map if audio_map.startswith("[") else "[0:a]"
         # Build the ducking chain. sidechaincompress takes (signal_to_compress, sidechain_signal).
@@ -1033,48 +1159,50 @@ def main():
         audio_map = "[aout_yt]"
 
         # ---- Video: animated subscribe button overlay on the last seconds ----
-        # Resize the button to a clean width (keep aspect ratio).
-        btn_w = 620
-        # Read source dims to scale height proportionally — fall back to known asset size if read fails.
-        try:
-            from PIL import Image as _Image2
+        # Skipped entirely when --no-subscribe-button: ducked music stays, [vout] is left untouched.
+        if not args.no_subscribe_button:
+            # Resize the button to a clean width (keep aspect ratio).
+            btn_w = 620
+            # Read source dims to scale height proportionally — fall back to known asset size if read fails.
+            try:
+                from PIL import Image as _Image2
 
-            with _Image2.open(sub_path) as _im:
-                ratio = _im.height / _im.width
-        except Exception:
-            ratio = 212.0 / 752.0
-        btn_h = int(btn_w * ratio)
+                with _Image2.open(sub_path) as _im:
+                    ratio = _im.height / _im.width
+            except Exception:
+                ratio = 212.0 / 752.0
+            btn_h = int(btn_w * ratio)
 
-        start_btn = max(0.0, duration - args.subscribe_lead_time)
-        slide_dur = 0.5  # seconds the slide-up takes
-        y_off = 1920  # below the screen
-        y_on = 1300  # final resting position (above watermark @ h-150=1770)
+            start_btn = max(0.0, duration - args.subscribe_lead_time)
+            slide_dur = 0.5  # seconds the slide-up takes
+            y_off = 1920  # below the screen
+            y_on = 1300  # final resting position (above watermark @ h-150=1770)
 
-        # Ease-out-back on p = clip((t-start)/slide_dur, 0, 1):
-        #   q = p-1 ; ease = 1 + c3*q^3 + c1*q^2   (c1=1.70158, c3=2.70158)
-        # p=0 -> ease=0 (button is at y_off), p=1 -> ease=1 (resting), with an overshoot mid-flight.
-        c1, c3 = 1.70158, 2.70158
-        p = f"clip((t-{start_btn:.3f})/{slide_dur}\\,0\\,1)"
-        q = f"({p}-1)"
-        ease = f"(1+{c3:.5f}*{q}*{q}*{q}+{c1:.5f}*{q}*{q})"
-        y_expr = f"({y_off}+({y_on}-{y_off})*{ease})"
+            # Ease-out-back on p = clip((t-start)/slide_dur, 0, 1):
+            #   q = p-1 ; ease = 1 + c3*q^3 + c1*q^2   (c1=1.70158, c3=2.70158)
+            # p=0 -> ease=0 (button is at y_off), p=1 -> ease=1 (resting), with an overshoot mid-flight.
+            c1, c3 = 1.70158, 2.70158
+            p = f"clip((t-{start_btn:.3f})/{slide_dur}\\,0\\,1)"
+            q = f"({p}-1)"
+            ease = f"(1+{c3:.5f}*{q}*{q}*{q}+{c1:.5f}*{q}*{q})"
+            y_expr = f"({y_off}+({y_on}-{y_off})*{ease})"
 
-        # Re-route the current [vout] label: rename it to [vpre_sub], then overlay the subscribe button on top.
-        # build_filter_complex always emits a single [vout] as the video sink; the audio chain above
-        # only added [aout]/[aout_yt] labels so [vout] is still unique in fc here. We unconditionally
-        # rename it so the subscribe overlay can produce the new [vout].
-        last_vout = fc.rfind("[vout]")
-        if last_vout < 0:
-            print("  ! expected [vout] label in filter_complex but none found", file=sys.stderr)
-            sys.exit(2)
-        fc = fc[:last_vout] + "[vpre_sub]" + fc[last_vout + len("[vout]") :]
-        v_sub_parts = []
-        v_sub_parts.append(f"[{sub_in_idx}:v]scale={btn_w}:{btn_h}[sub_scaled]")
-        v_sub_parts.append(
-            f"[vpre_sub][sub_scaled]overlay=x='(W-w)/2':y='{y_expr}':"
-            f"enable='between(t,{start_btn:.3f},{duration:.3f})'[vout]"
-        )
-        fc = fc + ";" + ";".join(v_sub_parts)
+            # Re-route the current [vout] label: rename it to [vpre_sub], then overlay the subscribe button on top.
+            # build_filter_complex always emits a single [vout] as the video sink; the audio chain above
+            # only added [aout]/[aout_yt] labels so [vout] is still unique in fc here. We unconditionally
+            # rename it so the subscribe overlay can produce the new [vout].
+            last_vout = fc.rfind("[vout]")
+            if last_vout < 0:
+                print("  ! expected [vout] label in filter_complex but none found", file=sys.stderr)
+                sys.exit(2)
+            fc = fc[:last_vout] + "[vpre_sub]" + fc[last_vout + len("[vout]") :]
+            v_sub_parts = []
+            v_sub_parts.append(f"[{sub_in_idx}:v]scale={btn_w}:{btn_h}[sub_scaled]")
+            v_sub_parts.append(
+                f"[vpre_sub][sub_scaled]overlay=x='(W-w)/2':y='{y_expr}':"
+                f"enable='between(t,{start_btn:.3f},{duration:.3f})'[vout]"
+            )
+            fc = fc + ";" + ";".join(v_sub_parts)
 
     out_path = Path(args.output).expanduser().resolve()
     cmd = (
