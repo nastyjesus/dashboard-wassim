@@ -109,6 +109,12 @@ SUBTITLE_CORRECTIONS = {
     "hesites": "hésite",
     # Whisper entend "Suivant" comme "Sevant".
     "sevant": "Suivant",
+    # Whisper entend "afficher" comme "ficher".
+    "ficher": "afficher",
+    # Whisper entend "abandonné"/"abandon" comme "abondonné"/"abondant".
+    "abondonne": "abandonné",
+    "abondonnes": "abandonnés",
+    "abondant": "abandon",
 }
 
 # Brand-name keyword -> filename in assets/ to overlay when that brand is mentioned.
