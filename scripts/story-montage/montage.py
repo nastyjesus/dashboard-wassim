@@ -389,6 +389,25 @@ def _probe_duration(src: Path) -> float:
     return float(out.strip())
 
 
+# HDR (HLG/PQ) sources dumped to SDR without tonemapping come out washed-out/overexposed.
+# Samsung phone footage is HLG (arib-std-b67). Hable picked over mobius: mobius leaves
+# highlights blown on this footage.
+HDR_TRANSFERS = {"arib-std-b67", "smpte2084"}
+TONEMAP_SDR = (
+    "zscale=t=linear:npl=100,format=gbrpf32le,zscale=p=bt709,"
+    "tonemap=hable:desat=0,zscale=t=bt709:m=bt709:r=tv,format=yuv420p"
+)
+
+
+def _probe_color_transfer(src: Path) -> str:
+    out = subprocess.check_output(
+        ["ffprobe", "-v", "error", "-select_streams", "v:0",
+         "-show_entries", "stream=color_transfer",
+         "-of", "default=noprint_wrappers=1:nokey=1", str(src)]
+    )
+    return out.decode().strip()
+
+
 def cut_silence(src: Path, out: Path, threshold_db: float, min_silence: float, pad: float = 0.10) -> None:
     """Remove silent/breathing pauses and concat the spoken segments into a tighter clip.
     Uses ffmpeg silencedetect to find pauses, keeps the complement (padded so word edges aren't clipped),
@@ -430,9 +449,18 @@ def cut_silence(src: Path, out: Path, threshold_db: float, min_silence: float, p
     removed = duration - sum(b - a for a, b in merged)
     print(f"  {len(silences)} silences -> keeping {len(merged)} segments, cutting ~{removed:.1f}s")
 
+    hdr = _probe_color_transfer(src) in HDR_TRANSFERS
+    if hdr:
+        print("  HDR source detected -> tonemapping to SDR (bt709, hable)")
+
     if not merged or removed < 0.15:
         print("  Nothing meaningful to cut; copying through.")
-        run(["ffmpeg", "-y", "-i", str(src), "-c", "copy", str(out)])
+        if hdr:
+            run(["ffmpeg", "-y", "-i", str(src), "-vf", TONEMAP_SDR,
+                 "-c:v", "libx264", "-crf", "18", "-preset", "medium",
+                 "-c:a", "copy", "-movflags", "+faststart", str(out)])
+        else:
+            run(["ffmpeg", "-y", "-i", str(src), "-c", "copy", str(out)])
         return
 
     parts = []
@@ -442,9 +470,13 @@ def cut_silence(src: Path, out: Path, threshold_db: float, min_silence: float, p
     concat_in = "".join(f"[v{i}][a{i}]" for i in range(len(merged)))
     parts.append(f"{concat_in}concat=n={len(merged)}:v=1:a=1[v][a]")
     fc = ";".join(parts)
+    v_map = "[v]"
+    if hdr:
+        fc += f";[v]{TONEMAP_SDR}[vsdr]"
+        v_map = "[vsdr]"
     run(
         ["ffmpeg", "-y", "-i", str(src), "-filter_complex", fc,
-         "-map", "[v]", "-map", "[a]",
+         "-map", v_map, "-map", "[a]",
          "-c:v", "libx264", "-crf", "18", "-preset", "medium",
          "-c:a", "aac", "-b:a", "160k", "-movflags", "+faststart", str(out)]
     )
