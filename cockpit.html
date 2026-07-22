@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<!--
+  COCKPIT — Wassim Loumi, copilote digital
+  Exercice 1 sept. 2026 → 31 août 2027
+  4 onglets (Pilotage, CRM, Trésorerie, Contrats) lisant la base Notion
+  "🎯 Pilotage 26/27" via le Worker Cloudflare (token côté serveur).
+  ►► RENSEIGNE WORKER_URL ci-dessous. ◄◄  Si le Worker ne répond pas : photo figée.
+  Lecture seule : pour modifier, dis-le à Claude (il écrit dans Notion) ou édite Notion.
+-->
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cockpit — Wassim Loumi</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=EB+Garamond:wght@400;500;600&family=Raleway:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{--cream:#F4EFE6;--paper:#FBF8F2;--ink:#26231F;--soft:#514B42;--gold:#B08D57;--deep:#8C6D3F;--line:#E3D9C7;--panel:#282420;--green:#5B7A5B;--rust:#A9683F;--grid:#EAE1D0;--violet:#6B6A86;--blue:#5B7A8C}
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--cream);color:var(--ink);font-family:'Raleway',system-ui,-apple-system,sans-serif;line-height:1.55;padding:0 0 84px}
+  .wrap{max-width:820px;margin:0 auto;padding:20px 14px 0}
+  .serif{font-family:'EB Garamond',Georgia,serif}
+  .eyebrow{font-size:10px;letter-spacing:.2em;text-transform:uppercase;color:var(--deep);font-weight:600}
+  h1{font-family:'EB Garamond',Georgia,serif;font-weight:600;font-size:26px;line-height:1.1;margin:4px 0 2px}
+  .status{display:flex;align-items:center;gap:7px;font-size:12px;margin-top:10px;padding:8px 12px;border-radius:10px;border:1px solid var(--line);background:var(--paper)}
+  .dot{width:8px;height:8px;border-radius:50%;flex:none}
+  .dot.live{background:var(--green)}.dot.frozen{background:var(--gold)}.dot.load{background:var(--soft)}
+
+  .panel{background:var(--panel);color:var(--cream);border-radius:18px;padding:20px 18px;margin-top:12px}
+  .kpi-lab{font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:var(--gold);font-weight:600}
+  .kpi-big{font-family:'EB Garamond',Georgia,serif;font-size:42px;font-weight:600;line-height:1;margin-top:4px}
+  .kpi-big span{font-size:15px;color:var(--gold);margin-left:5px}
+  .kpi-note{font-size:12.5px;color:#C9BFAE;margin-top:6px}
+  .gauge{margin-top:15px}
+  .gauge-top{display:flex;justify-content:space-between;font-size:12px;color:#C9BFAE;margin-bottom:5px}
+  .gauge-bar{height:10px;background:#3a352e;border-radius:6px;overflow:hidden;position:relative}
+  .gauge-fill{height:100%;background:linear-gradient(90deg,var(--deep),var(--gold));border-radius:6px;transition:width .5s}
+  .gauge-pipe{position:absolute;top:0;height:100%;background:repeating-linear-gradient(45deg,#5d564c,#5d564c 4px,transparent 4px,transparent 8px)}
+  .mix{display:flex;height:8px;border-radius:5px;overflow:hidden;margin-top:16px}
+  .mix span{display:block;height:100%}
+  .mix-leg{display:flex;gap:14px;font-size:11px;color:#C9BFAE;margin-top:6px;flex-wrap:wrap}
+  .mix-leg i{display:inline-block;width:8px;height:8px;border-radius:2px;margin-right:4px;vertical-align:middle}
+
+  .cards{display:flex;gap:10px;margin-top:12px;flex-wrap:wrap}
+  .card{flex:1 1 150px;background:var(--paper);border:1px solid var(--line);border-radius:12px;padding:11px 13px}
+  .card .l{font-size:10px;letter-spacing:.05em;text-transform:uppercase;color:var(--deep);font-weight:600}
+  .card .v{font-family:'EB Garamond',Georgia,serif;font-size:22px;color:var(--ink);margin-top:2px}
+  .card .s{font-size:11.5px;color:var(--soft)}
+
+  .block{background:var(--paper);border:1px solid var(--line);border-radius:14px;padding:15px 16px;margin-top:14px}
+  .block.gold{border-left:4px solid var(--gold)}
+  h2{font-family:'EB Garamond',Georgia,serif;font-weight:600;font-size:19px;margin-bottom:4px}
+  .block p{font-size:13.5px;color:var(--soft);line-height:1.6}
+  .block p b{color:var(--ink)}
+  h3{font-family:'EB Garamond',Georgia,serif;font-weight:600;font-size:20px;margin:22px 0 4px;color:var(--ink)}
+  .h3sub{font-size:12px;color:var(--soft);margin-bottom:2px}
+
+  .cli{background:var(--paper);border:1px solid var(--line);border-radius:12px;padding:11px 14px;margin-top:9px}
+  .cli.rec{border-left:4px solid var(--deep)}.cli.one{border-left:4px solid var(--gold)}.cli.warn{border-left:4px solid var(--rust)}
+  .cli-head{display:flex;justify-content:space-between;align-items:flex-start;gap:8px;flex-wrap:wrap}
+  .cli-nom{font-family:'EB Garamond',Georgia,serif;font-size:16px;font-weight:600;color:var(--ink)}
+  .cli-meta{font-size:12px;color:var(--soft);margin-top:1px}
+  .cli-mt{font-family:'EB Garamond',Georgia,serif;font-size:16px;font-weight:600;color:var(--deep);white-space:nowrap}
+  .tag{font-size:9px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:#fff;padding:2px 7px;border-radius:20px;margin-left:6px;vertical-align:middle}
+
+  /* CRM board */
+  .board{display:flex;gap:10px;overflow-x:auto;padding-bottom:8px;-webkit-overflow-scrolling:touch}
+  .col{flex:1 1 0;min-width:150px;background:var(--paper);border:1px solid var(--line);border-radius:12px;padding:8px}
+  .col-top{display:flex;justify-content:space-between;align-items:baseline;padding:2px 4px 8px}
+  .col-nom{font-size:11px;font-weight:700;letter-spacing:.03em;text-transform:uppercase}
+  .pcard{background:#fff;border:1px solid var(--line);border-radius:9px;padding:8px 9px;margin-bottom:7px}
+  .pcard .n{font-family:'EB Garamond',Georgia,serif;font-size:14px;font-weight:600;color:var(--ink);line-height:1.15}
+  .pcard .c{font-size:11px;color:var(--soft)}
+  .pcard .m{font-size:12.5px;font-weight:600;color:var(--deep);margin-top:3px}
+
+  /* treso table */
+  .wrapx{overflow-x:auto;-webkit-overflow-scrolling:touch;margin-top:8px}
+  table{border-collapse:separate;border-spacing:0;background:var(--paper);border:1px solid var(--line);border-radius:12px;overflow:hidden;min-width:640px;width:100%}
+  th{background:var(--panel);color:var(--cream);font-size:10px;font-weight:700;text-transform:uppercase;padding:8px 7px;text-align:right;white-space:nowrap}
+  th.l,td.l{text-align:left}
+  td{padding:8px 9px;border-bottom:1px solid var(--grid);border-right:1px solid var(--grid);text-align:right;font-size:12.5px}
+  .tot{background:var(--panel);color:var(--cream)}
+  .tot td{color:var(--cream);font-family:'EB Garamond',Georgia,serif;font-weight:600}
+
+  nav{position:fixed;bottom:0;left:0;right:0;background:var(--panel);border-top:1px solid var(--deep);display:flex;justify-content:center;gap:4px;padding:8px 8px calc(8px + env(safe-area-inset-bottom));z-index:30}
+  nav button{flex:1 1 0;max-width:150px;background:transparent;border:none;border-radius:10px;color:#C9BFAE;padding:7px 4px;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:3px;font-size:10.5px;font-weight:600;font-family:'Raleway',sans-serif}
+  nav button.on{background:var(--deep);color:var(--cream)}
+  nav svg{width:17px;height:17px}
+  .tab{display:none}.tab.on{display:block}
+  .foot{margin-top:26px;border-top:1px solid var(--line);padding-top:14px;font-size:11.5px;color:var(--soft);line-height:1.6}
+  .pagenav{position:sticky;top:0;z-index:40;background:var(--panel);display:flex;gap:6px;padding:8px 12px;overflow-x:auto;-webkit-overflow-scrolling:touch;border-bottom:1px solid var(--deep)}
+  .pagenav a{flex:none;color:#C9BFAE;text-decoration:none;font-size:12.5px;font-weight:600;padding:7px 13px;border-radius:9px;white-space:nowrap}
+  .pagenav a.on{color:var(--cream);background:var(--deep)}
+</style>
+</head>
+<body>
+<div class="pagenav">
+  <a href="index.html">Tableau de bord</a>
+  <a href="cockpit.html" class="on">Cockpit CA</a>
+  <a href="pilotage-live.html">Pilotage</a>
+</div>
+<div class="wrap">
+  <div class="eyebrow">Cockpit · exercice 1 sept. 2026 → 31 août 2027</div>
+  <h1 id="tab-title">Pilotage</h1>
+  <div class="status" id="status"><span class="dot load"></span><span id="status-txt">Chargement…</span></div>
+
+  <section class="tab on" id="t-pilotage"></section>
+  <section class="tab" id="t-crm"></section>
+  <section class="tab" id="t-treso"></section>
+  <section class="tab" id="t-contrats"></section>
+
+  <div class="foot" id="foot"></div>
+</div>
+
+<nav id="nav"></nav>
+
+<script>
+/* ►►►►► colle l'URL de ton Worker Cloudflare ◄◄◄◄◄ */
+const WORKER_URL = "https://pilotage-notion-worker.loumiwassim.workers.dev";
+
+/* ============ PHOTO FIGÉE ============ */
+const BAKED = [
+  { nom:"Eva — Optel Services", type:"Programme récurrent", prix:250, debut:"2026-09-01", duree:12, statut:"Signé", encaisse:0 },
+  { nom:"Nathanaëlle — OnCourtiz", type:"Programme récurrent", prix:180, debut:"2026-09-01", duree:12, statut:"Signé", encaisse:0 },
+  { nom:"Delphine — Courtier sur mesure", type:"Programme récurrent", prix:350, debut:"2026-05-03", duree:6, statut:"Signé", encaisse:0 },
+  { nom:"Julien MCR", type:"Programme récurrent", prix:250, debut:"2026-06-01", duree:6, statut:"Signé", encaisse:0 },
+  { nom:"David DI2A", type:"Programme récurrent", prix:250, debut:"2026-06-01", duree:6, statut:"Signé", encaisse:0 },
+  { nom:"Nicolas — ostéopathe", type:"Programme récurrent", prix:80, debut:"2026-06-01", duree:6, statut:"Signé", encaisse:0 },
+  { nom:"Pierre Opticien — site (1/2)", type:"Site web", prix:950, debut:"2026-09-01", duree:1, statut:"Signé", encaisse:0 },
+  { nom:"Pierre Opticien — site (2/2)", type:"Site web", prix:950, debut:"2026-10-01", duree:1, statut:"Signé", encaisse:0 },
+  { nom:"Christelle Lherm — prise de vue", type:"Autre ponctuel", prix:450, debut:"2026-09-11", duree:1, statut:"Signé", encaisse:0 },
+  { nom:"La Riveraine", type:"Programme récurrent", prix:0, debut:null, duree:6, statut:"Pipeline", etape:"Diagnostic", contact:"Sophie Gesbert" },
+  { nom:"Horolaj", type:"Programme récurrent", prix:0, debut:null, duree:6, statut:"Pipeline", etape:"Contacté", contact:"Pierre" },
+  { nom:"Sébastien (assureur)", type:"Programme récurrent", prix:0, debut:null, duree:6, statut:"Pipeline", etape:"Propale", contact:"Sébastien" },
+];
+
+/* ============ MOTEUR ============ */
+const MOIS=["janv","févr","mars","avr","mai","juin","juil","août","sept","oct","nov","déc"];
+const MOISL=["janvier","février","mars","avril","mai","juin","juillet","août","septembre","octobre","novembre","décembre"];
+const idxDebut=d=>{const[y,m]=d.split("-").map(Number);return (y-2026)*12+(m-9);};
+const FYKEY=i=>{const y=2026+Math.floor((8+i)/12);const m=((8+i)%12)+1;return{y,m};};
+const eur=n=>Math.round(n).toLocaleString("fr-FR")+" €";
+const rec=t=>t==="Programme récurrent";
+const TVA=0.20;
+const ETAPES=[{id:"Prospect",col:"#8C8478"},{id:"Contacté",col:"#6B6A86"},{id:"Diagnostic",col:"#5B7A8C"},{id:"Propale",col:"#B08D57"}];
+
+let DATA=[], SOURCE="frozen";
+
+function compute(){
+  const signe=Array.from({length:12},()=>0), pipe=Array.from({length:12},()=>0), recMonth=Array.from({length:12},()=>0), duMonth=Array.from({length:12},()=>0);
+  const contrats=[], prospects=[]; let caRec=0, caOne=0, encaisseTot=0;
+  DATA.forEach(c=>{
+    const montant=Number(c.prix)||0;
+    const estPipe=c.statut==="Pipeline";
+    if(estPipe){ prospects.push(c); if(montant>0&&c.debut){const i0=idxDebut(c.debut);const n=rec(c.type)?(Number(c.duree)||6):1;for(let k=0;k<n;k++){const i=i0+k;if(i>=0&&i<12)pipe[i]+=montant;}} return; }
+    if(!(montant>0)||!c.debut) return;
+    const i0=idxDebut(c.debut); const n=rec(c.type)?(Number(c.duree)||6):1; let dansFY=0;
+    for(let k=0;k<n;k++){const i=i0+k; if(i>=0&&i<12){ signe[i]+=montant; duMonth[i]+=montant; dansFY+=montant; if(rec(c.type))recMonth[i]+=montant; }}
+    const enc=Number(c.encaisse)||0; encaisseTot+=enc;
+    contrats.push({...c, dansFY, i0, fin:i0+n, enc});
+    if(rec(c.type))caRec+=dansFY; else caOne+=dansFY;
+  });
+  contrats.sort((a,b)=>b.dansFY-a.dansFY);
+  const totalSigne=signe.reduce((a,b)=>a+b,0), totalPipe=pipe.reduce((a,b)=>a+b,0);
+  const top2=contrats.slice(0,2).reduce((s,c)=>s+c.dansFY,0);
+  const concentration=totalSigne?Math.round(top2/totalSigne*100):0;
+  const plancher=recMonth[11];
+  const renew=contrats.filter(c=>rec(c.type)&&c.fin>=0&&c.fin<=11).sort((a,b)=>a.fin-b.fin);
+  return {signe,pipe,recMonth,duMonth,contrats,prospects,totalSigne,totalPipe,caRec,caOne,concentration,plancher,renew,encaisseTot};
+}
+
+/* ============ ONGLET PILOTAGE ============ */
+function renderPilotage(D){
+  const {signe,pipe,contrats,totalSigne,totalPipe,caRec,caOne,concentration,plancher,renew}=D;
+  const simultanes=(()=>{const per=Array.from({length:12},(_,i)=>contrats.filter(c=>rec(c.type)&&i>=c.i0&&i<c.fin).length);const a=per.filter(n=>n>0);return a.length?a.reduce((x,y)=>x+y,0)/a.length:0;})();
+  const tot=caRec+caOne||1, pr=Math.round(caRec/tot*100), po=100-pr;
+  const manque=Math.max(0,60000-totalSigne), mandats=Math.ceil(manque/3150), propales=Math.ceil(mandats*3);
+  const max=Math.max(...signe.map((v,i)=>v+pipe[i]),1),gap=1.6,bw=(100-gap*11)/12;
+  let bars="",labs="";
+  signe.forEach((v,i)=>{const h=v/max*70,x=i*(bw+gap),y=76-h;
+    bars+='<rect x="'+x.toFixed(2)+'" y="'+y.toFixed(2)+'" width="'+bw.toFixed(2)+'" height="'+h.toFixed(2)+'" rx="0.6" fill="url(#g)"><title>'+MOIS[FYKEY(i).m-1]+' : '+eur(v)+'</title></rect>';
+    if(pipe[i]>0){const hp=pipe[i]/max*70,yp=y-hp;bars+='<rect x="'+x.toFixed(2)+'" y="'+yp.toFixed(2)+'" width="'+bw.toFixed(2)+'" height="'+hp.toFixed(2)+'" rx="0.6" fill="#E3D9C7"/>';}
+    labs+='<text x="'+(x+bw/2).toFixed(2)+'" y="82" font-size="2.6" fill="#514B42" text-anchor="middle">'+MOIS[FYKEY(i).m-1].charAt(0).toUpperCase()+'</text>';
+    if(v)labs+='<text x="'+(x+bw/2).toFixed(2)+'" y="'+(y-1.5).toFixed(2)+'" font-size="2.4" fill="#8C6D3F" text-anchor="middle">'+(Math.round(v/100)/10)+'k</text>';});
+
+  let renewHtml="";
+  if(renew.length){
+    const dernier=renew[renew.length-1];
+    renewHtml='<h3>Renouvellements à venir</h3><div class="h3sub">'+renew.length+' contrat'+(renew.length>1?'s':'')+' à reconduire d\'ici '+MOISL[FYKEY(dernier.fin).m-1]+'. Sans reconduction, ton CA récurrent retombe à <b style="color:var(--rust)">'+eur(plancher)+'/mois</b>.</div>'+
+      renew.map(c=>{const fk=FYKEY(c.fin);return '<div class="cli warn"><div class="cli-head"><div><span class="cli-nom">'+c.nom+'</span><div class="cli-meta">se termine '+MOISL[fk.m-1]+' '+fk.y+' · '+eur(c.prix)+'/mois</div></div><div class="cli-mt" style="color:var(--rust)">à relancer</div></div></div>';}).join("");
+  }
+
+  document.getElementById("t-pilotage").innerHTML=
+    '<div class="panel"><div class="kpi-lab">CA signé sur l\'exercice</div>'+
+    '<div class="kpi-big">'+(totalSigne?Math.round(totalSigne).toLocaleString("fr-FR"):"0")+'<span>€ HT</span></div>'+
+    '<div class="kpi-note">'+(totalPipe>0?"+ "+Math.round(totalPipe).toLocaleString("fr-FR")+" € en pipeline → "+Math.round(totalSigne+totalPipe).toLocaleString("fr-FR")+" € si tout se signe":"pipeline à chiffrer")+'</div>'+
+    [60000,80000].map(t=>{const pc=Math.min(100,totalSigne/t*100),pp=Math.min(100-pc,totalPipe/t*100);return '<div class="gauge"><div class="gauge-top"><span>Objectif '+(t/1000)+'k</span><span style="color:'+(totalSigne>=t?"#9DBF9D":"#E0A277")+';font-weight:600">'+(totalSigne>=t?"atteint":"manque "+Math.round(t-totalSigne).toLocaleString("fr-FR")+" €")+'</span></div><div class="gauge-bar"><div class="gauge-fill" style="width:'+pc+'%"></div><div class="gauge-pipe" style="left:'+pc+'%;width:'+pp+'%"></div></div></div>';}).join("")+
+    '<div class="mix"><span style="width:'+pr+'%;background:linear-gradient(90deg,#B08D57,#8C6D3F)"></span><span style="width:'+po+'%;background:#6B6A86"></span></div>'+
+    '<div class="mix-leg"><span><i style="background:#B08D57"></i>Récurrent '+pr+'% ('+eur(caRec)+')</span><span><i style="background:#6B6A86"></i>Ponctuel '+po+'% ('+eur(caOne)+')</span></div></div>'+
+    '<div class="cards">'+[
+      {l:"Contrats signés",v:contrats.length,s:"dans l\'exercice"},
+      {l:"Clients simultanés",v:simultanes.toFixed(1),s:"programmes récurrents"},
+      {l:"Concentration",v:concentration+"%",s:"tes 2 plus gros clients"},
+    ].map(k=>'<div class="card"><div class="l">'+k.l+'</div><div class="v">'+k.v+'</div><div class="s">'+k.s+'</div></div>').join("")+'</div>'+
+    '<div class="block gold"><h2>Ce qu\'il te reste à faire</h2><p>Il te manque <b>'+Math.round(manque).toLocaleString("fr-FR")+' €</b> pour 60k, soit <b>'+mandats+' mandats</b> ou <b>'+propales+' propales</b> à une signature sur trois.'+(concentration>=50?' Tes deux plus gros clients pèsent <b>'+concentration+'%</b> du CA, une dépendance à surveiller.':'')+'</p></div>'+
+    '<h3>CA signé par mois</h3><div class="block" style="padding:14px 12px 10px"><svg viewBox="0 0 100 84" width="100%" preserveAspectRatio="xMidYMid meet"><defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#B08D57"/><stop offset="1" stop-color="#8C6D3F"/></linearGradient></defs>'+bars+labs+'</svg><p style="font-size:11.5px;color:var(--soft);margin-top:8px">Barres foncées : signé. Barres claires : pipeline. La marche après novembre, c\'est la falaise.</p></div>'+
+    renewHtml;
+}
+
+/* ============ ONGLET CRM ============ */
+function renderCRM(D){
+  const {prospects}=D;
+  const actifs=prospects.filter(p=>p.etape&&p.etape!=="Perdu"&&p.etape!=="Signé");
+  let cols=ETAPES.map(e=>{
+    const items=prospects.filter(p=>(p.etape||"Prospect")===e.id);
+    return '<div class="col" style="border-top:3px solid '+e.col+'"><div class="col-top"><span class="col-nom" style="color:'+e.col+'">'+e.id+'</span><span style="font-size:10.5px;color:var(--soft)">'+items.length+'</span></div>'+
+      (items.map(p=>'<div class="pcard"><div class="n">'+(p.nom||"Sans nom")+'</div>'+(p.contact?'<div class="c">'+p.contact+'</div>':'')+'<div class="m">'+(Number(p.prix)>0?eur(p.prix):"à chiffrer")+'</div></div>').join("")||'<div style="font-size:11px;color:var(--soft);text-align:center;padding:8px;opacity:.6">—</div>')+'</div>';
+  }).join("");
+  document.getElementById("t-crm").innerHTML=
+    '<div class="block"><p><b>'+actifs.length+'</b> prospects actifs dans le pipeline. Pour faire avancer une carte ou en ajouter une, dis-le à Claude : il met Notion à jour et la page suit.</p></div>'+
+    '<div class="board">'+cols+'</div>';
+}
+
+/* ============ ONGLET TRÉSORERIE ============ */
+function renderTreso(D){
+  const {duMonth,contrats,encaisseTot}=D;
+  const totalDu=duMonth.reduce((a,b)=>a+b,0);
+  const reste=Math.max(0,totalDu-encaisseTot);
+  const tvaRev=encaisseTot*TVA;
+  let head='<tr><th class="l">Mois</th>'+MOIS.map((m,i)=>'').join('')+'</tr>';
+  let row='';
+  for(let i=0;i<12;i++){const k=FYKEY(i);row+='<td>'+(duMonth[i]?Math.round(duMonth[i]).toLocaleString("fr-FR"):"·")+'</td>';}
+  const cols=MOIS.map((m,i)=>'<th>'+m+'<br><span style="color:var(--gold)">'+String(FYKEY(i).y).slice(2)+'</span></th>').join("");
+  document.getElementById("t-treso").innerHTML=
+    '<div class="cards">'+[
+      {l:"Dû sur l\'exercice",v:eur(totalDu),c:"var(--ink)"},
+      {l:"Encaissé",v:eur(encaisseTot),c:"var(--green)"},
+      {l:"Reste à encaisser",v:eur(reste),c:"var(--deep)"},
+    ].map(k=>'<div class="card"><div class="l">'+k.l+'</div><div class="v" style="color:'+k.c+'">'+k.v+'</div></div>').join("")+'</div>'+
+    '<div class="block"><p>Ligne <b>dû</b> calculée depuis les contrats signés. L\'<b>encaissé</b> vient du champ « Encaissé HT » de Notion, que Claude renseigne au fil des paiements. TVA à reverser sur l\'encaissé (20 %) : <b>'+eur(tvaRev)+'</b>.</p></div>'+
+    '<h3>Dû par mois</h3><div class="wrapx"><table><thead><tr><th class="l">Ligne</th>'+cols+'</tr></thead><tbody><tr><td class="l" style="font-weight:600">CA dû</td>'+row+'</tr></tbody></table></div>'+
+    '<h3>Encaissement par contrat</h3>'+
+    contrats.map(c=>'<div class="cli '+(rec(c.type)?"rec":"one")+'"><div class="cli-head"><div><span class="cli-nom">'+c.nom+'</span><div class="cli-meta">dû '+eur(c.dansFY)+' · encaissé '+eur(c.enc)+'</div></div><div class="cli-mt" style="color:'+(c.enc>=c.dansFY?"var(--green)":"var(--deep)")+'">'+(c.dansFY?Math.round(c.enc/c.dansFY*100):0)+'%</div></div></div>').join("");
+}
+
+/* ============ ONGLET CONTRATS ============ */
+function renderContrats(D){
+  const {contrats,totalSigne}=D;
+  document.getElementById("t-contrats").innerHTML=
+    '<div class="block"><p><b>'+contrats.length+' contrats</b> · '+eur(totalSigne)+' sur l\'exercice. Pour ajouter, modifier ou clore un contrat, dis-le à Claude.</p></div>'+
+    contrats.map(c=>{const r=rec(c.type);const meta=(r?"Programme":c.type)+" · "+eur(c.prix)+(r?"/mois × "+(c.duree||6):"")+" · démarre "+MOIS[Number(c.debut.split("-")[1])-1]+" "+c.debut.split("-")[0];
+      return '<div class="cli '+(r?"rec":"one")+'"><div class="cli-head"><div><span class="cli-nom">'+c.nom+'</span><div class="cli-meta">'+meta+'</div></div><div class="cli-mt">'+eur(c.dansFY)+'</div></div></div>';}).join("");
+}
+
+/* ============ NAV + RENDU ============ */
+const TABS=[
+  {id:"pilotage",nom:"Pilotage",fn:renderPilotage,ic:'<path d="M3 3v18h18"/><path d="M7 14l3-4 3 3 4-6"/>'},
+  {id:"crm",nom:"CRM",fn:renderCRM,ic:'<circle cx="9" cy="7" r="3"/><path d="M2 21v-2a5 5 0 0 1 5-5h4a5 5 0 0 1 5 5v2"/><path d="M17 7h5M19.5 4.5v5"/>'},
+  {id:"treso",nom:"Trésorerie",fn:renderTreso,ic:'<rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="2.5"/>'},
+  {id:"contrats",nom:"Contrats",fn:renderContrats,ic:'<path d="M6 2h9l5 5v15H6z"/><path d="M9 12h7M9 16h7M9 8h3"/>'},
+];
+function renderAll(){ const D=compute(); TABS.forEach(t=>t.fn(D)); }
+function show(id){
+  TABS.forEach(t=>{document.getElementById("t-"+t.id).classList.toggle("on",t.id===id);});
+  document.querySelectorAll("nav button").forEach(b=>b.classList.toggle("on",b.dataset.id===id));
+  const t=TABS.find(x=>x.id===id); document.getElementById("tab-title").textContent=t.nom;
+  window.scrollTo(0,0);
+}
+document.getElementById("nav").innerHTML=TABS.map((t,i)=>'<button data-id="'+t.id+'" class="'+(i===0?"on":"")+'" onclick="show(\''+t.id+'\')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">'+t.ic+'</svg>'+t.nom+'</button>').join("");
+
+function setStatus(){const st=document.getElementById("status"),d=st.querySelector(".dot"),x=document.getElementById("status-txt");
+  if(SOURCE==="live"){d.className="dot live";x.textContent="Notion en direct · lu à l'instant";}
+  else{d.className="dot frozen";x.textContent="Données figées"+(WORKER_URL.includes("REMPLACE")?" · Worker à configurer":" · Notion injoignable");}}
+document.getElementById("foot").innerHTML="Cockpit hébergé lisant la base Notion « 🎯 Pilotage 26/27 » via un Worker Cloudflare (token côté serveur). Lecture seule : pour modifier, dis-le à Claude, il écrit dans Notion et la page suit à la prochaine ouverture.";
+
+/* ============ LECTURE ============ */
+async function liveRows(){
+  if(WORKER_URL.includes("REMPLACE")) throw new Error("worker-à-configurer");
+  const res=await fetch(WORKER_URL,{method:"GET"});
+  if(!res.ok) throw new Error("worker-"+res.status);
+  const data=await res.json(); if(data.error) throw new Error(data.error);
+  return (data.results||[]).map(r=>{
+    const p=r.properties||{};
+    const cp=p["Client"]||p["Clients"]||p["Nom"]||p["Name"];
+    const nom=cp&&cp.title?cp.title.map(t=>t.plain_text).join("").trim():"";
+    const ct=p["Contact"]; const contact=ct&&ct.rich_text?ct.rich_text.map(t=>t.plain_text).join("").trim():"";
+    const type=p["Type"]&&p["Type"].select?p["Type"].select.name:"Autre ponctuel";
+    const mp=p["Montant HT"]||p["Montant mensuel HT"]||p["Montant"]; const prix=mp&&mp.number!=null?mp.number:0;
+    const ep=p["Encaissé HT"]||p["Encaissé"]; const encaisse=ep&&ep.number!=null?ep.number:0;
+    const dp=p["Début"]||p["Debut"]||p["Date"]; const debut=dp&&dp.date?dp.date.start:null;
+    const dur=p["Durée mois"]||p["Duree mois"]; const duree=dur&&dur.number!=null?dur.number:(rec(type)?6:1);
+    const st=p["Statut"]&&p["Statut"].select?p["Statut"].select.name:"Signé";
+    const et=p["Étape"]&&p["Étape"].select?p["Étape"].select.name:null;
+    return {nom,contact,type,prix,encaisse,debut,duree,statut:st,etape:et};
+  }).filter(x=>x.nom||x.prix);
+}
+async function boot(){
+  DATA=BAKED; SOURCE="frozen"; renderAll(); setStatus();
+  try{ const rows=await liveRows(); if(rows.length){ DATA=rows; SOURCE="live"; renderAll(); setStatus(); } else throw new Error("vide"); }
+  catch(e){ SOURCE="frozen"; const st=document.getElementById("status"); st.querySelector(".dot").className="dot frozen"; document.getElementById("status-txt").textContent = e.message.includes("configurer")?"Données figées · Worker à configurer":"Notion injoignable ("+e.message+") · photo figée"; }
+}
+boot();
+</script>
+</body>
+</html>
