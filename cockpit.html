@@ -2,10 +2,10 @@
 <!--
   COCKPIT — Wassim Loumi, copilote digital
   Exercice 1 sept. 2026 → 31 août 2027
-  4 onglets (Pilotage, CRM, Trésorerie, Contrats) lisant la base Notion
-  "🎯 Pilotage 26/27" via le Worker Cloudflare (token côté serveur).
-  ►► RENSEIGNE WORKER_URL ci-dessous. ◄◄  Si le Worker ne répond pas : photo figée.
-  Lecture seule : pour modifier, dis-le à Claude (il écrit dans Notion) ou édite Notion.
+  4 onglets (Pilotage, CRM, Trésorerie, Contrats) — ÉDITABLE.
+  Lit ET écrit la base Notion « 🎯 Pilotage 26/27 » via le Worker Cloudflare.
+  Écriture protégée par X-Pilot-Key (clé publique dans la page, assumée : voir README).
+  Le token Notion reste secret côté serveur.
 -->
 <html lang="fr">
 <head>
@@ -14,291 +14,773 @@
 <title>Cockpit — Wassim Loumi</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=EB+Garamond:wght@400;500;600&family=Raleway:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+<script src="https://unpkg.com/@babel/standalone@7/babel.min.js" crossorigin></script>
 <style>
-  :root{--cream:#F4EFE6;--paper:#FBF8F2;--ink:#26231F;--soft:#514B42;--gold:#B08D57;--deep:#8C6D3F;--line:#E3D9C7;--panel:#282420;--green:#5B7A5B;--rust:#A9683F;--grid:#EAE1D0;--violet:#6B6A86;--blue:#5B7A8C}
-  *{box-sizing:border-box;margin:0;padding:0}
-  body{background:var(--cream);color:var(--ink);font-family:'Raleway',system-ui,-apple-system,sans-serif;line-height:1.55;padding:0 0 84px}
-  .wrap{max-width:820px;margin:0 auto;padding:20px 14px 0}
-  .serif{font-family:'EB Garamond',Georgia,serif}
-  .eyebrow{font-size:10px;letter-spacing:.2em;text-transform:uppercase;color:var(--deep);font-weight:600}
-  h1{font-family:'EB Garamond',Georgia,serif;font-weight:600;font-size:26px;line-height:1.1;margin:4px 0 2px}
-  .status{display:flex;align-items:center;gap:7px;font-size:12px;margin-top:10px;padding:8px 12px;border-radius:10px;border:1px solid var(--line);background:var(--paper)}
-  .dot{width:8px;height:8px;border-radius:50%;flex:none}
-  .dot.live{background:var(--green)}.dot.frozen{background:var(--gold)}.dot.load{background:var(--soft)}
-
-  .panel{background:var(--panel);color:var(--cream);border-radius:18px;padding:20px 18px;margin-top:12px}
-  .kpi-lab{font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:var(--gold);font-weight:600}
-  .kpi-big{font-family:'EB Garamond',Georgia,serif;font-size:42px;font-weight:600;line-height:1;margin-top:4px}
-  .kpi-big span{font-size:15px;color:var(--gold);margin-left:5px}
-  .kpi-note{font-size:12.5px;color:#C9BFAE;margin-top:6px}
-  .gauge{margin-top:15px}
-  .gauge-top{display:flex;justify-content:space-between;font-size:12px;color:#C9BFAE;margin-bottom:5px}
-  .gauge-bar{height:10px;background:#3a352e;border-radius:6px;overflow:hidden;position:relative}
-  .gauge-fill{height:100%;background:linear-gradient(90deg,var(--deep),var(--gold));border-radius:6px;transition:width .5s}
-  .gauge-pipe{position:absolute;top:0;height:100%;background:repeating-linear-gradient(45deg,#5d564c,#5d564c 4px,transparent 4px,transparent 8px)}
-  .mix{display:flex;height:8px;border-radius:5px;overflow:hidden;margin-top:16px}
-  .mix span{display:block;height:100%}
-  .mix-leg{display:flex;gap:14px;font-size:11px;color:#C9BFAE;margin-top:6px;flex-wrap:wrap}
-  .mix-leg i{display:inline-block;width:8px;height:8px;border-radius:2px;margin-right:4px;vertical-align:middle}
-
-  .cards{display:flex;gap:10px;margin-top:12px;flex-wrap:wrap}
-  .card{flex:1 1 150px;background:var(--paper);border:1px solid var(--line);border-radius:12px;padding:11px 13px}
-  .card .l{font-size:10px;letter-spacing:.05em;text-transform:uppercase;color:var(--deep);font-weight:600}
-  .card .v{font-family:'EB Garamond',Georgia,serif;font-size:22px;color:var(--ink);margin-top:2px}
-  .card .s{font-size:11.5px;color:var(--soft)}
-
-  .block{background:var(--paper);border:1px solid var(--line);border-radius:14px;padding:15px 16px;margin-top:14px}
-  .block.gold{border-left:4px solid var(--gold)}
-  h2{font-family:'EB Garamond',Georgia,serif;font-weight:600;font-size:19px;margin-bottom:4px}
-  .block p{font-size:13.5px;color:var(--soft);line-height:1.6}
-  .block p b{color:var(--ink)}
-  h3{font-family:'EB Garamond',Georgia,serif;font-weight:600;font-size:20px;margin:22px 0 4px;color:var(--ink)}
-  .h3sub{font-size:12px;color:var(--soft);margin-bottom:2px}
-
-  .cli{background:var(--paper);border:1px solid var(--line);border-radius:12px;padding:11px 14px;margin-top:9px}
-  .cli.rec{border-left:4px solid var(--deep)}.cli.one{border-left:4px solid var(--gold)}.cli.warn{border-left:4px solid var(--rust)}
-  .cli-head{display:flex;justify-content:space-between;align-items:flex-start;gap:8px;flex-wrap:wrap}
-  .cli-nom{font-family:'EB Garamond',Georgia,serif;font-size:16px;font-weight:600;color:var(--ink)}
-  .cli-meta{font-size:12px;color:var(--soft);margin-top:1px}
-  .cli-mt{font-family:'EB Garamond',Georgia,serif;font-size:16px;font-weight:600;color:var(--deep);white-space:nowrap}
-  .tag{font-size:9px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:#fff;padding:2px 7px;border-radius:20px;margin-left:6px;vertical-align:middle}
-
-  /* CRM board */
-  .board{display:flex;gap:10px;overflow-x:auto;padding-bottom:8px;-webkit-overflow-scrolling:touch}
-  .col{flex:1 1 0;min-width:150px;background:var(--paper);border:1px solid var(--line);border-radius:12px;padding:8px}
-  .col-top{display:flex;justify-content:space-between;align-items:baseline;padding:2px 4px 8px}
-  .col-nom{font-size:11px;font-weight:700;letter-spacing:.03em;text-transform:uppercase}
-  .pcard{background:#fff;border:1px solid var(--line);border-radius:9px;padding:8px 9px;margin-bottom:7px}
-  .pcard .n{font-family:'EB Garamond',Georgia,serif;font-size:14px;font-weight:600;color:var(--ink);line-height:1.15}
-  .pcard .c{font-size:11px;color:var(--soft)}
-  .pcard .m{font-size:12.5px;font-weight:600;color:var(--deep);margin-top:3px}
-
-  /* treso table */
-  .wrapx{overflow-x:auto;-webkit-overflow-scrolling:touch;margin-top:8px}
-  table{border-collapse:separate;border-spacing:0;background:var(--paper);border:1px solid var(--line);border-radius:12px;overflow:hidden;min-width:640px;width:100%}
-  th{background:var(--panel);color:var(--cream);font-size:10px;font-weight:700;text-transform:uppercase;padding:8px 7px;text-align:right;white-space:nowrap}
-  th.l,td.l{text-align:left}
-  td{padding:8px 9px;border-bottom:1px solid var(--grid);border-right:1px solid var(--grid);text-align:right;font-size:12.5px}
-  .tot{background:var(--panel);color:var(--cream)}
-  .tot td{color:var(--cream);font-family:'EB Garamond',Georgia,serif;font-weight:600}
-
-  nav{position:fixed;bottom:0;left:0;right:0;background:var(--panel);border-top:1px solid var(--deep);display:flex;justify-content:center;gap:4px;padding:8px 8px calc(8px + env(safe-area-inset-bottom));z-index:30}
-  nav button{flex:1 1 0;max-width:150px;background:transparent;border:none;border-radius:10px;color:#C9BFAE;padding:7px 4px;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:3px;font-size:10.5px;font-weight:600;font-family:'Raleway',sans-serif}
-  nav button.on{background:var(--deep);color:var(--cream)}
-  nav svg{width:17px;height:17px}
-  .tab{display:none}.tab.on{display:block}
-  .foot{margin-top:26px;border-top:1px solid var(--line);padding-top:14px;font-size:11.5px;color:var(--soft);line-height:1.6}
-  .pagenav{position:sticky;top:0;z-index:40;background:var(--panel);display:flex;gap:6px;padding:8px 12px;overflow-x:auto;-webkit-overflow-scrolling:touch;border-bottom:1px solid var(--deep)}
-  .pagenav a{flex:none;color:#C9BFAE;text-decoration:none;font-size:12.5px;font-weight:600;padding:7px 13px;border-radius:9px;white-space:nowrap}
-  .pagenav a.on{color:var(--cream);background:var(--deep)}
+  html,body{margin:0;padding:0}
+  #root{min-height:100vh;background:#F4EFE6}
+  #boot{font-family:'Raleway',system-ui,sans-serif;color:#514B42;display:flex;min-height:100vh;align-items:center;justify-content:center}
 </style>
 </head>
 <body>
-<div class="pagenav">
-  <a href="cockpit.html" class="on">Cockpit CA</a>
-  <a href="pilotage-live.html">Pilotage</a>
-</div>
-<div class="wrap">
-  <div class="eyebrow">Cockpit · exercice 1 sept. 2026 → 31 août 2027</div>
-  <h1 id="tab-title">Pilotage</h1>
-  <div class="status" id="status"><span class="dot load"></span><span id="status-txt">Chargement…</span></div>
+<div id="root"><div id="boot">Chargement…</div></div>
 
-  <section class="tab on" id="t-pilotage"></section>
-  <section class="tab" id="t-crm"></section>
-  <section class="tab" id="t-treso"></section>
-  <section class="tab" id="t-contrats"></section>
+<script type="text/babel" data-presets="react">
+const { useState, useEffect } = React;
 
-  <div class="foot" id="foot"></div>
-</div>
-
-<nav id="nav"></nav>
-
-<script>
-/* ►►►►► colle l'URL de ton Worker Cloudflare ◄◄◄◄◄ */
+/* ================= CONNEXION WORKER ================= */
 const WORKER_URL = "https://pilotage-notion-worker.loumiwassim.workers.dev";
+const PILOT_KEY  = "pilot-6f3a9c2e8b1d47-write"; /* clé d'écriture PUBLIQUE (gate anti-abus) */
 
-/* ============ PHOTO FIGÉE ============ */
-const BAKED = [
-  { nom:"Eva — Optel Services", type:"Programme récurrent", prix:250, debut:"2026-09-01", duree:12, statut:"Signé", encaisse:0 },
-  { nom:"Nathanaëlle — OnCourtiz", type:"Programme récurrent", prix:180, debut:"2026-09-01", duree:12, statut:"Signé", encaisse:0 },
-  { nom:"Delphine — Courtier sur mesure", type:"Programme récurrent", prix:350, debut:"2026-05-03", duree:6, statut:"Signé", encaisse:0 },
-  { nom:"Julien MCR", type:"Programme récurrent", prix:250, debut:"2026-06-01", duree:6, statut:"Signé", encaisse:0 },
-  { nom:"David DI2A", type:"Programme récurrent", prix:250, debut:"2026-06-01", duree:6, statut:"Signé", encaisse:0 },
-  { nom:"Nicolas — ostéopathe", type:"Programme récurrent", prix:80, debut:"2026-06-01", duree:6, statut:"Signé", encaisse:0 },
-  { nom:"Pierre Opticien — site (1/2)", type:"Site web", prix:950, debut:"2026-09-01", duree:1, statut:"Signé", encaisse:0 },
-  { nom:"Pierre Opticien — site (2/2)", type:"Site web", prix:950, debut:"2026-10-01", duree:1, statut:"Signé", encaisse:0 },
-  { nom:"Christelle Lherm — prise de vue", type:"Autre ponctuel", prix:450, debut:"2026-09-11", duree:1, statut:"Signé", encaisse:0 },
-  { nom:"La Riveraine", type:"Programme récurrent", prix:0, debut:null, duree:6, statut:"Pipeline", etape:"Diagnostic", contact:"Sophie Gesbert" },
-  { nom:"Horolaj", type:"Programme récurrent", prix:0, debut:null, duree:6, statut:"Pipeline", etape:"Contacté", contact:"Pierre" },
-  { nom:"Sébastien (assureur)", type:"Programme récurrent", prix:0, debut:null, duree:6, statut:"Pipeline", etape:"Propale", contact:"Sébastien" },
-];
-
-/* ============ MOTEUR ============ */
-const MOIS=["janv","févr","mars","avr","mai","juin","juil","août","sept","oct","nov","déc"];
-const MOISL=["janvier","février","mars","avril","mai","juin","juillet","août","septembre","octobre","novembre","décembre"];
-const idxDebut=d=>{const[y,m]=d.split("-").map(Number);return (y-2026)*12+(m-9);};
-const FYKEY=i=>{const y=2026+Math.floor((8+i)/12);const m=((8+i)%12)+1;return{y,m};};
-const eur=n=>Math.round(n).toLocaleString("fr-FR")+" €";
-const rec=t=>t==="Programme récurrent";
-const TVA=0.20;
-const ETAPES=[{id:"Prospect",col:"#8C8478"},{id:"Contacté",col:"#6B6A86"},{id:"Diagnostic",col:"#5B7A8C"},{id:"Propale",col:"#B08D57"}];
-
-let DATA=[], SOURCE="frozen";
-
-function compute(){
-  const signe=Array.from({length:12},()=>0), pipe=Array.from({length:12},()=>0), recMonth=Array.from({length:12},()=>0), duMonth=Array.from({length:12},()=>0);
-  const contrats=[], prospects=[]; let caRec=0, caOne=0, encaisseTot=0;
-  DATA.forEach(c=>{
-    const montant=Number(c.prix)||0;
-    const estPipe=c.statut==="Pipeline";
-    if(estPipe){ prospects.push(c); if(montant>0&&c.debut){const i0=idxDebut(c.debut);const n=rec(c.type)?(Number(c.duree)||6):1;for(let k=0;k<n;k++){const i=i0+k;if(i>=0&&i<12)pipe[i]+=montant;}} return; }
-    if(!(montant>0)||!c.debut) return;
-    const i0=idxDebut(c.debut); const n=rec(c.type)?(Number(c.duree)||6):1; let dansFY=0;
-    for(let k=0;k<n;k++){const i=i0+k; if(i>=0&&i<12){ signe[i]+=montant; duMonth[i]+=montant; dansFY+=montant; if(rec(c.type))recMonth[i]+=montant; }}
-    const enc=Number(c.encaisse)||0; encaisseTot+=enc;
-    contrats.push({...c, dansFY, i0, fin:i0+n, enc});
-    if(rec(c.type))caRec+=dansFY; else caOne+=dansFY;
+async function apiGet() {
+  const r = await fetch(WORKER_URL, { method: "GET" });
+  if (!r.ok) throw new Error("worker-" + r.status);
+  const d = await r.json();
+  if (d.error) throw new Error(d.error);
+  return d.results || [];
+}
+async function apiWrite(method, body) {
+  const r = await fetch(WORKER_URL, {
+    method,
+    headers: { "Content-Type": "application/json", "X-Pilot-Key": PILOT_KEY },
+    body: JSON.stringify(body),
   });
-  contrats.sort((a,b)=>b.dansFY-a.dansFY);
-  const totalSigne=signe.reduce((a,b)=>a+b,0), totalPipe=pipe.reduce((a,b)=>a+b,0);
-  const top2=contrats.slice(0,2).reduce((s,c)=>s+c.dansFY,0);
-  const concentration=totalSigne?Math.round(top2/totalSigne*100):0;
-  const plancher=recMonth[11];
-  const renew=contrats.filter(c=>rec(c.type)&&c.fin>=0&&c.fin<=11).sort((a,b)=>a.fin-b.fin);
-  return {signe,pipe,recMonth,duMonth,contrats,prospects,totalSigne,totalPipe,caRec,caOne,concentration,plancher,renew,encaisseTot};
+  let d = {};
+  try { d = await r.json(); } catch (e) {}
+  if (!r.ok || d.error) throw new Error(d.error || ("http-" + r.status));
+  return d;
+}
+const apiCreate  = (fields) => apiWrite("POST",   { fields });
+const apiUpdate  = (id, fields) => apiWrite("PATCH", { id, fields });
+const apiArchive = (id) => apiWrite("DELETE", { id });
+
+/* ================= MAPPING NOTION <-> APP ================= */
+const TYPE_NAME  = { prog: "Programme récurrent", site: "Site web", forma: "Formation Claude", ponc: "Autre ponctuel" };
+const TYPE_ID    = Object.fromEntries(Object.entries(TYPE_NAME).map(([k, v]) => [v, k]));
+const ETAPE_NAME = { prospect: "Prospect", contacte: "Contacté", diagnostic: "Diagnostic", propale: "Propale", signe: "Signé", perdu: "Perdu" };
+const ETAPE_ID   = Object.fromEntries(Object.entries(ETAPE_NAME).map(([k, v]) => [v, k]));
+const rtext = (prop) => (prop && prop.rich_text ? prop.rich_text.map((t) => t.plain_text).join("") : "");
+const isNotionId = (id) => typeof id === "string";
+
+/* ================= exercice : 1 sept 2026 → 31 août 2027 ================= */
+const FY = [];
+for (let i = 0; i < 12; i++) {
+  const y = 2026 + Math.floor((8 + i) / 12);
+  const m = ((8 + i) % 12) + 1;
+  FY.push({ y, m, key: `${y}-${String(m).padStart(2, "0")}` });
+}
+const CHOIX = [];
+for (let i = -12; i < 24; i++) {
+  const y = 2026 + Math.floor((8 + i) / 12);
+  const m = ((((8 + i) % 12) + 12) % 12) + 1;
+  CHOIX.push({ y, m, key: `${y}-${String(m).padStart(2, "0")}`, idx: i });
+}
+const MOIS = ["janv", "févr", "mars", "avr", "mai", "juin", "juil", "août", "sept", "oct", "nov", "déc"];
+const lab = (y, m) => `${MOIS[m - 1]} ${y}`;
+const labKey = (k) => { const [y, m] = k.split("-").map(Number); return lab(y, m); };
+const idxOf = (ym) => { const [y, m] = ym.split("-").map(Number); return (y - 2026) * 12 + (m - 9); };
+const eur = (n) => Math.round(n).toLocaleString("fr-FR") + " €";
+const court = (n) => (n ? Math.round(n).toLocaleString("fr-FR") : "");
+const TVA = 0.20;
+
+const TYPES = [
+  { id: "prog", nom: "Programme récurrent", rec: true },
+  { id: "site", nom: "Site web", rec: false },
+  { id: "forma", nom: "Formation Claude", rec: false },
+  { id: "ponc", nom: "Autre ponctuel", rec: false },
+];
+const est = (id) => TYPES.find((t) => t.id === id) || TYPES[0];
+
+const ETAPES = [
+  { id: "prospect", nom: "Prospect", proba: 0.05, col: "#8C8478" },
+  { id: "contacte", nom: "Contacté", proba: 0.15, col: "#6B6A86" },
+  { id: "diagnostic", nom: "Diagnostic", proba: 0.4, col: "#5B7A8C" },
+  { id: "propale", nom: "Propale", proba: 0.6, col: "#B08D57" },
+  { id: "signe", nom: "Signé", proba: 1, col: "#5B7A5B" },
+  { id: "perdu", nom: "Perdu", proba: 0, col: "#A9683F" },
+];
+const etp = (id) => ETAPES.find((e) => e.id === id) || ETAPES[0];
+
+/* chaque contrat signé génère un tableau d'échéances {mkey, du, encaisse} */
+function echeances(c) {
+  const i0 = idxOf(c.debut);
+  const n = est(c.type).rec ? Number(c.duree) || 6 : 1;
+  const out = [];
+  for (let k = 0; k < n; k++) {
+    const i = i0 + k;
+    if (i < 0 || i > 11) continue;
+    out.push({ mkey: FY[i].key, du: Number(c.prix), encaisse: null });
+  }
+  return out;
 }
 
-/* ============ ONGLET PILOTAGE ============ */
-function renderPilotage(D){
-  const {signe,pipe,contrats,totalSigne,totalPipe,caRec,caOne,concentration,plancher,renew}=D;
-  const simultanes=(()=>{const per=Array.from({length:12},(_,i)=>contrats.filter(c=>rec(c.type)&&i>=c.i0&&i<c.fin).length);const a=per.filter(n=>n>0);return a.length?a.reduce((x,y)=>x+y,0)/a.length:0;})();
-  const tot=caRec+caOne||1, pr=Math.round(caRec/tot*100), po=100-pr;
-  const manque=Math.max(0,60000-totalSigne), mandats=Math.ceil(manque/3150), propales=Math.ceil(mandats*3);
-  const max=Math.max(...signe.map((v,i)=>v+pipe[i]),1),gap=1.6,bw=(100-gap*11)/12;
-  let bars="",labs="";
-  signe.forEach((v,i)=>{const h=v/max*70,x=i*(bw+gap),y=76-h;
-    bars+='<rect x="'+x.toFixed(2)+'" y="'+y.toFixed(2)+'" width="'+bw.toFixed(2)+'" height="'+h.toFixed(2)+'" rx="0.6" fill="url(#g)"><title>'+MOIS[FYKEY(i).m-1]+' : '+eur(v)+'</title></rect>';
-    if(pipe[i]>0){const hp=pipe[i]/max*70,yp=y-hp;bars+='<rect x="'+x.toFixed(2)+'" y="'+yp.toFixed(2)+'" width="'+bw.toFixed(2)+'" height="'+hp.toFixed(2)+'" rx="0.6" fill="#E3D9C7"/>';}
-    labs+='<text x="'+(x+bw/2).toFixed(2)+'" y="82" font-size="2.6" fill="#514B42" text-anchor="middle">'+MOIS[FYKEY(i).m-1].charAt(0).toUpperCase()+'</text>';
-    if(v)labs+='<text x="'+(x+bw/2).toFixed(2)+'" y="'+(y-1.5).toFixed(2)+'" font-size="2.4" fill="#8C6D3F" text-anchor="middle">'+(Math.round(v/100)/10)+'k</text>';});
+/* résultats Notion -> {clients, prospects} */
+function mapRows(rows) {
+  const clients = [], prospects = [];
+  rows.forEach((r) => {
+    const p = r.properties || {};
+    const title = (p["Client"] && p["Client"].title ? p["Client"].title.map((t) => t.plain_text).join("") : "").trim();
+    const statut = p["Statut"] && p["Statut"].select ? p["Statut"].select.name : "Signé";
+    const montant = p["Montant HT"] && p["Montant HT"].number != null ? p["Montant HT"].number : 0;
+    if (statut === "Pipeline") {
+      const etName = p["Étape"] && p["Étape"].select ? p["Étape"].select.name : "Prospect";
+      prospects.push({
+        id: r.id,
+        societe: title,
+        nom: rtext(p["Contact"]),
+        etape: ETAPE_ID[etName] || "prospect",
+        montant: montant || "",
+        offre: rtext(p["Offre"]),
+        source: p["Source"] && p["Source"].select ? p["Source"].select.name : "",
+        relance: (p["Relance"] && p["Relance"].date ? p["Relance"].date.start : "") || "",
+        note: rtext(p["Notes"]),
+        maj: 0,
+      });
+    } else {
+      const tName = p["Type"] && p["Type"].select ? p["Type"].select.name : "Autre ponctuel";
+      const typeId = TYPE_ID[tName] || "ponc";
+      const debutFull = p["Début"] && p["Début"].date ? p["Début"].date.start : null;
+      const debut = debutFull ? debutFull.slice(0, 7) : FY[0].key;
+      const duree = p["Durée mois"] && p["Durée mois"].number != null ? p["Durée mois"].number : (est(typeId).rec ? 6 : 1);
+      let encMap = {};
+      try { encMap = JSON.parse(rtext(p["Encaissements"]) || "{}") || {}; } catch (e) { encMap = {}; }
+      const c = { id: r.id, nom: title, type: typeId, prix: montant, debut, duree };
+      c.ech = echeances(c).map((e) => ({ ...e, encaisse: encMap[e.mkey] != null ? Number(encMap[e.mkey]) : null }));
+      clients.push(c);
+    }
+  });
+  return { clients, prospects };
+}
 
-  let renewHtml="";
-  if(renew.length){
-    const dernier=renew[renew.length-1];
-    renewHtml='<h3>Renouvellements à venir</h3><div class="h3sub">'+renew.length+' contrat'+(renew.length>1?'s':'')+' à reconduire d\'ici '+MOISL[FYKEY(dernier.fin).m-1]+'. Sans reconduction, ton CA récurrent retombe à <b style="color:var(--rust)">'+eur(plancher)+'/mois</b>.</div>'+
-      renew.map(c=>{const fk=FYKEY(c.fin);return '<div class="cli warn"><div class="cli-head"><div><span class="cli-nom">'+c.nom+'</span><div class="cli-meta">se termine '+MOISL[fk.m-1]+' '+fk.y+' · '+eur(c.prix)+'/mois</div></div><div class="cli-mt" style="color:var(--rust)">à relancer</div></div></div>';}).join("");
+const S = { cream: "#F4EFE6", paper: "#FBF8F2", ink: "#26231F", soft: "#514B42", gold: "#B08D57", deep: "#8C6D3F", line: "#E3D9C7", panel: "#282420", green: "#5B7A5B", rust: "#A9683F", grid: "#EAE1D0" };
+const serif = { fontFamily: "'EB Garamond', Georgia, serif" };
+const sans = { fontFamily: "'Raleway', system-ui, sans-serif" };
+
+/* ================= ICÔNES (lucide inline) ================= */
+const ic = (props) => ({ size = 16, ...p }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...p}>{props}</svg>
+);
+const Plus = ic(<><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></>);
+const Trash2 = ic(<><polyline points="3 6 5 6 21 6" /><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" /><line x1="10" y1="11" x2="10" y2="17" /><line x1="14" y1="11" x2="14" y2="17" /></>);
+const Check = ic(<polyline points="20 6 9 17 4 12" />);
+const X = ic(<><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></>);
+const Users = ic(<><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M23 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" /></>);
+const Wallet = ic(<><path d="M21 12V7H5a2 2 0 0 1 0-4h14v4" /><path d="M3 5v14a2 2 0 0 0 2 2h16v-5" /><path d="M18 12a2 2 0 0 0 0 4h4v-4Z" /></>);
+const FileText = ic(<><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /><line x1="16" y1="13" x2="8" y2="13" /><line x1="16" y1="17" x2="8" y2="17" /><line x1="10" y1="9" x2="8" y2="9" /></>);
+const TrendingUp = ic(<><polyline points="23 6 13.5 15.5 8.5 10.5 1 18" /><polyline points="17 6 23 6 23 12" /></>);
+const AlertTriangle = ic(<><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" /><line x1="12" y1="9" x2="12" y2="13" /><line x1="12" y1="17" x2="12.01" y2="17" /></>);
+const ArrowRight = ic(<><line x1="5" y1="12" x2="19" y2="12" /><polyline points="12 5 19 12 12 19" /></>);
+const RefreshCw = ic(<><polyline points="23 4 23 10 17 10" /><polyline points="1 20 1 14 7 14" /><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" /></>);
+
+/* ================= APP ================= */
+function Cockpit() {
+  const [vue, setVue] = useState("pilotage");
+  const [clients, setClients] = useState([]);
+  const [prospects, setProspects] = useState([]);
+  const [heures] = useState(5);
+  const [chargement, setChargement] = useState(true);
+  const [erreur, setErreur] = useState("");
+  const [live, setLive] = useState(false);
+  const [occupe, setOccupe] = useState(false);
+
+  const [fProspect, setFProspect] = useState(null);
+  const [fClient, setFClient] = useState(null);
+  const [signature, setSignature] = useState(null);
+  const [aSupprimer, setASupprimer] = useState(null);
+
+  async function reload() {
+    setErreur("");
+    try {
+      const rows = await apiGet();
+      const { clients, prospects } = mapRows(rows);
+      setClients(clients);
+      setProspects(prospects);
+      setLive(true);
+    } catch (e) {
+      setLive(false);
+      setErreur("Lecture Notion impossible (" + e.message + ").");
+    } finally {
+      setChargement(false);
+    }
+  }
+  useEffect(() => { reload(); }, []);
+
+  /* enveloppe une écriture : indicateur d'occupation + rechargement + message d'erreur */
+  async function ecrire(fn, label) {
+    setOccupe(true);
+    try { await fn(); await reload(); }
+    catch (e) { setErreur((label || "Enregistrement") + " impossible (" + e.message + ")."); }
+    finally { setOccupe(false); }
   }
 
-  document.getElementById("t-pilotage").innerHTML=
-    '<div class="panel"><div class="kpi-lab">CA signé sur l\'exercice</div>'+
-    '<div class="kpi-big">'+(totalSigne?Math.round(totalSigne).toLocaleString("fr-FR"):"0")+'<span>€ HT</span></div>'+
-    '<div class="kpi-note">'+(totalPipe>0?"+ "+Math.round(totalPipe).toLocaleString("fr-FR")+" € en pipeline → "+Math.round(totalSigne+totalPipe).toLocaleString("fr-FR")+" € si tout se signe":"pipeline à chiffrer")+'</div>'+
-    [60000,80000].map(t=>{const pc=Math.min(100,totalSigne/t*100),pp=Math.min(100-pc,totalPipe/t*100);return '<div class="gauge"><div class="gauge-top"><span>Objectif '+(t/1000)+'k</span><span style="color:'+(totalSigne>=t?"#9DBF9D":"#E0A277")+';font-weight:600">'+(totalSigne>=t?"atteint":"manque "+Math.round(t-totalSigne).toLocaleString("fr-FR")+" €")+'</span></div><div class="gauge-bar"><div class="gauge-fill" style="width:'+pc+'%"></div><div class="gauge-pipe" style="left:'+pc+'%;width:'+pp+'%"></div></div></div>';}).join("")+
-    '<div class="mix"><span style="width:'+pr+'%;background:linear-gradient(90deg,#B08D57,#8C6D3F)"></span><span style="width:'+po+'%;background:#6B6A86"></span></div>'+
-    '<div class="mix-leg"><span><i style="background:#B08D57"></i>Récurrent '+pr+'% ('+eur(caRec)+')</span><span><i style="background:#6B6A86"></i>Ponctuel '+po+'% ('+eur(caOne)+')</span></div></div>'+
-    '<div class="cards">'+[
-      {l:"Contrats signés",v:contrats.length,s:"dans l\'exercice"},
-      {l:"Clients simultanés",v:simultanes.toFixed(1),s:"programmes récurrents"},
-      {l:"Concentration",v:concentration+"%",s:"tes 2 plus gros clients"},
-    ].map(k=>'<div class="card"><div class="l">'+k.l+'</div><div class="v">'+k.v+'</div><div class="s">'+k.s+'</div></div>').join("")+'</div>'+
-    '<div class="block gold"><h2>Ce qu\'il te reste à faire</h2><p>Il te manque <b>'+Math.round(manque).toLocaleString("fr-FR")+' €</b> pour 60k, soit <b>'+mandats+' mandats</b> ou <b>'+propales+' propales</b> à une signature sur trois.'+(concentration>=50?' Tes deux plus gros clients pèsent <b>'+concentration+'%</b> du CA, une dépendance à surveiller.':'')+'</p></div>'+
-    '<h3>CA signé par mois</h3><div class="block" style="padding:14px 12px 10px"><svg viewBox="0 0 100 84" width="100%" preserveAspectRatio="xMidYMid meet"><defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#B08D57"/><stop offset="1" stop-color="#8C6D3F"/></linearGradient></defs>'+bars+labs+'</svg><p style="font-size:11.5px;color:var(--soft);margin-top:8px">Barres foncées : signé. Barres claires : pipeline. La marche après novembre, c\'est la falaise.</p></div>'+
-    renewHtml;
+  /* ---------------- calculs partagés ---------------- */
+  const moisSigne = FY.map((o) =>
+    clients.reduce((s, c) => s + (c.ech || []).filter((e) => e.mkey === o.key).reduce((x, e) => x + e.du, 0), 0)
+  );
+  const moisEncaisse = FY.map((o) =>
+    clients.reduce((s, c) => s + (c.ech || []).filter((e) => e.mkey === o.key && e.encaisse != null).reduce((x, e) => x + Number(e.encaisse), 0), 0)
+  );
+  const caSigne = moisSigne.reduce((a, b) => a + b, 0);
+  const caEncaisse = moisEncaisse.reduce((a, b) => a + b, 0);
+  let acc = 0; const cumulSigne = moisSigne.map((m) => (acc += m));
+
+  const pipePondere = prospects
+    .filter((p) => !["signe", "perdu"].includes(p.etape))
+    .reduce((s, p) => s + (Number(p.montant) || 0) * etp(p.etape).proba, 0);
+  const pipeBrut = prospects
+    .filter((p) => !["signe", "perdu"].includes(p.etape))
+    .reduce((s, p) => s + (Number(p.montant) || 0), 0);
+
+  const now = new Date();
+  const idxNow = (now.getFullYear() - 2026) * 12 + (now.getMonth() + 1 - 9);
+  const impayes = [];
+  clients.forEach((c) =>
+    (c.ech || []).forEach((e) => {
+      const i = idxOf(e.mkey);
+      if (i < idxNow && e.encaisse == null) impayes.push({ client: c.nom, mkey: e.mkey, du: e.du });
+    })
+  );
+  const totalImpayes = impayes.reduce((s, e) => s + e.du, 0);
+
+  const simultanes = (() => {
+    const parMois = FY.map((o) => clients.filter((c) => est(c.type).rec && (c.ech || []).some((e) => e.mkey === o.key)).length);
+    const actifs = parMois.filter((n) => n > 0);
+    return actifs.length ? actifs.reduce((a, b) => a + b, 0) / actifs.length : 0;
+  })();
+
+  const tvaAReverser = caEncaisse * TVA;
+
+  /* ---------------- actions (écrivent dans Notion) ---------------- */
+  const champsProspect = (p) => ({
+    "Client": p.societe || p.nom || "",
+    "Statut": "Pipeline",
+    "Étape": ETAPE_NAME[p.etape] || "Prospect",
+    "Contact": p.nom || "",
+    "Montant HT": p.montant === "" || p.montant == null ? null : Number(p.montant),
+    "Offre": p.offre || "",
+    "Source": p.source || null,
+    "Relance": p.relance || null,
+    "Notes": p.note || "",
+  });
+  const majProspect = (p) => ecrire(
+    () => (isNotionId(p.id) ? apiUpdate(p.id, champsProspect(p)) : apiCreate(champsProspect(p))),
+    "Enregistrement du prospect"
+  );
+  const bougerEtape = (p, dir) => {
+    const ordre = ["prospect", "contacte", "diagnostic", "propale", "signe"];
+    const i = ordre.indexOf(p.etape);
+    if (dir > 0 && p.etape === "propale") { setSignature({ ...p }); return; }
+    const ni = Math.max(0, Math.min(ordre.length - 1, i + dir));
+    ecrire(() => apiUpdate(p.id, { "Étape": ETAPE_NAME[ordre[ni]] }), "Déplacement de l'étape");
+  };
+  const marquerPerdu = (p) => ecrire(() => apiUpdate(p.id, { "Étape": "Perdu" }), "Mise à jour");
+
+  const champsContrat = (d) => ({
+    "Client": d.nom,
+    "Type": TYPE_NAME[d.type],
+    "Montant HT": Number(d.prix),
+    "Début": d.debut + "-01",
+    "Durée mois": Number(d.duree) || 1,
+    "Statut": "Signé",
+  });
+  const confirmerSignature = (data) => {
+    const base = { ...champsContrat(data), "Étape": "Signé" };
+    ecrire(
+      () => (signature && isNotionId(signature.id) ? apiUpdate(signature.id, base) : apiCreate(base)),
+      "Signature"
+    );
+    setSignature(null);
+  };
+  const majClient = (c) => ecrire(
+    () => (isNotionId(c.id) ? apiUpdate(c.id, champsContrat(c)) : apiCreate(champsContrat(c))),
+    "Enregistrement du contrat"
+  );
+
+  const encaisser = (clientId, mkey, valeur) => {
+    const c = clients.find((x) => x.id === clientId);
+    if (!c) return;
+    const val = valeur === "" || valeur == null ? null : Number(valeur);
+    const nech = c.ech.map((e) => (e.mkey === mkey ? { ...e, encaisse: val } : e));
+    const encMap = {};
+    nech.forEach((e) => { if (e.encaisse != null) encMap[e.mkey] = e.encaisse; });
+    const total = Object.values(encMap).reduce((a, b) => a + b, 0);
+    setClients(clients.map((x) => (x.id === clientId ? { ...x, ech: nech } : x))); /* optimiste */
+    ecrire(() => apiUpdate(clientId, { "Encaissements": JSON.stringify(encMap), "Encaissé HT": total }), "Encaissement");
+  };
+
+  if (chargement)
+    return <div style={{ ...sans, background: S.cream, minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", color: S.soft }}>Lecture de Notion…</div>;
+
+  const NAV = [
+    { id: "pilotage", nom: "Pilotage", ic: <TrendingUp size={16} /> },
+    { id: "crm", nom: "CRM", ic: <Users size={16} /> },
+    { id: "treso", nom: "Trésorerie", ic: <Wallet size={16} /> },
+    { id: "contrats", nom: "Contrats", ic: <FileText size={16} /> },
+  ];
+
+  return (
+    <div style={{ ...sans, background: S.cream, minHeight: "100vh", paddingBottom: 80 }}>
+      <style>{`input,select,button,textarea{font-family:'Raleway',system-ui,sans-serif}
+        input[type=number]{-moz-appearance:textfield}
+        input::-webkit-outer-spin-button,input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+        .wrap::-webkit-scrollbar{height:9px}.wrap::-webkit-scrollbar-thumb{background:${S.line};border-radius:9px}
+        .cel:hover{background:#FFF9EE!important;cursor:cell}
+        .pagenav{position:sticky;top:0;z-index:40;background:${S.panel};display:flex;gap:6px;padding:8px 12px;overflow-x:auto;border-bottom:1px solid ${S.deep}}
+        .pagenav a{flex:none;color:#C9BFAE;text-decoration:none;font-size:12.5px;font-weight:600;padding:7px 13px;border-radius:9px;white-space:nowrap}
+        .pagenav a.on{color:${S.cream};background:${S.deep}}`}</style>
+
+      <div className="pagenav">
+        <a href="cockpit.html" className="on">Cockpit CA</a>
+        <a href="pilotage-live.html">Pilotage</a>
+      </div>
+
+      {/* barre titre */}
+      <div style={{ padding: "18px 16px 0", maxWidth: 1120, margin: "0 auto" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 10 }}>
+          <div>
+            <div style={{ fontSize: 10, letterSpacing: "0.2em", textTransform: "uppercase", color: S.deep, fontWeight: 600 }}>
+              Poste de pilotage · exercice sept. 2026 → août 2027
+            </div>
+            <h1 style={{ ...serif, fontSize: 27, fontWeight: 600, margin: "4px 0 2px", color: S.ink }}>Copilote digital</h1>
+            <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11.5, color: S.soft, marginTop: 2 }}>
+              <span style={{ width: 8, height: 8, borderRadius: "50%", background: live ? S.green : S.gold, display: "inline-block" }} />
+              {live ? "Notion en direct · édition synchronisée" : "Notion injoignable"}
+            </div>
+          </div>
+          <button onClick={reload} disabled={occupe}
+            style={{ flex: "none", marginTop: 4, border: `1px solid ${S.line}`, background: S.paper, color: S.deep, fontWeight: 600, fontSize: 12, borderRadius: 10, padding: "8px 12px", cursor: occupe ? "default" : "pointer", opacity: occupe ? 0.6 : 1, display: "flex", alignItems: "center", gap: 5 }}>
+            <RefreshCw size={13} /> {occupe ? "…" : "Rafraîchir"}
+          </button>
+        </div>
+        {erreur && <div style={{ background: "#F6EDE4", border: `1px solid ${S.rust}`, borderRadius: 10, padding: "8px 12px", fontSize: 12.5, color: S.rust, marginTop: 8 }}>{erreur}</div>}
+      </div>
+
+      <div style={{ padding: "14px 16px 0", maxWidth: 1120, margin: "0 auto" }}>
+        {vue === "pilotage" && <Pilotage {...{ caSigne, caEncaisse, moisSigne, cumulSigne, pipePondere, pipeBrut, prospects, simultanes, heures, totalImpayes, impayes, setVue }} />}
+        {vue === "crm" && <CRM {...{ prospects, setFProspect, bougerEtape, marquerPerdu, pipePondere, pipeBrut }} />}
+        {vue === "treso" && <Treso {...{ clients, moisSigne, moisEncaisse, encaisser, tvaAReverser, caEncaisse, impayes, totalImpayes }} />}
+        {vue === "contrats" && <Contrats {...{ clients, setFClient, setASupprimer, caSigne }} />}
+      </div>
+
+      {/* barre navigation basse */}
+      <div style={{ position: "fixed", bottom: 0, left: 0, right: 0, background: S.panel, borderTop: `1px solid ${S.deep}`, display: "flex", justifyContent: "center", gap: 4, padding: "8px 8px calc(8px + env(safe-area-inset-bottom))", zIndex: 30 }}>
+        {NAV.map((n) => (
+          <button key={n.id} onClick={() => setVue(n.id)}
+            style={{ flex: "1 1 0", maxWidth: 130, background: vue === n.id ? S.deep : "transparent", border: "none", borderRadius: 10, color: vue === n.id ? S.cream : "#C9BFAE", padding: "7px 4px", cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", gap: 3, fontSize: 10.5, fontWeight: 600 }}>
+            {n.ic}{n.nom}
+          </button>
+        ))}
+      </div>
+
+      {/* modales */}
+      {fProspect !== null && <FicheProspect p={fProspect} onClose={() => setFProspect(null)} onSave={(p) => { majProspect(p); setFProspect(null); }} onDelete={(id) => { if (isNotionId(id)) ecrire(() => apiArchive(id), "Suppression"); setFProspect(null); }} />}
+      {signature && <FicheSignature p={signature} onClose={() => setSignature(null)} onConfirm={confirmerSignature} />}
+      {fClient && <FicheClient c={fClient} onClose={() => setFClient(null)} onSave={(c) => { majClient(c); setFClient(null); }} />}
+      {aSupprimer && (
+        <Modal onClose={() => setASupprimer(null)}>
+          <div style={{ ...serif, fontSize: 19, fontWeight: 600, color: S.ink }}>Supprimer {aSupprimer.nom} ?</div>
+          <p style={{ fontSize: 13, color: S.soft, marginTop: 6 }}>Le contrat sera archivé dans Notion (récupérable depuis la corbeille Notion).</p>
+          <div style={{ display: "flex", gap: 8, marginTop: 16 }}>
+            <button onClick={() => setASupprimer(null)} style={btnSec}>Annuler</button>
+            <button onClick={() => { if (isNotionId(aSupprimer.id)) ecrire(() => apiArchive(aSupprimer.id), "Suppression"); setASupprimer(null); }} style={{ ...btnSec, background: S.rust, color: "#fff", border: "none" }}>Archiver</button>
+          </div>
+        </Modal>
+      )}
+    </div>
+  );
 }
 
-/* ============ ONGLET CRM ============ */
-function renderCRM(D){
-  const {prospects}=D;
-  const actifs=prospects.filter(p=>p.etape&&p.etape!=="Perdu"&&p.etape!=="Signé");
-  let cols=ETAPES.map(e=>{
-    const items=prospects.filter(p=>(p.etape||"Prospect")===e.id);
-    return '<div class="col" style="border-top:3px solid '+e.col+'"><div class="col-top"><span class="col-nom" style="color:'+e.col+'">'+e.id+'</span><span style="font-size:10.5px;color:var(--soft)">'+items.length+'</span></div>'+
-      (items.map(p=>'<div class="pcard"><div class="n">'+(p.nom||"Sans nom")+'</div>'+(p.contact?'<div class="c">'+p.contact+'</div>':'')+'<div class="m">'+(Number(p.prix)>0?eur(p.prix):"à chiffrer")+'</div></div>').join("")||'<div style="font-size:11px;color:var(--soft);text-align:center;padding:8px;opacity:.6">—</div>')+'</div>';
-  }).join("");
-  document.getElementById("t-crm").innerHTML=
-    '<div class="block"><p><b>'+actifs.length+'</b> prospects actifs dans le pipeline. Pour faire avancer une carte ou en ajouter une, dis-le à Claude : il met Notion à jour et la page suit.</p></div>'+
-    '<div class="board">'+cols+'</div>';
+/* ================= VUE PILOTAGE ================= */
+function Pilotage({ caSigne, caEncaisse, moisSigne, cumulSigne, pipePondere, pipeBrut, prospects, simultanes, heures, totalImpayes, impayes, setVue }) {
+  const manque60 = Math.max(0, 60000 - caSigne);
+  const projete = caSigne + pipePondere;
+  const actifs = prospects.filter((p) => !["signe", "perdu"].includes(p.etape)).length;
+  const maxMois = Math.max(1, ...moisSigne);
+
+  return (
+    <div>
+      <div style={{ background: S.panel, borderRadius: 16, padding: "20px 18px", color: S.cream }}>
+        <div style={{ fontSize: 10, letterSpacing: "0.18em", textTransform: "uppercase", color: S.gold, fontWeight: 600 }}>CA signé sur l'exercice</div>
+        <div style={{ ...serif, fontSize: 40, fontWeight: 600, lineHeight: 1, marginTop: 4 }}>
+          {court(caSigne)}<span style={{ fontSize: 15, color: S.gold, marginLeft: 5 }}>€ HT</span>
+        </div>
+        <div style={{ fontSize: 12.5, color: "#C9BFAE", marginTop: 6 }}>
+          {court(caEncaisse)} € déjà encaissés · pipeline pondéré {court(pipePondere)} €
+        </div>
+        {[60000, 80000].map((t) => (
+          <div key={t} style={{ marginTop: 15 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, color: "#C9BFAE", marginBottom: 5 }}>
+              <span>Objectif {t / 1000}k</span>
+              <span style={{ color: caSigne >= t ? "#9DBF9D" : "#E0A277", fontWeight: 600 }}>{caSigne >= t ? "atteint" : `manque ${court(t - caSigne)} €`}</span>
+            </div>
+            <div style={{ height: 10, background: "#3a352e", borderRadius: 6, overflow: "hidden", position: "relative" }}>
+              <div style={{ height: "100%", width: `${Math.min(100, (caSigne / t) * 100)}%`, background: `linear-gradient(90deg,${S.deep},${S.gold})`, borderRadius: 6 }} />
+              {projete > caSigne && <div style={{ position: "absolute", top: 0, height: "100%", left: `${Math.min(100, (caSigne / t) * 100)}%`, width: `${Math.min(100 - (caSigne / t) * 100, ((projete - caSigne) / t) * 100)}%`, background: "repeating-linear-gradient(45deg,#5d564c,#5d564c 4px,transparent 4px,transparent 8px)" }} />}
+            </div>
+          </div>
+        ))}
+        <div style={{ fontSize: 11, color: "#8d857a", marginTop: 8 }}>La zone hachurée montre le pipeline pondéré ajouté au signé.</div>
+      </div>
+
+      <div style={{ background: S.paper, border: `1px solid ${S.line}`, borderLeft: `4px solid ${S.gold}`, borderRadius: 14, padding: "15px 17px", marginTop: 12 }}>
+        <div style={{ ...serif, fontSize: 18, fontWeight: 600, color: S.ink, marginBottom: 6 }}>Ce qu'il te reste à faire</div>
+        <p style={{ fontSize: 13.5, color: S.soft, lineHeight: 1.6, margin: 0 }}>
+          Il te manque <b style={{ color: S.ink }}>{court(manque60)} €</b> pour 60k. À un panier moyen de 525 € sur 6 mois, soit 3 150 € par mandat, cela représente <b style={{ color: S.ink }}>{Math.ceil(manque60 / 3150)} mandats</b> à signer.
+          Avec un taux de signature de 1 propale sur 3, tu dois envoyer <b style={{ color: S.ink }}>{Math.ceil((manque60 / 3150) * 3)} propales</b>. Tu as aujourd'hui <b style={{ color: S.ink }}>{actifs}</b> prospects actifs dans ton pipeline.
+        </p>
+      </div>
+
+      <div style={{ display: "flex", gap: 10, marginTop: 12, flexWrap: "wrap" }}>
+        {[
+          { l: "Pipeline pondéré", v: `${court(pipePondere)} €`, s: `${court(pipeBrut)} € au total`, go: "crm" },
+          { l: "Clients simultanés", v: simultanes.toFixed(1), s: `≈ ${Math.round(simultanes * heures)} h / mois`, go: "contrats" },
+          { l: "Impayés", v: `${court(totalImpayes)} €`, s: `${impayes.length} échéance(s)`, go: "treso", alerte: totalImpayes > 0 },
+        ].map((k, i) => (
+          <button key={i} onClick={() => setVue(k.go)} style={{ flex: "1 1 150px", textAlign: "left", background: S.paper, border: `1px solid ${k.alerte ? S.rust : S.line}`, borderRadius: 12, padding: "11px 13px", cursor: "pointer" }}>
+            <div style={{ fontSize: 10, letterSpacing: "0.05em", textTransform: "uppercase", color: k.alerte ? S.rust : S.deep, fontWeight: 600 }}>{k.l}</div>
+            <div style={{ ...serif, fontSize: 21, color: k.alerte ? S.rust : S.ink, marginTop: 2 }}>{k.v}</div>
+            <div style={{ fontSize: 11.5, color: S.soft }}>{k.s}</div>
+          </button>
+        ))}
+      </div>
+
+      <div style={{ background: S.paper, border: `1px solid ${S.line}`, borderRadius: 14, padding: "14px 14px 10px", marginTop: 12 }}>
+        <div style={{ ...serif, fontSize: 16, fontWeight: 600, color: S.ink, marginBottom: 10 }}>CA signé par mois</div>
+        <div style={{ display: "flex", alignItems: "flex-end", gap: 4, height: 96 }}>
+          {moisSigne.map((v, i) => (
+            <div key={i} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 3 }}>
+              <div style={{ width: "100%", height: `${(v / maxMois) * 76}px`, minHeight: v ? 3 : 0, background: `linear-gradient(180deg,${S.gold},${S.deep})`, borderRadius: "3px 3px 0 0" }} title={eur(v)} />
+              <div style={{ fontSize: 8.5, color: S.soft }}>{MOIS[FY[i].m - 1].slice(0, 1).toUpperCase()}</div>
+            </div>
+          ))}
+        </div>
+        <div style={{ fontSize: 11, color: S.rust, marginTop: 8, display: "flex", alignItems: "center", gap: 5 }}>
+          <AlertTriangle size={12} /> La falaise après décembre, c'est ton vrai chantier : renouvellement et acquisition.
+        </div>
+      </div>
+    </div>
+  );
 }
 
-/* ============ ONGLET TRÉSORERIE ============ */
-function renderTreso(D){
-  const {duMonth,contrats,encaisseTot}=D;
-  const totalDu=duMonth.reduce((a,b)=>a+b,0);
-  const reste=Math.max(0,totalDu-encaisseTot);
-  const tvaRev=encaisseTot*TVA;
-  let head='<tr><th class="l">Mois</th>'+MOIS.map((m,i)=>'').join('')+'</tr>';
-  let row='';
-  for(let i=0;i<12;i++){const k=FYKEY(i);row+='<td>'+(duMonth[i]?Math.round(duMonth[i]).toLocaleString("fr-FR"):"·")+'</td>';}
-  const cols=MOIS.map((m,i)=>'<th>'+m+'<br><span style="color:var(--gold)">'+String(FYKEY(i).y).slice(2)+'</span></th>').join("");
-  document.getElementById("t-treso").innerHTML=
-    '<div class="cards">'+[
-      {l:"Dû sur l\'exercice",v:eur(totalDu),c:"var(--ink)"},
-      {l:"Encaissé",v:eur(encaisseTot),c:"var(--green)"},
-      {l:"Reste à encaisser",v:eur(reste),c:"var(--deep)"},
-    ].map(k=>'<div class="card"><div class="l">'+k.l+'</div><div class="v" style="color:'+k.c+'">'+k.v+'</div></div>').join("")+'</div>'+
-    '<div class="block"><p>Ligne <b>dû</b> calculée depuis les contrats signés. L\'<b>encaissé</b> vient du champ « Encaissé HT » de Notion, que Claude renseigne au fil des paiements. TVA à reverser sur l\'encaissé (20 %) : <b>'+eur(tvaRev)+'</b>.</p></div>'+
-    '<h3>Dû par mois</h3><div class="wrapx"><table><thead><tr><th class="l">Ligne</th>'+cols+'</tr></thead><tbody><tr><td class="l" style="font-weight:600">CA dû</td>'+row+'</tr></tbody></table></div>'+
-    '<h3>Encaissement par contrat</h3>'+
-    contrats.map(c=>'<div class="cli '+(rec(c.type)?"rec":"one")+'"><div class="cli-head"><div><span class="cli-nom">'+c.nom+'</span><div class="cli-meta">dû '+eur(c.dansFY)+' · encaissé '+eur(c.enc)+'</div></div><div class="cli-mt" style="color:'+(c.enc>=c.dansFY?"var(--green)":"var(--deep)")+'">'+(c.dansFY?Math.round(c.enc/c.dansFY*100):0)+'%</div></div></div>').join("");
+/* ================= VUE CRM ================= */
+function CRM({ prospects, setFProspect, bougerEtape, marquerPerdu, pipePondere, pipeBrut }) {
+  const colonnes = ETAPES.filter((e) => e.id !== "perdu");
+  const perdus = prospects.filter((p) => p.etape === "perdu");
+
+  return (
+    <div>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 8 }}>
+        <div style={{ fontSize: 12.5, color: S.soft }}>
+          Pipeline pondéré <b style={{ color: S.ink }}>{court(pipePondere)} €</b> · brut {court(pipeBrut)} €
+        </div>
+        <button onClick={() => setFProspect({ id: Date.now(), nom: "", societe: "", etape: "prospect", montant: 525, offre: "Visible & Rentable", source: "BNI", relance: "", note: "" })}
+          style={{ ...btnAdd, width: "auto", padding: "9px 14px" }}><Plus size={15} /> Prospect</button>
+      </div>
+
+      <div className="wrap" style={{ overflowX: "auto", marginTop: 12, paddingBottom: 6 }}>
+        <div style={{ display: "flex", gap: 10, minWidth: 760 }}>
+          {colonnes.map((col) => {
+            const items = prospects.filter((p) => p.etape === col.id);
+            return (
+              <div key={col.id} style={{ flex: "1 1 0", minWidth: 150, background: S.paper, border: `1px solid ${S.line}`, borderTop: `3px solid ${col.col}`, borderRadius: 12, padding: 8 }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", padding: "2px 4px 8px" }}>
+                  <span style={{ fontSize: 11.5, fontWeight: 700, letterSpacing: "0.03em", textTransform: "uppercase", color: col.col }}>{col.nom}</span>
+                  <span style={{ fontSize: 10.5, color: S.soft }}>{items.length}</span>
+                </div>
+                {items.map((p) => (
+                  <div key={p.id} style={{ background: "#fff", border: `1px solid ${S.line}`, borderRadius: 9, padding: "8px 9px", marginBottom: 7 }}>
+                    <div onClick={() => setFProspect(p)} style={{ cursor: "pointer" }}>
+                      <div style={{ ...serif, fontSize: 14, fontWeight: 600, color: S.ink, lineHeight: 1.2 }}>{p.societe || p.nom || "Sans nom"}</div>
+                      {p.nom && p.societe && <div style={{ fontSize: 11, color: S.soft }}>{p.nom}</div>}
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 4 }}>
+                        <span style={{ fontSize: 12.5, fontWeight: 600, color: S.deep }}>{p.montant ? eur(p.montant) : "—"}</span>
+                        {p.source && <span style={{ fontSize: 9.5, fontWeight: 700, color: S.soft, background: S.cream, padding: "1px 6px", borderRadius: 10 }}>{p.source}</span>}
+                      </div>
+                    </div>
+                    {col.id !== "signe" && (
+                      <div style={{ display: "flex", gap: 4, marginTop: 7 }}>
+                        <button onClick={() => bougerEtape(p, 1)} title="Étape suivante"
+                          style={{ flex: 1, border: "none", background: col.col, color: "#fff", borderRadius: 7, padding: "5px", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 3, fontSize: 11, fontWeight: 600 }}>
+                          {col.id === "propale" ? <>Signer <Check size={12} /></> : <>Avancer <ArrowRight size={12} /></>}
+                        </button>
+                        <button onClick={() => marquerPerdu(p)} title="Perdu"
+                          style={{ border: `1px solid ${S.line}`, background: "#fff", color: S.rust, borderRadius: 7, padding: "5px 7px", cursor: "pointer" }}><X size={12} /></button>
+                      </div>
+                    )}
+                  </div>
+                ))}
+                {items.length === 0 && <div style={{ fontSize: 11, color: S.soft, textAlign: "center", padding: "10px 4px", opacity: 0.6 }}>—</div>}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {perdus.length > 0 && (
+        <div style={{ marginTop: 10, fontSize: 12, color: S.soft }}>
+          <b>Perdus :</b> {perdus.map((p) => p.societe || p.nom).join(", ")}
+        </div>
+      )}
+    </div>
+  );
 }
 
-/* ============ ONGLET CONTRATS ============ */
-function renderContrats(D){
-  const {contrats,totalSigne}=D;
-  document.getElementById("t-contrats").innerHTML=
-    '<div class="block"><p><b>'+contrats.length+' contrats</b> · '+eur(totalSigne)+' sur l\'exercice. Pour ajouter, modifier ou clore un contrat, dis-le à Claude.</p></div>'+
-    contrats.map(c=>{const r=rec(c.type);const meta=(r?"Programme":c.type)+" · "+eur(c.prix)+(r?"/mois × "+(c.duree||6):"")+" · démarre "+MOIS[Number(c.debut.split("-")[1])-1]+" "+c.debut.split("-")[0];
-      return '<div class="cli '+(r?"rec":"one")+'"><div class="cli-head"><div><span class="cli-nom">'+c.nom+'</span><div class="cli-meta">'+meta+'</div></div><div class="cli-mt">'+eur(c.dansFY)+'</div></div></div>';}).join("");
+/* ================= VUE TRÉSORERIE ================= */
+function Treso({ clients, moisSigne, moisEncaisse, encaisser, tvaAReverser, caEncaisse, impayes, totalImpayes }) {
+  const [edit, setEdit] = useState(null);
+  const [tampon, setTampon] = useState("");
+  const W = 76, WN = 150;
+  const th = { position: "sticky", top: 0, background: S.panel, color: S.cream, fontSize: 10, fontWeight: 700, textTransform: "uppercase", padding: "8px 7px", textAlign: "right", whiteSpace: "nowrap" };
+  const td = { padding: 0, borderBottom: `1px solid ${S.grid}`, borderRight: `1px solid ${S.grid}`, textAlign: "right", fontSize: 12.5, height: 36 };
+
+  const lignesRec = clients.filter((c) => (c.ech || []).length);
+
+  return (
+    <div>
+      <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+        {[
+          { l: "Encaissé", v: `${court(caEncaisse)} €`, c: S.green },
+          { l: "TVA à reverser", v: `${court(tvaAReverser)} €`, c: S.deep, s: "20 % de l'encaissé" },
+          { l: "Impayés", v: `${court(totalImpayes)} €`, c: totalImpayes ? S.rust : S.soft, s: `${impayes.length} échéance(s)` },
+        ].map((k, i) => (
+          <div key={i} style={{ flex: "1 1 150px", background: S.paper, border: `1px solid ${S.line}`, borderRadius: 12, padding: "11px 13px" }}>
+            <div style={{ fontSize: 10, letterSpacing: "0.05em", textTransform: "uppercase", color: S.deep, fontWeight: 600 }}>{k.l}</div>
+            <div style={{ ...serif, fontSize: 21, color: k.c, marginTop: 2 }}>{k.v}</div>
+            {k.s && <div style={{ fontSize: 11, color: S.soft }}>{k.s}</div>}
+          </div>
+        ))}
+      </div>
+
+      <p style={{ fontSize: 12.5, color: S.soft, marginTop: 14, marginBottom: 6 }}>
+        Ligne <b>dû</b> calculée depuis les contrats. Touchez une cellule <b>encaissé</b> pour saisir ce que vous avez réellement reçu — c'est écrit dans Notion. Une échéance passée non encaissée bascule en impayé.
+      </p>
+
+      <div className="wrap" style={{ overflowX: "auto", WebkitOverflowScrolling: "touch" }}>
+        <table style={{ borderCollapse: "separate", borderSpacing: 0, background: S.paper, border: `1px solid ${S.line}`, borderRadius: 12, overflow: "hidden", minWidth: WN + W * 12 + 70 }}>
+          <thead>
+            <tr>
+              <th style={{ ...th, position: "sticky", left: 0, zIndex: 4, textAlign: "left", width: WN, minWidth: WN }}>Contrat</th>
+              {FY.map((o) => <th key={o.key} style={{ ...th, width: W, minWidth: W }}>{MOIS[o.m - 1]}<br /><span style={{ color: S.gold }}>{String(o.y).slice(2)}</span></th>)}
+            </tr>
+          </thead>
+          <tbody>
+            {lignesRec.map((c) => (
+              <tr key={c.id}>
+                <td style={{ position: "sticky", left: 0, zIndex: 2, background: S.paper, borderRight: `2px solid ${S.line}`, borderBottom: `1px solid ${S.grid}`, padding: "5px 9px", width: WN, minWidth: WN }}>
+                  <div style={{ ...serif, fontSize: 13.5, fontWeight: 600, color: S.ink, lineHeight: 1.15 }}>{c.nom}</div>
+                </td>
+                {FY.map((o, i) => {
+                  const e = (c.ech || []).find((x) => x.mkey === o.key);
+                  const enEdit = edit && edit.id === c.id && edit.mkey === o.key;
+                  const retard = e && e.encaisse == null && idxOf(o.key) < ((new Date().getFullYear() - 2026) * 12 + (new Date().getMonth() + 1 - 9));
+                  return (
+                    <td key={o.key} className={e ? "cel" : ""} style={{ ...td, width: W, minWidth: W, background: !e ? "transparent" : retard ? "#F6E7DE" : e.encaisse != null ? "#EDF1EC" : "#FFFDF9" }}
+                      onClick={() => { if (e && !enEdit) { setEdit({ id: c.id, mkey: o.key }); setTampon(e.encaisse != null ? String(e.encaisse) : String(e.du)); } }}>
+                      {!e ? <div style={{ lineHeight: "35px", color: S.line, textAlign: "center" }}>·</div> :
+                        enEdit ? (
+                          <input autoFocus type="number" value={tampon} onChange={(ev) => setTampon(ev.target.value)}
+                            onBlur={() => { encaisser(c.id, o.key, tampon); setEdit(null); }}
+                            onKeyDown={(ev) => { if (ev.key === "Enter") { encaisser(c.id, o.key, tampon); setEdit(null); } if (ev.key === "Escape") setEdit(null); }}
+                            style={{ width: "100%", height: 34, border: `2px solid ${S.gold}`, borderRadius: 4, textAlign: "right", padding: "0 5px", fontSize: 12.5, fontWeight: 600, background: "#fff", outline: "none" }} />
+                        ) : (
+                          <div style={{ padding: "0 7px", lineHeight: "35px" }}>
+                            <span style={{ fontSize: 12.5, fontWeight: 600, color: e.encaisse != null ? S.green : retard ? S.rust : S.soft }}>
+                              {e.encaisse != null ? court(e.encaisse) : court(e.du)}
+                            </span>
+                          </div>
+                        )}
+                    </td>
+                  );
+                })}
+              </tr>
+            ))}
+            <tr>
+              <td style={{ position: "sticky", left: 0, background: S.panel, borderRight: `1px solid #3a352e`, padding: "6px 9px" }}>
+                <span style={{ ...serif, fontSize: 13.5, fontWeight: 600, color: S.cream }}>Dû</span>
+              </td>
+              {moisSigne.map((v, i) => <td key={i} style={{ ...td, background: S.panel, borderRight: `1px solid #3a352e` }}><div style={{ ...serif, padding: "0 7px", lineHeight: "35px", fontSize: 13, color: v ? S.cream : "#5d564c" }}>{v ? court(v) : "·"}</div></td>)}
+            </tr>
+            <tr>
+              <td style={{ position: "sticky", left: 0, background: "#EDF1EC", borderRight: `2px solid ${S.line}`, padding: "6px 9px" }}>
+                <span style={{ fontSize: 11.5, fontWeight: 700, textTransform: "uppercase", color: S.green }}>Encaissé</span>
+              </td>
+              {moisEncaisse.map((v, i) => <td key={i} style={{ ...td, background: "#EDF1EC" }}><div style={{ padding: "0 7px", lineHeight: "35px", fontSize: 12.5, fontWeight: 600, color: v ? S.green : S.line }}>{v ? court(v) : "·"}</div></td>)}
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
 }
 
-/* ============ NAV + RENDU ============ */
-const TABS=[
-  {id:"pilotage",nom:"Pilotage",fn:renderPilotage,ic:'<path d="M3 3v18h18"/><path d="M7 14l3-4 3 3 4-6"/>'},
-  {id:"crm",nom:"CRM",fn:renderCRM,ic:'<circle cx="9" cy="7" r="3"/><path d="M2 21v-2a5 5 0 0 1 5-5h4a5 5 0 0 1 5 5v2"/><path d="M17 7h5M19.5 4.5v5"/>'},
-  {id:"treso",nom:"Trésorerie",fn:renderTreso,ic:'<rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="2.5"/>'},
-  {id:"contrats",nom:"Contrats",fn:renderContrats,ic:'<path d="M6 2h9l5 5v15H6z"/><path d="M9 12h7M9 16h7M9 8h3"/>'},
-];
-function renderAll(){ const D=compute(); TABS.forEach(t=>t.fn(D)); }
-function show(id){
-  TABS.forEach(t=>{document.getElementById("t-"+t.id).classList.toggle("on",t.id===id);});
-  document.querySelectorAll("nav button").forEach(b=>b.classList.toggle("on",b.dataset.id===id));
-  const t=TABS.find(x=>x.id===id); document.getElementById("tab-title").textContent=t.nom;
-  window.scrollTo(0,0);
+/* ================= VUE CONTRATS ================= */
+function Contrats({ clients, setFClient, setASupprimer, caSigne }) {
+  return (
+    <div>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
+        <div style={{ fontSize: 12.5, color: S.soft }}>{clients.length} contrats · {court(caSigne)} € sur l'exercice</div>
+        <button onClick={() => setFClient({ id: Date.now(), nom: "", type: "prog", prix: "", debut: FY[0].key, duree: 6 })} style={{ ...btnAdd, width: "auto", padding: "9px 14px" }}><Plus size={15} /> Contrat</button>
+      </div>
+      {clients.map((c) => {
+        const dansFY = (c.ech || []).reduce((s, e) => s + e.du, 0);
+        const encaisse = (c.ech || []).reduce((s, e) => s + (e.encaisse != null ? Number(e.encaisse) : 0), 0);
+        const t = est(c.type);
+        return (
+          <div key={c.id} onClick={() => setFClient(c)} style={{ background: S.paper, border: `1px solid ${S.line}`, borderLeft: `4px solid ${t.rec ? S.deep : S.gold}`, borderRadius: 12, padding: "12px 14px", marginTop: 9, cursor: "pointer" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8 }}>
+              <div>
+                <div style={{ ...serif, fontSize: 16.5, fontWeight: 600, color: S.ink }}>{c.nom}</div>
+                <div style={{ fontSize: 12, color: S.soft, marginTop: 1 }}>{t.nom} · {eur(c.prix)}{t.rec ? `/mois × ${c.duree}` : ""} · {t.rec ? "démarre" : "facturé"} {labKey(c.debut)}</div>
+              </div>
+              <button onClick={(e) => { e.stopPropagation(); setASupprimer(c); }} style={{ ...btnIcon }}><Trash2 size={14} /></button>
+            </div>
+            <div style={{ display: "flex", gap: 16, marginTop: 9, paddingTop: 9, borderTop: `1px dashed ${S.line}`, fontSize: 12, flexWrap: "wrap" }}>
+              <div><span style={{ color: S.soft }}>Dans l'exercice </span><b style={{ ...serif, fontSize: 15 }}>{eur(dansFY)}</b></div>
+              <div><span style={{ color: S.soft }}>Encaissé </span><b style={{ ...serif, fontSize: 15, color: S.green }}>{eur(encaisse)}</b></div>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
 }
-document.getElementById("nav").innerHTML=TABS.map((t,i)=>'<button data-id="'+t.id+'" class="'+(i===0?"on":"")+'" onclick="show(\''+t.id+'\')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">'+t.ic+'</svg>'+t.nom+'</button>').join("");
 
-function setStatus(){const st=document.getElementById("status"),d=st.querySelector(".dot"),x=document.getElementById("status-txt");
-  if(SOURCE==="live"){d.className="dot live";x.textContent="Notion en direct · lu à l'instant";}
-  else{d.className="dot frozen";x.textContent="Données figées"+(WORKER_URL.includes("REMPLACE")?" · Worker à configurer":" · Notion injoignable");}}
-document.getElementById("foot").innerHTML="Cockpit hébergé lisant la base Notion « 🎯 Pilotage 26/27 » via un Worker Cloudflare (token côté serveur). Lecture seule : pour modifier, dis-le à Claude, il écrit dans Notion et la page suit à la prochaine ouverture.";
+/* ================= MODALES ================= */
+function Modal({ children, onClose, bas }) {
+  return (
+    <div style={{ position: "fixed", inset: 0, background: "rgba(38,35,31,.55)", display: "flex", alignItems: bas ? "flex-end" : "center", justifyContent: "center", zIndex: 70, padding: bas ? 0 : 20 }}
+      onClick={(e) => e.target === e.currentTarget && onClose()}>
+      <div style={{ background: S.cream, width: "100%", maxWidth: 560, borderRadius: bas ? "18px 18px 0 0" : 16, padding: bas ? "18px 16px 26px" : 20, maxHeight: "92vh", overflowY: "auto" }}>
+        {children}
+      </div>
+    </div>
+  );
+}
 
-/* ============ LECTURE ============ */
-async function liveRows(){
-  if(WORKER_URL.includes("REMPLACE")) throw new Error("worker-à-configurer");
-  const res=await fetch(WORKER_URL,{method:"GET"});
-  if(!res.ok) throw new Error("worker-"+res.status);
-  const data=await res.json(); if(data.error) throw new Error(data.error);
-  return (data.results||[]).map(r=>{
-    const p=r.properties||{};
-    const cp=p["Client"]||p["Clients"]||p["Nom"]||p["Name"];
-    const nom=cp&&cp.title?cp.title.map(t=>t.plain_text).join("").trim():"";
-    const ct=p["Contact"]; const contact=ct&&ct.rich_text?ct.rich_text.map(t=>t.plain_text).join("").trim():"";
-    const type=p["Type"]&&p["Type"].select?p["Type"].select.name:"Autre ponctuel";
-    const mp=p["Montant HT"]||p["Montant mensuel HT"]||p["Montant"]; const prix=mp&&mp.number!=null?mp.number:0;
-    const ep=p["Encaissé HT"]||p["Encaissé"]; const encaisse=ep&&ep.number!=null?ep.number:0;
-    const dp=p["Début"]||p["Debut"]||p["Date"]; const debut=dp&&dp.date?dp.date.start:null;
-    const dur=p["Durée mois"]||p["Duree mois"]; const duree=dur&&dur.number!=null?dur.number:(rec(type)?6:1);
-    const st=p["Statut"]&&p["Statut"].select?p["Statut"].select.name:"Signé";
-    const et=p["Étape"]&&p["Étape"].select?p["Étape"].select.name:null;
-    return {nom,contact,type,prix,encaisse,debut,duree,statut:st,etape:et};
-  }).filter(x=>x.nom||x.prix);
+function FicheProspect({ p, onClose, onSave, onDelete }) {
+  const [f, setF] = useState({ ...p });
+  const set = (k, v) => setF({ ...f, [k]: v });
+  return (
+    <Modal onClose={onClose} bas>
+      <TitreModale titre={p.societe || p.nom ? "Modifier le prospect" : "Nouveau prospect"} onClose={onClose} />
+      <div style={{ display: "flex", gap: 10 }}>
+        <Ch label="Société" flex><input value={f.societe} onChange={(e) => set("societe", e.target.value)} placeholder="Cabinet, enseigne…" style={inp} /></Ch>
+        <Ch label="Contact" flex><input value={f.nom} onChange={(e) => set("nom", e.target.value)} placeholder="Prénom Nom" style={inp} /></Ch>
+      </div>
+      <Ch label="Étape">
+        <div style={{ display: "flex", gap: 5, flexWrap: "wrap" }}>
+          {ETAPES.map((e) => (
+            <button key={e.id} onClick={() => set("etape", e.id)} style={{ flex: "1 1 30%", padding: "8px 6px", borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: "pointer", border: `1px solid ${f.etape === e.id ? e.col : S.line}`, background: f.etape === e.id ? e.col : "#fff", color: f.etape === e.id ? "#fff" : S.soft }}>{e.nom}</button>
+          ))}
+        </div>
+      </Ch>
+      <div style={{ display: "flex", gap: 10 }}>
+        <Ch label="Montant € (mensuel ou total)" flex><input type="number" value={f.montant} onChange={(e) => set("montant", e.target.value)} style={inp} /></Ch>
+        <Ch label="Source" flex><input value={f.source} onChange={(e) => set("source", e.target.value)} placeholder="BNI, LinkedIn…" style={inp} /></Ch>
+      </div>
+      <Ch label="Offre visée"><input value={f.offre} onChange={(e) => set("offre", e.target.value)} placeholder="Visible & Rentable…" style={inp} /></Ch>
+      <Ch label="Prochaine relance"><input type="date" value={f.relance} onChange={(e) => set("relance", e.target.value)} style={inp} /></Ch>
+      <Ch label="Note"><textarea value={f.note} onChange={(e) => set("note", e.target.value)} rows={2} placeholder="Contexte, dernier échange…" style={{ ...inp, resize: "vertical", minHeight: 46 }} /></Ch>
+      <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+        <button onClick={() => onDelete(p.id)} style={{ ...btnIcon, padding: "13px 15px", color: S.rust }}><Trash2 size={15} /></button>
+        <button onClick={() => onSave(f)} style={btnMain}><Check size={16} /> Enregistrer</button>
+      </div>
+    </Modal>
+  );
 }
-async function boot(){
-  DATA=BAKED; SOURCE="frozen"; renderAll(); setStatus();
-  try{ const rows=await liveRows(); if(rows.length){ DATA=rows; SOURCE="live"; renderAll(); setStatus(); } else throw new Error("vide"); }
-  catch(e){ SOURCE="frozen"; const st=document.getElementById("status"); st.querySelector(".dot").className="dot frozen"; document.getElementById("status-txt").textContent = e.message.includes("configurer")?"Données figées · Worker à configurer":"Notion injoignable ("+e.message+") · photo figée"; }
+
+function FicheSignature({ p, onClose, onConfirm }) {
+  const [f, setF] = useState({
+    nom: p.societe || p.nom || "", type: "prog", prix: p.montant || "", debut: FY[0].key, duree: 6,
+  });
+  const set = (k, v) => setF({ ...f, [k]: v });
+  return (
+    <Modal onClose={onClose} bas>
+      <TitreModale titre="Signature — détails de la prestation" onClose={onClose} />
+      <div style={{ background: "#EDF1EC", border: `1px solid ${S.line}`, borderRadius: 10, padding: "9px 12px", fontSize: 12.5, color: S.green, marginBottom: 12 }}>
+        Bravo. Renseigne le contrat, les échéances de trésorerie se créent automatiquement.
+      </div>
+      <Ch label="Nom du contrat"><input value={f.nom} onChange={(e) => set("nom", e.target.value)} style={inp} /></Ch>
+      <Ch label="Type">
+        <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+          {TYPES.map((t) => (
+            <button key={t.id} onClick={() => set("type", t.id)} style={{ flex: "1 1 46%", padding: "9px 8px", borderRadius: 9, fontSize: 12.5, fontWeight: 600, cursor: "pointer", border: `1px solid ${f.type === t.id ? S.deep : S.line}`, background: f.type === t.id ? S.deep : "#fff", color: f.type === t.id ? S.cream : S.soft }}>{t.nom}</button>
+          ))}
+        </div>
+      </Ch>
+      <div style={{ display: "flex", gap: 10 }}>
+        <Ch label={est(f.type).rec ? "€ / mois" : "€ total"} flex><input type="number" value={f.prix} onChange={(e) => set("prix", e.target.value)} style={inp} /></Ch>
+        {est(f.type).rec && <Ch label="Durée (mois)" flex><input type="number" value={f.duree} min="1" max="36" onChange={(e) => set("duree", e.target.value)} style={inp} /></Ch>}
+      </div>
+      <Ch label={est(f.type).rec ? "Mois de démarrage" : "Mois de facturation"}>
+        <select value={f.debut} onChange={(e) => set("debut", e.target.value)} style={inp}>
+          {CHOIX.map((o) => <option key={o.key} value={o.key}>{lab(o.y, o.m)}{o.idx < 0 ? " (exercice préc.)" : o.idx > 11 ? " (exercice suiv.)" : ""}</option>)}
+        </select>
+      </Ch>
+      <button onClick={() => (f.nom.trim() && Number(f.prix) > 0) && onConfirm(f)} disabled={!f.nom.trim() || !(Number(f.prix) > 0)}
+        style={{ ...btnMain, marginTop: 8, background: !f.nom.trim() || !(Number(f.prix) > 0) ? S.line : S.panel, color: !f.nom.trim() || !(Number(f.prix) > 0) ? S.soft : S.cream }}>
+        <Check size={16} /> Créer le contrat
+      </button>
+    </Modal>
+  );
 }
-boot();
+
+function FicheClient({ c, onClose, onSave }) {
+  const [f, setF] = useState({ ...c });
+  const set = (k, v) => setF({ ...f, [k]: v });
+  return (
+    <Modal onClose={onClose} bas>
+      <TitreModale titre={c.nom ? "Modifier le contrat" : "Nouveau contrat"} onClose={onClose} />
+      <Ch label="Nom du contrat"><input value={f.nom} onChange={(e) => set("nom", e.target.value)} placeholder="Ex. Optel Services" style={inp} /></Ch>
+      <Ch label="Type">
+        <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+          {TYPES.map((t) => (
+            <button key={t.id} onClick={() => set("type", t.id)} style={{ flex: "1 1 46%", padding: "9px 8px", borderRadius: 9, fontSize: 12.5, fontWeight: 600, cursor: "pointer", border: `1px solid ${f.type === t.id ? S.deep : S.line}`, background: f.type === t.id ? S.deep : "#fff", color: f.type === t.id ? S.cream : S.soft }}>{t.nom}</button>
+          ))}
+        </div>
+      </Ch>
+      <div style={{ display: "flex", gap: 10 }}>
+        <Ch label={est(f.type).rec ? "€ / mois" : "€ total"} flex><input type="number" value={f.prix} onChange={(e) => set("prix", e.target.value)} style={inp} /></Ch>
+        {est(f.type).rec && <Ch label="Durée (mois)" flex><input type="number" value={f.duree} min="1" max="36" onChange={(e) => set("duree", e.target.value)} style={inp} /></Ch>}
+      </div>
+      <Ch label={est(f.type).rec ? "Mois de démarrage" : "Mois de facturation"}>
+        <select value={f.debut} onChange={(e) => set("debut", e.target.value)} style={inp}>
+          {CHOIX.map((o) => <option key={o.key} value={o.key}>{lab(o.y, o.m)}{o.idx < 0 ? " (exercice préc.)" : o.idx > 11 ? " (exercice suiv.)" : ""}</option>)}
+        </select>
+      </Ch>
+      <button onClick={() => (f.nom.trim() && Number(f.prix) > 0) && onSave(f)} disabled={!f.nom.trim() || !(Number(f.prix) > 0)}
+        style={{ ...btnMain, marginTop: 8, background: !f.nom.trim() || !(Number(f.prix) > 0) ? S.line : S.panel, color: !f.nom.trim() || !(Number(f.prix) > 0) ? S.soft : S.cream }}>
+        <Check size={16} /> Enregistrer
+      </button>
+      <p style={{ fontSize: 11.5, color: S.soft, marginTop: 10, lineHeight: 1.5 }}>Modifier le prix ou les dates recalcule les échéances de trésorerie. Les encaissements déjà saisis sont conservés.</p>
+    </Modal>
+  );
+}
+
+function TitreModale({ titre, onClose }) {
+  return (
+    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
+      <span style={{ ...serif, fontSize: 20, fontWeight: 600, color: S.ink }}>{titre}</span>
+      <button onClick={onClose} style={btnIcon}><X size={16} /></button>
+    </div>
+  );
+}
+function Ch({ label, children, flex }) {
+  return (
+    <div style={{ marginBottom: 12, flex: flex ? 1 : undefined, minWidth: 0 }}>
+      <div style={{ fontSize: 10, letterSpacing: "0.08em", textTransform: "uppercase", color: S.deep, fontWeight: 600, marginBottom: 4 }}>{label}</div>
+      {children}
+    </div>
+  );
+}
+const inp = { width: "100%", padding: "10px 11px", borderRadius: 9, border: `1px solid ${S.line}`, background: "#fff", fontSize: 14.5, color: S.ink, fontWeight: 500 };
+const btnMain = { width: "100%", padding: 14, borderRadius: 12, border: "none", background: S.panel, color: S.cream, fontWeight: 600, fontSize: 14.5, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 7 };
+const btnSec = { flex: 1, padding: 12, borderRadius: 10, border: `1px solid ${S.line}`, background: "#fff", color: S.soft, fontWeight: 600, fontSize: 13.5, cursor: "pointer" };
+const btnAdd = { border: `1.5px dashed ${S.gold}`, background: "transparent", color: S.deep, fontWeight: 600, fontSize: 13.5, borderRadius: 11, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 };
+const btnIcon = { height: 32, minWidth: 32, border: `1px solid ${S.line}`, background: "#fff", borderRadius: 8, color: S.soft, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" };
+
+ReactDOM.createRoot(document.getElementById("root")).render(<Cockpit />);
 </script>
 </body>
 </html>
