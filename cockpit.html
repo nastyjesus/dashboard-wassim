@@ -541,21 +541,7 @@ function Treso({ clients, moisSigne, moisEncaisse, encaisser, tvaAReverser, caEn
 
   return (
     <div>
-      <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-        {[
-          { l: "Encaissé", v: `${court(caEncaisse)} €`, c: S.green },
-          { l: "TVA à reverser", v: `${court(tvaAReverser)} €`, c: S.deep, s: "20 % de l'encaissé" },
-          { l: "Impayés", v: `${court(totalImpayes)} €`, c: totalImpayes ? S.rust : S.soft, s: `${impayes.length} échéance(s)` },
-        ].map((k, i) => (
-          <div key={i} style={{ flex: "1 1 150px", background: S.paper, border: `1px solid ${S.line}`, borderRadius: 12, padding: "11px 13px" }}>
-            <div style={{ fontSize: 10, letterSpacing: "0.05em", textTransform: "uppercase", color: S.deep, fontWeight: 600 }}>{k.l}</div>
-            <div style={{ ...serif, fontSize: 21, color: k.c, marginTop: 2 }}>{k.v}</div>
-            {k.s && <div style={{ fontSize: 11, color: S.soft }}>{k.s}</div>}
-          </div>
-        ))}
-      </div>
-
-      <p style={{ fontSize: 12.5, color: S.soft, marginTop: 14, marginBottom: 6 }}>
+      <p style={{ fontSize: 12.5, color: S.soft, marginTop: 4, marginBottom: 6 }}>
         Ligne <b>dû</b> calculée depuis les contrats. Touchez une cellule <b>encaissé</b> pour saisir ce que vous avez réellement reçu — c'est écrit dans Notion. Une échéance passée non encaissée bascule en impayé. La ligne <b>TVA estim. 20 %</b> prévoit ce que tu devras régler chaque mois, estimée à 20 % du CA dû du mois.
       </p>
 
