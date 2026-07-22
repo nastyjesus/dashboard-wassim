@@ -101,6 +101,7 @@ const ETAPES = [
   { id: "perdu", nom: "Perdu", proba: 0, col: "#A9683F" },
 ];
 const etp = (id) => ETAPES.find((e) => e.id === id) || ETAPES[0];
+const SOURCES = ["BNI", "LinkedIn", "Recommandation", "Réseau", "Site web", "Autre"];
 
 /* chaque contrat signé génère un tableau d'échéances {mkey, du, encaisse} */
 function echeances(c) {
@@ -130,6 +131,7 @@ function mapRows(rows) {
         societe: title,
         nom: rtext(p["Contact"]),
         etape: ETAPE_ID[etName] || "prospect",
+        type: TYPE_ID[p["Type"] && p["Type"].select ? p["Type"].select.name : ""] || "",
         montant: montant || "",
         offre: rtext(p["Offre"]),
         source: p["Source"] && p["Source"].select ? p["Source"].select.name : "",
@@ -256,6 +258,7 @@ function Cockpit() {
     "Client": p.societe || p.nom || "",
     "Statut": "Pipeline",
     "Étape": ETAPE_NAME[p.etape] || "Prospect",
+    "Type": p.type ? TYPE_NAME[p.type] : null,
     "Contact": p.nom || "",
     "Montant HT": p.montant === "" || p.montant == null ? null : Number(p.montant),
     "Offre": p.offre || "",
@@ -320,14 +323,14 @@ function Cockpit() {
   ];
 
   return (
-    <div style={{ ...sans, background: S.cream, minHeight: "100vh", paddingBottom: 80 }}>
+    <div style={{ ...sans, background: S.cream, minHeight: "100vh", paddingBottom: 104 }}>
       <style>{`input,select,button,textarea{font-family:'Raleway',system-ui,sans-serif}
         input[type=number]{-moz-appearance:textfield}
         input::-webkit-outer-spin-button,input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
         .wrap::-webkit-scrollbar{height:9px}.wrap::-webkit-scrollbar-thumb{background:${S.line};border-radius:9px}
         .cel:hover{background:#FFF9EE!important;cursor:cell}
-        .pagenav{position:sticky;top:0;z-index:40;background:${S.panel};display:flex;gap:6px;padding:8px 12px;overflow-x:auto;border-bottom:1px solid ${S.deep}}
-        .pagenav a{flex:none;color:#C9BFAE;text-decoration:none;font-size:12.5px;font-weight:600;padding:7px 13px;border-radius:9px;white-space:nowrap}
+        .pagenav{position:sticky;top:0;z-index:40;background:${S.panel};display:flex;gap:8px;padding:11px 14px;overflow-x:auto;border-bottom:1px solid ${S.deep}}
+        .pagenav a{flex:none;color:#C9BFAE;text-decoration:none;font-size:13px;font-weight:600;padding:9px 15px;border-radius:10px;white-space:nowrap}
         .pagenav a.on{color:${S.cream};background:${S.deep}}`}</style>
 
       <div className="pagenav">
@@ -356,7 +359,7 @@ function Cockpit() {
         {erreur && <div style={{ background: "#F6EDE4", border: `1px solid ${S.rust}`, borderRadius: 10, padding: "8px 12px", fontSize: 12.5, color: S.rust, marginTop: 8 }}>{erreur}</div>}
       </div>
 
-      <div style={{ padding: "14px 16px 0", maxWidth: 1120, margin: "0 auto" }}>
+      <div style={{ padding: "20px 18px 0", maxWidth: 1120, margin: "0 auto" }}>
         {vue === "pilotage" && <Pilotage {...{ caSigne, caEncaisse, moisSigne, cumulSigne, pipePondere, pipeBrut, prospects, simultanes, heures, totalImpayes, impayes, setVue }} />}
         {vue === "crm" && <CRM {...{ prospects, setFProspect, bougerEtape, marquerPerdu, pipePondere, pipeBrut }} />}
         {vue === "treso" && <Treso {...{ clients, moisSigne, moisEncaisse, encaisser, tvaAReverser, caEncaisse, impayes, totalImpayes }} />}
@@ -364,10 +367,10 @@ function Cockpit() {
       </div>
 
       {/* barre navigation basse */}
-      <div style={{ position: "fixed", bottom: 0, left: 0, right: 0, background: S.panel, borderTop: `1px solid ${S.deep}`, display: "flex", justifyContent: "center", gap: 4, padding: "8px 8px calc(8px + env(safe-area-inset-bottom))", zIndex: 30 }}>
+      <div style={{ position: "fixed", bottom: 0, left: 0, right: 0, background: S.panel, borderTop: `1px solid ${S.deep}`, display: "flex", justifyContent: "center", gap: 10, padding: "10px 12px calc(12px + env(safe-area-inset-bottom))", zIndex: 30 }}>
         {NAV.map((n) => (
           <button key={n.id} onClick={() => setVue(n.id)}
-            style={{ flex: "1 1 0", maxWidth: 130, background: vue === n.id ? S.deep : "transparent", border: "none", borderRadius: 10, color: vue === n.id ? S.cream : "#C9BFAE", padding: "7px 4px", cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", gap: 3, fontSize: 10.5, fontWeight: 600 }}>
+            style={{ flex: "1 1 0", maxWidth: 160, background: vue === n.id ? S.deep : "transparent", border: "none", borderRadius: 12, color: vue === n.id ? S.cream : "#C9BFAE", padding: "9px 6px", cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", gap: 5, fontSize: 11.5, fontWeight: 600 }}>
             {n.ic}{n.nom}
           </button>
         ))}
@@ -474,16 +477,16 @@ function CRM({ prospects, setFProspect, bougerEtape, marquerPerdu, pipePondere, 
         <div style={{ fontSize: 12.5, color: S.soft }}>
           Pipeline pondéré <b style={{ color: S.ink }}>{court(pipePondere)} €</b> · brut {court(pipeBrut)} €
         </div>
-        <button onClick={() => setFProspect({ id: Date.now(), nom: "", societe: "", etape: "prospect", montant: 525, offre: "Visible & Rentable", source: "BNI", relance: "", note: "" })}
+        <button onClick={() => setFProspect({ id: Date.now(), nom: "", societe: "", etape: "prospect", type: "prog", montant: "", offre: "Visible & Rentable", source: "", relance: "", note: "" })}
           style={{ ...btnAdd, width: "auto", padding: "9px 14px" }}><Plus size={15} /> Prospect</button>
       </div>
 
-      <div className="wrap" style={{ overflowX: "auto", marginTop: 12, paddingBottom: 6 }}>
-        <div style={{ display: "flex", gap: 10, minWidth: 760 }}>
+      <div className="wrap" style={{ overflowX: "auto", marginTop: 16, paddingBottom: 6 }}>
+        <div style={{ display: "flex", gap: 12, minWidth: 900 }}>
           {colonnes.map((col) => {
             const items = prospects.filter((p) => p.etape === col.id);
             return (
-              <div key={col.id} style={{ flex: "1 1 0", minWidth: 150, background: S.paper, border: `1px solid ${S.line}`, borderTop: `3px solid ${col.col}`, borderRadius: 12, padding: 8 }}>
+              <div key={col.id} style={{ flex: "1 1 0", minWidth: 172, background: S.paper, border: `1px solid ${S.line}`, borderTop: `3px solid ${col.col}`, borderRadius: 12, padding: 10 }}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", padding: "2px 4px 8px" }}>
                   <span style={{ fontSize: 11.5, fontWeight: 700, letterSpacing: "0.03em", textTransform: "uppercase", color: col.col }}>{col.nom}</span>
                   <span style={{ fontSize: 10.5, color: S.soft }}>{items.length}</span>
@@ -651,7 +654,7 @@ function Modal({ children, onClose, bas }) {
   return (
     <div style={{ position: "fixed", inset: 0, background: "rgba(38,35,31,.55)", display: "flex", alignItems: bas ? "flex-end" : "center", justifyContent: "center", zIndex: 70, padding: bas ? 0 : 20 }}
       onClick={(e) => e.target === e.currentTarget && onClose()}>
-      <div style={{ background: S.cream, width: "100%", maxWidth: 560, borderRadius: bas ? "18px 18px 0 0" : 16, padding: bas ? "18px 16px 26px" : 20, maxHeight: "92vh", overflowY: "auto" }}>
+      <div style={{ background: S.cream, width: "100%", maxWidth: 560, borderRadius: bas ? "18px 18px 0 0" : 16, padding: bas ? "22px 18px 30px" : 24, maxHeight: "92vh", overflowY: "auto" }}>
         {children}
       </div>
     </div>
@@ -675,9 +678,21 @@ function FicheProspect({ p, onClose, onSave, onDelete }) {
           ))}
         </div>
       </Ch>
-      <div style={{ display: "flex", gap: 10 }}>
-        <Ch label="Montant € (mensuel ou total)" flex><input type="number" value={f.montant} onChange={(e) => set("montant", e.target.value)} style={inp} /></Ch>
-        <Ch label="Source" flex><input value={f.source} onChange={(e) => set("source", e.target.value)} placeholder="BNI, LinkedIn…" style={inp} /></Ch>
+      <Ch label="Type de prestation">
+        <select value={f.type || ""} onChange={(e) => set("type", e.target.value)} style={inp}>
+          <option value="">— à préciser —</option>
+          {TYPES.map((t) => <option key={t.id} value={t.id}>{t.nom}</option>)}
+        </select>
+      </Ch>
+      <div style={{ display: "flex", gap: 12 }}>
+        <Ch label={est(f.type).rec ? "Montant € / mois" : "Montant € (total)"} flex><input type="number" value={f.montant} onChange={(e) => set("montant", e.target.value)} style={inp} /></Ch>
+        <Ch label="Source" flex>
+          <select value={f.source || ""} onChange={(e) => set("source", e.target.value)} style={inp}>
+            <option value="">— aucune —</option>
+            {SOURCES.map((s) => <option key={s} value={s}>{s}</option>)}
+            {f.source && !SOURCES.includes(f.source) && <option value={f.source}>{f.source}</option>}
+          </select>
+        </Ch>
       </div>
       <Ch label="Offre visée"><input value={f.offre} onChange={(e) => set("offre", e.target.value)} placeholder="Visible & Rentable…" style={inp} /></Ch>
       <Ch label="Prochaine relance"><input type="date" value={f.relance} onChange={(e) => set("relance", e.target.value)} style={inp} /></Ch>
@@ -692,7 +707,7 @@ function FicheProspect({ p, onClose, onSave, onDelete }) {
 
 function FicheSignature({ p, onClose, onConfirm }) {
   const [f, setF] = useState({
-    nom: p.societe || p.nom || "", type: "prog", prix: p.montant || "", debut: FY[0].key, duree: 6,
+    nom: p.societe || p.nom || "", type: p.type || "prog", prix: p.montant || "", debut: FY[0].key, duree: 6,
   });
   const set = (k, v) => setF({ ...f, [k]: v });
   return (
@@ -768,13 +783,13 @@ function TitreModale({ titre, onClose }) {
 }
 function Ch({ label, children, flex }) {
   return (
-    <div style={{ marginBottom: 12, flex: flex ? 1 : undefined, minWidth: 0 }}>
-      <div style={{ fontSize: 10, letterSpacing: "0.08em", textTransform: "uppercase", color: S.deep, fontWeight: 600, marginBottom: 4 }}>{label}</div>
+    <div style={{ marginBottom: 15, flex: flex ? 1 : undefined, minWidth: 0 }}>
+      <div style={{ fontSize: 10, letterSpacing: "0.08em", textTransform: "uppercase", color: S.deep, fontWeight: 600, marginBottom: 5 }}>{label}</div>
       {children}
     </div>
   );
 }
-const inp = { width: "100%", padding: "10px 11px", borderRadius: 9, border: `1px solid ${S.line}`, background: "#fff", fontSize: 14.5, color: S.ink, fontWeight: 500 };
+const inp = { width: "100%", padding: "11px 12px", borderRadius: 10, border: `1px solid ${S.line}`, background: "#fff", fontSize: 14.5, color: S.ink, fontWeight: 500 };
 const btnMain = { width: "100%", padding: 14, borderRadius: 12, border: "none", background: S.panel, color: S.cream, fontWeight: 600, fontSize: 14.5, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 7 };
 const btnSec = { flex: 1, padding: 12, borderRadius: 10, border: `1px solid ${S.line}`, background: "#fff", color: S.soft, fontWeight: 600, fontSize: 13.5, cursor: "pointer" };
 const btnAdd = { border: `1.5px dashed ${S.gold}`, background: "transparent", color: S.deep, fontWeight: 600, fontSize: 13.5, borderRadius: 11, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 };
