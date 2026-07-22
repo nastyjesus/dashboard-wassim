@@ -103,6 +103,20 @@ const ETAPES = [
 const etp = (id) => ETAPES.find((e) => e.id === id) || ETAPES[0];
 const SOURCES = ["BNI", "LinkedIn", "Recommandation", "Réseau", "Site web", "Autre"];
 
+/* ---- Objectifs (simulateur d'offres) : config stockée dans une page Notion dédiée ---- */
+const CONFIG_TITLE = "⚙️ Objectifs — ne pas supprimer";
+const OBJ_DEPART = {
+  prestas: [
+    { id: 1, nom: "Visible", detail: "Il est trouvé sur Google. Il ne saura pas encore ce que ça rapporte.", prix: 350, type: "rec", duree: 6, qty: 3 },
+    { id: 2, nom: "Visible & Rentable", detail: "Trouvé sur Google et cité par les IA. Il voit chaque mois ce que sa visibilité produit, en clients et pas en positions.", prix: 525, type: "rec", duree: 6, qty: 10 },
+    { id: 3, nom: "Visible, Rentable & Piloté", detail: "Tout le palier central, plus l'acquisition payante, des tests de conversion et un point stratégique mensuel.", prix: 850, type: "rec", duree: 6, qty: 3 },
+    { id: 4, nom: "Site web", detail: "La fondation posée droit. Le socle sans lequel le reste ne produit rien.", prix: 1900, type: "one", duree: 1, qty: 4 },
+    { id: 5, nom: "Formation Claude", detail: "Déléguer à l'IA ce qui n'exige pas son savoir-faire. Porte d'entrée à part entière.", prix: 900, type: "one", duree: 1, qty: 0 },
+  ],
+  heures: 5,
+  charges: 0,
+};
+
 /* chaque contrat signé génère un tableau d'échéances {mkey, du, encaisse} */
 function echeances(c) {
   const i0 = idxOf(c.debut);
@@ -119,9 +133,15 @@ function echeances(c) {
 /* résultats Notion -> {clients, prospects} */
 function mapRows(rows) {
   const clients = [], prospects = [];
+  let objId = null, objData = null;
   rows.forEach((r) => {
     const p = r.properties || {};
     const title = (p["Client"] && p["Client"].title ? p["Client"].title.map((t) => t.plain_text).join("") : "").trim();
+    if (title === CONFIG_TITLE) { /* page de config objectifs : hors clients/prospects */
+      objId = r.id;
+      try { objData = JSON.parse(rtext(p["Notes"]) || "null"); } catch (e) { objData = null; }
+      return;
+    }
     const statut = p["Statut"] && p["Statut"].select ? p["Statut"].select.name : "Signé";
     const montant = p["Montant HT"] && p["Montant HT"].number != null ? p["Montant HT"].number : 0;
     if (statut === "Pipeline") {
@@ -152,7 +172,22 @@ function mapRows(rows) {
       clients.push(c);
     }
   });
-  return { clients, prospects };
+  return { clients, prospects, objId, objData };
+}
+
+/* ---- calculs du simulateur d'objectifs ---- */
+const objValeurMission = (p) => Number(p.prix) * (p.type === "rec" ? Number(p.duree) || 1 : 1);
+const objCaLigne = (p) => objValeurMission(p) * Number(p.qty);
+function objCompute(prestas, heures, charges) {
+  const rec = prestas.filter((p) => p.type === "rec");
+  const caRec = rec.reduce((s, p) => s + objCaLigne(p), 0);
+  const caOne = prestas.filter((p) => p.type === "one").reduce((s, p) => s + objCaLigne(p), 0);
+  const total = caRec + caOne;
+  const missionsRec = rec.reduce((s, p) => s + Number(p.qty), 0);
+  const moisMoyens = missionsRec ? rec.reduce((s, p) => s + Number(p.qty) * (Number(p.duree) || 6), 0) / missionsRec : 6;
+  const simultanes = (missionsRec * moisMoyens) / 12;
+  const net = charges > 0 ? total - charges * 12 : null;
+  return { caRec, caOne, total, missionsRec, simultanes, net };
 }
 
 const S = { cream: "#F4EFE6", paper: "#FBF8F2", ink: "#26231F", soft: "#514B42", gold: "#B08D57", deep: "#8C6D3F", line: "#E3D9C7", panel: "#282420", green: "#5B7A5B", rust: "#A9683F", grid: "#EAE1D0" };
@@ -174,17 +209,26 @@ const TrendingUp = ic(<><polyline points="23 6 13.5 15.5 8.5 10.5 1 18" /><polyl
 const AlertTriangle = ic(<><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" /><line x1="12" y1="9" x2="12" y2="13" /><line x1="12" y1="17" x2="12.01" y2="17" /></>);
 const ArrowRight = ic(<><line x1="5" y1="12" x2="19" y2="12" /><polyline points="12 5 19 12 12 19" /></>);
 const RefreshCw = ic(<><polyline points="23 4 23 10 17 10" /><polyline points="1 20 1 14 7 14" /><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" /></>);
+const Target = ic(<><circle cx="12" cy="12" r="10" /><circle cx="12" cy="12" r="6" /><circle cx="12" cy="12" r="2" /></>);
+const RotateCcw = ic(<><polyline points="1 4 1 10 7 10" /><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10" /></>);
 
 /* ================= APP ================= */
 function Cockpit() {
   const [vue, setVue] = useState("pilotage");
   const [clients, setClients] = useState([]);
   const [prospects, setProspects] = useState([]);
-  const [heures] = useState(5);
   const [chargement, setChargement] = useState(true);
   const [erreur, setErreur] = useState("");
   const [live, setLive] = useState(false);
   const [occupe, setOccupe] = useState(false);
+
+  /* objectifs (simulateur) */
+  const [prestas, setPrestas] = useState(OBJ_DEPART.prestas);
+  const [heures, setHeures] = useState(OBJ_DEPART.heures);
+  const [charges, setCharges] = useState(OBJ_DEPART.charges);
+  const [objId, setObjId] = useState(null);
+  const [confirmReset, setConfirmReset] = useState(false);
+  const [objSaveEtat, setObjSaveEtat] = useState(""); // "" | "en cours" | "ok" | "err"
 
   const [fProspect, setFProspect] = useState(null);
   const [fClient, setFClient] = useState(null);
@@ -195,9 +239,15 @@ function Cockpit() {
     setErreur("");
     try {
       const rows = await apiGet();
-      const { clients, prospects } = mapRows(rows);
+      const { clients, prospects, objId: oid, objData } = mapRows(rows);
       setClients(clients);
       setProspects(prospects);
+      setObjId(oid);
+      if (objData && Array.isArray(objData.prestas)) {
+        setPrestas(objData.prestas);
+        setHeures(objData.heures ?? 5);
+        setCharges(objData.charges ?? 0);
+      }
       setLive(true);
     } catch (e) {
       setLive(false);
@@ -215,6 +265,29 @@ function Cockpit() {
     catch (e) { setErreur((label || "Enregistrement") + " impossible (" + e.message + ")."); }
     finally { setOccupe(false); }
   }
+
+  /* ---- sauvegarde des objectifs dans Notion (page config), debouncée ---- */
+  function persistObjectifs(nextPrestas, nextHeures, nextCharges) {
+    const pp = nextPrestas !== undefined ? nextPrestas : prestas;
+    const hh = nextHeures !== undefined ? nextHeures : heures;
+    const cc = nextCharges !== undefined ? nextCharges : charges;
+    if (window.__objTimer) clearTimeout(window.__objTimer);
+    setObjSaveEtat("en cours");
+    window.__objTimer = setTimeout(async () => {
+      const fields = { "Client": CONFIG_TITLE, "Statut": "Config", "Notes": JSON.stringify({ prestas: pp, heures: hh, charges: cc }) };
+      try {
+        if (objId) await apiUpdate(objId, fields);
+        else { const r = await apiCreate(fields); if (r && r.id) setObjId(r.id); }
+        setObjSaveEtat("ok");
+      } catch (e) { setObjSaveEtat("err"); }
+    }, 900);
+  }
+  const majPresta = (id, champ, valeur) => { const np = prestas.map((p) => (p.id === id ? { ...p, [champ]: valeur } : p)); setPrestas(np); persistObjectifs(np); };
+  const ajouterPresta = () => { const np = [...prestas, { id: Date.now(), nom: "Nouvelle prestation", detail: "", prix: 0, type: "rec", duree: 6, qty: 0 }]; setPrestas(np); persistObjectifs(np); };
+  const supprimerPresta = (id) => { const np = prestas.filter((p) => p.id !== id); setPrestas(np); persistObjectifs(np); };
+  const setHeuresObj = (h) => { setHeures(h); persistObjectifs(undefined, h); };
+  const setChargesObj = (c) => { setCharges(c); persistObjectifs(undefined, undefined, c); };
+  const reinitObjectifs = () => { setPrestas(OBJ_DEPART.prestas); setHeures(OBJ_DEPART.heures); setCharges(OBJ_DEPART.charges); persistObjectifs(OBJ_DEPART.prestas, OBJ_DEPART.heures, OBJ_DEPART.charges); setConfirmReset(false); };
 
   /* ---------------- calculs partagés ---------------- */
   const moisSigne = FY.map((o) =>
@@ -252,6 +325,9 @@ function Cockpit() {
   })();
 
   const tvaAReverser = caEncaisse * TVA;
+
+  const objSim = objCompute(prestas, heures, charges);
+  const objectif = objSim.total > 0 ? objSim.total : 60000;
 
   /* ---------------- actions (écrivent dans Notion) ---------------- */
   const champsProspect = (p) => ({
@@ -320,6 +396,7 @@ function Cockpit() {
     { id: "crm", nom: "CRM", ic: <Users size={16} /> },
     { id: "treso", nom: "Trésorerie", ic: <Wallet size={16} /> },
     { id: "contrats", nom: "Contrats", ic: <FileText size={16} /> },
+    { id: "objectifs", nom: "Objectifs", ic: <Target size={16} /> },
   ];
 
   return (
@@ -360,17 +437,18 @@ function Cockpit() {
       </div>
 
       <div style={{ padding: "20px 18px 0", maxWidth: 1120, margin: "0 auto" }}>
-        {vue === "pilotage" && <Pilotage {...{ caSigne, caEncaisse, moisSigne, cumulSigne, pipePondere, pipeBrut, prospects, simultanes, heures, totalImpayes, impayes, setVue }} />}
+        {vue === "pilotage" && <Pilotage {...{ caSigne, caEncaisse, moisSigne, cumulSigne, pipePondere, pipeBrut, prospects, simultanes, heures, totalImpayes, impayes, setVue, objectif }} />}
         {vue === "crm" && <CRM {...{ prospects, setFProspect, bougerEtape, marquerPerdu, pipePondere, pipeBrut }} />}
         {vue === "treso" && <Treso {...{ clients, moisSigne, moisEncaisse, encaisser, tvaAReverser, caEncaisse, impayes, totalImpayes }} />}
         {vue === "contrats" && <Contrats {...{ clients, setFClient, setASupprimer, caSigne }} />}
+        {vue === "objectifs" && <Objectifs {...{ prestas, heures, charges, objSim, majPresta, ajouterPresta, supprimerPresta, setHeuresObj, setChargesObj, setConfirmReset, objSaveEtat, caSigne }} />}
       </div>
 
       {/* barre navigation basse */}
-      <div style={{ position: "fixed", bottom: 0, left: 0, right: 0, background: S.panel, borderTop: `1px solid ${S.deep}`, display: "flex", justifyContent: "center", gap: 10, padding: "10px 12px calc(12px + env(safe-area-inset-bottom))", zIndex: 30 }}>
+      <div style={{ position: "fixed", bottom: 0, left: 0, right: 0, background: S.panel, borderTop: `1px solid ${S.deep}`, display: "flex", justifyContent: "center", gap: 6, padding: "10px 10px calc(12px + env(safe-area-inset-bottom))", zIndex: 30 }}>
         {NAV.map((n) => (
           <button key={n.id} onClick={() => setVue(n.id)}
-            style={{ flex: "1 1 0", maxWidth: 160, background: vue === n.id ? S.deep : "transparent", border: "none", borderRadius: 12, color: vue === n.id ? S.cream : "#C9BFAE", padding: "9px 6px", cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", gap: 5, fontSize: 11.5, fontWeight: 600 }}>
+            style={{ flex: "1 1 0", maxWidth: 128, background: vue === n.id ? S.deep : "transparent", border: "none", borderRadius: 12, color: vue === n.id ? S.cream : "#C9BFAE", padding: "9px 4px", cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", gap: 4, fontSize: 11, fontWeight: 600 }}>
             {n.ic}{n.nom}
           </button>
         ))}
@@ -390,16 +468,35 @@ function Cockpit() {
           </div>
         </Modal>
       )}
+      {confirmReset && (
+        <Modal onClose={() => setConfirmReset(false)}>
+          <div style={{ ...serif, fontSize: 19, fontWeight: 600, color: S.ink }}>Revenir aux prix validés ?</div>
+          <p style={{ fontSize: 13, color: S.soft, marginTop: 6 }}>Tes prestations seront remplacées par les paliers validés (350 / 525 / 850 €, site 1 900 €, formation 900 €). Enregistré dans Notion.</p>
+          <div style={{ display: "flex", gap: 8, marginTop: 16 }}>
+            <button onClick={() => setConfirmReset(false)} style={btnSec}>Annuler</button>
+            <button onClick={reinitObjectifs} style={{ ...btnSec, background: S.panel, color: S.cream, border: "none" }}>Réinitialiser</button>
+          </div>
+        </Modal>
+      )}
     </div>
   );
 }
 
 /* ================= VUE PILOTAGE ================= */
-function Pilotage({ caSigne, caEncaisse, moisSigne, cumulSigne, pipePondere, pipeBrut, prospects, simultanes, heures, totalImpayes, impayes, setVue }) {
-  const manque60 = Math.max(0, 60000 - caSigne);
+function Pilotage({ caSigne, caEncaisse, moisSigne, cumulSigne, pipePondere, pipeBrut, prospects, simultanes, heures, totalImpayes, impayes, setVue, objectif }) {
+  const manque = Math.max(0, objectif - caSigne);
   const projete = caSigne + pipePondere;
   const actifs = prospects.filter((p) => !["signe", "perdu"].includes(p.etape)).length;
   const maxMois = Math.max(1, ...moisSigne);
+
+  /* rythme : où devrais-tu en être aujourd'hui vs objectif (cible linéaire sur 12 mois) */
+  const nowP = new Date();
+  const idxNowP = (nowP.getFullYear() - 2026) * 12 + (nowP.getMonth() + 1 - 9);
+  const moisEcoules = Math.max(0, Math.min(12, idxNowP + 1));
+  const cibleADate = objectif * moisEcoules / 12;
+  const ecart = caSigne - cibleADate; // >0 avance, <0 retard
+  const cibleMensuelle = objectif / 12;
+  const restePropales = Math.ceil((manque / 3150) * 3);
 
   return (
     <div>
@@ -427,18 +524,49 @@ function Pilotage({ caSigne, caEncaisse, moisSigne, cumulSigne, pipePondere, pip
       </div>
 
       <div style={{ background: S.paper, border: `1px solid ${S.line}`, borderLeft: `4px solid ${S.gold}`, borderRadius: 14, padding: "15px 17px", marginTop: 12 }}>
-        <div style={{ ...serif, fontSize: 18, fontWeight: 600, color: S.ink, marginBottom: 8 }}>Ce qu'il te reste à faire pour 60k</div>
-        {manque60 <= 0 ? (
-          <p style={{ fontSize: 13.5, color: S.green, lineHeight: 1.6, margin: 0, fontWeight: 600 }}>Objectif 60k atteint 🎉 — vise les 80k.</p>
+        <div style={{ ...serif, fontSize: 18, fontWeight: 600, color: S.ink, marginBottom: 8 }}>Reste à signer sur l'année</div>
+        {manque <= 0 ? (
+          <p style={{ fontSize: 13.5, color: S.green, lineHeight: 1.6, margin: 0, fontWeight: 600 }}>Objectif de {court(objectif)} € atteint 🎉</p>
         ) : (
           <div style={{ fontSize: 13.5, color: S.soft, lineHeight: 1.7 }}>
-            <div>Il te manque <b style={{ color: S.ink }}>{court(manque60)} €</b> de CA signé.</div>
-            <div>Un mandat type rapporte <b style={{ color: S.ink }}>3 150 €</b> <span style={{ opacity: 0.8 }}>(525 €/mois × 6 mois)</span>.</div>
-            <div style={{ marginTop: 6 }}>→ à signer : <b style={{ color: S.ink }}>{Math.ceil(manque60 / 3150)} mandats</b></div>
-            <div>→ à envoyer : <b style={{ color: S.ink }}>{Math.ceil((manque60 / 3150) * 3)} propales</b> <span style={{ opacity: 0.8 }}>(tu signes ~1 propale sur 3)</span></div>
-            <div style={{ marginTop: 6 }}>Aujourd'hui dans ton pipeline : <b style={{ color: S.ink }}>{actifs} prospects</b> actifs.</div>
+            <div>Objectif annuel : <b style={{ color: S.ink }}>{court(objectif)} €</b> <span style={{ opacity: 0.8 }}>(défini dans l'onglet Objectifs)</span></div>
+            <div>Déjà signé : <b style={{ color: S.ink }}>{court(caSigne)} €</b> → <b style={{ color: S.rust }}>reste {court(manque)} €</b> à signer.</div>
+            <div style={{ marginTop: 6 }}>Soit ≈ <b style={{ color: S.ink }}>{Math.ceil(manque / 3150)} clients</b> <span style={{ opacity: 0.8 }}>(3 150 € l'unité : 525 €/mois × 6)</span> ou <b style={{ color: S.ink }}>{restePropales} propales</b> à envoyer <span style={{ opacity: 0.8 }}>(~1 signée sur 3)</span>.</div>
+            <div style={{ marginTop: 6 }}>Dans ton pipeline aujourd'hui : <b style={{ color: S.ink }}>{actifs} prospects</b> actifs, {court(pipePondere)} € pondérés.</div>
           </div>
         )}
+      </div>
+
+      {/* rythme mensuel : dois-je accélérer ? */}
+      <div style={{ background: S.panel, borderRadius: 14, padding: "15px 16px", marginTop: 12, color: S.cream }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", flexWrap: "wrap", gap: 6 }}>
+          <div style={{ ...serif, fontSize: 17, fontWeight: 600 }}>Rythme sur l'objectif</div>
+          <div style={{ fontSize: 12.5, fontWeight: 600, color: ecart >= 0 ? "#9DBF9D" : "#E0A277" }}>
+            {moisEcoules === 0 ? "exercice pas encore commencé" : ecart >= 0 ? `en avance de ${court(ecart)} €` : `en retard de ${court(-ecart)} € → accélère`}
+          </div>
+        </div>
+        <div style={{ fontSize: 12, color: "#C9BFAE", marginTop: 4 }}>
+          À ce stade tu devrais avoir signé <b style={{ color: S.cream }}>{court(cibleADate)} €</b> ({moisEcoules}/12 de l'objectif). Cible : <b style={{ color: S.cream }}>{court(cibleMensuelle)} € / mois</b>.
+        </div>
+        <div style={{ display: "flex", alignItems: "flex-end", gap: 3, height: 60, marginTop: 12 }}>
+          {moisSigne.map((v, i) => {
+            const cumul = cumulSigne[i];
+            const cible = objectif * (i + 1) / 12;
+            const ok = cumul >= cible;
+            const passe = i < moisEcoules;
+            const h = Math.min(100, (cumul / objectif) * 100);
+            return (
+              <div key={i} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 3 }} title={`${MOIS[FY[i].m - 1]} : signé cumulé ${court(cumul)} € / cible ${court(cible)} €`}>
+                <div style={{ width: "100%", position: "relative", height: 44, background: "#3a352e", borderRadius: 3, overflow: "hidden" }}>
+                  <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: `${h}%`, background: ok ? "linear-gradient(180deg,#7DA07D,#5B7A5B)" : "linear-gradient(180deg,#C99B6E,#A9683F)" }} />
+                  <div style={{ position: "absolute", left: 0, right: 0, bottom: `${Math.min(100, ((i + 1) / 12) * 100)}%`, height: 2, background: "#C9BFAE", opacity: 0.7 }} />
+                </div>
+                <div style={{ fontSize: 8, color: passe ? "#C9BFAE" : "#6d655a" }}>{MOIS[FY[i].m - 1].slice(0, 1).toUpperCase()}</div>
+              </div>
+            );
+          })}
+        </div>
+        <div style={{ fontSize: 10.5, color: "#8d857a", marginTop: 7 }}>Chaque barre = CA signé cumulé à ce mois. Barre <span style={{ color: "#9DBF9D" }}>verte</span> = au-dessus de la cible, <span style={{ color: "#E0A277" }}>orange</span> = en dessous. Le trait clair = cible cumulée.</div>
       </div>
 
       <div style={{ display: "flex", gap: 10, marginTop: 12, flexWrap: "wrap" }}>
@@ -647,6 +775,144 @@ function Contrats({ clients, setFClient, setASupprimer, caSigne }) {
     </div>
   );
 }
+
+/* ================= VUE OBJECTIFS (simulateur d'offres) ================= */
+function Objectifs({ prestas, heures, charges, objSim, majPresta, ajouterPresta, supprimerPresta, setHeuresObj, setChargesObj, setConfirmReset, objSaveEtat, caSigne }) {
+  const { caRec, caOne, total, missionsRec, simultanes, net } = objSim;
+  const pct = (t) => Math.min(100, (total / t) * 100);
+  const etatTxt = { "en cours": "enregistrement…", ok: "enregistré dans Notion", err: "échec enregistrement" };
+  return (
+    <div>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", flexWrap: "wrap", gap: 6 }}>
+        <div>
+          <div style={{ fontSize: 10, letterSpacing: "0.18em", textTransform: "uppercase", color: S.deep, fontWeight: 600 }}>Simulateur · missions de 6 mois</div>
+          <h2 style={{ ...serif, fontSize: 22, fontWeight: 600, color: S.ink, margin: "3px 0 0" }}>Ton objectif annuel</h2>
+        </div>
+        {objSaveEtat && <span style={{ fontSize: 11.5, color: objSaveEtat === "err" ? S.rust : S.soft }}>{etatTxt[objSaveEtat]}</span>}
+      </div>
+      <p style={{ fontSize: 12.5, color: S.soft, marginTop: 4 }}>Compose ton mix d'offres visé. Le total devient ton objectif de CA, repris sur l'onglet Pilotage. Sauvegarde auto dans Notion.</p>
+
+      {/* total + jauges */}
+      <div style={{ background: S.panel, borderRadius: 16, padding: "20px 18px", marginTop: 14, color: S.cream }}>
+        <div style={{ fontSize: 10, letterSpacing: "0.18em", textTransform: "uppercase", color: S.gold, fontWeight: 600 }}>CA annuel visé</div>
+        <div style={{ ...serif, fontSize: 42, fontWeight: 600, lineHeight: 1, marginTop: 4 }}>
+          {Math.round(total).toLocaleString("fr-FR")}<span style={{ fontSize: 15, color: S.gold, marginLeft: 5 }}>€ HT</span>
+        </div>
+        <div style={{ fontSize: 12.5, color: "#C9BFAE", marginTop: 6 }}>{eur(caRec)} de récurrent · {eur(caOne)} de ponctuel · déjà signé {eur(caSigne)}</div>
+        {[60000, 80000].map((t) => (
+          <div key={t} style={{ marginTop: 16 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, color: "#C9BFAE", marginBottom: 5 }}>
+              <span>Palier {t / 1000}k</span>
+              <span style={{ color: total >= t ? "#9DBF9D" : "#E0A277", fontWeight: 600 }}>{total >= t ? `atteint, +${eur(total - t)}` : `manque ${eur(t - total)}`}</span>
+            </div>
+            <div style={{ height: 10, background: "#3a352e", borderRadius: 6, overflow: "hidden" }}>
+              <div style={{ height: "100%", width: `${pct(t)}%`, background: `linear-gradient(90deg,${S.deep},${S.gold})`, borderRadius: 6, transition: "width .35s" }} />
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* indicateurs */}
+      <div style={{ display: "flex", gap: 10, marginTop: 12, flexWrap: "wrap" }}>
+        {[
+          { l: "Clients simultanés", v: simultanes.toFixed(1), s: `${missionsRec} missions / an` },
+          { l: "Charge mensuelle", v: `${Math.round(simultanes * heures)} h`, s: `à ${heures} h par client` },
+          { l: "Reste après charges", v: net === null ? "—" : eur(net), s: "sur l'année" },
+        ].map((k, i) => (
+          <div key={i} style={{ flex: "1 1 150px", background: S.paper, border: `1px solid ${S.line}`, borderRadius: 12, padding: "11px 13px" }}>
+            <div style={{ fontSize: 10, letterSpacing: "0.05em", textTransform: "uppercase", color: S.deep, fontWeight: 600 }}>{k.l}</div>
+            <div style={{ ...serif, fontSize: 22, color: S.ink, marginTop: 2 }}>{k.v}</div>
+            <div style={{ fontSize: 11.5, color: S.soft }}>{k.s}</div>
+          </div>
+        ))}
+      </div>
+
+      <div style={{ display: "flex", gap: 10, marginTop: 10, flexWrap: "wrap" }}>
+        {[{ l: "h / client / mois", v: heures, set: setHeuresObj }, { l: "charges € / mois", v: charges, set: setChargesObj }].map((f, i) => (
+          <label key={i} style={{ flex: "1 1 150px", background: S.paper, border: `1px solid ${S.line}`, borderRadius: 12, padding: "9px 12px", fontSize: 12, color: S.soft, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
+            {f.l}
+            <input type="number" value={f.v} min="0" onChange={(e) => f.set(Math.max(0, Number(e.target.value) || 0))}
+              style={{ width: 70, textAlign: "right", border: `1px solid ${S.line}`, borderRadius: 7, padding: "5px 7px", fontWeight: 600, color: S.ink, background: "#fff" }} />
+          </label>
+        ))}
+      </div>
+
+      {/* prestations */}
+      <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", marginTop: 24, marginBottom: 2 }}>
+        <h3 style={{ ...serif, fontSize: 20, fontWeight: 600, color: S.ink }}>Prestations</h3>
+        <button onClick={() => setConfirmReset(true)} style={{ display: "flex", alignItems: "center", gap: 5, background: "none", border: "none", color: S.deep, fontSize: 11.5, fontWeight: 600, cursor: "pointer", padding: 4 }}>
+          <RotateCcw size={12} /> Prix validés
+        </button>
+      </div>
+
+      {prestas.map((p) => (
+        <div key={p.id} style={{ background: S.paper, border: `1px solid ${S.line}`, borderLeft: `4px solid ${p.type === "rec" ? S.deep : S.gold}`, borderRadius: 12, padding: "12px 13px", marginTop: 9 }}>
+          <div style={{ display: "flex", gap: 8, alignItems: "flex-start" }}>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontSize: 9.5, letterSpacing: "0.07em", textTransform: "uppercase", color: S.deep, fontWeight: 700, marginBottom: 3 }}>Intitulé</div>
+              <input value={p.nom} onChange={(e) => majPresta(p.id, "nom", e.target.value)} placeholder="Nom de la prestation"
+                style={{ ...serif, width: "100%", fontSize: 17, fontWeight: 600, color: S.ink, background: "#fff", border: `1px solid ${S.line}`, borderRadius: 8, padding: "7px 9px", outline: "none" }} />
+            </div>
+            <button onClick={() => supprimerPresta(p.id)} title="Supprimer"
+              style={{ width: 30, height: 30, flex: "none", marginTop: 17, border: `1px solid ${S.line}`, background: "#fff", borderRadius: 8, color: S.soft, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <Trash2 size={13} />
+            </button>
+          </div>
+          <div style={{ marginTop: 9 }}>
+            <div style={{ fontSize: 9.5, letterSpacing: "0.07em", textTransform: "uppercase", color: S.deep, fontWeight: 700, marginBottom: 3 }}>Détail</div>
+            <textarea value={p.detail || ""} onChange={(e) => majPresta(p.id, "detail", e.target.value)} rows={2} placeholder="Ce que le client obtient"
+              style={{ width: "100%", fontSize: 13, lineHeight: 1.5, color: S.soft, background: "#fff", border: `1px solid ${S.line}`, borderRadius: 8, padding: "8px 9px", outline: "none", resize: "vertical", minHeight: 44 }} />
+          </div>
+          <div style={{ display: "flex", gap: 6, marginTop: 10 }}>
+            {[["rec", "Récurrent"], ["one", "Ponctuel"]].map(([v, l]) => (
+              <button key={v} onClick={() => majPresta(p.id, "type", v)}
+                style={{ flex: 1, padding: "7px 6px", borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: "pointer", border: `1px solid ${p.type === v ? S.deep : S.line}`, background: p.type === v ? S.deep : "#fff", color: p.type === v ? S.cream : S.soft }}>{l}</button>
+            ))}
+          </div>
+          <div style={{ display: "flex", gap: 8, marginTop: 9, flexWrap: "wrap" }}>
+            <ChO label={p.type === "rec" ? "€ / mois" : "€ total"}>
+              <input type="number" value={p.prix} min="0" step="10" onChange={(e) => majPresta(p.id, "prix", Math.max(0, Number(e.target.value) || 0))} style={numObj} />
+            </ChO>
+            {p.type === "rec" && (
+              <ChO label="Durée">
+                <input type="number" value={p.duree} min="1" max="36" onChange={(e) => majPresta(p.id, "duree", Math.max(1, Number(e.target.value) || 1))} style={numObj} />
+              </ChO>
+            )}
+            <ChO label={p.type === "rec" ? "Missions / an" : "Ventes / an"}>
+              <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                <button onClick={() => majPresta(p.id, "qty", Math.max(0, Number(p.qty) - 1))} style={stepObj}>−</button>
+                <input type="number" value={p.qty} min="0" onChange={(e) => majPresta(p.id, "qty", Math.max(0, Number(e.target.value) || 0))} style={{ ...numObj, width: 46, textAlign: "center" }} />
+                <button onClick={() => majPresta(p.id, "qty", Number(p.qty) + 1)} style={stepObj}>+</button>
+              </div>
+            </ChO>
+          </div>
+          <div style={{ display: "flex", gap: 14, marginTop: 10, paddingTop: 9, borderTop: `1px dashed ${S.line}`, fontSize: 12, flexWrap: "wrap" }}>
+            {p.type === "rec" && <div><span style={{ color: S.soft }}>Valeur mission </span><b style={{ ...serif, fontSize: 15 }}>{eur(objValeurMission(p))}</b></div>}
+            <div><span style={{ color: S.soft }}>CA de la ligne </span><b style={{ ...serif, fontSize: 15, color: S.deep }}>{eur(objCaLigne(p))}</b></div>
+          </div>
+        </div>
+      ))}
+
+      <button onClick={ajouterPresta} style={{ width: "100%", marginTop: 14, border: `1.5px dashed ${S.gold}`, background: "transparent", color: S.deep, fontWeight: 600, fontSize: 14, padding: 13, borderRadius: 12, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
+        <Plus size={16} /> Ajouter une prestation
+      </button>
+
+      <div style={{ fontSize: 11.5, color: S.soft, marginTop: 18, borderTop: `1px solid ${S.line}`, paddingTop: 12, lineHeight: 1.6 }}>
+        Simulation d'une année pleine (planification), distincte du suivi réel. Une mission récurrente vaut son prix mensuel × sa durée. Le total sert d'objectif annuel comparé à ton CA réellement signé.
+      </div>
+    </div>
+  );
+}
+function ChO({ label, children }) {
+  return (
+    <div style={{ flex: "1 1 92px", minWidth: 0 }}>
+      <div style={{ fontSize: 9.5, letterSpacing: "0.07em", textTransform: "uppercase", color: S.deep, fontWeight: 700, marginBottom: 3 }}>{label}</div>
+      {children}
+    </div>
+  );
+}
+const numObj = { width: "100%", padding: "8px 9px", borderRadius: 8, border: `1px solid ${S.line}`, background: "#fff", fontSize: 14, color: S.ink, fontWeight: 600 };
+const stepObj = { width: 28, height: 32, flex: "none", border: `1px solid ${S.line}`, background: "#fff", borderRadius: 8, color: S.deep, fontSize: 16, fontWeight: 700, cursor: "pointer", lineHeight: 1 };
 
 /* ================= MODALES ================= */
 function Modal({ children, onClose, bas }) {
