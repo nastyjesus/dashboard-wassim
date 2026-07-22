@@ -556,7 +556,7 @@ function Treso({ clients, moisSigne, moisEncaisse, encaisser, tvaAReverser, caEn
       </div>
 
       <p style={{ fontSize: 12.5, color: S.soft, marginTop: 14, marginBottom: 6 }}>
-        Ligne <b>dû</b> calculée depuis les contrats. Touchez une cellule <b>encaissé</b> pour saisir ce que vous avez réellement reçu — c'est écrit dans Notion. Une échéance passée non encaissée bascule en impayé.
+        Ligne <b>dû</b> calculée depuis les contrats. Touchez une cellule <b>encaissé</b> pour saisir ce que vous avez réellement reçu — c'est écrit dans Notion. Une échéance passée non encaissée bascule en impayé. La ligne <b>TVA 20 %</b> estime ce que tu devras reverser, calculée sur l'encaissé du mois.
       </p>
 
       <div className="wrap" style={{ overflowX: "auto", WebkitOverflowScrolling: "touch" }}>
@@ -609,6 +609,12 @@ function Treso({ clients, moisSigne, moisEncaisse, encaisser, tvaAReverser, caEn
                 <span style={{ fontSize: 11.5, fontWeight: 700, textTransform: "uppercase", color: S.green }}>Encaissé</span>
               </td>
               {moisEncaisse.map((v, i) => <td key={i} style={{ ...td, background: "#EDF1EC" }}><div style={{ padding: "0 7px", lineHeight: "35px", fontSize: 12.5, fontWeight: 600, color: v ? S.green : S.line }}>{v ? court(v) : "·"}</div></td>)}
+            </tr>
+            <tr>
+              <td style={{ position: "sticky", left: 0, background: "#F6EDE4", borderRight: `2px solid ${S.line}`, padding: "6px 9px" }}>
+                <span style={{ fontSize: 11.5, fontWeight: 700, textTransform: "uppercase", color: S.deep }}>TVA 20 %</span>
+              </td>
+              {moisEncaisse.map((v, i) => { const t = v * TVA; return <td key={i} style={{ ...td, background: "#F6EDE4" }}><div style={{ padding: "0 7px", lineHeight: "35px", fontSize: 12.5, fontWeight: 600, color: t ? S.deep : S.line }}>{t ? court(t) : "·"}</div></td>; })}
             </tr>
           </tbody>
         </table>
