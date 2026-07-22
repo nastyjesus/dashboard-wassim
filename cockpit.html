@@ -427,11 +427,18 @@ function Pilotage({ caSigne, caEncaisse, moisSigne, cumulSigne, pipePondere, pip
       </div>
 
       <div style={{ background: S.paper, border: `1px solid ${S.line}`, borderLeft: `4px solid ${S.gold}`, borderRadius: 14, padding: "15px 17px", marginTop: 12 }}>
-        <div style={{ ...serif, fontSize: 18, fontWeight: 600, color: S.ink, marginBottom: 6 }}>Ce qu'il te reste à faire</div>
-        <p style={{ fontSize: 13.5, color: S.soft, lineHeight: 1.6, margin: 0 }}>
-          Il te manque <b style={{ color: S.ink }}>{court(manque60)} €</b> pour 60k. À un panier moyen de 525 € sur 6 mois, soit 3 150 € par mandat, cela représente <b style={{ color: S.ink }}>{Math.ceil(manque60 / 3150)} mandats</b> à signer.
-          Avec un taux de signature de 1 propale sur 3, tu dois envoyer <b style={{ color: S.ink }}>{Math.ceil((manque60 / 3150) * 3)} propales</b>. Tu as aujourd'hui <b style={{ color: S.ink }}>{actifs}</b> prospects actifs dans ton pipeline.
-        </p>
+        <div style={{ ...serif, fontSize: 18, fontWeight: 600, color: S.ink, marginBottom: 8 }}>Ce qu'il te reste à faire pour 60k</div>
+        {manque60 <= 0 ? (
+          <p style={{ fontSize: 13.5, color: S.green, lineHeight: 1.6, margin: 0, fontWeight: 600 }}>Objectif 60k atteint 🎉 — vise les 80k.</p>
+        ) : (
+          <div style={{ fontSize: 13.5, color: S.soft, lineHeight: 1.7 }}>
+            <div>Il te manque <b style={{ color: S.ink }}>{court(manque60)} €</b> de CA signé.</div>
+            <div>Un mandat type rapporte <b style={{ color: S.ink }}>3 150 €</b> <span style={{ opacity: 0.8 }}>(525 €/mois × 6 mois)</span>.</div>
+            <div style={{ marginTop: 6 }}>→ à signer : <b style={{ color: S.ink }}>{Math.ceil(manque60 / 3150)} mandats</b></div>
+            <div>→ à envoyer : <b style={{ color: S.ink }}>{Math.ceil((manque60 / 3150) * 3)} propales</b> <span style={{ opacity: 0.8 }}>(tu signes ~1 propale sur 3)</span></div>
+            <div style={{ marginTop: 6 }}>Aujourd'hui dans ton pipeline : <b style={{ color: S.ink }}>{actifs} prospects</b> actifs.</div>
+          </div>
+        )}
       </div>
 
       <div style={{ display: "flex", gap: 10, marginTop: 12, flexWrap: "wrap" }}>
