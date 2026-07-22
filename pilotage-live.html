@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<!--
+  PILOTAGE CA (LIVE) — Wassim Loumi, copilote digital
+  Exercice 1 sept. 2026 → 31 août 2027
+  Lit la base Notion "🎯 Pilotage 26/27" (contrats et pipeline) via un Worker Cloudflare.
+  Reconnaît le CA mois par mois depuis Montant HT + Début + Durée. Si Notion ne
+  répond pas, bascule sur une photo figée validée le 22/07/2026. Jamais d'écran vide.
+  Déploiement : déposer ce fichier dans le dépôt nastyjesus/dashboard-wassim.
+  Aucun secret dans le navigateur : le token Notion vit côté serveur (secret Wrangler).
+-->
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pilotage CA — Wassim Loumi</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=EB+Garamond:wght@400;500;600&family=Raleway:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{--cream:#F4EFE6;--paper:#FBF8F2;--ink:#26231F;--soft:#514B42;--gold:#B08D57;--deep:#8C6D3F;--line:#E3D9C7;--panel:#282420;--green:#5B7A5B;--rust:#A9683F;--grid:#EAE1D0}
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--cream);color:var(--ink);font-family:'Raleway',system-ui,-apple-system,sans-serif;line-height:1.55;padding:20px 14px 60px}
+  .wrap{max-width:760px;margin:0 auto}
+  .serif{font-family:'EB Garamond',Georgia,serif}
+  .eyebrow{font-size:10px;letter-spacing:.2em;text-transform:uppercase;color:var(--deep);font-weight:600}
+  h1{font-family:'EB Garamond',Georgia,serif;font-weight:600;font-size:28px;line-height:1.1;margin:5px 0 3px}
+  .sub{font-size:13px;color:var(--soft)}
+  .topbar{display:flex;justify-content:space-between;align-items:flex-start;gap:10px}
+  .btn{border:1px solid var(--line);background:var(--paper);color:var(--deep);font-weight:600;font-size:12px;border-radius:10px;padding:8px 12px;cursor:pointer;font-family:'Raleway',sans-serif;white-space:nowrap}
+  .btn:active{transform:scale(.98)}
+
+  .status{display:flex;align-items:center;gap:7px;font-size:12px;margin-top:12px;padding:8px 12px;border-radius:10px;border:1px solid var(--line);background:var(--paper)}
+  .dot{width:8px;height:8px;border-radius:50%;flex:none}
+  .dot.live{background:var(--green)}.dot.frozen{background:var(--gold)}.dot.load{background:var(--soft)}
+
+  .panel{background:var(--panel);color:var(--cream);border-radius:16px;padding:20px 18px;margin-top:12px}
+  .kpi-lab{font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:var(--gold);font-weight:600}
+  .kpi-big{font-family:'EB Garamond',Georgia,serif;font-size:42px;font-weight:600;line-height:1;margin-top:4px}
+  .kpi-big span{font-size:15px;color:var(--gold);margin-left:5px}
+  .kpi-note{font-size:12.5px;color:#C9BFAE;margin-top:6px}
+  .gauge{margin-top:15px}
+  .gauge-top{display:flex;justify-content:space-between;font-size:12px;color:#C9BFAE;margin-bottom:5px}
+  .gauge-bar{height:10px;background:#3a352e;border-radius:6px;overflow:hidden;position:relative}
+  .gauge-fill{height:100%;background:linear-gradient(90deg,var(--deep),var(--gold));border-radius:6px;transition:width .4s}
+  .gauge-pipe{position:absolute;top:0;height:100%;background:repeating-linear-gradient(45deg,#5d564c,#5d564c 4px,transparent 4px,transparent 8px)}
+
+  .cards{display:flex;gap:10px;margin-top:12px;flex-wrap:wrap}
+  .card{flex:1 1 150px;background:var(--paper);border:1px solid var(--line);border-radius:12px;padding:11px 13px}
+  .card .l{font-size:10px;letter-spacing:.05em;text-transform:uppercase;color:var(--deep);font-weight:600}
+  .card .v{font-family:'EB Garamond',Georgia,serif;font-size:22px;color:var(--ink);margin-top:2px}
+  .card .s{font-size:11.5px;color:var(--soft)}
+
+  .block{background:var(--paper);border:1px solid var(--line);border-radius:14px;padding:15px 16px;margin-top:14px}
+  .block.gold{border-left:4px solid var(--gold)}
+  h2{font-family:'EB Garamond',Georgia,serif;font-weight:600;font-size:19px;margin-bottom:4px}
+  .block p{font-size:13.5px;color:var(--soft);line-height:1.6}
+  .block p b{color:var(--ink)}
+  h3{font-family:'EB Garamond',Georgia,serif;font-weight:600;font-size:21px;margin:24px 0 4px;color:var(--ink)}
+
+  .cli{background:var(--paper);border:1px solid var(--line);border-radius:12px;padding:11px 14px;margin-top:9px}
+  .cli.rec{border-left:4px solid var(--deep)}
+  .cli.one{border-left:4px solid var(--gold)}
+  .cli.pipe{border-left:4px dashed var(--line)}
+  .cli-head{display:flex;justify-content:space-between;align-items:flex-start;gap:8px;flex-wrap:wrap}
+  .cli-nom{font-family:'EB Garamond',Georgia,serif;font-size:16px;font-weight:600;color:var(--ink)}
+  .cli-meta{font-size:12px;color:var(--soft);margin-top:1px}
+  .cli-mt{font-family:'EB Garamond',Georgia,serif;font-size:16px;font-weight:600;color:var(--deep);white-space:nowrap}
+  .tag{font-size:9px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:#fff;padding:2px 7px;border-radius:20px;margin-left:6px;vertical-align:middle}
+
+  .foot{margin-top:28px;border-top:1px solid var(--line);padding-top:14px;font-size:11.5px;color:var(--soft);line-height:1.6}
+
+  .overlay{position:fixed;inset:0;background:rgba(38,35,31,.55);display:none;align-items:center;justify-content:center;padding:18px;z-index:50}
+  .overlay.on{display:flex}
+  .modal{background:var(--cream);border-radius:16px;padding:20px;max-width:460px;width:100%;max-height:92vh;overflow:auto}
+  .modal h4{font-family:'EB Garamond',Georgia,serif;font-size:20px;font-weight:600;margin-bottom:10px}
+  .fld{margin-bottom:11px}
+  .fld label{display:block;font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:var(--deep);font-weight:700;margin-bottom:4px}
+  .fld input{width:100%;padding:9px 10px;border:1px solid var(--line);border-radius:9px;font-size:13.5px;font-family:'Raleway',sans-serif;color:var(--ink)}
+  .modal .note{font-size:11.5px;color:var(--soft);line-height:1.5;margin:6px 0 12px}
+  .modal .actions{display:flex;gap:8px}
+  .modal .actions button{flex:1;padding:12px;border-radius:10px;font-weight:600;font-size:13.5px;cursor:pointer;border:none;font-family:'Raleway',sans-serif}
+  .b-save{background:var(--panel);color:var(--cream)}.b-clear{background:#fff;border:1px solid var(--line)!important;color:var(--rust)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="topbar">
+    <div>
+      <div class="eyebrow">Poste de pilotage · exercice 1 sept. 2026 → 31 août 2027</div>
+      <h1>Pilotage du chiffre d'affaires</h1>
+      <div class="sub">Wassim Loumi, copilote digital.</div>
+    </div>
+    <button class="btn" onclick="openCfg()">⚙ Source</button>
+  </div>
+
+  <div class="status" id="status"><span class="dot load"></span><span id="status-txt">Chargement…</span></div>
+
+  <div class="panel">
+    <div class="kpi-lab">CA signé sur l'exercice</div>
+    <div class="kpi-big" id="ca">—</div>
+    <div class="kpi-note" id="ca-note"></div>
+    <div id="gauges"></div>
+    <div style="font-size:11px;color:#8d857a;margin-top:8px" id="gauge-legend"></div>
+  </div>
+
+  <div class="cards" id="cards"></div>
+
+  <div class="block gold">
+    <h2>Ce qu'il te reste à faire</h2>
+    <p id="reste"></p>
+  </div>
+
+  <h3>CA signé par mois</h3>
+  <div class="block" style="padding:14px 12px 10px">
+    <div id="chart"></div>
+    <p style="font-size:11.5px;color:var(--soft);margin-top:8px">Chaque barre est le CA reconnu ce mois-là. La marche descendante après novembre, c'est ta priorité : renouvellement et acquisition.</p>
+  </div>
+
+  <h3>Contrats</h3>
+  <div id="contrats"></div>
+
+  <div id="pipeline-wrap" style="display:none">
+    <h3>Pipeline</h3>
+    <div id="pipeline"></div>
+  </div>
+
+  <div class="foot" id="foot"></div>
+</div>
+
+<div class="overlay" id="overlay">
+  <div class="modal">
+    <h4>Source des données</h4>
+    <div class="fld"><label>URL du Worker (facultatif)</label><input id="c-worker" type="text" placeholder="https://pilotage-notion-worker.…workers.dev"></div>
+    <div class="note">Aucun token ici : il vit côté serveur dans le Worker Cloudflare. Ce champ ne sert qu'à surcharger l'URL du Worker en cas de besoin ; laisse-le vide pour utiliser l'URL par défaut.</div>
+    <div class="actions">
+      <button class="b-clear" onclick="clearCfg()">Réinitialiser</button>
+      <button class="b-save" onclick="saveCfg()">Enregistrer et lire</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ============ PHOTO FIGÉE (filet, validée 22/07/2026) ============ */
+const BAKED = [
+  { nom:"Eva — Optel Services", type:"Programme récurrent", prix:250, debut:"2026-09-01", duree:12, statut:"Signé" },
+  { nom:"Nathanaëlle — OnCourtiz", type:"Programme récurrent", prix:180, debut:"2026-09-01", duree:12, statut:"Signé" },
+  { nom:"Delphine — Courtier sur mesure", type:"Programme récurrent", prix:350, debut:"2026-05-03", duree:6, statut:"Signé" },
+  { nom:"Julien MCR", type:"Programme récurrent", prix:250, debut:"2026-06-01", duree:6, statut:"Signé" },
+  { nom:"David DI2A", type:"Programme récurrent", prix:250, debut:"2026-06-01", duree:6, statut:"Signé" },
+  { nom:"Nicolas — ostéopathe", type:"Programme récurrent", prix:80, debut:"2026-06-01", duree:6, statut:"Signé" },
+  { nom:"Pierre Opticien — site (1/2)", type:"Site web", prix:950, debut:"2026-09-01", duree:1, statut:"Signé" },
+  { nom:"Pierre Opticien — site (2/2)", type:"Site web", prix:950, debut:"2026-10-01", duree:1, statut:"Signé" },
+  { nom:"Christelle Lherm — prise de vue", type:"Autre ponctuel", prix:450, debut:"2026-09-11", duree:1, statut:"Signé" },
+];
+
+/* ============ CONFIG ============ */
+/* URL du Worker Cloudflare qui lit Notion avec le token gardé en secret côté serveur.
+   Le navigateur ne fait qu'un GET, sans aucun secret. */
+const WORKER_URL = "https://pilotage-notion-worker.loumiwassim.workers.dev";
+const workerUrl = () => (localStorage.getItem("pil_worker") || WORKER_URL).trim().replace(/\/$/,"");
+function openCfg(){
+  document.getElementById("c-worker").value = localStorage.getItem("pil_worker") || "";
+  document.getElementById("overlay").classList.add("on");
+}
+function saveCfg(){
+  const v=document.getElementById("c-worker").value.trim();
+  if(v) localStorage.setItem("pil_worker", v); else localStorage.removeItem("pil_worker");
+  document.getElementById("overlay").classList.remove("on");
+  boot();
+}
+function clearCfg(){
+  localStorage.removeItem("pil_worker");
+  document.getElementById("overlay").classList.remove("on");
+  boot();
+}
+document.getElementById("overlay").addEventListener("click", e=>{ if(e.target.id==="overlay") e.currentTarget.classList.remove("on"); });
+
+/* ============ MOTEUR ============ */
+const MOIS=["janv","févr","mars","avr","mai","juin","juil","août","sept","oct","nov","déc"];
+const idxDebut=d=>{const[y,m]=d.split("-").map(Number);return (y-2026)*12+(m-9);};
+const FYKEY=i=>{const y=2026+Math.floor((8+i)/12);const m=((8+i)%12)+1;return{y,m};};
+const eur=n=>Math.round(n).toLocaleString("fr-FR")+" €";
+const rec=t=>t==="Programme récurrent";
+
+function compute(rows){
+  const signe=Array.from({length:12},()=>0);
+  const pipe=Array.from({length:12},()=>0);
+  const contrats=[], prospects=[];
+  rows.forEach(c=>{
+    const montant=Number(c.prix)||0; if(!(montant>0)||!c.debut) return;
+    const i0=idxDebut(c.debut); const n=rec(c.type)?(Number(c.duree)||6):1;
+    const estPipe = c.statut==="Pipeline";
+    let dansFY=0;
+    for(let k=0;k<n;k++){const i=i0+k; if(i>=0&&i<12){ (estPipe?pipe:signe)[i]+=montant; dansFY+=montant; }}
+    const item={...c, dansFY};
+    if(estPipe) prospects.push(item); else contrats.push(item);
+  });
+  return {signe, pipe, contrats, prospects};
+}
+
+/* ============ RENDU ============ */
+function render(d, source){
+  const {signe, pipe, contrats, prospects}=compute(d);
+  const totalSigne=signe.reduce((a,b)=>a+b,0);
+  const totalPipe=pipe.reduce((a,b)=>a+b,0);
+
+  document.getElementById("ca").innerHTML=(totalSigne?Math.round(totalSigne).toLocaleString("fr-FR"):"0")+'<span>€ HT</span>';
+  document.getElementById("ca-note").textContent = totalPipe>0
+    ? ("+ "+Math.round(totalPipe).toLocaleString("fr-FR")+" € en pipeline → "+Math.round(totalSigne+totalPipe).toLocaleString("fr-FR")+" € si tout se signe")
+    : "aucun montant en pipeline pour l'instant";
+
+  document.getElementById("gauges").innerHTML=[60000,80000].map(t=>{
+    const pc=Math.min(100,totalSigne/t*100);
+    const pp=Math.min(100-pc, totalPipe/t*100);
+    return '<div class="gauge"><div class="gauge-top"><span>Objectif '+(t/1000)+'k</span><span style="color:'+(totalSigne>=t?"#9DBF9D":"#E0A277")+';font-weight:600">'+(totalSigne>=t?"atteint":"manque "+Math.round(t-totalSigne).toLocaleString("fr-FR")+" €")+'</span></div><div class="gauge-bar"><div class="gauge-fill" style="width:'+pc+'%"></div><div class="gauge-pipe" style="left:'+pc+'%;width:'+pp+'%"></div></div></div>';
+  }).join("");
+  document.getElementById("gauge-legend").textContent = totalPipe>0 ? "Zone hachurée : pipeline pondéré ajouté au signé." : "";
+
+  const simultanes=(()=>{
+    const per=Array.from({length:12},(_,i)=>contrats.filter(c=>rec(c.type)&&(()=>{const i0=idxDebut(c.debut);return i>=i0&&i<i0+(Number(c.duree)||6);})()).length);
+    const a=per.filter(n=>n>0); return a.length?a.reduce((x,y)=>x+y,0)/a.length:0;
+  })();
+  document.getElementById("cards").innerHTML=[
+    {l:"Contrats signés", v:contrats.length, s:"dans l'exercice"},
+    {l:"Clients simultanés", v:simultanes.toFixed(1), s:"programmes récurrents"},
+    {l:"En pipeline", v:prospects.length, s:totalPipe>0?eur(totalPipe):"à chiffrer"},
+  ].map(k=>'<div class="card"><div class="l">'+k.l+'</div><div class="v">'+k.v+'</div><div class="s">'+k.s+'</div></div>').join("");
+
+  const manque=Math.max(0,60000-totalSigne), mandats=Math.ceil(manque/3150), propales=Math.ceil(mandats*3);
+  document.getElementById("reste").innerHTML="Il te manque <b>"+Math.round(manque).toLocaleString("fr-FR")+" €</b> pour 60k. À 3 150 € par mandat (525 € sur 6 mois), cela fait <b>"+mandats+" mandats</b> à signer, soit <b>"+propales+" propales</b> à une signature sur trois.";
+
+  const max=Math.max(...signe,...pipe,1),gap=1.6,bw=(100-gap*11)/12;
+  let bars="",labs="";
+  signe.forEach((v,i)=>{const h=v/max*70,x=i*(bw+gap),y=76-h;
+    bars+='<rect x="'+x.toFixed(2)+'" y="'+y.toFixed(2)+'" width="'+bw.toFixed(2)+'" height="'+h.toFixed(2)+'" rx="0.6" fill="url(#g)"><title>'+MOIS[FYKEY(i).m-1]+' '+FYKEY(i).y+' : '+eur(v)+'</title></rect>';
+    if(pipe[i]>0){const hp=pipe[i]/max*70,yp=y-hp; bars+='<rect x="'+x.toFixed(2)+'" y="'+yp.toFixed(2)+'" width="'+bw.toFixed(2)+'" height="'+hp.toFixed(2)+'" rx="0.6" fill="#E3D9C7"/>';}
+    labs+='<text x="'+(x+bw/2).toFixed(2)+'" y="82" font-size="2.6" fill="#514B42" text-anchor="middle">'+MOIS[FYKEY(i).m-1].charAt(0).toUpperCase()+'</text>';
+    if(v)labs+='<text x="'+(x+bw/2).toFixed(2)+'" y="'+(y-1.5).toFixed(2)+'" font-size="2.4" fill="#8C6D3F" text-anchor="middle">'+(Math.round(v/100)/10)+'k</text>';});
+  document.getElementById("chart").innerHTML='<svg viewBox="0 0 100 84" width="100%" preserveAspectRatio="xMidYMid meet"><defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#B08D57"/><stop offset="1" stop-color="#8C6D3F"/></linearGradient></defs>'+bars+labs+'</svg>';
+
+  document.getElementById("contrats").innerHTML=contrats.map(c=>{
+    const r=rec(c.type);
+    const meta=(r?"Programme":c.type)+" · "+eur(c.prix)+(r?"/mois × "+(c.duree||6):"")+" · démarre "+MOIS[Number(c.debut.split("-")[1])-1]+" "+c.debut.split("-")[0];
+    return '<div class="cli '+(r?"rec":"one")+'"><div class="cli-head"><div><span class="cli-nom">'+c.nom+'</span><div class="cli-meta">'+meta+'</div></div><div class="cli-mt">'+eur(c.dansFY)+'</div></div></div>';
+  }).join("") || '<div class="block"><p>Aucun contrat signé lu dans la base.</p></div>';
+
+  if(prospects.length){
+    document.getElementById("pipeline-wrap").style.display="block";
+    document.getElementById("pipeline").innerHTML=prospects.map(c=>
+      '<div class="cli pipe"><div class="cli-head"><div><span class="cli-nom">'+c.nom+'</span><span class="tag" style="background:var(--gold)">Pipeline</span><div class="cli-meta">'+c.type+' · '+eur(c.prix)+(rec(c.type)?"/mois":"")+'</div></div><div class="cli-mt">'+eur(c.dansFY)+'</div></div></div>'
+    ).join("");
+  } else document.getElementById("pipeline-wrap").style.display="none";
+
+  const st=document.getElementById("status"), dot=st.querySelector(".dot"), txt=document.getElementById("status-txt");
+  if(source==="live"){dot.className="dot live";txt.innerHTML="Notion en direct · lu à l'instant";}
+  else{dot.className="dot frozen";txt.innerHTML="Données figées · photo du 22/07/2026";}
+
+  document.getElementById("foot").innerHTML="Page hébergée, versionnée par git, lisant la base Notion « 🎯 Pilotage 26/27 » via un Worker Cloudflare que Claude tient à jour. Le CA est reconnu mois par mois depuis le montant, le début et la durée. Si le Worker ou Notion est injoignable, la photo figée du 22/07/2026 s'affiche. Aucun secret dans le navigateur : le token Notion vit côté serveur.";
+}
+
+/* ============ LECTURE NOTION ============ */
+async function liveRows(){
+  const res=await fetch(workerUrl(),{method:"GET"});
+  if(!res.ok) throw new Error("worker-"+res.status);
+  const data=await res.json();
+  if(data.error) throw new Error(data.error);
+  const out=data.results||[];
+
+  return out.map(r=>{
+    const p=r.properties||{};
+    const cp=p["Client"]||p["Clients"]||p["Nom"]||p["Name"];
+    const nom=cp&&cp.title?cp.title.map(t=>t.plain_text).join("").trim():"";
+    const type=p["Type"]&&p["Type"].select?p["Type"].select.name:"Autre ponctuel";
+    const mp=p["Montant HT"]||p["Montant mensuel HT"]||p["Montant"]||p["Tarif prestation"];
+    const prix=mp&&mp.number!=null?mp.number:0;
+    const dp=p["Début"]||p["Debut"]||p["Date"];
+    const debut=dp&&dp.date?dp.date.start:null;
+    const dur=p["Durée mois"]||p["Duree mois"]||p["Durée"];
+    const duree=dur&&dur.number!=null?dur.number:(rec(type)?6:1);
+    const st=p["Statut"]&&p["Statut"].select?p["Statut"].select.name:"Signé";
+    return {nom, type, prix, debut, duree, statut:st};
+  }).filter(x=>x.nom||x.prix);
+}
+
+/* ============ BOOT ============ */
+async function boot(){
+  render(BAKED, "frozen");
+  document.getElementById("status").querySelector(".dot").className="dot load";
+  document.getElementById("status-txt").textContent="Lecture de Notion…";
+  try{ const rows=await liveRows(); if(rows.length) render(rows,"live"); else throw new Error("vide"); }
+  catch(e){
+    document.getElementById("status").querySelector(".dot").className="dot frozen";
+    document.getElementById("status-txt").textContent = "Notion injoignable ("+e.message+") · photo figée affichée";
+  }
+}
+boot();
+</script>
+</body>
+</html>

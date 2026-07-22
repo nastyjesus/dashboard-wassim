@@ -1,0 +1,17 @@
+## Worker Cloudflare — pilotage-notion-worker
+## Lit la base Notion « 🎯 Pilotage 26/27 » avec le token gardé en secret,
+## renvoie {results:[...]} en GET. Base figée : ne sert QUE PILOT_DB_ID.
+
+name = "pilotage-notion-worker"
+main = "src/index.js"
+compatibility_date = "2024-11-01"
+
+# Variable non secrète : ID de la base Notion autorisée (aucune autre).
+[vars]
+PILOT_DB_ID = "4a1701257479407f9d8f115c43540d78"
+
+# Secret à provisionner via `wrangler secret put` (jamais en clair ici) :
+#   NOTION_TOKEN   (token d'intégration Notion, format ntn_...)
+
+[observability]
+enabled = true
