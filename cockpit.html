@@ -167,7 +167,7 @@ function mapRows(rows) {
       const duree = p["Durée mois"] && p["Durée mois"].number != null ? p["Durée mois"].number : (est(typeId).rec ? 6 : 1);
       let encMap = {};
       try { encMap = JSON.parse(rtext(p["Encaissements"]) || "{}") || {}; } catch (e) { encMap = {}; }
-      const c = { id: r.id, nom: title, type: typeId, prix: montant, debut, duree };
+      const c = { id: r.id, nom: title, type: typeId, prix: montant, debut, duree, source: p["Source"] && p["Source"].select ? p["Source"].select.name : "" };
       c.ech = echeances(c).map((e) => ({ ...e, encaisse: encMap[e.mkey] != null ? Number(encMap[e.mkey]) : null }));
       clients.push(c);
     }
@@ -329,6 +329,14 @@ function Cockpit() {
   const objSim = objCompute(prestas, heures, charges);
   const objectif = objSim.total > 0 ? objSim.total : 60000;
 
+  /* sources : le catalogue de base + toute source déjà présente en Notion (suivi de contrats) */
+  const sourcesList = [...new Set([
+    ...SOURCES.filter((s) => s !== "Autre"),
+    ...clients.map((c) => c.source).filter(Boolean),
+    ...prospects.map((p) => p.source).filter(Boolean),
+    "Autre",
+  ])];
+
   /* ---------------- actions (écrivent dans Notion) ---------------- */
   const champsProspect = (p) => ({
     "Client": p.societe || p.nom || "",
@@ -362,6 +370,7 @@ function Cockpit() {
     "Début": d.debut + "-01",
     "Durée mois": Number(d.duree) || 1,
     "Statut": "Signé",
+    "Source": d.source || null,
   });
   const confirmerSignature = (data) => {
     const base = { ...champsContrat(data), "Étape": "Signé" };
@@ -439,7 +448,7 @@ function Cockpit() {
       <div style={{ padding: "20px 18px 0", maxWidth: 1120, margin: "0 auto" }}>
         {vue === "pilotage" && <Pilotage {...{ caSigne, caEncaisse, moisSigne, cumulSigne, pipePondere, pipeBrut, prospects, simultanes, heures, totalImpayes, impayes, setVue, objectif }} />}
         {vue === "crm" && <CRM {...{ prospects, setFProspect, bougerEtape, marquerPerdu, pipePondere, pipeBrut }} />}
-        {vue === "treso" && <Treso {...{ clients, moisSigne, moisEncaisse, encaisser, tvaAReverser, caEncaisse, impayes, totalImpayes }} />}
+        {vue === "treso" && <Treso {...{ clients, moisSigne, moisEncaisse, encaisser, tvaAReverser, caEncaisse, impayes, totalImpayes, setFClient }} />}
         {vue === "contrats" && <Contrats {...{ clients, setFClient, setASupprimer, caSigne }} />}
         {vue === "objectifs" && <Objectifs {...{ prestas, heures, charges, objSim, majPresta, ajouterPresta, supprimerPresta, setHeuresObj, setChargesObj, setConfirmReset, objSaveEtat, caSigne }} />}
       </div>
@@ -455,9 +464,9 @@ function Cockpit() {
       </div>
 
       {/* modales */}
-      {fProspect !== null && <FicheProspect p={fProspect} onClose={() => setFProspect(null)} onSave={(p) => { majProspect(p); setFProspect(null); }} onDelete={(id) => { if (isNotionId(id)) ecrire(() => apiArchive(id), "Suppression"); setFProspect(null); }} />}
+      {fProspect !== null && <FicheProspect p={fProspect} sourcesList={sourcesList} onClose={() => setFProspect(null)} onSave={(p) => { majProspect(p); setFProspect(null); }} onDelete={(id) => { if (isNotionId(id)) ecrire(() => apiArchive(id), "Suppression"); setFProspect(null); }} />}
       {signature && <FicheSignature p={signature} onClose={() => setSignature(null)} onConfirm={confirmerSignature} />}
-      {fClient && <FicheClient c={fClient} onClose={() => setFClient(null)} onSave={(c) => { majClient(c); setFClient(null); }} />}
+      {fClient && <FicheClient c={fClient} sourcesList={sourcesList} onClose={() => setFClient(null)} onSave={(c) => { majClient(c); setFClient(null); }} onDelete={(c) => { setFClient(null); setASupprimer(c); }} />}
       {aSupprimer && (
         <Modal onClose={() => setASupprimer(null)}>
           <div style={{ ...serif, fontSize: 19, fontWeight: 600, color: S.ink }}>Supprimer {aSupprimer.nom} ?</div>
@@ -665,7 +674,7 @@ function CRM({ prospects, setFProspect, bougerEtape, marquerPerdu, pipePondere, 
 }
 
 /* ================= VUE TRÉSORERIE ================= */
-function Treso({ clients, moisSigne, moisEncaisse, encaisser, tvaAReverser, caEncaisse, impayes, totalImpayes }) {
+function Treso({ clients, moisSigne, moisEncaisse, encaisser, tvaAReverser, caEncaisse, impayes, totalImpayes, setFClient }) {
   const [edit, setEdit] = useState(null);
   const [tampon, setTampon] = useState("");
   const W = 76, WN = 150;
@@ -676,7 +685,11 @@ function Treso({ clients, moisSigne, moisEncaisse, encaisser, tvaAReverser, caEn
 
   return (
     <div>
-      <p style={{ fontSize: 12.5, color: S.soft, marginTop: 4, marginBottom: 6 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 8, marginBottom: 6 }}>
+        <div style={{ fontSize: 12.5, color: S.soft }}>{lignesRec.length} contrats · touche un <b style={{ color: S.deep }}>nom</b> pour changer montant / durée ou supprimer.</div>
+        <button onClick={() => setFClient({ id: Date.now(), nom: "", type: "prog", prix: "", debut: FY[0].key, duree: 6, source: "" })} style={{ ...btnAdd, width: "auto", padding: "8px 13px" }}><Plus size={14} /> Contrat</button>
+      </div>
+      <p style={{ fontSize: 12.5, color: S.soft, marginTop: 0, marginBottom: 6 }}>
         Ligne <b>dû</b> calculée depuis les contrats. Touchez une cellule <b>encaissé</b> pour saisir ce que vous avez réellement reçu — c'est écrit dans Notion. Une échéance passée non encaissée bascule en impayé. La ligne <b>TVA estim. 20 %</b> prévoit ce que tu devras régler chaque mois, estimée à 20 % du CA dû du mois.
       </p>
 
@@ -692,7 +705,7 @@ function Treso({ clients, moisSigne, moisEncaisse, encaisser, tvaAReverser, caEn
             {lignesRec.map((c) => (
               <tr key={c.id}>
                 <td style={{ position: "sticky", left: 0, zIndex: 2, background: S.paper, borderRight: `2px solid ${S.line}`, borderBottom: `1px solid ${S.grid}`, padding: "5px 9px", width: WN, minWidth: WN }}>
-                  <div style={{ ...serif, fontSize: 13.5, fontWeight: 600, color: S.ink, lineHeight: 1.15 }}>{c.nom}</div>
+                  <div onClick={() => setFClient(c)} title="Modifier ce contrat" style={{ ...serif, fontSize: 13.5, fontWeight: 600, color: S.deep, lineHeight: 1.15, cursor: "pointer", textDecoration: "underline", textDecorationColor: S.line, textUnderlineOffset: 2 }}>{c.nom}</div>
                 </td>
                 {FY.map((o, i) => {
                   const e = (c.ech || []).find((x) => x.mkey === o.key);
@@ -750,7 +763,7 @@ function Contrats({ clients, setFClient, setASupprimer, caSigne }) {
     <div>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
         <div style={{ fontSize: 12.5, color: S.soft }}>{clients.length} contrats · {court(caSigne)} € sur l'exercice</div>
-        <button onClick={() => setFClient({ id: Date.now(), nom: "", type: "prog", prix: "", debut: FY[0].key, duree: 6 })} style={{ ...btnAdd, width: "auto", padding: "9px 14px" }}><Plus size={15} /> Contrat</button>
+        <button onClick={() => setFClient({ id: Date.now(), nom: "", type: "prog", prix: "", debut: FY[0].key, duree: 6, source: "" })} style={{ ...btnAdd, width: "auto", padding: "9px 14px" }}><Plus size={15} /> Contrat</button>
       </div>
       {clients.map((c) => {
         const dansFY = (c.ech || []).reduce((s, e) => s + e.du, 0);
@@ -926,7 +939,7 @@ function Modal({ children, onClose, bas }) {
   );
 }
 
-function FicheProspect({ p, onClose, onSave, onDelete }) {
+function FicheProspect({ p, sourcesList, onClose, onSave, onDelete }) {
   const [f, setF] = useState({ ...p });
   const set = (k, v) => setF({ ...f, [k]: v });
   return (
@@ -954,8 +967,8 @@ function FicheProspect({ p, onClose, onSave, onDelete }) {
         <Ch label="Source" flex>
           <select value={f.source || ""} onChange={(e) => set("source", e.target.value)} style={inp}>
             <option value="">— aucune —</option>
-            {SOURCES.map((s) => <option key={s} value={s}>{s}</option>)}
-            {f.source && !SOURCES.includes(f.source) && <option value={f.source}>{f.source}</option>}
+            {sourcesList.map((s) => <option key={s} value={s}>{s}</option>)}
+            {f.source && !sourcesList.includes(f.source) && <option value={f.source}>{f.source}</option>}
           </select>
         </Ch>
       </div>
@@ -1006,9 +1019,10 @@ function FicheSignature({ p, onClose, onConfirm }) {
   );
 }
 
-function FicheClient({ c, onClose, onSave }) {
+function FicheClient({ c, sourcesList, onClose, onSave, onDelete }) {
   const [f, setF] = useState({ ...c });
   const set = (k, v) => setF({ ...f, [k]: v });
+  const existant = isNotionId(c.id);
   return (
     <Modal onClose={onClose} bas>
       <TitreModale titre={c.nom ? "Modifier le contrat" : "Nouveau contrat"} onClose={onClose} />
@@ -1029,11 +1043,21 @@ function FicheClient({ c, onClose, onSave }) {
           {CHOIX.map((o) => <option key={o.key} value={o.key}>{lab(o.y, o.m)}{o.idx < 0 ? " (exercice préc.)" : o.idx > 11 ? " (exercice suiv.)" : ""}</option>)}
         </select>
       </Ch>
-      <button onClick={() => (f.nom.trim() && Number(f.prix) > 0) && onSave(f)} disabled={!f.nom.trim() || !(Number(f.prix) > 0)}
-        style={{ ...btnMain, marginTop: 8, background: !f.nom.trim() || !(Number(f.prix) > 0) ? S.line : S.panel, color: !f.nom.trim() || !(Number(f.prix) > 0) ? S.soft : S.cream }}>
-        <Check size={16} /> Enregistrer
-      </button>
-      <p style={{ fontSize: 11.5, color: S.soft, marginTop: 10, lineHeight: 1.5 }}>Modifier le prix ou les dates recalcule les échéances de trésorerie. Les encaissements déjà saisis sont conservés.</p>
+      <Ch label="Source du business">
+        <select value={f.source || ""} onChange={(e) => set("source", e.target.value)} style={inp}>
+          <option value="">— aucune —</option>
+          {sourcesList.map((s) => <option key={s} value={s}>{s}</option>)}
+          {f.source && !sourcesList.includes(f.source) && <option value={f.source}>{f.source}</option>}
+        </select>
+      </Ch>
+      <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+        {existant && <button onClick={() => onDelete(c)} title="Supprimer le contrat" style={{ ...btnIcon, padding: "13px 15px", color: S.rust }}><Trash2 size={15} /></button>}
+        <button onClick={() => (f.nom.trim() && Number(f.prix) > 0) && onSave(f)} disabled={!f.nom.trim() || !(Number(f.prix) > 0)}
+          style={{ ...btnMain, background: !f.nom.trim() || !(Number(f.prix) > 0) ? S.line : S.panel, color: !f.nom.trim() || !(Number(f.prix) > 0) ? S.soft : S.cream }}>
+          <Check size={16} /> Enregistrer
+        </button>
+      </div>
+      <p style={{ fontSize: 11.5, color: S.soft, marginTop: 10, lineHeight: 1.5 }}>Modifier le prix, la durée ou les dates recalcule les échéances de trésorerie. Les encaissements déjà saisis sont conservés.</p>
     </Modal>
   );
 }
