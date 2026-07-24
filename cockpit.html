@@ -56,7 +56,7 @@ const apiUpdate  = (id, fields) => apiWrite("PATCH", { id, fields });
 const apiArchive = (id) => apiWrite("DELETE", { id });
 
 /* ================= MAPPING NOTION <-> APP ================= */
-const TYPE_NAME  = { prog: "Programme récurrent", site: "Site web", forma: "Formation Claude", ponc: "Autre ponctuel" };
+const TYPE_NAME  = { prog: "Programme récurrent", site: "Site web", forma: "Formation Claude", ponc: "Autre ponctuel", bni: "BNI" };
 const TYPE_ID    = Object.fromEntries(Object.entries(TYPE_NAME).map(([k, v]) => [v, k]));
 const ETAPE_NAME = { prospect: "Prospect", contacte: "Contacté", diagnostic: "Diagnostic", propale: "Propale", signe: "Signé", perdu: "Perdu" };
 const ETAPE_ID   = Object.fromEntries(Object.entries(ETAPE_NAME).map(([k, v]) => [v, k]));
@@ -89,6 +89,7 @@ const TYPES = [
   { id: "site", nom: "Site web", rec: false },
   { id: "forma", nom: "Formation Claude", rec: false },
   { id: "ponc", nom: "Autre ponctuel", rec: false },
+  { id: "bni", nom: "BNI (commission)", rec: false },
 ];
 const est = (id) => TYPES.find((t) => t.id === id) || TYPES[0];
 
@@ -122,12 +123,15 @@ const OBJ_DEPART = {
 /* chaque contrat signé génère un tableau d'échéances {mkey, du, encaisse} */
 function echeances(c) {
   const i0 = idxOf(c.debut);
-  const n = est(c.type).rec ? Number(c.duree) || 6 : 1;
+  const rec = est(c.type).rec;
+  const n = rec ? Number(c.duree) || 6 : 1;
+  /* récurrent : prix mensuel × durée ; BNI : prix unitaire × nombre en 1 mois ; autre ponctuel : prix total en 1 mois */
+  const duMois = rec ? Number(c.prix) : Number(c.prix) * (c.type === "bni" ? (Number(c.nombre) || 1) : 1);
   const out = [];
   for (let k = 0; k < n; k++) {
     const i = i0 + k;
     if (i < 0 || i > 11) continue;
-    out.push({ mkey: FY[i].key, du: Number(c.prix), encaisse: null });
+    out.push({ mkey: FY[i].key, du: duMois, encaisse: null });
   }
   return out;
 }
@@ -169,7 +173,7 @@ function mapRows(rows) {
       const duree = p["Durée mois"] && p["Durée mois"].number != null ? p["Durée mois"].number : (est(typeId).rec ? 6 : 1);
       let encMap = {};
       try { encMap = JSON.parse(rtext(p["Encaissements"]) || "{}") || {}; } catch (e) { encMap = {}; }
-      const c = { id: r.id, nom: title, type: typeId, prix: montant, debut, duree, source: p["Source"] && p["Source"].select ? p["Source"].select.name : "" };
+      const c = { id: r.id, nom: title, type: typeId, prix: montant, debut, duree, source: p["Source"] && p["Source"].select ? p["Source"].select.name : "", nombre: p["Nombre"] && p["Nombre"].number != null ? p["Nombre"].number : 1 };
       c.ech = echeances(c).map((e) => ({ ...e, encaisse: encMap[e.mkey] != null ? Number(encMap[e.mkey]) : null }));
       clients.push(c);
     }
@@ -378,6 +382,7 @@ function Cockpit() {
     "Durée mois": Number(d.duree) || 1,
     "Statut": "Signé",
     "Source": d.source || null,
+    "Nombre": Number(d.nombre) || 1,
   });
   const confirmerSignature = (data) => {
     const base = { ...champsContrat(data), "Étape": "Signé" };
@@ -694,7 +699,7 @@ function Treso({ clients, moisSigne, moisEncaisse, encaisser, tvaAReverser, caEn
     <div>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 8, marginBottom: 6 }}>
         <div style={{ fontSize: 12.5, color: S.soft }}>{lignesRec.length} contrats · touche un <b style={{ color: S.deep }}>nom</b> pour changer montant / durée ou supprimer.</div>
-        <button onClick={() => setFClient({ id: Date.now(), nom: "", type: "prog", prix: "", debut: FY[0].key, duree: 6, source: "" })} style={{ ...btnAdd, width: "auto", padding: "8px 13px" }}><Plus size={14} /> Contrat</button>
+        <button onClick={() => setFClient({ id: Date.now(), nom: "", type: "prog", prix: "", debut: FY[0].key, duree: 6, source: "", nombre: 1 })} style={{ ...btnAdd, width: "auto", padding: "8px 13px" }}><Plus size={14} /> Contrat</button>
       </div>
       <p style={{ fontSize: 12.5, color: S.soft, marginTop: 0, marginBottom: 6 }}>
         Ligne <b>dû</b> calculée depuis les contrats. Touchez une cellule <b>encaissé</b> pour saisir ce que vous avez réellement reçu — c'est écrit dans Notion. Une échéance passée non encaissée bascule en impayé. La ligne <b>TVA estim. 20 %</b> prévoit ce que tu devras régler chaque mois, estimée à 20 % du CA dû du mois.
@@ -770,7 +775,7 @@ function Contrats({ clients, setFClient, setASupprimer, caSigne }) {
     <div>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
         <div style={{ fontSize: 12.5, color: S.soft }}>{clients.length} contrats · {court(caSigne)} € sur l'exercice</div>
-        <button onClick={() => setFClient({ id: Date.now(), nom: "", type: "prog", prix: "", debut: FY[0].key, duree: 6, source: "" })} style={{ ...btnAdd, width: "auto", padding: "9px 14px" }}><Plus size={15} /> Contrat</button>
+        <button onClick={() => setFClient({ id: Date.now(), nom: "", type: "prog", prix: "", debut: FY[0].key, duree: 6, source: "", nombre: 1 })} style={{ ...btnAdd, width: "auto", padding: "9px 14px" }}><Plus size={15} /> Contrat</button>
       </div>
       {clients.map((c) => {
         const dansFY = (c.ech || []).reduce((s, e) => s + e.du, 0);
@@ -781,7 +786,7 @@ function Contrats({ clients, setFClient, setASupprimer, caSigne }) {
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8 }}>
               <div>
                 <div style={{ ...serif, fontSize: 16.5, fontWeight: 600, color: S.ink }}>{c.nom}</div>
-                <div style={{ fontSize: 12, color: S.soft, marginTop: 1 }}>{t.nom} · {eur(c.prix)}{t.rec ? `/mois × ${c.duree}` : ""} · {t.rec ? "démarre" : "facturé"} {labKey(c.debut)}</div>
+                <div style={{ fontSize: 12, color: S.soft, marginTop: 1 }}>{t.nom} · {eur(c.prix)}{c.type === "bni" ? ` × ${c.nombre}` : t.rec ? `/mois × ${c.duree}` : ""} · {c.type === "bni" ? "encaissé" : t.rec ? "démarre" : "facturé"} {labKey(c.debut)}</div>
               </div>
               <button onClick={(e) => { e.stopPropagation(); setASupprimer(c); }} style={{ ...btnIcon }}><Trash2 size={14} /></button>
             </div>
@@ -1042,10 +1047,14 @@ function FicheClient({ c, sourcesList, onClose, onSave, onDelete }) {
         </div>
       </Ch>
       <div style={{ display: "flex", gap: 10 }}>
-        <Ch label={est(f.type).rec ? "€ / mois" : "€ total"} flex><input type="number" value={f.prix} onChange={(e) => set("prix", e.target.value)} style={inp} /></Ch>
+        <Ch label={f.type === "bni" ? "€ par unité" : est(f.type).rec ? "€ / mois" : "€ total"} flex><input type="number" value={f.prix} onChange={(e) => set("prix", e.target.value)} style={inp} /></Ch>
         {est(f.type).rec && <Ch label="Durée (mois)" flex><input type="number" value={f.duree} min="1" max="36" onChange={(e) => set("duree", e.target.value)} style={inp} /></Ch>}
+        {f.type === "bni" && <Ch label="Nombre" flex><input type="number" value={f.nombre ?? 1} min="1" onChange={(e) => set("nombre", Math.max(1, Number(e.target.value) || 1))} style={inp} /></Ch>}
       </div>
-      <Ch label={est(f.type).rec ? "Mois de démarrage" : "Mois de facturation"}>
+      {f.type === "bni" && Number(f.prix) > 0 && (
+        <div style={{ fontSize: 12.5, color: S.deep, marginTop: -6, marginBottom: 12 }}>Total : <b>{eur(Number(f.prix) * (Number(f.nombre) || 1))}</b> ({eur(f.prix)} × {Number(f.nombre) || 1})</div>
+      )}
+      <Ch label={f.type === "bni" ? "Mois d'encaissement" : est(f.type).rec ? "Mois de démarrage" : "Mois de facturation"}>
         <select value={f.debut} onChange={(e) => set("debut", e.target.value)} style={inp}>
           {CHOIX.map((o) => <option key={o.key} value={o.key}>{lab(o.y, o.m)}{o.idx < 0 ? " (exercice préc.)" : o.idx > 11 ? " (exercice suiv.)" : ""}</option>)}
         </select>
