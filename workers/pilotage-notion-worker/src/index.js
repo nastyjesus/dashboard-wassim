@@ -6,7 +6,7 @@
 
 const TITLE   = ["Client"];
 const SELECTS = ["Type", "Statut", "Étape", "Source"];
-const NUMBERS = ["Montant HT", "Durée mois", "Encaissé HT"];
+const NUMBERS = ["Montant HT", "Durée mois", "Encaissé HT", "Nombre"];
 const DATES   = ["Début", "Relance"];
 const TEXTS   = ["Contact", "Offre", "Notes", "Encaissements"];
 
