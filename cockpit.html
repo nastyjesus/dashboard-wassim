@@ -112,6 +112,8 @@ const OBJ_DEPART = {
     { id: 3, nom: "Visible, Rentable & Piloté", detail: "Tout le palier central, plus l'acquisition payante, des tests de conversion et un point stratégique mensuel.", prix: 850, type: "rec", duree: 6, qty: 3 },
     { id: 4, nom: "Site web", detail: "La fondation posée droit. Le socle sans lequel le reste ne produit rien.", prix: 1900, type: "one", duree: 1, qty: 4 },
     { id: 5, nom: "Formation Claude", detail: "Déléguer à l'IA ce qui n'exige pas son savoir-faire. Porte d'entrée à part entière.", prix: 900, type: "one", duree: 1, qty: 0 },
+    { id: "bni-renew", nom: "BNI — renouvellements", detail: "Directeur consultant BNI : commission par renouvellement de membre. Mets le montant par renouvellement et le nombre visé sur l'année.", prix: 0, type: "one", duree: 1, qty: 0 },
+    { id: "bni-new", nom: "BNI — nouveaux membres", detail: "Directeur consultant BNI : commission par nouveau membre. Mets le montant par nouveau membre et le nombre visé sur l'année.", prix: 0, type: "one", duree: 1, qty: 0 },
   ],
   heures: 5,
   charges: 0,
@@ -244,7 +246,12 @@ function Cockpit() {
       setProspects(prospects);
       setObjId(oid);
       if (objData && Array.isArray(objData.prestas)) {
-        setPrestas(objData.prestas);
+        let pr = objData.prestas;
+        /* migration : garantit les lignes BNI même sur une config existante */
+        OBJ_DEPART.prestas.filter((b) => String(b.id).startsWith("bni-")).forEach((b) => {
+          if (!pr.some((p) => p.id === b.id)) pr = [...pr, b];
+        });
+        setPrestas(pr);
         setHeures(objData.heures ?? 5);
         setCharges(objData.charges ?? 0);
       }
