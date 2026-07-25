@@ -231,6 +231,43 @@ function objCompute(prestas, heures, charges) {
   return { caRec, caOne, total, missionsRec, simultanes, net };
 }
 
+/* ---- reste à faire EN NOMBRE DE CONTRATS : objectif (prestas) vs signé (contrats) ----
+   Chaque prestation visée est rattachée à une famille de contrat, puis on compte
+   combien de contrats de cette famille sont déjà signés. */
+const OBJ_FAMILLES = [
+  { id: "prog",  nom: "Programmes récurrents (SEO)" },
+  { id: "site",  nom: "Sites web" },
+  { id: "forma", nom: "Formations Claude" },
+  { id: "bni",   nom: "BNI" },
+  { id: "ponc",  nom: "Autres ponctuels" },
+];
+function objFamille(p) {
+  if (p.type === "rec") return "prog";
+  const id = String(p.id);
+  const nom = (p.nom || "").toLowerCase();
+  if (id.startsWith("bni") || nom.includes("bni")) return "bni";
+  if (nom.includes("site")) return "site";
+  if (nom.includes("formation") || nom.includes("claude")) return "forma";
+  return "ponc";
+}
+/* un contrat BNI porte plusieurs unités (nombre) ; les autres comptent pour 1 */
+const contratUnites = (c) => (c.type === "bni" ? Number(c.nombre) || 1 : 1);
+function resteContrats(prestas, clients) {
+  const lignes = OBJ_FAMILLES.map((f) => {
+    const objectif = prestas
+      .filter((p) => objFamille(p) === f.id)
+      .reduce((s, p) => s + (Number(p.qty) || 0), 0);
+    const signe = clients
+      .filter((c) => c.type === f.id)
+      .reduce((s, c) => s + contratUnites(c), 0);
+    return { id: f.id, nom: f.nom, objectif, signe, reste: Math.max(0, objectif - signe) };
+  }).filter((l) => l.objectif > 0 || l.signe > 0);
+  const objectif = lignes.reduce((s, l) => s + l.objectif, 0);
+  const signe = lignes.reduce((s, l) => s + l.signe, 0);
+  const reste = lignes.reduce((s, l) => s + l.reste, 0);
+  return { lignes, objectif, signe, reste };
+}
+
 const S = { cream: "#F4EFE6", paper: "#FBF8F2", ink: "#26231F", soft: "#514B42", gold: "#B08D57", deep: "#8C6D3F", line: "#E3D9C7", panel: "#282420", green: "#5B7A5B", rust: "#A9683F", grid: "#EAE1D0" };
 const serif = { fontFamily: "'EB Garamond', Georgia, serif" };
 const sans = { fontFamily: "'Raleway', system-ui, sans-serif" };
@@ -407,6 +444,7 @@ function Cockpit() {
 
   const objSim = objCompute(prestas, heures, charges);
   const objectif = objSim.total > 0 ? objSim.total : 60000;
+  const contratsReste = resteContrats(prestas, clients);
 
   /* sources : le catalogue de base + toute source déjà présente en Notion (suivi de contrats) */
   const sourcesList = [...new Set([
@@ -526,7 +564,7 @@ function Cockpit() {
       </div>
 
       <div style={{ padding: "20px 18px 0", maxWidth: 1120, margin: "0 auto" }}>
-        {vue === "pilotage" && <Pilotage {...{ caSigne, caEncaisse, moisSigne, cumulSigne, pipePondere, pipeBrut, prospects, simultanes, heures, totalImpayes, impayes, setVue, objectif }} />}
+        {vue === "pilotage" && <Pilotage {...{ caSigne, caEncaisse, moisSigne, cumulSigne, pipePondere, pipeBrut, prospects, simultanes, heures, totalImpayes, impayes, setVue, objectif, contratsReste }} />}
         {vue === "crm" && <CRM {...{ prospects, setFProspect, bougerEtape, marquerPerdu, pipePondere, pipeBrut }} />}
         {vue === "tunnel" && <Tunnel {...{ tunnels, setFLevier, tunSaveEtat }} />}
         {vue === "treso" && <Treso {...{ clients, moisSigne, moisEncaisse, encaisser, tvaAReverser, caEncaisse, impayes, totalImpayes, setFClient }} />}
@@ -573,7 +611,7 @@ function Cockpit() {
 }
 
 /* ================= VUE PILOTAGE ================= */
-function Pilotage({ caSigne, caEncaisse, moisSigne, cumulSigne, pipePondere, pipeBrut, prospects, simultanes, heures, totalImpayes, impayes, setVue, objectif }) {
+function Pilotage({ caSigne, caEncaisse, moisSigne, cumulSigne, pipePondere, pipeBrut, prospects, simultanes, heures, totalImpayes, impayes, setVue, objectif, contratsReste }) {
   const manque = Math.max(0, objectif - caSigne);
   const projete = caSigne + pipePondere;
   const actifs = prospects.filter((p) => !["signe", "perdu"].includes(p.etape)).length;
@@ -624,6 +662,47 @@ function Pilotage({ caSigne, caEncaisse, moisSigne, cumulSigne, pipePondere, pip
             <div style={{ marginTop: 6 }}>Soit ≈ <b style={{ color: S.ink }}>{Math.ceil(manque / 3150)} clients</b> <span style={{ opacity: 0.8 }}>(3 150 € l'unité : 525 €/mois × 6)</span> ou <b style={{ color: S.ink }}>{restePropales} propales</b> à envoyer <span style={{ opacity: 0.8 }}>(~1 signée sur 3)</span>.</div>
             <div style={{ marginTop: 6 }}>Dans ton pipeline aujourd'hui : <b style={{ color: S.ink }}>{actifs} prospects</b> actifs, {court(pipePondere)} € pondérés.</div>
           </div>
+        )}
+      </div>
+
+      {/* reste à faire EN NOMBRE DE CONTRATS : objectif vs signé, par offre */}
+      <div style={{ background: S.paper, border: `1px solid ${S.line}`, borderLeft: `4px solid ${S.deep}`, borderRadius: 14, padding: "15px 17px", marginTop: 12 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", flexWrap: "wrap", gap: 6, marginBottom: 4 }}>
+          <div style={{ ...serif, fontSize: 18, fontWeight: 600, color: S.ink }}>Reste à faire — en contrats</div>
+          <button onClick={() => setVue("objectifs")} style={{ background: "transparent", border: "none", color: S.deep, fontSize: 11.5, fontWeight: 600, cursor: "pointer", padding: 0 }}>Objectifs →</button>
+        </div>
+        {contratsReste.objectif <= 0 ? (
+          <p style={{ fontSize: 13, color: S.soft, lineHeight: 1.6, margin: "4px 0 0" }}>Renseigne les quantités visées par offre dans l'onglet <b style={{ color: S.ink }}>Objectifs</b> pour voir ton reste à faire en nombre de contrats.</p>
+        ) : (
+          <>
+            <div style={{ fontSize: 13.5, color: S.soft, lineHeight: 1.7 }}>
+              Objectif : <b style={{ color: S.ink }}>{contratsReste.objectif} contrats</b> · déjà signés : <b style={{ color: S.ink }}>{contratsReste.signe}</b> →{" "}
+              {contratsReste.reste <= 0
+                ? <b style={{ color: S.green }}>objectif atteint 🎉</b>
+                : <b style={{ color: S.rust }}>reste {contratsReste.reste} contrat{contratsReste.reste > 1 ? "s" : ""} à signer</b>}.
+            </div>
+            <div style={{ marginTop: 12, display: "flex", flexDirection: "column", gap: 9 }}>
+              {contratsReste.lignes.map((l) => {
+                const pct = l.objectif > 0 ? Math.min(100, (l.signe / l.objectif) * 100) : 100;
+                const fait = l.reste <= 0;
+                return (
+                  <div key={l.id}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", fontSize: 12.5, marginBottom: 4 }}>
+                      <span style={{ color: S.soft, fontWeight: 600 }}>{l.nom}</span>
+                      <span style={{ color: fait ? S.green : S.ink, fontWeight: 600 }}>
+                        {l.signe} / {l.objectif}
+                        {!fait && <span style={{ color: S.rust }}> · reste {l.reste}</span>}
+                      </span>
+                    </div>
+                    <div style={{ height: 8, background: S.grid, borderRadius: 5, overflow: "hidden" }}>
+                      <div style={{ height: "100%", width: `${pct}%`, background: fait ? "linear-gradient(90deg,#7DA07D,#5B7A5B)" : `linear-gradient(90deg,${S.deep},${S.gold})`, borderRadius: 5 }} />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+            <div style={{ fontSize: 11, color: S.soft, opacity: 0.85, marginTop: 10 }}>Objectif = quantités visées dans l'onglet Objectifs. Signés = contrats déjà enregistrés (BNI compté à l'unité).</div>
+          </>
         )}
       </div>
 
