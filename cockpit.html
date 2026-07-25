@@ -612,9 +612,7 @@ function Cockpit() {
 
 /* ================= VUE PILOTAGE ================= */
 function Pilotage({ caSigne, caEncaisse, moisSigne, cumulSigne, pipePondere, pipeBrut, prospects, simultanes, heures, totalImpayes, impayes, setVue, objectif, contratsReste }) {
-  const manque = Math.max(0, objectif - caSigne);
   const projete = caSigne + pipePondere;
-  const actifs = prospects.filter((p) => !["signe", "perdu"].includes(p.etape)).length;
   const maxMois = Math.max(1, ...moisSigne);
 
   /* rythme : où devrais-tu en être aujourd'hui vs objectif (cible linéaire sur 12 mois) */
@@ -624,7 +622,6 @@ function Pilotage({ caSigne, caEncaisse, moisSigne, cumulSigne, pipePondere, pip
   const cibleADate = objectif * moisEcoules / 12;
   const ecart = caSigne - cibleADate; // >0 avance, <0 retard
   const cibleMensuelle = objectif / 12;
-  const restePropales = Math.ceil((manque / 3150) * 3);
 
   return (
     <div>
@@ -649,20 +646,6 @@ function Pilotage({ caSigne, caEncaisse, moisSigne, cumulSigne, pipePondere, pip
           </div>
         ))}
         <div style={{ fontSize: 11, color: "#8d857a", marginTop: 8 }}>La zone hachurée montre le pipeline pondéré ajouté au signé.</div>
-      </div>
-
-      <div style={{ background: S.paper, border: `1px solid ${S.line}`, borderLeft: `4px solid ${S.gold}`, borderRadius: 14, padding: "15px 17px", marginTop: 12 }}>
-        <div style={{ ...serif, fontSize: 18, fontWeight: 600, color: S.ink, marginBottom: 8 }}>Reste à signer sur l'année</div>
-        {manque <= 0 ? (
-          <p style={{ fontSize: 13.5, color: S.green, lineHeight: 1.6, margin: 0, fontWeight: 600 }}>Objectif de {court(objectif)} € atteint 🎉</p>
-        ) : (
-          <div style={{ fontSize: 13.5, color: S.soft, lineHeight: 1.7 }}>
-            <div>Objectif annuel : <b style={{ color: S.ink }}>{court(objectif)} €</b> <span style={{ opacity: 0.8 }}>(défini dans l'onglet Objectifs)</span></div>
-            <div>Déjà signé : <b style={{ color: S.ink }}>{court(caSigne)} €</b> → <b style={{ color: S.rust }}>reste {court(manque)} €</b> à signer.</div>
-            <div style={{ marginTop: 6 }}>Soit ≈ <b style={{ color: S.ink }}>{Math.ceil(manque / 3150)} clients</b> <span style={{ opacity: 0.8 }}>(3 150 € l'unité : 525 €/mois × 6)</span> ou <b style={{ color: S.ink }}>{restePropales} propales</b> à envoyer <span style={{ opacity: 0.8 }}>(~1 signée sur 3)</span>.</div>
-            <div style={{ marginTop: 6 }}>Dans ton pipeline aujourd'hui : <b style={{ color: S.ink }}>{actifs} prospects</b> actifs, {court(pipePondere)} € pondérés.</div>
-          </div>
-        )}
       </div>
 
       {/* reste à faire EN NOMBRE DE CONTRATS : objectif vs signé, par offre */}
