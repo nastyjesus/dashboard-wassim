@@ -563,7 +563,7 @@ function Cockpit() {
       </div>
 
       <div style={{ padding: "20px 18px 0", maxWidth: 1120, margin: "0 auto" }}>
-        {vue === "pilotage" && <Pilotage {...{ caSigne, caEncaisse, moisSigne, cumulSigne, pipePondere, pipeBrut, prospects, simultanes, heures, totalImpayes, impayes, setVue, objectif, contratsReste }} />}
+        {vue === "pilotage" && <Pilotage {...{ caSigne, caEncaisse, moisSigne, moisEncaisse, cumulSigne, pipePondere, setVue, objectif, contratsReste }} />}
         {vue === "crm" && <CRM {...{ prospects, setFProspect, bougerEtape, marquerPerdu, pipePondere, pipeBrut }} />}
         {vue === "tunnel" && <Tunnel {...{ tunnels, setFLevier, tunSaveEtat }} />}
         {vue === "treso" && <Treso {...{ clients, moisSigne, moisEncaisse, encaisser, tvaAReverser, caEncaisse, impayes, totalImpayes, setFClient }} />}
@@ -610,9 +610,8 @@ function Cockpit() {
 }
 
 /* ================= VUE PILOTAGE ================= */
-function Pilotage({ caSigne, caEncaisse, moisSigne, cumulSigne, pipePondere, pipeBrut, prospects, simultanes, heures, totalImpayes, impayes, setVue, objectif, contratsReste }) {
+function Pilotage({ caSigne, caEncaisse, moisSigne, moisEncaisse, cumulSigne, pipePondere, setVue, objectif, contratsReste }) {
   const projete = caSigne + pipePondere;
-  const maxMois = Math.max(1, ...moisSigne);
 
   /* rythme : où devrais-tu en être aujourd'hui vs objectif (cible linéaire sur 12 mois) */
   const nowP = new Date();
@@ -621,6 +620,31 @@ function Pilotage({ caSigne, caEncaisse, moisSigne, cumulSigne, pipePondere, pip
   const cibleADate = objectif * moisEcoules / 12;
   const ecart = caSigne - cibleADate; // >0 avance, <0 retard
   const cibleMensuelle = objectif / 12;
+
+  /* ---- pilotage mensuel : focus du mois courant ---- */
+  const iNow = idxNowP;
+  const enCours = iNow >= 0 && iNow <= 11;
+  const avantExercice = iNow < 0;
+  const apresExercice = iNow > 11;
+  const iFocus = Math.max(0, Math.min(11, iNow));
+  const moisNom = MOIS[FY[iFocus].m - 1];
+  const duFocus = moisSigne[iFocus];
+  const encFocus = moisEncaisse[iFocus];
+  const resteEncFocus = Math.max(0, duFocus - encFocus);
+  const pctEncFocus = duFocus > 0 ? Math.round((encFocus / duFocus) * 100) : 0;
+  const statutFocus = avantExercice ? "à venir" : apresExercice ? "clôturé" : "en cours";
+  const maxCombo = Math.max(1, ...moisSigne, ...moisEncaisse, cibleMensuelle);
+
+  /* ---- sablier de l'exercice (sept. 2026 → août 2027) ---- */
+  const debutEx = new Date(2026, 8, 1);   // 1ᵉʳ sept. 2026
+  const finEx = new Date(2027, 8, 1);     // 1ᵉʳ sept. 2027 (borne de fin)
+  const msJour = 86400000;
+  const joursAvantDebut = Math.max(0, Math.ceil((debutEx - nowP) / msJour));
+  const joursAvantFin = Math.max(0, Math.ceil((finEx - nowP) / msJour));
+  const dureeTot = finEx - debutEx;
+  const pctTemps = Math.round(Math.min(100, Math.max(0, (nowP - debutEx) / dureeTot)) * 100);
+  const moisRestants = Math.max(1, 12 - iNow);
+  const parMoisPourCap = contratsReste.reste > 0 ? Math.ceil(contratsReste.reste / moisRestants) : 0;
 
   return (
     <div>
@@ -720,32 +744,90 @@ function Pilotage({ caSigne, caEncaisse, moisSigne, cumulSigne, pipePondere, pip
         <div style={{ fontSize: 10.5, color: "#8d857a", marginTop: 7 }}>Chaque barre = CA signé cumulé à ce mois. Barre <span style={{ color: "#9DBF9D" }}>verte</span> = au-dessus de la cible, <span style={{ color: "#E0A277" }}>orange</span> = en dessous. Le trait clair = cible cumulée.</div>
       </div>
 
+      {/* focus du mois courant : dû / encaissé / à encaisser */}
       <div style={{ display: "flex", gap: 10, marginTop: 12, flexWrap: "wrap" }}>
         {[
-          { l: "Pipeline pondéré", v: `${court(pipePondere)} €`, s: `${court(pipeBrut)} € au total`, go: "crm" },
-          { l: "Clients simultanés", v: simultanes.toFixed(1), s: `≈ ${Math.round(simultanes * heures)} h / mois`, go: "contrats" },
-          { l: "Impayés", v: `${court(totalImpayes)} €`, s: `${impayes.length} échéance(s)`, go: "treso", alerte: totalImpayes > 0 },
+          { l: `${moisNom} · dû`, v: eur(duFocus), s: `mois ${statutFocus}` },
+          { l: `${moisNom} · encaissé`, v: eur(encFocus), s: duFocus > 0 ? `${pctEncFocus}% du dû` : "—", green: encFocus > 0 },
+          { l: `${moisNom} · à encaisser`, v: eur(resteEncFocus), s: "reste ce mois", alerte: resteEncFocus > 0 && !avantExercice },
         ].map((k, i) => (
-          <button key={i} onClick={() => setVue(k.go)} style={{ flex: "1 1 150px", textAlign: "left", background: S.paper, border: `1px solid ${k.alerte ? S.rust : S.line}`, borderRadius: 12, padding: "11px 13px", cursor: "pointer" }}>
+          <button key={i} onClick={() => setVue("treso")} style={{ flex: "1 1 150px", textAlign: "left", background: S.paper, border: `1px solid ${k.alerte ? S.rust : S.line}`, borderRadius: 12, padding: "11px 13px", cursor: "pointer" }}>
             <div style={{ fontSize: 10, letterSpacing: "0.05em", textTransform: "uppercase", color: k.alerte ? S.rust : S.deep, fontWeight: 600 }}>{k.l}</div>
-            <div style={{ ...serif, fontSize: 21, color: k.alerte ? S.rust : S.ink, marginTop: 2 }}>{k.v}</div>
+            <div style={{ ...serif, fontSize: 21, color: k.alerte ? S.rust : k.green ? S.green : S.ink, marginTop: 2 }}>{k.v}</div>
             <div style={{ fontSize: 11.5, color: S.soft }}>{k.s}</div>
           </button>
         ))}
       </div>
 
-      <div style={{ background: S.paper, border: `1px solid ${S.line}`, borderRadius: 14, padding: "14px 14px 10px", marginTop: 12 }}>
-        <div style={{ ...serif, fontSize: 16, fontWeight: 600, color: S.ink, marginBottom: 10 }}>CA signé par mois</div>
-        <div style={{ display: "flex", alignItems: "flex-end", gap: 4, height: 96 }}>
-          {moisSigne.map((v, i) => (
-            <div key={i} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 3 }}>
-              <div style={{ width: "100%", height: `${(v / maxMois) * 76}px`, minHeight: v ? 3 : 0, background: `linear-gradient(180deg,${S.gold},${S.deep})`, borderRadius: "3px 3px 0 0" }} title={eur(v)} />
-              <div style={{ fontSize: 8.5, color: S.soft }}>{MOIS[FY[i].m - 1].slice(0, 1).toUpperCase()}</div>
-            </div>
-          ))}
+      {/* graphe mensuel : signé (dû) vs encaissé, cible mensuelle, mois courant surligné */}
+      <div style={{ background: S.paper, border: `1px solid ${S.line}`, borderRadius: 14, padding: "14px 14px 12px", marginTop: 12 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", flexWrap: "wrap", gap: 6, marginBottom: 4 }}>
+          <div style={{ ...serif, fontSize: 16, fontWeight: 600, color: S.ink }}>Le mois par mois — signé vs encaissé</div>
+          <div style={{ display: "flex", gap: 12, fontSize: 10.5, color: S.soft }}>
+            <span style={{ display: "flex", alignItems: "center", gap: 4 }}><span style={{ width: 9, height: 9, borderRadius: 2, background: S.gold }} /> dû</span>
+            <span style={{ display: "flex", alignItems: "center", gap: 4 }}><span style={{ width: 9, height: 9, borderRadius: 2, background: S.green }} /> encaissé</span>
+          </div>
         </div>
-        <div style={{ fontSize: 11, color: S.rust, marginTop: 8, display: "flex", alignItems: "center", gap: 5 }}>
+        <div style={{ position: "relative", height: 112, marginTop: 10 }}>
+          <div style={{ position: "absolute", left: 0, right: 0, bottom: `${(cibleMensuelle / maxCombo) * 112}px`, borderTop: `1px dashed ${S.deep}`, opacity: 0.55, zIndex: 3 }}>
+            <span style={{ position: "absolute", right: 0, top: -13, fontSize: 9, color: S.deep, background: S.paper, padding: "0 3px" }}>cible {court(cibleMensuelle)} €</span>
+          </div>
+          <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "flex-end", gap: 3 }}>
+            {FY.map((o, i) => {
+              const du = moisSigne[i], enc = moisEncaisse[i];
+              const cur = i === iFocus && enCours;
+              return (
+                <div key={i} style={{ flex: 1, height: "100%", display: "flex", alignItems: "flex-end", justifyContent: "center", gap: 2, background: cur ? "rgba(176,141,87,0.12)" : "transparent", borderRadius: 5, paddingTop: 2 }} title={`${MOIS[o.m - 1]} : dû ${eur(du)} · encaissé ${eur(enc)}`}>
+                  <div style={{ width: "40%", height: `${(du / maxCombo) * 112}px`, minHeight: du ? 2 : 0, background: `linear-gradient(180deg,${S.gold},${S.deep})`, borderRadius: "2px 2px 0 0" }} />
+                  <div style={{ width: "40%", height: `${(enc / maxCombo) * 112}px`, minHeight: enc ? 2 : 0, background: `linear-gradient(180deg,#7DA07D,${S.green})`, borderRadius: "2px 2px 0 0" }} />
+                </div>
+              );
+            })}
+          </div>
+        </div>
+        <div style={{ display: "flex", gap: 3, marginTop: 3 }}>
+          {FY.map((o, i) => {
+            const cur = i === iFocus && enCours;
+            return <div key={i} style={{ flex: 1, textAlign: "center", fontSize: 8.5, color: cur ? S.deep : S.soft, fontWeight: cur ? 700 : 400 }}>{MOIS[o.m - 1].slice(0, 1).toUpperCase()}</div>;
+          })}
+        </div>
+        <div style={{ fontSize: 11, color: S.rust, marginTop: 9, display: "flex", alignItems: "center", gap: 5 }}>
           <AlertTriangle size={12} /> La falaise après décembre, c'est ton vrai chantier : renouvellement et acquisition.
+        </div>
+      </div>
+
+      {/* ✦ le sablier de l'exercice — compte à rebours + timeline */}
+      <div style={{ background: S.panel, borderRadius: 16, padding: "18px 18px", marginTop: 12, color: S.cream, position: "relative", overflow: "hidden" }}>
+        <div style={{ position: "absolute", right: -30, top: -30, width: 130, height: 130, borderRadius: "50%", background: "radial-gradient(circle, rgba(176,141,87,0.18), transparent 70%)" }} />
+        <div style={{ fontSize: 10, letterSpacing: "0.18em", textTransform: "uppercase", color: S.gold, fontWeight: 600 }}>Le sablier de l'exercice</div>
+        {avantExercice ? (
+          <>
+            <div style={{ ...serif, fontSize: 34, fontWeight: 600, lineHeight: 1.05, marginTop: 6 }}>J‑{joursAvantDebut} <span style={{ fontSize: 14, color: S.gold }}>avant le coup d'envoi</span></div>
+            <div style={{ fontSize: 12.5, color: "#C9BFAE", marginTop: 6 }}>L'exercice s'ouvre le 1ᵉʳ septembre 2026. {contratsReste.objectif > 0 ? <>Ligne de mire : <b style={{ color: S.cream }}>{contratsReste.objectif} contrats</b> sur l'année.</> : <>Cale d'abord tes cibles dans l'onglet Objectifs.</>}</div>
+          </>
+        ) : apresExercice ? (
+          <>
+            <div style={{ ...serif, fontSize: 34, fontWeight: 600, marginTop: 6 }}>Exercice bouclé</div>
+            <div style={{ fontSize: 12.5, color: "#C9BFAE", marginTop: 6 }}><b style={{ color: S.cream }}>{court(caSigne)} €</b> signés · <b style={{ color: S.cream }}>{court(caEncaisse)} €</b> encaissés. Beau chemin — place au prochain exercice.</div>
+          </>
+        ) : (
+          <>
+            <div style={{ ...serif, fontSize: 34, fontWeight: 600, lineHeight: 1.05, marginTop: 6 }}>{joursAvantFin} <span style={{ fontSize: 14, color: S.gold }}>jours restants</span></div>
+            <div style={{ fontSize: 12.5, color: "#C9BFAE", marginTop: 6 }}>
+              {contratsReste.reste > 0
+                ? <>Encore <b style={{ color: S.cream }}>{contratsReste.reste} contrat{contratsReste.reste > 1 ? "s" : ""}</b> à signer, soit ~<b style={{ color: S.cream }}>{parMoisPourCap}</b> par mois d'ici la fin pour tenir le cap.</>
+                : <>Objectif contrats atteint — reste à transformer et à encaisser. 🎯</>}
+            </div>
+          </>
+        )}
+        <div style={{ marginTop: 16 }}>
+          <div style={{ position: "relative", height: 8, background: "#3a352e", borderRadius: 5 }}>
+            <div style={{ position: "absolute", left: 0, top: 0, bottom: 0, width: `${pctTemps}%`, background: `linear-gradient(90deg,${S.deep},${S.gold})`, borderRadius: 5 }} />
+            <div style={{ position: "absolute", left: `${pctTemps}%`, top: "50%", transform: "translate(-50%,-50%)", width: 12, height: 12, borderRadius: "50%", background: S.cream, border: `2px solid ${S.gold}`, boxShadow: "0 0 0 3px rgba(176,141,87,0.35)" }} />
+          </div>
+          <div style={{ display: "flex", justifyContent: "space-between", fontSize: 9.5, color: "#8d857a", marginTop: 7 }}>
+            <span>sept. 26</span><span style={{ color: "#C9BFAE" }}>{pctTemps}% du temps écoulé</span><span>août 27</span>
+          </div>
         </div>
       </div>
     </div>
