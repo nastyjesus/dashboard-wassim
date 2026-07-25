@@ -2,7 +2,7 @@
 <!--
   COCKPIT — Wassim Loumi, copilote digital
   Exercice 1 sept. 2026 → 31 août 2027
-  4 onglets (Pilotage, CRM, Trésorerie, Contrats) — ÉDITABLE.
+  5 onglets (Pilotage, CRM, Tunnel, Contrats, Objectifs) — ÉDITABLE.
   Lit ET écrit la base Notion « 🎯 Pilotage 26/27 » via le Worker Cloudflare.
   Écriture protégée par X-Pilot-Key (clé publique dans la page, assumée : voir README).
   Le token Notion reste secret côté serveur.
@@ -408,11 +408,7 @@ function Cockpit() {
   const moisSigne = FY.map((o) =>
     clients.reduce((s, c) => s + (c.ech || []).filter((e) => e.mkey === o.key).reduce((x, e) => x + e.du, 0), 0)
   );
-  const moisEncaisse = FY.map((o) =>
-    clients.reduce((s, c) => s + (c.ech || []).filter((e) => e.mkey === o.key && e.encaisse != null).reduce((x, e) => x + Number(e.encaisse), 0), 0)
-  );
   const caSigne = moisSigne.reduce((a, b) => a + b, 0);
-  const caEncaisse = moisEncaisse.reduce((a, b) => a + b, 0);
   let acc = 0; const cumulSigne = moisSigne.map((m) => (acc += m));
 
   const pipePondere = prospects
@@ -422,24 +418,9 @@ function Cockpit() {
     .filter((p) => !["signe", "perdu"].includes(p.etape))
     .reduce((s, p) => s + (Number(p.montant) || 0), 0);
 
-  const now = new Date();
-  const idxNow = (now.getFullYear() - 2026) * 12 + (now.getMonth() + 1 - 9);
-  const impayes = [];
-  clients.forEach((c) =>
-    (c.ech || []).forEach((e) => {
-      const i = idxOf(e.mkey);
-      if (i < idxNow && e.encaisse == null) impayes.push({ client: c.nom, mkey: e.mkey, du: e.du });
-    })
-  );
-  const totalImpayes = impayes.reduce((s, e) => s + e.du, 0);
-
-  const simultanes = (() => {
-    const parMois = FY.map((o) => clients.filter((c) => est(c.type).rec && (c.ech || []).some((e) => e.mkey === o.key)).length);
-    const actifs = parMois.filter((n) => n > 0);
-    return actifs.length ? actifs.reduce((a, b) => a + b, 0) / actifs.length : 0;
-  })();
-
-  const tvaAReverser = caEncaisse * TVA;
+  /* suivi mensuel des contrats (sans notion de paiement) */
+  const moisContratsActifs = FY.map((o) => clients.filter((c) => (c.ech || []).some((e) => e.mkey === o.key)).length);
+  const moisNouveaux = FY.map((o) => clients.filter((c) => c.debut === o.key).length);
 
   const objSim = objCompute(prestas, heures, charges);
   const objectif = objSim.total > 0 ? objSim.total : 60000;
@@ -502,18 +483,6 @@ function Cockpit() {
     "Enregistrement du contrat"
   );
 
-  const encaisser = (clientId, mkey, valeur) => {
-    const c = clients.find((x) => x.id === clientId);
-    if (!c) return;
-    const val = valeur === "" || valeur == null ? null : Number(valeur);
-    const nech = c.ech.map((e) => (e.mkey === mkey ? { ...e, encaisse: val } : e));
-    const encMap = {};
-    nech.forEach((e) => { if (e.encaisse != null) encMap[e.mkey] = e.encaisse; });
-    const total = Object.values(encMap).reduce((a, b) => a + b, 0);
-    setClients(clients.map((x) => (x.id === clientId ? { ...x, ech: nech } : x))); /* optimiste */
-    ecrire(() => apiUpdate(clientId, { "Encaissements": JSON.stringify(encMap), "Encaissé HT": total }), "Encaissement");
-  };
-
   if (chargement)
     return <div style={{ ...sans, background: S.cream, minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", color: S.soft }}>Lecture de Notion…</div>;
 
@@ -521,7 +490,7 @@ function Cockpit() {
     { id: "pilotage", nom: "Pilotage", ic: <TrendingUp size={16} /> },
     { id: "crm", nom: "CRM", ic: <Users size={16} /> },
     { id: "tunnel", nom: "Tunnel", ic: <Funnel size={16} /> },
-    { id: "treso", nom: "Trésorerie", ic: <Wallet size={16} /> },
+    { id: "contrats", nom: "Contrats", ic: <FileText size={16} /> },
     { id: "objectifs", nom: "Objectifs", ic: <Target size={16} /> },
   ];
 
@@ -563,10 +532,10 @@ function Cockpit() {
       </div>
 
       <div style={{ padding: "20px 18px 0", maxWidth: 1120, margin: "0 auto" }}>
-        {vue === "pilotage" && <Pilotage {...{ caSigne, caEncaisse, moisSigne, moisEncaisse, cumulSigne, pipePondere, setVue, objectif, contratsReste }} />}
+        {vue === "pilotage" && <Pilotage {...{ caSigne, moisSigne, moisContratsActifs, moisNouveaux, cumulSigne, pipePondere, setVue, objectif, contratsReste }} />}
         {vue === "crm" && <CRM {...{ prospects, setFProspect, bougerEtape, marquerPerdu, pipePondere, pipeBrut }} />}
         {vue === "tunnel" && <Tunnel {...{ tunnels, setFLevier, tunSaveEtat }} />}
-        {vue === "treso" && <Treso {...{ clients, moisSigne, moisEncaisse, encaisser, tvaAReverser, caEncaisse, impayes, totalImpayes, setFClient }} />}
+        {vue === "contrats" && <Contrats {...{ clients, setFClient, setASupprimer, caSigne }} />}
         {vue === "objectifs" && <Objectifs {...{ prestas, heures, charges, objSim, majPresta, ajouterPresta, supprimerPresta, setHeuresObj, setChargesObj, setConfirmReset, objSaveEtat, caSigne }} />}
       </div>
 
@@ -610,7 +579,7 @@ function Cockpit() {
 }
 
 /* ================= VUE PILOTAGE ================= */
-function Pilotage({ caSigne, caEncaisse, moisSigne, moisEncaisse, cumulSigne, pipePondere, setVue, objectif, contratsReste }) {
+function Pilotage({ caSigne, moisSigne, moisContratsActifs, moisNouveaux, cumulSigne, pipePondere, setVue, objectif, contratsReste }) {
   const projete = caSigne + pipePondere;
 
   /* rythme : où devrais-tu en être aujourd'hui vs objectif (cible linéaire sur 12 mois) */
@@ -629,11 +598,10 @@ function Pilotage({ caSigne, caEncaisse, moisSigne, moisEncaisse, cumulSigne, pi
   const iFocus = Math.max(0, Math.min(11, iNow));
   const moisNom = MOIS[FY[iFocus].m - 1];
   const duFocus = moisSigne[iFocus];
-  const encFocus = moisEncaisse[iFocus];
-  const resteEncFocus = Math.max(0, duFocus - encFocus);
-  const pctEncFocus = duFocus > 0 ? Math.round((encFocus / duFocus) * 100) : 0;
+  const actifsFocus = moisContratsActifs[iFocus];
+  const nouveauxFocus = moisNouveaux[iFocus];
   const statutFocus = avantExercice ? "à venir" : apresExercice ? "clôturé" : "en cours";
-  const maxCombo = Math.max(1, ...moisSigne, ...moisEncaisse, cibleMensuelle);
+  const maxMois = Math.max(1, ...moisSigne, cibleMensuelle);
 
   /* ---- sablier de l'exercice (sept. 2026 → août 2027) ---- */
   const debutEx = new Date(2026, 8, 1);   // 1ᵉʳ sept. 2026
@@ -654,7 +622,7 @@ function Pilotage({ caSigne, caEncaisse, moisSigne, moisEncaisse, cumulSigne, pi
           {court(caSigne)}<span style={{ fontSize: 15, color: S.gold, marginLeft: 5 }}>€ HT</span>
         </div>
         <div style={{ fontSize: 12.5, color: "#C9BFAE", marginTop: 6 }}>
-          {court(caEncaisse)} € déjà encaissés · pipeline pondéré {court(pipePondere)} €
+          pipeline pondéré {court(pipePondere)} € · {contratsReste.signe} contrat{contratsReste.signe > 1 ? "s" : ""} signé{contratsReste.signe > 1 ? "s" : ""}
         </div>
         {[60000, 80000].map((t) => (
           <div key={t} style={{ marginTop: 15 }}>
@@ -744,42 +712,36 @@ function Pilotage({ caSigne, caEncaisse, moisSigne, moisEncaisse, cumulSigne, pi
         <div style={{ fontSize: 10.5, color: "#8d857a", marginTop: 7 }}>Chaque barre = CA signé cumulé à ce mois. Barre <span style={{ color: "#9DBF9D" }}>verte</span> = au-dessus de la cible, <span style={{ color: "#E0A277" }}>orange</span> = en dessous. Le trait clair = cible cumulée.</div>
       </div>
 
-      {/* focus du mois courant : dû / encaissé / à encaisser */}
+      {/* focus du mois courant : contrats (sans notion de paiement) */}
       <div style={{ display: "flex", gap: 10, marginTop: 12, flexWrap: "wrap" }}>
         {[
-          { l: `${moisNom} · dû`, v: eur(duFocus), s: `mois ${statutFocus}` },
-          { l: `${moisNom} · encaissé`, v: eur(encFocus), s: duFocus > 0 ? `${pctEncFocus}% du dû` : "—", green: encFocus > 0 },
-          { l: `${moisNom} · à encaisser`, v: eur(resteEncFocus), s: "reste ce mois", alerte: resteEncFocus > 0 && !avantExercice },
+          { l: `${moisNom} · CA du mois`, v: eur(duFocus), s: `mois ${statutFocus}` },
+          { l: `${moisNom} · contrats actifs`, v: actifsFocus, s: "en cours ce mois" },
+          { l: `${moisNom} · nouveaux`, v: nouveauxFocus, s: "démarrages du mois" },
         ].map((k, i) => (
-          <button key={i} onClick={() => setVue("treso")} style={{ flex: "1 1 150px", textAlign: "left", background: S.paper, border: `1px solid ${k.alerte ? S.rust : S.line}`, borderRadius: 12, padding: "11px 13px", cursor: "pointer" }}>
-            <div style={{ fontSize: 10, letterSpacing: "0.05em", textTransform: "uppercase", color: k.alerte ? S.rust : S.deep, fontWeight: 600 }}>{k.l}</div>
-            <div style={{ ...serif, fontSize: 21, color: k.alerte ? S.rust : k.green ? S.green : S.ink, marginTop: 2 }}>{k.v}</div>
+          <button key={i} onClick={() => setVue("contrats")} style={{ flex: "1 1 150px", textAlign: "left", background: S.paper, border: `1px solid ${S.line}`, borderRadius: 12, padding: "11px 13px", cursor: "pointer" }}>
+            <div style={{ fontSize: 10, letterSpacing: "0.05em", textTransform: "uppercase", color: S.deep, fontWeight: 600 }}>{k.l}</div>
+            <div style={{ ...serif, fontSize: 21, color: S.ink, marginTop: 2 }}>{k.v}</div>
             <div style={{ fontSize: 11.5, color: S.soft }}>{k.s}</div>
           </button>
         ))}
       </div>
 
-      {/* graphe mensuel : signé (dû) vs encaissé, cible mensuelle, mois courant surligné */}
+      {/* graphe mensuel : CA signé par mois (contrats), cible mensuelle, mois courant surligné */}
       <div style={{ background: S.paper, border: `1px solid ${S.line}`, borderRadius: 14, padding: "14px 14px 12px", marginTop: 12 }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", flexWrap: "wrap", gap: 6, marginBottom: 4 }}>
-          <div style={{ ...serif, fontSize: 16, fontWeight: 600, color: S.ink }}>Le mois par mois — signé vs encaissé</div>
-          <div style={{ display: "flex", gap: 12, fontSize: 10.5, color: S.soft }}>
-            <span style={{ display: "flex", alignItems: "center", gap: 4 }}><span style={{ width: 9, height: 9, borderRadius: 2, background: S.gold }} /> dû</span>
-            <span style={{ display: "flex", alignItems: "center", gap: 4 }}><span style={{ width: 9, height: 9, borderRadius: 2, background: S.green }} /> encaissé</span>
-          </div>
+          <div style={{ ...serif, fontSize: 16, fontWeight: 600, color: S.ink }}>Le CA des contrats, mois par mois</div>
+          <div style={{ fontSize: 10.5, color: S.soft }}>trait = cible {court(cibleMensuelle)} € / mois</div>
         </div>
         <div style={{ position: "relative", height: 112, marginTop: 10 }}>
-          <div style={{ position: "absolute", left: 0, right: 0, bottom: `${(cibleMensuelle / maxCombo) * 112}px`, borderTop: `1px dashed ${S.deep}`, opacity: 0.55, zIndex: 3 }}>
-            <span style={{ position: "absolute", right: 0, top: -13, fontSize: 9, color: S.deep, background: S.paper, padding: "0 3px" }}>cible {court(cibleMensuelle)} €</span>
-          </div>
+          <div style={{ position: "absolute", left: 0, right: 0, bottom: `${(cibleMensuelle / maxMois) * 112}px`, borderTop: `1px dashed ${S.deep}`, opacity: 0.55, zIndex: 3 }} />
           <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "flex-end", gap: 3 }}>
             {FY.map((o, i) => {
-              const du = moisSigne[i], enc = moisEncaisse[i];
+              const du = moisSigne[i];
               const cur = i === iFocus && enCours;
               return (
-                <div key={i} style={{ flex: 1, height: "100%", display: "flex", alignItems: "flex-end", justifyContent: "center", gap: 2, background: cur ? "rgba(176,141,87,0.12)" : "transparent", borderRadius: 5, paddingTop: 2 }} title={`${MOIS[o.m - 1]} : dû ${eur(du)} · encaissé ${eur(enc)}`}>
-                  <div style={{ width: "40%", height: `${(du / maxCombo) * 112}px`, minHeight: du ? 2 : 0, background: `linear-gradient(180deg,${S.gold},${S.deep})`, borderRadius: "2px 2px 0 0" }} />
-                  <div style={{ width: "40%", height: `${(enc / maxCombo) * 112}px`, minHeight: enc ? 2 : 0, background: `linear-gradient(180deg,#7DA07D,${S.green})`, borderRadius: "2px 2px 0 0" }} />
+                <div key={i} style={{ flex: 1, height: "100%", display: "flex", alignItems: "flex-end", justifyContent: "center", background: cur ? "rgba(176,141,87,0.12)" : "transparent", borderRadius: 5, paddingTop: 2 }} title={`${MOIS[o.m - 1]} : ${eur(du)}`}>
+                  <div style={{ width: "62%", height: `${(du / maxMois) * 112}px`, minHeight: du ? 2 : 0, background: `linear-gradient(180deg,${S.gold},${S.deep})`, borderRadius: "2px 2px 0 0" }} />
                 </div>
               );
             })}
@@ -808,7 +770,7 @@ function Pilotage({ caSigne, caEncaisse, moisSigne, moisEncaisse, cumulSigne, pi
         ) : apresExercice ? (
           <>
             <div style={{ ...serif, fontSize: 34, fontWeight: 600, marginTop: 6 }}>Exercice bouclé</div>
-            <div style={{ fontSize: 12.5, color: "#C9BFAE", marginTop: 6 }}><b style={{ color: S.cream }}>{court(caSigne)} €</b> signés · <b style={{ color: S.cream }}>{court(caEncaisse)} €</b> encaissés. Beau chemin — place au prochain exercice.</div>
+            <div style={{ fontSize: 12.5, color: "#C9BFAE", marginTop: 6 }}><b style={{ color: S.cream }}>{court(caSigne)} €</b> signés · <b style={{ color: S.cream }}>{contratsReste.signe} contrats</b> au compteur. Beau chemin — place au prochain exercice.</div>
           </>
         ) : (
           <>
@@ -816,7 +778,7 @@ function Pilotage({ caSigne, caEncaisse, moisSigne, moisEncaisse, cumulSigne, pi
             <div style={{ fontSize: 12.5, color: "#C9BFAE", marginTop: 6 }}>
               {contratsReste.reste > 0
                 ? <>Encore <b style={{ color: S.cream }}>{contratsReste.reste} contrat{contratsReste.reste > 1 ? "s" : ""}</b> à signer, soit ~<b style={{ color: S.cream }}>{parMoisPourCap}</b> par mois d'ici la fin pour tenir le cap.</>
-                : <>Objectif contrats atteint — reste à transformer et à encaisser. 🎯</>}
+                : <>Objectif contrats atteint — continue à signer et à renouveler. 🎯</>}
             </div>
           </>
         )}
@@ -897,90 +859,6 @@ function CRM({ prospects, setFProspect, bougerEtape, marquerPerdu, pipePondere, 
   );
 }
 
-/* ================= VUE TRÉSORERIE ================= */
-function Treso({ clients, moisSigne, moisEncaisse, encaisser, tvaAReverser, caEncaisse, impayes, totalImpayes, setFClient }) {
-  const [edit, setEdit] = useState(null);
-  const [tampon, setTampon] = useState("");
-  const W = 76, WN = 150;
-  const th = { position: "sticky", top: 0, background: S.panel, color: S.cream, fontSize: 10, fontWeight: 700, textTransform: "uppercase", padding: "8px 7px", textAlign: "right", whiteSpace: "nowrap" };
-  const td = { padding: 0, borderBottom: `1px solid ${S.grid}`, borderRight: `1px solid ${S.grid}`, textAlign: "right", fontSize: 12.5, height: 36 };
-
-  const lignesRec = clients.filter((c) => (c.ech || []).length);
-
-  return (
-    <div>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 8, marginBottom: 6 }}>
-        <div style={{ fontSize: 12.5, color: S.soft }}>{lignesRec.length} contrats · touche un <b style={{ color: S.deep }}>nom</b> pour changer montant / durée ou supprimer.</div>
-        <button onClick={() => setFClient({ id: Date.now(), nom: "", type: "prog", prix: "", debut: FY[0].key, duree: 6, source: "", nombre: 1 })} style={{ ...btnAdd, width: "auto", padding: "8px 13px" }}><Plus size={14} /> Contrat</button>
-      </div>
-      <p style={{ fontSize: 12.5, color: S.soft, marginTop: 0, marginBottom: 6 }}>
-        Ligne <b>dû</b> calculée depuis les contrats. Touchez une cellule <b>encaissé</b> pour saisir ce que vous avez réellement reçu — c'est écrit dans Notion. Une échéance passée non encaissée bascule en impayé. La ligne <b>TVA estim. 20 %</b> prévoit ce que tu devras régler chaque mois, estimée à 20 % du CA dû du mois.
-      </p>
-
-      <div className="wrap" style={{ overflowX: "auto", WebkitOverflowScrolling: "touch" }}>
-        <table style={{ borderCollapse: "separate", borderSpacing: 0, background: S.paper, border: `1px solid ${S.line}`, borderRadius: 12, overflow: "hidden", minWidth: WN + W * 12 + 70 }}>
-          <thead>
-            <tr>
-              <th style={{ ...th, position: "sticky", left: 0, zIndex: 4, textAlign: "left", width: WN, minWidth: WN }}>Contrat</th>
-              {FY.map((o) => <th key={o.key} style={{ ...th, width: W, minWidth: W }}>{MOIS[o.m - 1]}<br /><span style={{ color: S.gold }}>{String(o.y).slice(2)}</span></th>)}
-            </tr>
-          </thead>
-          <tbody>
-            {lignesRec.map((c) => (
-              <tr key={c.id}>
-                <td style={{ position: "sticky", left: 0, zIndex: 2, background: S.paper, borderRight: `2px solid ${S.line}`, borderBottom: `1px solid ${S.grid}`, padding: "5px 9px", width: WN, minWidth: WN }}>
-                  <div onClick={() => setFClient(c)} title="Modifier ce contrat" style={{ ...serif, fontSize: 13.5, fontWeight: 600, color: S.deep, lineHeight: 1.15, cursor: "pointer", textDecoration: "underline", textDecorationColor: S.line, textUnderlineOffset: 2 }}>{c.nom}</div>
-                </td>
-                {FY.map((o, i) => {
-                  const e = (c.ech || []).find((x) => x.mkey === o.key);
-                  const enEdit = edit && edit.id === c.id && edit.mkey === o.key;
-                  const retard = e && e.encaisse == null && idxOf(o.key) < ((new Date().getFullYear() - 2026) * 12 + (new Date().getMonth() + 1 - 9));
-                  return (
-                    <td key={o.key} className={e ? "cel" : ""} style={{ ...td, width: W, minWidth: W, background: !e ? "transparent" : retard ? "#F6E7DE" : e.encaisse != null ? "#EDF1EC" : "#FFFDF9" }}
-                      onClick={() => { if (e && !enEdit) { setEdit({ id: c.id, mkey: o.key }); setTampon(e.encaisse != null ? String(e.encaisse) : String(e.du)); } }}>
-                      {!e ? <div style={{ lineHeight: "35px", color: S.line, textAlign: "center" }}>·</div> :
-                        enEdit ? (
-                          <input autoFocus type="number" value={tampon} onChange={(ev) => setTampon(ev.target.value)}
-                            onBlur={() => { encaisser(c.id, o.key, tampon); setEdit(null); }}
-                            onKeyDown={(ev) => { if (ev.key === "Enter") { encaisser(c.id, o.key, tampon); setEdit(null); } if (ev.key === "Escape") setEdit(null); }}
-                            style={{ width: "100%", height: 34, border: `2px solid ${S.gold}`, borderRadius: 4, textAlign: "right", padding: "0 5px", fontSize: 12.5, fontWeight: 600, background: "#fff", outline: "none" }} />
-                        ) : (
-                          <div style={{ padding: "0 7px", lineHeight: "35px" }}>
-                            <span style={{ fontSize: 12.5, fontWeight: 600, color: e.encaisse != null ? S.green : retard ? S.rust : S.soft }}>
-                              {e.encaisse != null ? court(e.encaisse) : court(e.du)}
-                            </span>
-                          </div>
-                        )}
-                    </td>
-                  );
-                })}
-              </tr>
-            ))}
-            <tr>
-              <td style={{ position: "sticky", left: 0, background: S.panel, borderRight: `1px solid #3a352e`, padding: "6px 9px" }}>
-                <span style={{ ...serif, fontSize: 13.5, fontWeight: 600, color: S.cream }}>Dû</span>
-              </td>
-              {moisSigne.map((v, i) => <td key={i} style={{ ...td, background: S.panel, borderRight: `1px solid #3a352e` }}><div style={{ ...serif, padding: "0 7px", lineHeight: "35px", fontSize: 13, color: v ? S.cream : "#5d564c" }}>{v ? court(v) : "·"}</div></td>)}
-            </tr>
-            <tr>
-              <td style={{ position: "sticky", left: 0, background: "#EDF1EC", borderRight: `2px solid ${S.line}`, padding: "6px 9px" }}>
-                <span style={{ fontSize: 11.5, fontWeight: 700, textTransform: "uppercase", color: S.green }}>Encaissé</span>
-              </td>
-              {moisEncaisse.map((v, i) => <td key={i} style={{ ...td, background: "#EDF1EC" }}><div style={{ padding: "0 7px", lineHeight: "35px", fontSize: 12.5, fontWeight: 600, color: v ? S.green : S.line }}>{v ? court(v) : "·"}</div></td>)}
-            </tr>
-            <tr>
-              <td style={{ position: "sticky", left: 0, background: "#F6EDE4", borderRight: `2px solid ${S.line}`, padding: "6px 9px" }}>
-                <span style={{ fontSize: 11.5, fontWeight: 700, textTransform: "uppercase", color: S.deep }}>TVA estim. 20 %</span>
-              </td>
-              {moisSigne.map((v, i) => { const t = v * TVA; return <td key={i} style={{ ...td, background: "#F6EDE4" }}><div style={{ padding: "0 7px", lineHeight: "35px", fontSize: 12.5, fontWeight: 600, color: t ? S.deep : S.line }}>{t ? court(t) : "·"}</div></td>; })}
-            </tr>
-          </tbody>
-        </table>
-      </div>
-    </div>
-  );
-}
-
 /* ================= VUE CONTRATS ================= */
 function Contrats({ clients, setFClient, setASupprimer, caSigne }) {
   return (
@@ -991,20 +869,19 @@ function Contrats({ clients, setFClient, setASupprimer, caSigne }) {
       </div>
       {clients.map((c) => {
         const dansFY = (c.ech || []).reduce((s, e) => s + e.du, 0);
-        const encaisse = (c.ech || []).reduce((s, e) => s + (e.encaisse != null ? Number(e.encaisse) : 0), 0);
         const t = est(c.type);
         return (
           <div key={c.id} onClick={() => setFClient(c)} style={{ background: S.paper, border: `1px solid ${S.line}`, borderLeft: `4px solid ${t.rec ? S.deep : S.gold}`, borderRadius: 12, padding: "12px 14px", marginTop: 9, cursor: "pointer" }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8 }}>
               <div>
                 <div style={{ ...serif, fontSize: 16.5, fontWeight: 600, color: S.ink }}>{c.nom}</div>
-                <div style={{ fontSize: 12, color: S.soft, marginTop: 1 }}>{t.nom} · {eur(c.prix)}{c.type === "bni" ? ` × ${c.nombre}` : t.rec ? `/mois × ${c.duree}` : ""} · {c.type === "bni" ? "encaissé" : t.rec ? "démarre" : "facturé"} {labKey(c.debut)}</div>
+                <div style={{ fontSize: 12, color: S.soft, marginTop: 1 }}>{t.nom} · {eur(c.prix)}{c.type === "bni" ? ` × ${c.nombre}` : t.rec ? `/mois × ${c.duree}` : ""} · {c.type === "bni" ? "commission" : t.rec ? "démarre" : "signé"} {labKey(c.debut)}</div>
               </div>
               <button onClick={(e) => { e.stopPropagation(); setASupprimer(c); }} style={{ ...btnIcon }}><Trash2 size={14} /></button>
             </div>
             <div style={{ display: "flex", gap: 16, marginTop: 9, paddingTop: 9, borderTop: `1px dashed ${S.line}`, fontSize: 12, flexWrap: "wrap" }}>
               <div><span style={{ color: S.soft }}>Dans l'exercice </span><b style={{ ...serif, fontSize: 15 }}>{eur(dansFY)}</b></div>
-              <div><span style={{ color: S.soft }}>Encaissé </span><b style={{ ...serif, fontSize: 15, color: S.green }}>{eur(encaisse)}</b></div>
+              <div><span style={{ color: S.soft }}>{est(c.type).rec ? `${c.duree} mois` : c.type === "bni" ? `${c.nombre} unité${c.nombre > 1 ? "s" : ""}` : "ponctuel"} </span><b style={{ ...serif, fontSize: 15, color: S.deep }}>{labKey(c.debut)}</b></div>
             </div>
           </div>
         );
@@ -1292,7 +1169,7 @@ function FicheSignature({ p, onClose, onConfirm }) {
     <Modal onClose={onClose} bas>
       <TitreModale titre="Signature — détails de la prestation" onClose={onClose} />
       <div style={{ background: "#EDF1EC", border: `1px solid ${S.line}`, borderRadius: 10, padding: "9px 12px", fontSize: 12.5, color: S.green, marginBottom: 12 }}>
-        Bravo. Renseigne le contrat, les échéances de trésorerie se créent automatiquement.
+        Bravo. Renseigne le contrat, le CA se répartit automatiquement sur les mois.
       </div>
       <Ch label="Nom du contrat"><input value={f.nom} onChange={(e) => set("nom", e.target.value)} style={inp} /></Ch>
       <Ch label="Type">
@@ -1342,7 +1219,7 @@ function FicheClient({ c, sourcesList, onClose, onSave, onDelete }) {
       {f.type === "bni" && Number(f.prix) > 0 && (
         <div style={{ fontSize: 12.5, color: S.deep, marginTop: -6, marginBottom: 12 }}>Total : <b>{eur(Number(f.prix) * (Number(f.nombre) || 1))}</b> ({eur(f.prix)} × {Number(f.nombre) || 1})</div>
       )}
-      <Ch label={f.type === "bni" ? "Mois d'encaissement" : est(f.type).rec ? "Mois de démarrage" : "Mois de facturation"}>
+      <Ch label={f.type === "bni" ? "Mois de commission" : est(f.type).rec ? "Mois de démarrage" : "Mois de signature"}>
         <select value={f.debut} onChange={(e) => set("debut", e.target.value)} style={inp}>
           {CHOIX.map((o) => <option key={o.key} value={o.key}>{lab(o.y, o.m)}{o.idx < 0 ? " (exercice préc.)" : o.idx > 11 ? " (exercice suiv.)" : ""}</option>)}
         </select>
@@ -1361,7 +1238,7 @@ function FicheClient({ c, sourcesList, onClose, onSave, onDelete }) {
           <Check size={16} /> Enregistrer
         </button>
       </div>
-      <p style={{ fontSize: 11.5, color: S.soft, marginTop: 10, lineHeight: 1.5 }}>Modifier le prix, la durée ou les dates recalcule les échéances de trésorerie. Les encaissements déjà saisis sont conservés.</p>
+      <p style={{ fontSize: 11.5, color: S.soft, marginTop: 10, lineHeight: 1.5 }}>Modifier le prix, la durée ou les dates recalcule la répartition du CA sur les mois.</p>
     </Modal>
   );
 }
