@@ -535,7 +535,7 @@ function Cockpit() {
         {vue === "pilotage" && <Pilotage {...{ caSigne, moisSigne, moisContratsActifs, moisNouveaux, cumulSigne, pipePondere, setVue, objectif, contratsReste }} />}
         {vue === "crm" && <CRM {...{ prospects, setFProspect, bougerEtape, marquerPerdu, pipePondere, pipeBrut }} />}
         {vue === "tunnel" && <Tunnel {...{ tunnels, setFLevier, tunSaveEtat }} />}
-        {vue === "contrats" && <Contrats {...{ clients, setFClient, setASupprimer, caSigne }} />}
+        {vue === "contrats" && <Contrats {...{ clients, moisSigne, setFClient, setASupprimer, caSigne }} />}
         {vue === "objectifs" && <Objectifs {...{ prestas, heures, charges, objSim, majPresta, ajouterPresta, supprimerPresta, setHeuresObj, setChargesObj, setConfirmReset, objSaveEtat, caSigne }} />}
       </div>
 
@@ -860,13 +860,62 @@ function CRM({ prospects, setFProspect, bougerEtape, marquerPerdu, pipePondere, 
 }
 
 /* ================= VUE CONTRATS ================= */
-function Contrats({ clients, setFClient, setASupprimer, caSigne }) {
+function Contrats({ clients, moisSigne, setFClient, setASupprimer, caSigne }) {
+  const W = 74, WN = 150;
+  const lignes = clients.filter((c) => (c.ech || []).length);
+  const th = { position: "sticky", top: 0, background: S.panel, color: S.cream, fontSize: 10, fontWeight: 700, textTransform: "uppercase", padding: "8px 7px", textAlign: "right", whiteSpace: "nowrap" };
+  const td = { padding: 0, borderBottom: `1px solid ${S.grid}`, borderRight: `1px solid ${S.grid}`, textAlign: "right", fontSize: 12.5, height: 34 };
   return (
     <div>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
         <div style={{ fontSize: 12.5, color: S.soft }}>{clients.length} contrats · {court(caSigne)} € sur l'exercice</div>
         <button onClick={() => setFClient({ id: Date.now(), nom: "", type: "prog", prix: "", debut: FY[0].key, duree: 6, source: "", nombre: 1 })} style={{ ...btnAdd, width: "auto", padding: "9px 14px" }}><Plus size={15} /> Contrat</button>
       </div>
+
+      {/* tableau CA mois par mois */}
+      <div style={{ ...serif, fontSize: 16, fontWeight: 600, color: S.ink, margin: "14px 0 6px" }}>Le CA mois par mois</div>
+      {lignes.length === 0 ? (
+        <p style={{ fontSize: 12.5, color: S.soft }}>Aucun contrat pour l'instant — ajoute-en un pour voir le CA se répartir sur les mois.</p>
+      ) : (
+        <div className="wrap" style={{ overflowX: "auto", WebkitOverflowScrolling: "touch" }}>
+          <table style={{ borderCollapse: "separate", borderSpacing: 0, background: S.paper, border: `1px solid ${S.line}`, borderRadius: 12, overflow: "hidden", minWidth: WN + W * 13 + 20 }}>
+            <thead>
+              <tr>
+                <th style={{ ...th, position: "sticky", left: 0, zIndex: 4, textAlign: "left", width: WN, minWidth: WN }}>Contrat</th>
+                {FY.map((o) => <th key={o.key} style={{ ...th, width: W, minWidth: W }}>{MOIS[o.m - 1]}<br /><span style={{ color: S.gold }}>{String(o.y).slice(2)}</span></th>)}
+                <th style={{ ...th, width: W, minWidth: W, color: S.gold }}>Total</th>
+              </tr>
+            </thead>
+            <tbody>
+              {lignes.map((c) => {
+                const dansFY = (c.ech || []).reduce((s, e) => s + e.du, 0);
+                return (
+                  <tr key={c.id}>
+                    <td style={{ position: "sticky", left: 0, zIndex: 2, background: S.paper, borderRight: `2px solid ${S.line}`, borderBottom: `1px solid ${S.grid}`, padding: "5px 9px", width: WN, minWidth: WN }}>
+                      <div onClick={() => setFClient(c)} title="Modifier ce contrat" style={{ ...serif, fontSize: 13.5, fontWeight: 600, color: S.deep, lineHeight: 1.15, cursor: "pointer", textDecoration: "underline", textDecorationColor: S.line, textUnderlineOffset: 2 }}>{c.nom}</div>
+                    </td>
+                    {FY.map((o) => {
+                      const e = (c.ech || []).find((x) => x.mkey === o.key);
+                      return <td key={o.key} style={{ ...td, width: W, minWidth: W, background: e ? "#FFFDF9" : "transparent" }}><div style={{ padding: "0 7px", lineHeight: "33px", color: e ? S.soft : S.line, textAlign: e ? "right" : "center", fontWeight: 600 }}>{e ? court(e.du) : "·"}</div></td>;
+                    })}
+                    <td style={{ ...td, width: W, minWidth: W, background: "#F6EDE4" }}><div style={{ ...serif, padding: "0 7px", lineHeight: "33px", fontSize: 13, fontWeight: 600, color: S.deep }}>{court(dansFY)}</div></td>
+                  </tr>
+                );
+              })}
+              <tr>
+                <td style={{ position: "sticky", left: 0, zIndex: 2, background: S.panel, borderRight: `1px solid #3a352e`, padding: "6px 9px" }}>
+                  <span style={{ ...serif, fontSize: 13.5, fontWeight: 600, color: S.cream }}>CA dû</span>
+                </td>
+                {moisSigne.map((v, i) => <td key={i} style={{ ...td, background: S.panel, borderRight: `1px solid #3a352e` }}><div style={{ ...serif, padding: "0 7px", lineHeight: "33px", fontSize: 13, color: v ? S.cream : "#5d564c" }}>{v ? court(v) : "·"}</div></td>)}
+                <td style={{ ...td, background: S.deep }}><div style={{ ...serif, padding: "0 7px", lineHeight: "33px", fontSize: 13, fontWeight: 700, color: S.cream }}>{court(caSigne)}</div></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      )}
+      <p style={{ fontSize: 11, color: S.soft, marginTop: 7 }}>Touche un <b style={{ color: S.deep }}>nom</b> pour modifier le contrat. Montants en € HT.</p>
+
+      <div style={{ ...serif, fontSize: 16, fontWeight: 600, color: S.ink, margin: "20px 0 2px" }}>Détail des contrats</div>
       {clients.map((c) => {
         const dansFY = (c.ech || []).reduce((s, e) => s + e.du, 0);
         const t = est(c.type);
