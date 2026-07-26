@@ -191,7 +191,7 @@ const PERF_PERIODES = [
   { id: "3m", nom: "3 mois", n: 3 },
   { id: "6m", nom: "6 mois", n: 6 },
   { id: "12m", nom: "12 mois", n: 12 },
-  { id: "tout", nom: "Tout", n: 999 },
+  { id: "tout", nom: "Depuis arrivée", n: 999 },
 ];
 const perfMoisKey = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
 /* set des n derniers mois-clés (YYYY-MM) jusqu'au mois courant inclus */
@@ -1631,7 +1631,7 @@ function VueBNI({ membres, bniProspects, bniConf, majBniConf, majMembre, clients
 
 /* ---- Performances des membres : vue globale (leaderboard) + individuelle ---- */
 function BNIPerformances({ membres, membrePerfs, setFPerf }) {
-  const [periode, setPeriode] = useState("6m");
+  const [periode, setPeriode] = useState("tout");
   const [mode, setMode] = useState("global"); // "global" | "indiv"
   const [tri, setTri] = useState("ca");
   const [membreSel, setMembreSel] = useState(membres[0] ? membres[0].id : "");
@@ -1742,7 +1742,7 @@ function BNIPerformances({ membres, membrePerfs, setFPerf }) {
   return (
     <div>
       {barre}
-      <div style={{ fontSize: 11.5, color: S.soft, marginTop: 10 }}>Cumul sur <b style={{ color: S.deep }}>{per.nom.toLowerCase()}</b> · {perfsPer.length} relevé{perfsPer.length > 1 ? "s" : ""} · touche une colonne pour trier.</div>
+      <div style={{ fontSize: 11.5, color: S.soft, marginTop: 10 }}>Cumul <b style={{ color: S.deep }}>{per.id === "tout" ? "depuis l'arrivée" : "sur " + per.nom.toLowerCase()}</b> · {perfsPer.length} relevé{perfsPer.length > 1 ? "s" : ""} · touche une colonne pour trier.</div>
       <div className="wrap" style={{ overflowX: "auto", marginTop: 8, paddingBottom: 6 }}>
         <table style={{ borderCollapse: "separate", borderSpacing: 0, background: S.paper, border: `1px solid ${S.line}`, borderRadius: 12, overflow: "hidden", minWidth: 520, width: "100%" }}>
           <thead>
