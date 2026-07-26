@@ -257,6 +257,8 @@ function mapRows(rows) {
         adhesion: (p["Début"] && p["Début"].date ? p["Début"].date.start : "").slice(0, 10),
         renouvellement: (p["Relance"] && p["Relance"].date ? p["Relance"].date.start : "").slice(0, 10),
         note: rtext(p["Notes"]),
+        rdvFait: !!(p["RDV fait"] && p["RDV fait"].checkbox),
+        rdvDate: (p["RDV prévu"] && p["RDV prévu"].date ? p["RDV prévu"].date.start : "").slice(0, 10),
       });
       return;
     }
@@ -554,6 +556,8 @@ function Cockpit() {
     "Début": m.adhesion || null,
     "Relance": m.renouvellement || null,
     "Notes": m.note || "",
+    "RDV fait": !!m.rdvFait,
+    "RDV prévu": m.rdvDate || null,
   });
   const majMembre = (m) => ecrire(
     () => (isNotionId(m.id) ? apiUpdate(m.id, champsMembre(m)) : apiCreate(champsMembre(m))),
@@ -779,7 +783,7 @@ function Cockpit() {
         {vue === "crm" && <CRM {...{ prospects, setFProspect, bougerEtape, marquerPerdu, pipePondere, pipeBrut }} />}
         {vue === "tunnel" && <Tunnel {...{ tunnels, setFLevier, saveLevier, basculerLevier, tunSaveEtat }} />}
         {vue === "contrats" && <Contrats {...{ clients, moisSigne, setFClient, setASupprimer, caSigne }} />}
-        {vue === "bni" && <VueBNI {...{ membres, bniProspects, bniConf, majBniConf, clients, membrePerfs, setFMembre, setFBniProspect, setFPerf, bougerEtapeBni, abandonnerBniProspect, setBniConfirm, setASupprimer, bniSaveEtat }} />}
+        {vue === "bni" && <VueBNI {...{ membres, bniProspects, bniConf, majBniConf, majMembre, clients, membrePerfs, setFMembre, setFBniProspect, setFPerf, bougerEtapeBni, abandonnerBniProspect, setBniConfirm, setASupprimer, bniSaveEtat }} />}
         {vue === "objectifs" && <Objectifs {...{ prestas, heures, charges, objSim, majPresta, ajouterPresta, supprimerPresta, setHeuresObj, setChargesObj, setConfirmReset, objSaveEtat, caSigne }} />}
       </div>
 
@@ -1354,7 +1358,7 @@ function FicheLevier({ ctx, onClose, onSave, onDelete }) {
 }
 
 /* ================= VUE BNI (pilotage Directeur Consultant) ================= */
-function VueBNI({ membres, bniProspects, bniConf, majBniConf, clients, membrePerfs, setFMembre, setFBniProspect, setFPerf, bougerEtapeBni, abandonnerBniProspect, setBniConfirm, setASupprimer, bniSaveEtat }) {
+function VueBNI({ membres, bniProspects, bniConf, majBniConf, majMembre, clients, membrePerfs, setFMembre, setFBniProspect, setFPerf, bougerEtapeBni, abandonnerBniProspect, setBniConfirm, setASupprimer, bniSaveEtat }) {
   const [nvMetier, setNvMetier] = useState("");
   const [sousVue, setSousVue] = useState("pilotage");
   const etatTxt = { "en cours": "enregistrement…", ok: "enregistré dans Notion", err: "échec enregistrement" };
@@ -1368,7 +1372,9 @@ function VueBNI({ membres, bniProspects, bniConf, majBniConf, clients, membrePer
     return { ...m, jours: j, statut };
   }).sort((a, b) => (a.jours === null ? 99999 : a.jours) - (b.jours === null ? 99999 : b.jours));
   const sous90 = rens.filter((r) => r.jours !== null && r.jours >= 0 && r.jours <= 90).length;
+  const sous7m = rens.filter((r) => r.jours !== null && r.jours >= 0 && r.jours <= 210).length;
   const enRetard = rens.filter((r) => r.statut === "retard").length;
+  const rdvFaits = membres.filter((m) => m.rdvFait).length;
 
   /* commissions BNI déjà passées au CA (contrats type bni) */
   const comCA = clients.filter((c) => c.type === "bni").reduce((s, c) => s + (c.ech || []).reduce((x, e) => x + e.du, 0), 0);
@@ -1426,6 +1432,8 @@ function VueBNI({ membres, bniProspects, bniConf, majBniConf, clients, membrePer
         <div style={{ display: "flex", gap: 10, marginTop: 14, flexWrap: "wrap" }}>
           {[
             { l: "Renouv. sous 90 j", v: sous90 + (enRetard > 0 ? ` (+${enRetard} en retard)` : ""), alerte: enRetard > 0 || sous90 > 0 },
+            { l: "Renouv. sous 7 mois", v: sous7m, alerte: sous7m > 0 },
+            { l: "RDV annuels faits", v: `${rdvFaits} / ${membres.length}` },
             { l: "Commissions au CA", v: `${court(comCA) || 0} €` },
             { l: "Recrutement actif", v: actifsRec.length + " prospect" + (actifsRec.length > 1 ? "s" : "") },
           ].map((k, i) => (
@@ -1447,7 +1455,8 @@ function VueBNI({ membres, bniProspects, bniConf, majBniConf, clients, membrePer
             {rens.map((r) => {
               const chip = CHIP_REN[r.statut];
               return (
-                <div key={r.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, background: "#fff", border: `1px solid ${S.line}`, borderRadius: 10, padding: "8px 11px" }}>
+                <div key={r.id} style={{ display: "flex", flexDirection: "column", gap: 7, background: "#fff", border: `1px solid ${S.line}`, borderRadius: 10, padding: "8px 11px" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
                   <div onClick={() => setFMembre(r)} style={{ minWidth: 0, cursor: "pointer" }}>
                     <span style={{ ...serif, fontSize: 14.5, fontWeight: 600, color: S.ink }}>{r.nom}</span>
                     {r.profession && <span style={{ fontSize: 12, color: S.soft }}> · {r.profession}</span>}
@@ -1459,6 +1468,15 @@ function VueBNI({ membres, bniProspects, bniConf, majBniConf, clients, membrePer
                     <span style={{ fontSize: 10.5, fontWeight: 700, color: chip.col, background: chip.bg, padding: "4px 9px", borderRadius: 10, whiteSpace: "nowrap" }}>{chip.txt}</span>
                     <button onClick={() => setBniConfirm({ type: "renew", cible: r })} title="Valider le renouvellement"
                       style={{ border: "none", background: S.green, color: "#fff", borderRadius: 8, padding: "6px 10px", fontSize: 11, fontWeight: 700, cursor: "pointer", whiteSpace: "nowrap" }}>Renouvelé ✓</button>
+                  </div>
+                  </div>
+                  <div style={{ display: "flex", alignItems: "center", gap: 12, borderTop: `1px dashed ${S.line}`, paddingTop: 7, flexWrap: "wrap" }}>
+                    <label style={{ display: "flex", alignItems: "center", gap: 6, cursor: "pointer", fontSize: 11.5, fontWeight: 600, color: r.rdvFait ? S.green : S.soft }}>
+                      <input type="checkbox" checked={!!r.rdvFait} onChange={(e) => majMembre({ ...r, rdvFait: e.target.checked })} style={{ width: 15, height: 15, accentColor: S.green, cursor: "pointer" }} /> RDV annuel fait
+                    </label>
+                    <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11.5, color: S.soft }}>
+                      prévu <input type="date" value={r.rdvDate || ""} onChange={(e) => majMembre({ ...r, rdvDate: e.target.value })} style={{ border: `1px solid ${S.line}`, borderRadius: 7, padding: "3px 6px", fontSize: 11.5, color: S.ink, background: "#fff" }} />
+                    </label>
                   </div>
                 </div>
               );
@@ -1537,7 +1555,7 @@ function VueBNI({ membres, bniProspects, bniConf, majBniConf, clients, membrePer
       <div style={{ marginTop: 14 }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 8 }}>
           <div style={{ ...serif, fontSize: 18, fontWeight: 600, color: S.ink }}>Membres du groupe <span style={{ fontSize: 12.5, color: S.soft, fontWeight: 400 }}>· {membres.length}</span></div>
-          <button onClick={() => setFMembre({ id: Date.now(), nom: "", profession: "", adhesion: "", renouvellement: "", note: "" })} style={{ ...btnAdd, width: "auto", padding: "8px 13px" }}><Plus size={14} /> Membre</button>
+          <button onClick={() => setFMembre({ id: Date.now(), nom: "", profession: "", adhesion: "", renouvellement: "", note: "", rdvFait: false, rdvDate: "" })} style={{ ...btnAdd, width: "auto", padding: "8px 13px" }}><Plus size={14} /> Membre</button>
         </div>
         {membres.length === 0 ? (
           <p style={{ fontSize: 12.5, color: S.soft, marginTop: 8 }}>Aucun membre saisi. Ajoute-les un par un, ou donne ta liste à Claude qui la chargera dans Notion.</p>
@@ -1788,6 +1806,12 @@ function FicheMembre({ m, onClose, onSave, onDelete }) {
       <div style={{ display: "flex", gap: 10 }}>
         <div style={{ flex: 1 }}><Ch label="Adhésion"><input type="date" value={f.adhesion} onChange={(e) => set("adhesion", e.target.value)} style={inp} /></Ch></div>
         <div style={{ flex: 1 }}><Ch label="Renouvellement"><input type="date" value={f.renouvellement} onChange={(e) => set("renouvellement", e.target.value)} style={inp} /></Ch></div>
+      </div>
+      <div style={{ display: "flex", gap: 10, alignItems: "flex-end" }}>
+        <label style={{ flex: "0 0 auto", display: "flex", alignItems: "center", gap: 8, background: f.rdvFait ? "#EDF1EC" : "#fff", border: `1px solid ${f.rdvFait ? S.green : S.line}`, borderRadius: 10, padding: "11px 13px", cursor: "pointer", fontSize: 13, fontWeight: 600, color: f.rdvFait ? S.green : S.soft }}>
+          <input type="checkbox" checked={!!f.rdvFait} onChange={(e) => set("rdvFait", e.target.checked)} style={{ width: 16, height: 16, accentColor: S.green, cursor: "pointer" }} /> RDV annuel fait
+        </label>
+        <div style={{ flex: 1 }}><Ch label="Date RDV prévue"><input type="date" value={f.rdvDate || ""} onChange={(e) => set("rdvDate", e.target.value)} style={inp} /></Ch></div>
       </div>
       <Ch label="Notes"><textarea value={f.note} onChange={(e) => set("note", e.target.value)} rows={2} style={{ ...inp, resize: "vertical", minHeight: 48 }} /></Ch>
       <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
