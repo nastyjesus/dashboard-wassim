@@ -1379,7 +1379,7 @@ function VueBNI({ membres, bniProspects, bniConf, majBniConf, clients, setFMembr
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", flexWrap: "wrap", gap: 6 }}>
         <div>
           <div style={{ fontSize: 10, letterSpacing: "0.18em", textTransform: "uppercase", color: S.deep, fontWeight: 600 }}>Directeur consultant</div>
-          <h2 style={{ ...serif, fontSize: 22, fontWeight: 600, color: S.ink, margin: "3px 0 0" }}>Ton chapitre BNI</h2>
+          <h2 style={{ ...serif, fontSize: 22, fontWeight: 600, color: S.ink, margin: "3px 0 0" }}>Ton groupe BNI</h2>
         </div>
         {bniSaveEtat && <span style={{ fontSize: 11.5, color: bniSaveEtat === "err" ? S.rust : S.soft }}>{etatTxt[bniSaveEtat]}</span>}
       </div>
@@ -1387,7 +1387,7 @@ function VueBNI({ membres, bniProspects, bniConf, majBniConf, clients, setFMembr
       {/* synthèse */}
       <div style={{ background: S.panel, borderRadius: 16, padding: "18px 18px", marginTop: 12, color: S.cream }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", flexWrap: "wrap", gap: 6 }}>
-          <div style={{ fontSize: 10, letterSpacing: "0.18em", textTransform: "uppercase", color: S.gold, fontWeight: 600 }}>Effectif du chapitre</div>
+          <div style={{ fontSize: 10, letterSpacing: "0.18em", textTransform: "uppercase", color: S.gold, fontWeight: 600 }}>Effectif du groupe</div>
           <span style={{ fontSize: 11.5, color: "#C9BFAE" }}>cible {bniConf.cibleEffectif || "—"} membres</span>
         </div>
         <div style={{ ...serif, fontSize: 38, fontWeight: 600, lineHeight: 1, marginTop: 4 }}>
@@ -1483,7 +1483,7 @@ function VueBNI({ membres, bniProspects, bniConf, majBniConf, clients, setFMembr
       {/* métiers à pourvoir */}
       <div style={{ background: S.paper, border: `1px solid ${S.line}`, borderRadius: 14, padding: "15px 17px", marginTop: 12 }}>
         <div style={{ ...serif, fontSize: 18, fontWeight: 600, color: S.ink, marginBottom: 6 }}>Métiers à pourvoir</div>
-        {(bniConf.metiers || []).length === 0 && <p style={{ fontSize: 12.5, color: S.soft, margin: "2px 0 8px" }}>Liste les métiers que tu veux faire entrer dans le chapitre — je croise automatiquement avec tes membres et ton pipeline de recrutement.</p>}
+        {(bniConf.metiers || []).length === 0 && <p style={{ fontSize: 12.5, color: S.soft, margin: "2px 0 8px" }}>Liste les métiers que tu veux faire entrer dans le groupe — je croise automatiquement avec tes membres et ton pipeline de recrutement.</p>}
         <div style={{ display: "flex", flexWrap: "wrap", gap: 7 }}>
           {(bniConf.metiers || []).map((mt) => {
             const pourvu = membres.some((m) => match(m.profession, mt.nom));
@@ -1506,10 +1506,10 @@ function VueBNI({ membres, bniProspects, bniConf, majBniConf, clients, setFMembr
         </div>
       </div>
 
-      {/* membres du chapitre */}
+      {/* membres du groupe */}
       <div style={{ marginTop: 14 }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 8 }}>
-          <div style={{ ...serif, fontSize: 18, fontWeight: 600, color: S.ink }}>Membres du chapitre <span style={{ fontSize: 12.5, color: S.soft, fontWeight: 400 }}>· {membres.length}</span></div>
+          <div style={{ ...serif, fontSize: 18, fontWeight: 600, color: S.ink }}>Membres du groupe <span style={{ fontSize: 12.5, color: S.soft, fontWeight: 400 }}>· {membres.length}</span></div>
           <button onClick={() => setFMembre({ id: Date.now(), nom: "", profession: "", adhesion: "", renouvellement: "", note: "" })} style={{ ...btnAdd, width: "auto", padding: "8px 13px" }}><Plus size={14} /> Membre</button>
         </div>
         {membres.length === 0 ? (
@@ -1602,7 +1602,7 @@ function ConfirmCommission({ ctx, conf, onClose, onConfirm }) {
         {renew ? `Renouvellement de ${ctx.cible.nom}` : `${ctx.cible.nom} devient membre 🎉`}
       </div>
       <p style={{ fontSize: 13, color: S.soft, marginTop: 6, lineHeight: 1.6 }}>
-        {renew ? "L'échéance du membre est repoussée d'un an." : "Le prospect passe dans les membres du chapitre (renouvellement dans un an)."}{" "}
+        {renew ? "L'échéance du membre est repoussée d'un an." : "Le prospect passe dans les membres du groupe (renouvellement dans un an)."}{" "}
         {Number(montant) > 0 ? <>Une commission de <b style={{ color: S.ink }}>{court(Number(montant))} €</b> sera créée en contrat BNI dans ton CA.</> : "Aucune commission ne sera créée (montant à 0)."}
       </p>
       <Ch label="Commission (€ HT)"><input type="number" min="0" value={montant} onChange={(e) => setMontant(e.target.value)} style={inp} /></Ch>
