@@ -151,6 +151,17 @@ const TUN_DEPART = (() => {
   return t;
 })();
 
+/* ---- Pilotage BNI (Directeur Consultant) : config + étapes de recrutement ---- */
+const CONFIG_BNI = "⚙️ BNI — ne pas supprimer";
+const BNI_DEFAUT = { comRenew: 0, comNew: 0, cibleEffectif: 30, metiers: [] };
+/* le recrutement réutilise les options Étape existantes de Notion, relibellées */
+const BNI_ETAPES = [
+  { id: "prospect", nom: "Repéré", col: "#8C8478" },
+  { id: "contacte", nom: "Contacté", col: "#6B6A86" },
+  { id: "diagnostic", nom: "Invité", col: "#5B7A8C" },
+  { id: "propale", nom: "A visité", col: "#B08D57" },
+];
+
 /* chaque contrat signé génère un tableau d'échéances {mkey, du, encaisse} */
 function echeances(c) {
   const i0 = idxOf(c.debut);
@@ -169,8 +180,8 @@ function echeances(c) {
 
 /* résultats Notion -> {clients, prospects} */
 function mapRows(rows) {
-  const clients = [], prospects = [];
-  let objId = null, objData = null, tunId = null, tunData = null;
+  const clients = [], prospects = [], membres = [], bniProspects = [];
+  let objId = null, objData = null, tunId = null, tunData = null, bniId = null, bniData = null;
   rows.forEach((r) => {
     const p = r.properties || {};
     const title = (p["Client"] && p["Client"].title ? p["Client"].title.map((t) => t.plain_text).join("") : "").trim();
@@ -184,8 +195,35 @@ function mapRows(rows) {
       try { tunData = JSON.parse(rtext(p["Notes"]) || "null"); } catch (e) { tunData = null; }
       return;
     }
+    if (title === CONFIG_BNI) { /* page de config du pilotage BNI */
+      bniId = r.id;
+      try { bniData = JSON.parse(rtext(p["Notes"]) || "null"); } catch (e) { bniData = null; }
+      return;
+    }
     const statut = p["Statut"] && p["Statut"].select ? p["Statut"].select.name : "Signé";
     const montant = p["Montant HT"] && p["Montant HT"].number != null ? p["Montant HT"].number : 0;
+    if (statut === "Membre BNI") {
+      membres.push({
+        id: r.id,
+        nom: title,
+        profession: rtext(p["Contact"]),
+        adhesion: (p["Début"] && p["Début"].date ? p["Début"].date.start : "").slice(0, 10),
+        renouvellement: (p["Relance"] && p["Relance"].date ? p["Relance"].date.start : "").slice(0, 10),
+        note: rtext(p["Notes"]),
+      });
+      return;
+    }
+    if (statut === "Prospect BNI") {
+      const etN = p["Étape"] && p["Étape"].select ? p["Étape"].select.name : "Prospect";
+      bniProspects.push({
+        id: r.id,
+        nom: title,
+        metier: rtext(p["Contact"]),
+        etape: ETAPE_ID[etN] || "prospect",
+        note: rtext(p["Notes"]),
+      });
+      return;
+    }
     if (statut === "Pipeline") {
       const etName = p["Étape"] && p["Étape"].select ? p["Étape"].select.name : "Prospect";
       prospects.push({
@@ -214,7 +252,7 @@ function mapRows(rows) {
       clients.push(c);
     }
   });
-  return { clients, prospects, objId, objData, tunId, tunData };
+  return { clients, prospects, membres, bniProspects, objId, objData, tunId, tunData, bniId, bniData };
 }
 
 /* ---- calculs du simulateur d'objectifs ---- */
@@ -290,6 +328,7 @@ const RefreshCw = ic(<><polyline points="23 4 23 10 17 10" /><polyline points="1
 const Target = ic(<><circle cx="12" cy="12" r="10" /><circle cx="12" cy="12" r="6" /><circle cx="12" cy="12" r="2" /></>);
 const RotateCcw = ic(<><polyline points="1 4 1 10 7 10" /><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10" /></>);
 const Funnel = ic(<polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3" />);
+const Award = ic(<><circle cx="12" cy="8" r="7" /><polyline points="8.21 13.89 7 23 12 20 17 23 15.79 13.88" /></>);
 
 /* ================= APP ================= */
 function Cockpit() {
@@ -315,6 +354,16 @@ function Cockpit() {
   const [tunSaveEtat, setTunSaveEtat] = useState("");
   const [fLevier, setFLevier] = useState(null); // { offre, phase, levier }
 
+  /* pilotage BNI (Directeur Consultant) */
+  const [membres, setMembres] = useState([]);
+  const [bniProspects, setBniProspects] = useState([]);
+  const [bniConf, setBniConf] = useState(BNI_DEFAUT);
+  const [bniId, setBniId] = useState(null);
+  const [bniSaveEtat, setBniSaveEtat] = useState("");
+  const [fMembre, setFMembre] = useState(null);
+  const [fBniProspect, setFBniProspect] = useState(null);
+  const [bniConfirm, setBniConfirm] = useState(null); // { type: "renew"|"new", cible }
+
   const [fProspect, setFProspect] = useState(null);
   const [fClient, setFClient] = useState(null);
   const [signature, setSignature] = useState(null);
@@ -324,9 +373,13 @@ function Cockpit() {
     setErreur("");
     try {
       const rows = await apiGet();
-      const { clients, prospects, objId: oid, objData, tunId: tid, tunData } = mapRows(rows);
+      const { clients, prospects, membres: mbs, bniProspects: bps, objId: oid, objData, tunId: tid, tunData, bniId: bid, bniData } = mapRows(rows);
       setClients(clients);
       setProspects(prospects);
+      setMembres(mbs);
+      setBniProspects(bps);
+      setBniId(bid);
+      if (bniData) setBniConf({ ...BNI_DEFAUT, ...bniData, metiers: Array.isArray(bniData.metiers) ? bniData.metiers : [] });
       setObjId(oid);
       setTunId(tid);
       if (tunData) setTunnels(mergeTun(tunData));
@@ -404,6 +457,82 @@ function Cockpit() {
   const deleteLevier = (offre, phase, id) => {
     majTunnels({ ...tunnels, [offre]: { ...tunnels[offre], [phase]: (tunnels[offre][phase] || []).filter((l) => l.id !== id) } });
   };
+
+  /* ---- pilotage BNI : config (page dédiée) + membres + recrutement ---- */
+  function persistBniConf(next) {
+    if (window.__bniTimer) clearTimeout(window.__bniTimer);
+    setBniSaveEtat("en cours");
+    window.__bniTimer = setTimeout(async () => {
+      const fields = { "Client": CONFIG_BNI, "Statut": "Config", "Notes": JSON.stringify(next) };
+      try {
+        if (bniId) await apiUpdate(bniId, fields);
+        else { const r = await apiCreate(fields); if (r && r.id) setBniId(r.id); }
+        setBniSaveEtat("ok");
+      } catch (e) { setBniSaveEtat("err"); }
+    }, 900);
+  }
+  const majBniConf = (next) => { setBniConf(next); persistBniConf(next); };
+
+  const champsMembre = (m) => ({
+    "Client": m.nom,
+    "Statut": "Membre BNI",
+    "Contact": m.profession || "",
+    "Début": m.adhesion || null,
+    "Relance": m.renouvellement || null,
+    "Notes": m.note || "",
+  });
+  const majMembre = (m) => ecrire(
+    () => (isNotionId(m.id) ? apiUpdate(m.id, champsMembre(m)) : apiCreate(champsMembre(m))),
+    "Enregistrement du membre"
+  );
+
+  const champsBniProspect = (b) => ({
+    "Client": b.nom,
+    "Statut": "Prospect BNI",
+    "Contact": b.metier || "",
+    "Étape": ETAPE_NAME[b.etape] || "Prospect",
+    "Notes": b.note || "",
+  });
+  const majBniProspect = (b) => ecrire(
+    () => (isNotionId(b.id) ? apiUpdate(b.id, champsBniProspect(b)) : apiCreate(champsBniProspect(b))),
+    "Enregistrement du prospect BNI"
+  );
+  const bougerEtapeBni = (b, dir) => {
+    const ordre = ["prospect", "contacte", "diagnostic", "propale"];
+    const i = ordre.indexOf(b.etape);
+    if (dir > 0 && b.etape === "propale") { setBniConfirm({ type: "new", cible: b }); return; }
+    const ni = Math.max(0, Math.min(ordre.length - 1, i + dir));
+    ecrire(() => apiUpdate(b.id, { "Étape": ETAPE_NAME[ordre[ni]] }), "Déplacement de l'étape");
+  };
+  const abandonnerBniProspect = (b) => ecrire(() => apiUpdate(b.id, { "Étape": "Perdu" }), "Mise à jour");
+
+  const isoDans1An = (base) => {
+    const d = base ? new Date(base) : new Date();
+    if (isNaN(d)) return "";
+    return `${d.getFullYear() + 1}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  };
+  const commissionBni = (libelle, montant) => apiCreate({
+    "Client": libelle,
+    "Type": "BNI",
+    "Statut": "Signé",
+    "Étape": "Signé",
+    "Montant HT": Number(montant),
+    "Nombre": 1,
+    "Durée mois": 1,
+    "Début": new Date().toISOString().slice(0, 7) + "-01",
+    "Source": "BNI",
+  });
+  /* valide un renouvellement : décale l'échéance d'un an + crée la commission dans le CA */
+  const renouvelerMembre = (m, montant) => ecrire(async () => {
+    await apiUpdate(m.id, { "Relance": isoDans1An(m.renouvellement) || isoDans1An(null) });
+    if (Number(montant) > 0) await commissionBni(`BNI — renouvellement ${m.nom}`, montant);
+  }, "Renouvellement");
+  /* transforme un prospect recrutement en membre + commission nouveau membre */
+  const devenirMembre = (b, montant) => ecrire(async () => {
+    const today = new Date().toISOString().slice(0, 10);
+    await apiUpdate(b.id, { "Statut": "Membre BNI", "Étape": null, "Début": today, "Relance": isoDans1An(null) });
+    if (Number(montant) > 0) await commissionBni(`BNI — nouveau membre ${b.nom}`, montant);
+  }, "Nouveau membre");
 
   /* ---------------- calculs partagés ---------------- */
   const moisSigne = FY.map((o) =>
@@ -514,6 +643,7 @@ function Cockpit() {
     { id: "crm", nom: "CRM", ic: <Users size={16} /> },
     { id: "tunnel", nom: "Tunnel", ic: <Funnel size={16} /> },
     { id: "contrats", nom: "Contrats", ic: <FileText size={16} /> },
+    { id: "bni", nom: "BNI", ic: <Award size={16} /> },
     { id: "objectifs", nom: "Objectifs", ic: <Target size={16} /> },
   ];
 
@@ -529,8 +659,8 @@ function Cockpit() {
         .pagenav a.on{color:${S.cream};background:${S.deep}}`}</style>
 
       <div className="pagenav">
-        <a href="cockpit.html" className="on">Cockpit CA</a>
-        <a href="pilotage-live.html">Pilotage</a>
+        <a href="cockpit.html" className={vue === "bni" ? "" : "on"} onClick={(e) => { e.preventDefault(); setVue("pilotage"); }}>Cockpit CA</a>
+        <a href="#bni" className={vue === "bni" ? "on" : ""} onClick={(e) => { e.preventDefault(); setVue("bni"); }}>BNI</a>
       </div>
 
       {/* barre titre */}
@@ -559,6 +689,7 @@ function Cockpit() {
         {vue === "crm" && <CRM {...{ prospects, setFProspect, bougerEtape, marquerPerdu, pipePondere, pipeBrut }} />}
         {vue === "tunnel" && <Tunnel {...{ tunnels, prospects, clients, caSigne, setFLevier, saveLevier, tunSaveEtat }} />}
         {vue === "contrats" && <Contrats {...{ clients, moisSigne, setFClient, setASupprimer, caSigne }} />}
+        {vue === "bni" && <VueBNI {...{ membres, bniProspects, bniConf, majBniConf, clients, setFMembre, setFBniProspect, bougerEtapeBni, abandonnerBniProspect, setBniConfirm, setASupprimer, bniSaveEtat }} />}
         {vue === "objectifs" && <Objectifs {...{ prestas, heures, charges, objSim, majPresta, ajouterPresta, supprimerPresta, setHeuresObj, setChargesObj, setConfirmReset, objSaveEtat, caSigne }} />}
       </div>
 
@@ -577,10 +708,14 @@ function Cockpit() {
       {signature && <FicheSignature p={signature} onClose={() => setSignature(null)} onConfirm={confirmerSignature} />}
       {fClient && <FicheClient c={fClient} sourcesList={sourcesList} onClose={() => setFClient(null)} onSave={(c) => { majClient(c); setFClient(null); }} onDelete={(c) => { setFClient(null); setASupprimer(c); }} />}
       {fLevier && <FicheLevier ctx={fLevier} onClose={() => setFLevier(null)} onSave={(lev) => { saveLevier(fLevier.offre, fLevier.phase, lev); setFLevier(null); }} onDelete={(id) => { deleteLevier(fLevier.offre, fLevier.phase, id); setFLevier(null); }} />}
+      {fMembre && <FicheMembre m={fMembre} onClose={() => setFMembre(null)} onSave={(m) => { majMembre(m); setFMembre(null); }} onDelete={(m) => { setFMembre(null); setASupprimer({ ...m, kind: "membre" }); }} />}
+      {fBniProspect && <FicheBniProspect b={fBniProspect} onClose={() => setFBniProspect(null)} onSave={(b) => { majBniProspect(b); setFBniProspect(null); }} onDelete={(b) => { setFBniProspect(null); setASupprimer({ ...b, kind: "prospect BNI" }); }} />}
+      {bniConfirm && <ConfirmCommission ctx={bniConfirm} conf={bniConf} onClose={() => setBniConfirm(null)}
+        onConfirm={(montant) => { const c = bniConfirm; setBniConfirm(null); if (c.type === "renew") renouvelerMembre(c.cible, montant); else devenirMembre(c.cible, montant); }} />}
       {aSupprimer && (
         <Modal onClose={() => setASupprimer(null)}>
           <div style={{ ...serif, fontSize: 19, fontWeight: 600, color: S.ink }}>Supprimer {aSupprimer.nom} ?</div>
-          <p style={{ fontSize: 13, color: S.soft, marginTop: 6 }}>Le contrat sera archivé dans Notion (récupérable depuis la corbeille Notion).</p>
+          <p style={{ fontSize: 13, color: S.soft, marginTop: 6 }}>{aSupprimer.kind === "membre" ? "Le membre" : aSupprimer.kind === "prospect BNI" ? "Le prospect" : "Le contrat"} sera archivé dans Notion (récupérable depuis la corbeille Notion).</p>
           <div style={{ display: "flex", gap: 8, marginTop: 16 }}>
             <button onClick={() => setASupprimer(null)} style={btnSec}>Annuler</button>
             <button onClick={() => { if (isNotionId(aSupprimer.id)) ecrire(() => apiArchive(aSupprimer.id), "Suppression"); setASupprimer(null); }} style={{ ...btnSec, background: S.rust, color: "#fff", border: "none" }}>Archiver</button>
@@ -1197,6 +1332,283 @@ function FicheLevier({ ctx, onClose, onSave, onDelete }) {
       <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
         {existant && <button onClick={() => onDelete(f.id)} title="Supprimer l'action" style={{ ...btnIcon, padding: "13px 15px", color: S.rust }}><Trash2 size={15} /></button>}
         <button onClick={() => f.titre.trim() && onSave(f)} disabled={!f.titre.trim()} style={{ ...btnMain, background: !f.titre.trim() ? S.line : S.panel, color: !f.titre.trim() ? S.soft : S.cream }}><Check size={16} /> Enregistrer</button>
+      </div>
+    </Modal>
+  );
+}
+
+/* ================= VUE BNI (pilotage Directeur Consultant) ================= */
+function VueBNI({ membres, bniProspects, bniConf, majBniConf, clients, setFMembre, setFBniProspect, bougerEtapeBni, abandonnerBniProspect, setBniConfirm, setASupprimer, bniSaveEtat }) {
+  const [nvMetier, setNvMetier] = useState("");
+  const etatTxt = { "en cours": "enregistrement…", ok: "enregistré dans Notion", err: "échec enregistrement" };
+  const now = new Date();
+  const msJ = 86400000;
+
+  /* renouvellements des membres, triés par urgence */
+  const rens = membres.map((m) => {
+    const j = m.renouvellement ? Math.ceil((new Date(m.renouvellement) - now) / msJ) : null;
+    const statut = j === null ? "adater" : j < 0 ? "retard" : j <= 60 ? "urgent" : j <= 120 ? "bientot" : "ok";
+    return { ...m, jours: j, statut };
+  }).sort((a, b) => (a.jours === null ? 99999 : a.jours) - (b.jours === null ? 99999 : b.jours));
+  const sous90 = rens.filter((r) => r.jours !== null && r.jours >= 0 && r.jours <= 90).length;
+  const enRetard = rens.filter((r) => r.statut === "retard").length;
+
+  /* commissions BNI déjà passées au CA (contrats type bni) */
+  const comCA = clients.filter((c) => c.type === "bni").reduce((s, c) => s + (c.ech || []).reduce((x, e) => x + e.du, 0), 0);
+  const actifsRec = bniProspects.filter((b) => !["perdu", "signe"].includes(b.etape));
+  const match = (a, b) => !!(a && b && (a.trim().toLowerCase().includes(b.trim().toLowerCase()) || b.trim().toLowerCase().includes(a.trim().toLowerCase())));
+
+  const CHIP_REN = {
+    retard: { txt: "en retard !", bg: "#F6E7DE", col: S.rust },
+    urgent: { txt: "à renouveler", bg: "#F6E7DE", col: S.rust },
+    bientot: { txt: "à préparer", bg: "#F3EAD9", col: S.deep },
+    ok: { txt: "ok", bg: "#EDF1EC", col: S.green },
+    adater: { txt: "date à saisir", bg: "#ECE8E1", col: S.soft },
+  };
+  const pctEff = Math.min(100, (membres.length / Math.max(1, Number(bniConf.cibleEffectif) || 1)) * 100);
+
+  const ajouterMetier = () => {
+    const nom = nvMetier.trim();
+    if (!nom) return;
+    majBniConf({ ...bniConf, metiers: [...(bniConf.metiers || []), { id: Date.now(), nom }] });
+    setNvMetier("");
+  };
+
+  return (
+    <div>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", flexWrap: "wrap", gap: 6 }}>
+        <div>
+          <div style={{ fontSize: 10, letterSpacing: "0.18em", textTransform: "uppercase", color: S.deep, fontWeight: 600 }}>Directeur consultant</div>
+          <h2 style={{ ...serif, fontSize: 22, fontWeight: 600, color: S.ink, margin: "3px 0 0" }}>Ton chapitre BNI</h2>
+        </div>
+        {bniSaveEtat && <span style={{ fontSize: 11.5, color: bniSaveEtat === "err" ? S.rust : S.soft }}>{etatTxt[bniSaveEtat]}</span>}
+      </div>
+
+      {/* synthèse */}
+      <div style={{ background: S.panel, borderRadius: 16, padding: "18px 18px", marginTop: 12, color: S.cream }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", flexWrap: "wrap", gap: 6 }}>
+          <div style={{ fontSize: 10, letterSpacing: "0.18em", textTransform: "uppercase", color: S.gold, fontWeight: 600 }}>Effectif du chapitre</div>
+          <span style={{ fontSize: 11.5, color: "#C9BFAE" }}>cible {bniConf.cibleEffectif || "—"} membres</span>
+        </div>
+        <div style={{ ...serif, fontSize: 38, fontWeight: 600, lineHeight: 1, marginTop: 4 }}>
+          {membres.length}<span style={{ fontSize: 15, color: S.gold, marginLeft: 6 }}>membre{membres.length > 1 ? "s" : ""}</span>
+        </div>
+        <div style={{ height: 9, background: "#3a352e", borderRadius: 6, overflow: "hidden", marginTop: 12 }}>
+          <div style={{ height: "100%", width: `${pctEff}%`, background: `linear-gradient(90deg,${S.deep},${S.gold})`, borderRadius: 6 }} />
+        </div>
+        <div style={{ display: "flex", gap: 10, marginTop: 14, flexWrap: "wrap" }}>
+          {[
+            { l: "Renouv. sous 90 j", v: sous90 + (enRetard > 0 ? ` (+${enRetard} en retard)` : ""), alerte: enRetard > 0 || sous90 > 0 },
+            { l: "Commissions au CA", v: `${court(comCA) || 0} €` },
+            { l: "Recrutement actif", v: actifsRec.length + " prospect" + (actifsRec.length > 1 ? "s" : "") },
+          ].map((k, i) => (
+            <div key={i} style={{ flex: "1 1 130px", background: "#332e28", borderRadius: 11, padding: "9px 12px" }}>
+              <div style={{ fontSize: 9.5, letterSpacing: "0.06em", textTransform: "uppercase", color: k.alerte ? "#E0A277" : "#8d857a", fontWeight: 700 }}>{k.l}</div>
+              <div style={{ ...serif, fontSize: 19, color: S.cream, marginTop: 2 }}>{k.v}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* radar des renouvellements membres */}
+      <div style={{ background: S.paper, border: `1px solid ${S.line}`, borderLeft: `4px solid ${enRetard + rens.filter((r) => r.statut === "urgent").length > 0 ? S.rust : S.line}`, borderRadius: 14, padding: "15px 17px", marginTop: 12 }}>
+        <div style={{ ...serif, fontSize: 18, fontWeight: 600, color: S.ink, marginBottom: 4 }}>Renouvellements des membres</div>
+        {rens.length === 0 ? (
+          <p style={{ fontSize: 13, color: S.soft, lineHeight: 1.6, margin: "4px 0 0" }}>Ajoute tes membres (bouton <b style={{ color: S.ink }}>+ Membre</b> plus bas) avec leur date de renouvellement — je t'alerte 2 mois avant chaque échéance, et chaque renouvellement validé crée sa commission dans ton CA.</p>
+        ) : (
+          <div style={{ display: "flex", flexDirection: "column", gap: 7, marginTop: 6 }}>
+            {rens.map((r) => {
+              const chip = CHIP_REN[r.statut];
+              return (
+                <div key={r.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, background: "#fff", border: `1px solid ${S.line}`, borderRadius: 10, padding: "8px 11px" }}>
+                  <div onClick={() => setFMembre(r)} style={{ minWidth: 0, cursor: "pointer" }}>
+                    <span style={{ ...serif, fontSize: 14.5, fontWeight: 600, color: S.ink }}>{r.nom}</span>
+                    {r.profession && <span style={{ fontSize: 12, color: S.soft }}> · {r.profession}</span>}
+                    <div style={{ fontSize: 11.5, color: S.soft }}>
+                      {r.renouvellement ? <>renouvellement {r.renouvellement.split("-").reverse().join("/")}{r.jours !== null && r.jours >= 0 ? ` · dans ${r.jours} j` : r.jours !== null ? ` · dépassé de ${-r.jours} j` : ""}</> : "date de renouvellement à saisir"}
+                    </div>
+                  </div>
+                  <div style={{ display: "flex", alignItems: "center", gap: 6, flex: "none" }}>
+                    <span style={{ fontSize: 10.5, fontWeight: 700, color: chip.col, background: chip.bg, padding: "4px 9px", borderRadius: 10, whiteSpace: "nowrap" }}>{chip.txt}</span>
+                    <button onClick={() => setBniConfirm({ type: "renew", cible: r })} title="Valider le renouvellement"
+                      style={{ border: "none", background: S.green, color: "#fff", borderRadius: 8, padding: "6px 10px", fontSize: 11, fontWeight: 700, cursor: "pointer", whiteSpace: "nowrap" }}>Renouvelé ✓</button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      {/* pipeline de recrutement */}
+      <div style={{ marginTop: 14 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 8 }}>
+          <div style={{ ...serif, fontSize: 18, fontWeight: 600, color: S.ink }}>Recrutement de membres</div>
+          <button onClick={() => setFBniProspect({ id: Date.now(), nom: "", metier: "", etape: "prospect", note: "" })} style={{ ...btnAdd, width: "auto", padding: "8px 13px" }}><Plus size={14} /> Prospect membre</button>
+        </div>
+        <div className="wrap" style={{ overflowX: "auto", marginTop: 10, paddingBottom: 6 }}>
+          <div style={{ display: "flex", gap: 12, minWidth: 760 }}>
+            {BNI_ETAPES.map((col) => {
+              const items = bniProspects.filter((b) => b.etape === col.id);
+              return (
+                <div key={col.id} style={{ flex: "1 1 0", minWidth: 170, background: S.paper, border: `1px solid ${S.line}`, borderTop: `3px solid ${col.col}`, borderRadius: 12, padding: 10 }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", padding: "2px 4px 8px" }}>
+                    <span style={{ fontSize: 11.5, fontWeight: 700, letterSpacing: "0.03em", textTransform: "uppercase", color: col.col }}>{col.nom}</span>
+                    <span style={{ fontSize: 10.5, color: S.soft }}>{items.length}</span>
+                  </div>
+                  {items.map((b) => (
+                    <div key={b.id} style={{ background: "#fff", border: `1px solid ${S.line}`, borderRadius: 9, padding: "8px 9px", marginBottom: 7 }}>
+                      <div onClick={() => setFBniProspect(b)} style={{ cursor: "pointer" }}>
+                        <div style={{ ...serif, fontSize: 14, fontWeight: 600, color: S.ink, lineHeight: 1.2 }}>{b.nom || "Sans nom"}</div>
+                        {b.metier && <span style={{ display: "inline-block", fontSize: 9.5, fontWeight: 700, color: S.deep, background: S.cream, padding: "1px 7px", borderRadius: 10, marginTop: 4 }}>{b.metier}</span>}
+                      </div>
+                      <div style={{ display: "flex", gap: 4, marginTop: 7 }}>
+                        <button onClick={() => bougerEtapeBni(b, 1)} title={col.id === "propale" ? "Devenir membre" : "Étape suivante"}
+                          style={{ flex: 1, border: "none", background: col.col, color: "#fff", borderRadius: 7, padding: "5px", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 3, fontSize: 11, fontWeight: 600 }}>
+                          {col.id === "propale" ? <>Membre <Check size={12} /></> : <>Avancer <ArrowRight size={12} /></>}
+                        </button>
+                        <button onClick={() => abandonnerBniProspect(b)} title="Abandonner"
+                          style={{ border: `1px solid ${S.line}`, background: "#fff", color: S.rust, borderRadius: 7, padding: "5px 7px", cursor: "pointer" }}><X size={12} /></button>
+                      </div>
+                    </div>
+                  ))}
+                  {items.length === 0 && <div style={{ fontSize: 11, color: S.soft, textAlign: "center", padding: "10px 4px", opacity: 0.6 }}>—</div>}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+
+      {/* métiers à pourvoir */}
+      <div style={{ background: S.paper, border: `1px solid ${S.line}`, borderRadius: 14, padding: "15px 17px", marginTop: 12 }}>
+        <div style={{ ...serif, fontSize: 18, fontWeight: 600, color: S.ink, marginBottom: 6 }}>Métiers à pourvoir</div>
+        {(bniConf.metiers || []).length === 0 && <p style={{ fontSize: 12.5, color: S.soft, margin: "2px 0 8px" }}>Liste les métiers que tu veux faire entrer dans le chapitre — je croise automatiquement avec tes membres et ton pipeline de recrutement.</p>}
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 7 }}>
+          {(bniConf.metiers || []).map((mt) => {
+            const pourvu = membres.some((m) => match(m.profession, mt.nom));
+            const enCours = !pourvu && actifsRec.some((b) => match(b.metier, mt.nom));
+            const st = pourvu ? { txt: "pourvu", bg: "#EDF1EC", col: S.green } : enCours ? { txt: "en cours", bg: "#F3EAD9", col: S.deep } : { txt: "ouvert", bg: "#ECE8E1", col: S.soft };
+            return (
+              <span key={mt.id} style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "#fff", border: `1px solid ${S.line}`, borderRadius: 10, padding: "6px 10px", fontSize: 12.5 }}>
+                <b style={{ color: S.ink, fontWeight: 600 }}>{mt.nom}</b>
+                <span style={{ fontSize: 9.5, fontWeight: 700, color: st.col, background: st.bg, padding: "2px 7px", borderRadius: 8 }}>{st.txt}</span>
+                <button onClick={() => majBniConf({ ...bniConf, metiers: bniConf.metiers.filter((x) => x.id !== mt.id) })} title="Retirer"
+                  style={{ border: "none", background: "transparent", color: S.soft, cursor: "pointer", padding: 0, display: "flex" }}><X size={12} /></button>
+              </span>
+            );
+          })}
+        </div>
+        <div style={{ display: "flex", gap: 7, marginTop: 10 }}>
+          <input value={nvMetier} onChange={(e) => setNvMetier(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") ajouterMetier(); }} placeholder="Ex. Plombier, notaire, courtier…"
+            style={{ flex: 1, border: `1px solid ${S.line}`, borderRadius: 9, padding: "9px 11px", fontSize: 13, background: "#fff", outline: "none" }} />
+          <button onClick={ajouterMetier} style={{ ...btnAdd, width: "auto", padding: "8px 13px" }}><Plus size={14} /> Métier</button>
+        </div>
+      </div>
+
+      {/* membres du chapitre */}
+      <div style={{ marginTop: 14 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 8 }}>
+          <div style={{ ...serif, fontSize: 18, fontWeight: 600, color: S.ink }}>Membres du chapitre <span style={{ fontSize: 12.5, color: S.soft, fontWeight: 400 }}>· {membres.length}</span></div>
+          <button onClick={() => setFMembre({ id: Date.now(), nom: "", profession: "", adhesion: "", renouvellement: "", note: "" })} style={{ ...btnAdd, width: "auto", padding: "8px 13px" }}><Plus size={14} /> Membre</button>
+        </div>
+        {membres.length === 0 ? (
+          <p style={{ fontSize: 12.5, color: S.soft, marginTop: 8 }}>Aucun membre saisi. Ajoute-les un par un, ou donne ta liste à Claude qui la chargera dans Notion.</p>
+        ) : (
+          <div style={{ display: "flex", flexDirection: "column", gap: 7, marginTop: 10 }}>
+            {[...membres].sort((a, b) => a.nom.localeCompare(b.nom)).map((m) => (
+              <div key={m.id} onClick={() => setFMembre(m)} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, background: S.paper, border: `1px solid ${S.line}`, borderRadius: 10, padding: "9px 12px", cursor: "pointer" }}>
+                <div style={{ minWidth: 0 }}>
+                  <span style={{ ...serif, fontSize: 14.5, fontWeight: 600, color: S.ink }}>{m.nom}</span>
+                  {m.profession && <span style={{ fontSize: 12, color: S.soft }}> · {m.profession}</span>}
+                </div>
+                <button onClick={(e) => { e.stopPropagation(); setASupprimer({ ...m, kind: "membre" }); }} style={{ ...btnIcon }}><Trash2 size={13} /></button>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* réglages */}
+      <div style={{ background: S.paper, border: `1px solid ${S.line}`, borderRadius: 14, padding: "15px 17px", marginTop: 14 }}>
+        <div style={{ ...serif, fontSize: 16, fontWeight: 600, color: S.ink, marginBottom: 8 }}>Réglages DC</div>
+        <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+          {[
+            { l: "€ / renouvellement", k: "comRenew" },
+            { l: "€ / nouveau membre", k: "comNew" },
+            { l: "cible effectif", k: "cibleEffectif" },
+          ].map((f) => (
+            <label key={f.k} style={{ flex: "1 1 140px", background: "#fff", border: `1px solid ${S.line}`, borderRadius: 12, padding: "9px 12px", fontSize: 12, color: S.soft, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
+              {f.l}
+              <input type="number" value={bniConf[f.k]} min="0" onChange={(e) => majBniConf({ ...bniConf, [f.k]: Math.max(0, Number(e.target.value) || 0) })}
+                style={{ width: 70, textAlign: "right", border: `1px solid ${S.line}`, borderRadius: 7, padding: "5px 7px", fontWeight: 600, color: S.ink, background: "#fff" }} />
+            </label>
+          ))}
+        </div>
+        <p style={{ fontSize: 11, color: S.soft, marginTop: 8 }}>Chaque renouvellement ou nouveau membre validé te propose de créer la commission correspondante en contrat BNI, directement dans ton CA.</p>
+      </div>
+    </div>
+  );
+}
+function FicheMembre({ m, onClose, onSave, onDelete }) {
+  const [f, setF] = useState({ ...m });
+  const set = (k, v) => setF({ ...f, [k]: v });
+  const existant = isNotionId(m.id);
+  return (
+    <Modal onClose={onClose} bas>
+      <TitreModale titre={existant ? "Modifier le membre" : "Nouveau membre"} onClose={onClose} />
+      <Ch label="Nom du membre"><input value={f.nom} onChange={(e) => set("nom", e.target.value)} placeholder="Ex. Marie Dupont" style={inp} /></Ch>
+      <Ch label="Profession / entreprise"><input value={f.profession} onChange={(e) => set("profession", e.target.value)} placeholder="Ex. Plombier — SARL Dupont" style={inp} /></Ch>
+      <div style={{ display: "flex", gap: 10 }}>
+        <div style={{ flex: 1 }}><Ch label="Adhésion"><input type="date" value={f.adhesion} onChange={(e) => set("adhesion", e.target.value)} style={inp} /></Ch></div>
+        <div style={{ flex: 1 }}><Ch label="Renouvellement"><input type="date" value={f.renouvellement} onChange={(e) => set("renouvellement", e.target.value)} style={inp} /></Ch></div>
+      </div>
+      <Ch label="Notes"><textarea value={f.note} onChange={(e) => set("note", e.target.value)} rows={2} style={{ ...inp, resize: "vertical", minHeight: 48 }} /></Ch>
+      <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+        {existant && <button onClick={() => onDelete(f)} title="Supprimer le membre" style={{ ...btnIcon, padding: "13px 15px", color: S.rust }}><Trash2 size={15} /></button>}
+        <button onClick={() => f.nom.trim() && onSave(f)} disabled={!f.nom.trim()} style={{ ...btnMain, background: !f.nom.trim() ? S.line : S.panel, color: !f.nom.trim() ? S.soft : S.cream }}><Check size={16} /> Enregistrer</button>
+      </div>
+    </Modal>
+  );
+}
+function FicheBniProspect({ b, onClose, onSave, onDelete }) {
+  const [f, setF] = useState({ ...b });
+  const set = (k, v) => setF({ ...f, [k]: v });
+  const existant = isNotionId(b.id);
+  return (
+    <Modal onClose={onClose} bas>
+      <TitreModale titre={existant ? "Prospect membre" : "Nouveau prospect membre"} onClose={onClose} />
+      <Ch label="Nom"><input value={f.nom} onChange={(e) => set("nom", e.target.value)} placeholder="Ex. Paul Martin" style={inp} /></Ch>
+      <Ch label="Métier"><input value={f.metier} onChange={(e) => set("metier", e.target.value)} placeholder="Ex. Notaire" style={inp} /></Ch>
+      <Ch label="Étape">
+        <select value={f.etape} onChange={(e) => set("etape", e.target.value)} style={inp}>
+          {BNI_ETAPES.map((s) => <option key={s.id} value={s.id}>{s.nom}</option>)}
+        </select>
+      </Ch>
+      <Ch label="Notes"><textarea value={f.note} onChange={(e) => set("note", e.target.value)} rows={2} style={{ ...inp, resize: "vertical", minHeight: 48 }} /></Ch>
+      <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+        {existant && <button onClick={() => onDelete(f)} title="Supprimer" style={{ ...btnIcon, padding: "13px 15px", color: S.rust }}><Trash2 size={15} /></button>}
+        <button onClick={() => f.nom.trim() && onSave(f)} disabled={!f.nom.trim()} style={{ ...btnMain, background: !f.nom.trim() ? S.line : S.panel, color: !f.nom.trim() ? S.soft : S.cream }}><Check size={16} /> Enregistrer</button>
+      </div>
+    </Modal>
+  );
+}
+function ConfirmCommission({ ctx, conf, onClose, onConfirm }) {
+  const renew = ctx.type === "renew";
+  const [montant, setMontant] = useState(renew ? conf.comRenew || 0 : conf.comNew || 0);
+  return (
+    <Modal onClose={onClose}>
+      <div style={{ ...serif, fontSize: 19, fontWeight: 600, color: S.ink }}>
+        {renew ? `Renouvellement de ${ctx.cible.nom}` : `${ctx.cible.nom} devient membre 🎉`}
+      </div>
+      <p style={{ fontSize: 13, color: S.soft, marginTop: 6, lineHeight: 1.6 }}>
+        {renew ? "L'échéance du membre est repoussée d'un an." : "Le prospect passe dans les membres du chapitre (renouvellement dans un an)."}{" "}
+        {Number(montant) > 0 ? <>Une commission de <b style={{ color: S.ink }}>{court(Number(montant))} €</b> sera créée en contrat BNI dans ton CA.</> : "Aucune commission ne sera créée (montant à 0)."}
+      </p>
+      <Ch label="Commission (€ HT)"><input type="number" min="0" value={montant} onChange={(e) => setMontant(e.target.value)} style={inp} /></Ch>
+      <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
+        <button onClick={onClose} style={btnSec}>Annuler</button>
+        <button onClick={() => onConfirm(Number(montant) || 0)} style={{ ...btnSec, background: S.green, color: "#fff", border: "none", flex: 1.4 }}><Check size={15} /> Valider</button>
       </div>
     </Modal>
   );
