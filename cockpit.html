@@ -129,25 +129,42 @@ const TUN_OFFRES = [
   { id: "forma", nom: "Formation Claude" },
   { id: "site", nom: "Site web" },
 ];
-const TUN_PHASES = [
-  { id: "attirer", nom: "Attirer", col: "#6B6A86", desc: "faire venir / se faire voir" },
-  { id: "engager", nom: "Engager", col: "#5B7A8C", desc: "capter l'intérêt, créer le lien" },
-  { id: "convertir", nom: "Convertir", col: "#B08D57", desc: "transformer en prospect qualifié" },
-  { id: "closer", nom: "Closer", col: "#5B7A5B", desc: "signer" },
+/* deux catégories par offre : idée / en cours (empilées, pensé mobile) */
+const TUN_CATS = [
+  { id: "idee", nom: "Idées", emoji: "💡", col: "#8C6D3F" },
+  { id: "encours", nom: "En cours", emoji: "🔥", col: "#B08D57" },
 ];
+const OLD_TUN_PHASES = ["attirer", "engager", "convertir", "closer"];
 const CANAUX = ["Contenu vidéo", "Ads Meta", "Ads Google", "Réseau / BNI", "Email", "Landing page", "Événement", "Recommandation", "LinkedIn", "Autre"];
-function tunVide() { const o = {}; TUN_OFFRES.forEach((of) => { o[of.id] = {}; TUN_PHASES.forEach((ph) => { o[of.id][ph.id] = []; }); }); return o; }
+function tunVide() { const o = {}; TUN_OFFRES.forEach((of) => { o[of.id] = { idee: [], encours: [] }; }); return o; }
 function mergeTun(data) {
   const base = tunVide();
-  if (data) TUN_OFFRES.forEach((of) => TUN_PHASES.forEach((ph) => {
-    if (data[of.id] && Array.isArray(data[of.id][ph.id])) base[of.id][ph.id] = data[of.id][ph.id];
-  }));
+  if (data) TUN_OFFRES.forEach((of) => {
+    const d = data[of.id];
+    if (!d) return;
+    if (Array.isArray(d.idee) || Array.isArray(d.encours)) {
+      /* forme déjà migrée */
+      base[of.id].idee = Array.isArray(d.idee) ? d.idee : [];
+      base[of.id].encours = Array.isArray(d.encours) ? d.encours : [];
+    } else {
+      /* migration depuis l'ancienne forme à 4 phases : on aplatit et on route par ancien statut */
+      OLD_TUN_PHASES.forEach((ph) => {
+        if (!Array.isArray(d[ph])) return;
+        d[ph].forEach((l) => {
+          const st = l.statut || "idee";
+          if (st === "fait") return; /* les « fait » sont retirés */
+          const { statut, ...clean } = l;
+          base[of.id][st === "encours" ? "encours" : "idee"].push(clean);
+        });
+      });
+    }
+  });
   return base;
 }
 const TUN_DEPART = (() => {
   const t = tunVide();
-  t.forma.attirer.push({ id: "seed-1", titre: "Vidéos de promotion de la formation", canal: "Contenu vidéo", note: "" });
-  t.forma.engager.push({ id: "seed-2", titre: "Pousser les vidéos en ads", canal: "Ads Meta", note: "" });
+  t.forma.idee.push({ id: "seed-1", titre: "Vidéos de promotion de la formation", canal: "Contenu vidéo", note: "" });
+  t.forma.idee.push({ id: "seed-2", titre: "Pousser les vidéos en ads", canal: "Ads Meta", note: "" });
   return t;
 })();
 
@@ -507,6 +524,13 @@ function Cockpit() {
   const deleteLevier = (offre, phase, id) => {
     majTunnels({ ...tunnels, [offre]: { ...tunnels[offre], [phase]: (tunnels[offre][phase] || []).filter((l) => l.id !== id) } });
   };
+  /* bascule une action entre les deux catégories (idée <-> en cours) */
+  const basculerLevier = (offre, fromCat, lev) => {
+    const toCat = fromCat === "idee" ? "encours" : "idee";
+    const from = (tunnels[offre][fromCat] || []).filter((l) => l.id !== lev.id);
+    const to = [...(tunnels[offre][toCat] || []), lev];
+    majTunnels({ ...tunnels, [offre]: { ...tunnels[offre], [fromCat]: from, [toCat]: to } });
+  };
 
   /* ---- pilotage BNI : config (page dédiée) + membres + recrutement ---- */
   function persistBniConf(next) {
@@ -753,7 +777,7 @@ function Cockpit() {
       <div style={{ padding: "20px 18px 0", maxWidth: 1120, margin: "0 auto" }}>
         {vue === "pilotage" && <Pilotage {...{ caSigne, moisSigne, moisContratsActifs, moisNouveaux, cumulSigne, pipePondere, setVue, objectif, contratsReste, renouvellements, mrrEnJeu, parSource }} />}
         {vue === "crm" && <CRM {...{ prospects, setFProspect, bougerEtape, marquerPerdu, pipePondere, pipeBrut }} />}
-        {vue === "tunnel" && <Tunnel {...{ tunnels, prospects, clients, caSigne, setFLevier, saveLevier, tunSaveEtat }} />}
+        {vue === "tunnel" && <Tunnel {...{ tunnels, setFLevier, saveLevier, basculerLevier, tunSaveEtat }} />}
         {vue === "contrats" && <Contrats {...{ clients, moisSigne, setFClient, setASupprimer, caSigne }} />}
         {vue === "bni" && <VueBNI {...{ membres, bniProspects, bniConf, majBniConf, clients, membrePerfs, setFMembre, setFBniProspect, setFPerf, bougerEtapeBni, abandonnerBniProspect, setBniConfirm, setASupprimer, bniSaveEtat }} />}
         {vue === "objectifs" && <Objectifs {...{ prestas, heures, charges, objSim, majPresta, ajouterPresta, supprimerPresta, setHeuresObj, setChargesObj, setConfirmReset, objSaveEtat, caSigne }} />}
@@ -773,7 +797,7 @@ function Cockpit() {
       {fProspect !== null && <FicheProspect p={fProspect} sourcesList={sourcesList} onClose={() => setFProspect(null)} onSave={(p) => { majProspect(p); setFProspect(null); }} onDelete={(id) => { if (isNotionId(id)) ecrire(() => apiArchive(id), "Suppression"); setFProspect(null); }} />}
       {signature && <FicheSignature p={signature} onClose={() => setSignature(null)} onConfirm={confirmerSignature} />}
       {fClient && <FicheClient c={fClient} sourcesList={sourcesList} onClose={() => setFClient(null)} onSave={(c) => { majClient(c); setFClient(null); }} onDelete={(c) => { setFClient(null); setASupprimer(c); }} />}
-      {fLevier && <FicheLevier ctx={fLevier} onClose={() => setFLevier(null)} onSave={(lev) => { saveLevier(fLevier.offre, fLevier.phase, lev); setFLevier(null); }} onDelete={(id) => { deleteLevier(fLevier.offre, fLevier.phase, id); setFLevier(null); }} />}
+      {fLevier && <FicheLevier ctx={fLevier} onClose={() => setFLevier(null)} onSave={(lev) => { saveLevier(fLevier.offre, fLevier.cat, lev); setFLevier(null); }} onDelete={(id) => { deleteLevier(fLevier.offre, fLevier.cat, id); setFLevier(null); }} />}
       {fMembre && <FicheMembre m={fMembre} onClose={() => setFMembre(null)} onSave={(m) => { majMembre(m); setFMembre(null); }} onDelete={(m) => { setFMembre(null); setASupprimer({ ...m, kind: "membre" }); }} />}
       {fBniProspect && <FicheBniProspect b={fBniProspect} onClose={() => setFBniProspect(null)} onSave={(b) => { majBniProspect(b); setFBniProspect(null); }} onDelete={(b) => { setFBniProspect(null); setASupprimer({ ...b, kind: "prospect BNI" }); }} />}
       {fPerf && <FichePerf ctx={fPerf} membres={membres} onClose={() => setFPerf(null)} onSave={(p) => { majPerf(p); setFPerf(null); }} />}
@@ -1246,45 +1270,10 @@ function Contrats({ clients, moisSigne, setFClient, setASupprimer, caSigne }) {
 }
 
 /* ================= VUE TUNNEL (acquisition par offre) ================= */
-const TUN_STATUTS = [
-  { id: "idee", txt: "💡 idée", bg: "#EFEAE0", col: "#514B42" },
-  { id: "encours", txt: "🔥 en cours", bg: "#F3EAD9", col: "#8C6D3F" },
-  { id: "fait", txt: "✅ fait", bg: "#EDF1EC", col: "#5B7A5B" },
-];
-const tunStatut = (l) => TUN_STATUTS.find((s) => s.id === (l.statut || "idee")) || TUN_STATUTS[0];
-const TUN_STATUT_NEXT = { idee: "encours", encours: "fait", fait: "idee" };
-/* pont plan d'action -> étapes réelles du CRM */
-const TUN_PONT = {
-  attirer: { lab: "prospect entrant", et: ["prospect"] },
-  engager: { lab: "contacté", et: ["contacte"] },
-  convertir: { lab: "en diagnostic / propale", et: ["diagnostic", "propale"] },
-  closer: { lab: "signé", et: null /* = contrats */ },
-};
-
-function Tunnel({ tunnels, prospects, clients, caSigne, setFLevier, saveLevier, tunSaveEtat }) {
+function Tunnel({ tunnels, setFLevier, saveLevier, basculerLevier, tunSaveEtat }) {
   const [offre, setOffre] = useState(TUN_OFFRES[0].id);
   const etatTxt = { "en cours": "enregistrement…", ok: "enregistré dans Notion", err: "échec enregistrement" };
-  const t = tunnels[offre] || {};
-
-  /* ---- étage 1 : le tunnel réel (toutes offres), calculé depuis le CRM ---- */
-  const actifs = prospects.filter((p) => !["signe", "perdu"].includes(p.etape));
-  const perdus = prospects.filter((p) => p.etape === "perdu").length;
-  const funnel = [
-    ...ETAPES.filter((e) => !["signe", "perdu"].includes(e.id)).map((e) => {
-      const ps = actifs.filter((p) => p.etape === e.id);
-      return { id: e.id, nom: e.nom, col: e.col, n: ps.length, mnt: ps.reduce((s, p) => s + (Number(p.montant) || 0) * e.proba, 0) };
-    }),
-    { id: "signe", nom: "Signé", col: "#5B7A5B", n: clients.length, mnt: caSigne },
-  ];
-  const maxN = Math.max(1, ...funnel.map((f) => f.n));
-  const closing = clients.length + perdus > 0 ? Math.round((clients.length / (clients.length + perdus)) * 100) : null;
-
-  /* comptes réels par offre sélectionnée, pour le pont */
-  const reelPont = (phId) => {
-    const p = TUN_PONT[phId];
-    if (!p.et) return clients.filter((c) => c.type === offre).length;
-    return actifs.filter((x) => x.type === offre && p.et.includes(x.etape)).length;
-  };
+  const t = tunnels[offre] || { idee: [], encours: [] };
 
   return (
     <div>
@@ -1295,78 +1284,46 @@ function Tunnel({ tunnels, prospects, clients, caSigne, setFLevier, saveLevier, 
         </div>
         {tunSaveEtat && <span style={{ fontSize: 11.5, color: tunSaveEtat === "err" ? S.rust : S.soft }}>{etatTxt[tunSaveEtat]}</span>}
       </div>
+      <p style={{ fontSize: 12.5, color: S.soft, marginTop: 6, marginBottom: 0 }}>Par offre : tes <b style={{ color: S.deep }}>idées</b> d'un côté, ce que tu <b style={{ color: S.deep }}>fais tourner</b> de l'autre. Touche une action pour l'éditer, la flèche pour la déplacer. Sauvegarde auto.</p>
 
-      {/* ---- le tunnel réel ---- */}
-      <div style={{ background: S.panel, borderRadius: 14, padding: "15px 16px", marginTop: 12, color: S.cream }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", flexWrap: "wrap", gap: 6 }}>
-          <div style={{ ...serif, fontSize: 17, fontWeight: 600 }}>Ton tunnel réel, aujourd'hui</div>
-          <div style={{ fontSize: 11.5, color: "#C9BFAE" }}>
-            {closing !== null ? <>taux de closing <b style={{ color: closing >= 50 ? "#9DBF9D" : "#E0A277" }}>{closing}%</b> · {perdus} perdu{perdus > 1 ? "s" : ""}</> : "pas encore de dossier clos"}
-          </div>
-        </div>
-        <div style={{ display: "flex", flexDirection: "column", gap: 6, marginTop: 11 }}>
-          {funnel.map((f) => (
-            <div key={f.id} style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <span style={{ flex: "none", width: 76, fontSize: 10.5, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.03em", color: f.col, textAlign: "right" }}>{f.nom}</span>
-              <div style={{ flex: 1, height: 22, background: "#3a352e", borderRadius: 6, overflow: "hidden", position: "relative" }}>
-                <div style={{ position: "absolute", left: 0, top: 0, bottom: 0, width: `${(f.n / maxN) * 100}%`, background: `linear-gradient(90deg, ${f.col}66, ${f.col})`, borderRadius: 6, transition: "width .3s" }} />
-                <span style={{ position: "absolute", left: 8, top: 0, lineHeight: "22px", fontSize: 11.5, fontWeight: 700, color: S.cream }}>{f.n}</span>
-                {f.mnt > 0 && <span style={{ position: "absolute", right: 8, top: 0, lineHeight: "22px", fontSize: 10.5, color: "#C9BFAE" }}>{court(f.mnt)} €{f.id !== "signe" ? " pond." : ""}</span>}
-              </div>
-            </div>
-          ))}
-        </div>
-        <div style={{ fontSize: 10.5, color: "#8d857a", marginTop: 8 }}>Calculé en direct depuis ton CRM et tes contrats — l'étage le plus vide, c'est là que ton plan d'action doit pousser.</div>
-      </div>
-
-      {/* ---- le plan d'action, par offre ---- */}
-      <p style={{ fontSize: 12.5, color: S.soft, marginTop: 16, marginBottom: 0 }}>Le plan d'action par offre. Tape la pastille de statut d'une action pour la faire avancer : 💡 → 🔥 → ✅. Sauvegarde auto dans Notion.</p>
-      <div style={{ display: "flex", gap: 6, marginTop: 10, flexWrap: "wrap" }}>
+      {/* sélecteur d'offre */}
+      <div style={{ display: "flex", gap: 6, marginTop: 12, flexWrap: "wrap" }}>
         {TUN_OFFRES.map((of) => (
           <button key={of.id} onClick={() => setOffre(of.id)} style={{ flex: "1 1 auto", padding: "9px 13px", borderRadius: 10, fontSize: 12.5, fontWeight: 600, cursor: "pointer", border: `1px solid ${offre === of.id ? S.deep : S.line}`, background: offre === of.id ? S.deep : "#fff", color: offre === of.id ? S.cream : S.soft }}>{of.nom}</button>
         ))}
       </div>
 
-      <div className="wrap" style={{ overflowX: "auto", marginTop: 14, paddingBottom: 6 }}>
-        <div style={{ display: "flex", gap: 12, minWidth: 920 }}>
-          {TUN_PHASES.map((ph, pi) => {
-            const brut = t[ph.id] || [];
-            const items = [...brut.filter((l) => (l.statut || "idee") !== "fait"), ...brut.filter((l) => (l.statut || "idee") === "fait")];
-            const enCours = brut.filter((l) => l.statut === "encours").length;
-            const reel = reelPont(ph.id);
-            const mort = reel === 0 && brut.filter((l) => (l.statut || "idee") !== "fait").length === 0;
-            return (
-              <div key={ph.id} style={{ flex: "1 1 0", minWidth: 200, background: S.paper, border: `1px solid ${mort ? S.rust : S.line}`, borderTop: `3px solid ${ph.col}`, borderRadius: 12, padding: 10 }}>
-                <div style={{ padding: "2px 4px 8px" }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
-                    <span style={{ fontSize: 11.5, fontWeight: 700, letterSpacing: "0.03em", textTransform: "uppercase", color: ph.col }}>{pi + 1}. {ph.nom}</span>
-                    <span style={{ fontSize: 10.5, color: enCours > 0 ? S.deep : S.soft, fontWeight: enCours > 0 ? 700 : 400 }}>{enCours > 0 ? `${enCours} en cours` : brut.length}</span>
-                  </div>
-                  <div style={{ fontSize: 10.5, color: S.soft, marginTop: 1 }}>{ph.desc}</div>
-                  <div style={{ marginTop: 5, fontSize: 10.5, fontWeight: 700, color: mort ? S.rust : reel > 0 ? S.green : S.soft, background: mort ? "#F6E7DE" : reel > 0 ? "#EDF1EC" : "#EFEAE0", borderRadius: 8, padding: "3px 8px", display: "inline-block" }}>
-                    {mort ? "zone morte — pousse ici" : `réel : ${reel} ${TUN_PONT[ph.id].lab}${reel > 1 ? "s" : ""}`}
-                  </div>
-                </div>
-                {items.map((l) => {
-                  const st = tunStatut(l);
-                  const fait = st.id === "fait";
-                  return (
-                    <div key={l.id} onClick={() => setFLevier({ offre, phase: ph.id, levier: l })} style={{ background: "#fff", border: `1px solid ${S.line}`, borderRadius: 9, padding: "8px 9px", marginBottom: 7, cursor: "pointer", opacity: fait ? 0.55 : 1 }}>
-                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 6 }}>
-                        <div style={{ ...serif, fontSize: 14, fontWeight: 600, color: S.ink, lineHeight: 1.2, textDecoration: fait ? "line-through" : "none", textDecorationColor: S.soft }}>{l.titre || "Sans titre"}</div>
-                        <button onClick={(e) => { e.stopPropagation(); saveLevier(offre, ph.id, { ...l, statut: TUN_STATUT_NEXT[st.id] }); }} title="Changer le statut"
-                          style={{ flex: "none", border: "none", cursor: "pointer", fontSize: 9.5, fontWeight: 700, color: st.col, background: st.bg, padding: "3px 8px", borderRadius: 10, whiteSpace: "nowrap" }}>{st.txt}</button>
-                      </div>
+      {/* deux catégories empilées, pleine largeur (mobile-friendly) */}
+      <div style={{ display: "flex", flexDirection: "column", gap: 12, marginTop: 14 }}>
+        {TUN_CATS.map((cat) => {
+          const items = t[cat.id] || [];
+          return (
+            <div key={cat.id} style={{ background: S.paper, border: `1px solid ${S.line}`, borderLeft: `4px solid ${cat.col}`, borderRadius: 12, padding: "12px 13px" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 8 }}>
+                <span style={{ ...serif, fontSize: 16, fontWeight: 600, color: S.ink }}>{cat.emoji} {cat.nom}</span>
+                <span style={{ fontSize: 11.5, color: S.soft, fontWeight: 600 }}>{items.length}</span>
+              </div>
+              {items.length === 0 && <div style={{ fontSize: 11.5, color: S.soft, opacity: 0.7, padding: "2px 0 8px" }}>{cat.id === "idee" ? "Note ici tout ce que tu pourrais tester." : "Rien en cours — démarre une idée quand tu t'y attaques."}</div>}
+              {items.map((l) => (
+                <div key={l.id} onClick={() => setFLevier({ offre, cat: cat.id, levier: l })} style={{ background: "#fff", border: `1px solid ${S.line}`, borderRadius: 9, padding: "9px 10px", marginBottom: 7, cursor: "pointer" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8 }}>
+                    <div style={{ minWidth: 0 }}>
+                      <div style={{ ...serif, fontSize: 14.5, fontWeight: 600, color: S.ink, lineHeight: 1.2 }}>{l.titre || "Sans titre"}</div>
                       {l.canal && <span style={{ display: "inline-block", fontSize: 9.5, fontWeight: 700, color: S.deep, background: S.cream, padding: "1px 7px", borderRadius: 10, marginTop: 4 }}>{l.canal}</span>}
                       {l.note && <div style={{ fontSize: 11.5, color: S.soft, marginTop: 4, lineHeight: 1.4 }}>{l.note}</div>}
                     </div>
-                  );
-                })}
-                <button onClick={() => setFLevier({ offre, phase: ph.id, levier: { id: Date.now(), titre: "", canal: "", note: "", statut: "idee" } })} style={{ width: "100%", border: `1.5px dashed ${S.line}`, background: "transparent", color: S.deep, fontWeight: 600, fontSize: 12, padding: "8px", borderRadius: 9, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 5 }}><Plus size={13} /> Action</button>
-              </div>
-            );
-          })}
-        </div>
+                    <button onClick={(e) => { e.stopPropagation(); basculerLevier(offre, cat.id, l); }}
+                      title={cat.id === "idee" ? "Démarrer" : "Remettre en idée"}
+                      style={{ flex: "none", border: "none", cursor: "pointer", fontSize: 10.5, fontWeight: 700, color: "#fff", background: cat.id === "idee" ? S.gold : S.soft, padding: "6px 10px", borderRadius: 8, whiteSpace: "nowrap" }}>
+                      {cat.id === "idee" ? "Démarrer 🔥" : "↩ Idée"}
+                    </button>
+                  </div>
+                </div>
+              ))}
+              <button onClick={() => setFLevier({ offre, cat: cat.id, levier: { id: Date.now(), titre: "", canal: "", note: "" } })} style={{ width: "100%", border: `1.5px dashed ${S.line}`, background: "transparent", color: S.deep, fontWeight: 600, fontSize: 12, padding: "9px", borderRadius: 9, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 5 }}><Plus size={13} /> {cat.id === "idee" ? "Idée" : "Action en cours"}</button>
+            </div>
+          );
+        })}
       </div>
     </div>
   );
@@ -1374,20 +1331,12 @@ function Tunnel({ tunnels, prospects, clients, caSigne, setFLevier, saveLevier, 
 function FicheLevier({ ctx, onClose, onSave, onDelete }) {
   const [f, setF] = useState({ ...ctx.levier });
   const set = (k, v) => setF({ ...f, [k]: v });
-  const phaseNom = (TUN_PHASES.find((p) => p.id === ctx.phase) || {}).nom;
+  const catNom = (TUN_CATS.find((c) => c.id === ctx.cat) || {}).nom || "Action";
   const existant = !!(ctx.levier.titre || ctx.levier.canal || ctx.levier.note);
   return (
     <Modal onClose={onClose} bas>
-      <TitreModale titre={`${phaseNom} — action`} onClose={onClose} />
+      <TitreModale titre={`${catNom} — action`} onClose={onClose} />
       <Ch label="Titre de l'action"><input value={f.titre} onChange={(e) => set("titre", e.target.value)} placeholder="Ex. Vidéos de promotion" style={inp} /></Ch>
-      <Ch label="Statut">
-        <div style={{ display: "flex", gap: 6 }}>
-          {TUN_STATUTS.map((s) => (
-            <button key={s.id} onClick={() => set("statut", s.id)}
-              style={{ flex: 1, padding: "9px 6px", borderRadius: 9, fontSize: 12, fontWeight: 700, cursor: "pointer", border: `1.5px solid ${(f.statut || "idee") === s.id ? s.col : S.line}`, background: (f.statut || "idee") === s.id ? s.bg : "#fff", color: s.col }}>{s.txt}</button>
-          ))}
-        </div>
-      </Ch>
       <Ch label="Canal">
         <select value={f.canal || ""} onChange={(e) => set("canal", e.target.value)} style={inp}>
           <option value="">— choisir —</option>
