@@ -393,6 +393,7 @@ const ArrowRight = ic(<><line x1="5" y1="12" x2="19" y2="12" /><polyline points=
 const RefreshCw = ic(<><polyline points="23 4 23 10 17 10" /><polyline points="1 20 1 14 7 14" /><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" /></>);
 const Target = ic(<><circle cx="12" cy="12" r="10" /><circle cx="12" cy="12" r="6" /><circle cx="12" cy="12" r="2" /></>);
 const RotateCcw = ic(<><polyline points="1 4 1 10 7 10" /><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10" /></>);
+const ChevronDown = ic(<polyline points="6 9 12 15 18 9" />);
 const Funnel = ic(<polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3" />);
 const Award = ic(<><circle cx="12" cy="8" r="7" /><polyline points="8.21 13.89 7 23 12 20 17 23 15.79 13.88" /></>);
 
@@ -1361,6 +1362,7 @@ function FicheLevier({ ctx, onClose, onSave, onDelete }) {
 function VueBNI({ membres, bniProspects, bniConf, majBniConf, majMembre, clients, membrePerfs, setFMembre, setFBniProspect, setFPerf, bougerEtapeBni, abandonnerBniProspect, setBniConfirm, setASupprimer, bniSaveEtat }) {
   const [nvMetier, setNvMetier] = useState("");
   const [sousVue, setSousVue] = useState("pilotage");
+  const [openMetric, setOpenMetric] = useState(null);
   const etatTxt = { "en cours": "enregistrement…", ok: "enregistré dans Notion", err: "échec enregistrement" };
   const now = new Date();
   const msJ = 86400000;
@@ -1371,8 +1373,10 @@ function VueBNI({ membres, bniProspects, bniConf, majBniConf, majMembre, clients
     const statut = j === null ? "adater" : j < 0 ? "retard" : j <= 60 ? "urgent" : j <= 120 ? "bientot" : "ok";
     return { ...m, jours: j, statut };
   }).sort((a, b) => (a.jours === null ? 99999 : a.jours) - (b.jours === null ? 99999 : b.jours));
-  const sous90 = rens.filter((r) => r.jours !== null && r.jours >= 0 && r.jours <= 90).length;
-  const sous7m = rens.filter((r) => r.jours !== null && r.jours >= 0 && r.jours <= 210).length;
+  const list90 = rens.filter((r) => r.jours !== null && r.jours >= 0 && r.jours <= 90);
+  const list7m = rens.filter((r) => r.jours !== null && r.jours >= 0 && r.jours <= 210);
+  const sous90 = list90.length;
+  const sous7m = list7m.length;
   const enRetard = rens.filter((r) => r.statut === "retard").length;
   const rdvFaits = membres.filter((m) => m.rdvFait).length;
 
@@ -1431,18 +1435,46 @@ function VueBNI({ membres, bniProspects, bniConf, majBniConf, majMembre, clients
         </div>
         <div style={{ display: "flex", gap: 10, marginTop: 14, flexWrap: "wrap" }}>
           {[
-            { l: "Renouv. sous 90 j", v: sous90 + (enRetard > 0 ? ` (+${enRetard} en retard)` : ""), alerte: enRetard > 0 || sous90 > 0 },
-            { l: "Renouv. sous 7 mois", v: sous7m, alerte: sous7m > 0 },
+            { id: "90", l: "Renouv. sous 90 j", v: sous90 + (enRetard > 0 ? ` (+${enRetard} en retard)` : ""), alerte: enRetard > 0 || sous90 > 0, list: list90, titre: "Renouvellements sous 90 jours" },
+            { id: "7m", l: "Renouv. sous 7 mois", v: sous7m, alerte: sous7m > 0, list: list7m, titre: "Renouvellements sous 7 mois" },
             { l: "RDV annuels faits", v: `${rdvFaits} / ${membres.length}` },
             { l: "Commissions au CA", v: `${court(comCA) || 0} €` },
             { l: "Recrutement actif", v: actifsRec.length + " prospect" + (actifsRec.length > 1 ? "s" : "") },
-          ].map((k, i) => (
-            <div key={i} style={{ flex: "1 1 130px", background: "#332e28", borderRadius: 11, padding: "9px 12px" }}>
-              <div style={{ fontSize: 9.5, letterSpacing: "0.06em", textTransform: "uppercase", color: k.alerte ? "#E0A277" : "#8d857a", fontWeight: 700 }}>{k.l}</div>
-              <div style={{ ...serif, fontSize: 19, color: S.cream, marginTop: 2 }}>{k.v}</div>
-            </div>
-          ))}
+          ].map((k, i) => {
+            const expandable = !!k.list;
+            const open = expandable && openMetric === k.id;
+            return (
+              <div key={i} onClick={expandable ? () => setOpenMetric(open ? null : k.id) : undefined}
+                style={{ flex: "1 1 130px", background: open ? "#3a352e" : "#332e28", borderRadius: 11, padding: "9px 12px", cursor: expandable ? "pointer" : "default" }}>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 6 }}>
+                  <div style={{ fontSize: 9.5, letterSpacing: "0.06em", textTransform: "uppercase", color: k.alerte ? "#E0A277" : "#8d857a", fontWeight: 700 }}>{k.l}</div>
+                  {expandable && <span style={{ color: "#8d857a", display: "flex", flex: "none", transform: open ? "rotate(180deg)" : "none", transition: "transform .15s" }}><ChevronDown size={14} /></span>}
+                </div>
+                <div style={{ ...serif, fontSize: 19, color: S.cream, marginTop: 2 }}>{k.v}</div>
+              </div>
+            );
+          })}
         </div>
+        {openMetric && (() => {
+          const meta = openMetric === "90" ? { titre: "Renouvellements sous 90 jours", list: list90 } : { titre: "Renouvellements sous 7 mois", list: list7m };
+          return (
+            <div style={{ background: "#2b2721", borderRadius: 11, padding: "10px 12px", marginTop: 10 }}>
+              <div style={{ fontSize: 9.5, letterSpacing: "0.06em", textTransform: "uppercase", color: "#8d857a", fontWeight: 700, marginBottom: 6 }}>{meta.titre} · {meta.list.length}</div>
+              {meta.list.length === 0 ? (
+                <div style={{ fontSize: 12.5, color: "#8d857a" }}>Aucun membre concerné 👌</div>
+              ) : (
+                <div style={{ display: "flex", flexDirection: "column" }}>
+                  {meta.list.map((r) => (
+                    <div key={r.id} onClick={() => setFMembre(r)} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, cursor: "pointer", padding: "6px 0", borderTop: "1px solid #3a352e" }}>
+                      <span style={{ fontSize: 13, color: S.cream, minWidth: 0 }}>{r.nom}{r.profession ? <span style={{ color: "#8d857a" }}> · {r.profession}</span> : null}</span>
+                      <span style={{ fontSize: 11.5, color: r.jours <= 90 ? "#E0A277" : "#C9BFAE", whiteSpace: "nowrap", flex: "none" }}>{r.renouvellement ? r.renouvellement.split("-").reverse().join("/") : "—"} · {r.jours} j</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          );
+        })()}
       </div>
 
       {/* radar des renouvellements membres */}
