@@ -909,11 +909,18 @@ function Contrats({ clients, moisSigne, setFClient, setASupprimer, caSigne }) {
                 {moisSigne.map((v, i) => <td key={i} style={{ ...td, background: S.panel, borderRight: `1px solid #3a352e` }}><div style={{ ...serif, padding: "0 7px", lineHeight: "33px", fontSize: 13, color: v ? S.cream : "#5d564c" }}>{v ? court(v) : "·"}</div></td>)}
                 <td style={{ ...td, background: S.deep }}><div style={{ ...serif, padding: "0 7px", lineHeight: "33px", fontSize: 13, fontWeight: 700, color: S.cream }}>{court(caSigne)}</div></td>
               </tr>
+              <tr>
+                <td style={{ position: "sticky", left: 0, zIndex: 2, background: "#F6EDE4", borderRight: `2px solid ${S.line}`, padding: "6px 9px" }}>
+                  <span style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", color: S.deep }}>TVA estim. 20 %</span>
+                </td>
+                {moisSigne.map((v, i) => { const t = v * TVA; return <td key={i} style={{ ...td, background: "#F6EDE4" }}><div style={{ padding: "0 7px", lineHeight: "33px", fontSize: 12.5, fontWeight: 600, color: t ? S.deep : S.line }}>{t ? court(t) : "·"}</div></td>; })}
+                <td style={{ ...td, background: "#EFE2CF" }}><div style={{ ...serif, padding: "0 7px", lineHeight: "33px", fontSize: 13, fontWeight: 700, color: S.deep }}>{court(caSigne * TVA)}</div></td>
+              </tr>
             </tbody>
           </table>
         </div>
       )}
-      <p style={{ fontSize: 11, color: S.soft, marginTop: 7 }}>Touche un <b style={{ color: S.deep }}>nom</b> pour modifier le contrat. Montants en € HT.</p>
+      <p style={{ fontSize: 11, color: S.soft, marginTop: 7 }}>Touche un <b style={{ color: S.deep }}>nom</b> pour modifier le contrat. Montants en € HT. <b style={{ color: S.deep }}>TVA estim.</b> = 20 % du CA dû du mois.</p>
 
       <div style={{ ...serif, fontSize: 16, fontWeight: 600, color: S.ink, margin: "20px 0 2px" }}>Détail des contrats</div>
       {clients.map((c) => {
