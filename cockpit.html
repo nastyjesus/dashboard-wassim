@@ -161,6 +161,36 @@ const BNI_ETAPES = [
   { id: "diagnostic", nom: "Invité", col: "#5B7A8C" },
   { id: "propale", nom: "A visité", col: "#B08D57" },
 ];
+/* performances des membres (rapport PALMS) : métriques + périodes de filtre */
+const PERF_METS = [
+  { k: "refD", nom: "Réf. données", court: "Réf. don." },
+  { k: "refR", nom: "Réf. reçues", court: "Réf. reç." },
+  { k: "vis", nom: "Visiteurs", court: "Visit." },
+  { k: "o2o", nom: "1-2-1", court: "1-2-1" },
+  { k: "ca", nom: "CA généré", court: "CA €", euro: true },
+];
+const PERF_PERIODES = [
+  { id: "mois", nom: "Ce mois", n: 1 },
+  { id: "3m", nom: "3 mois", n: 3 },
+  { id: "6m", nom: "6 mois", n: 6 },
+  { id: "12m", nom: "12 mois", n: 12 },
+  { id: "tout", nom: "Tout", n: 999 },
+];
+const perfMoisKey = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+/* set des n derniers mois-clés (YYYY-MM) jusqu'au mois courant inclus */
+function perfMoisRecents(n) {
+  const out = new Set();
+  const d = new Date();
+  for (let i = 0; i < n; i++) { out.add(perfMoisKey(d)); d.setMonth(d.getMonth() - 1); }
+  return out;
+}
+/* liste ordonnée (ancien → récent) des n derniers mois-clés, pour les mini-graphes */
+function perfMoisSerie(n) {
+  const arr = [];
+  const d = new Date();
+  for (let i = 0; i < n; i++) { arr.unshift(perfMoisKey(d)); d.setMonth(d.getMonth() - 1); }
+  return arr;
+}
 
 /* chaque contrat signé génère un tableau d'échéances {mkey, du, encaisse} */
 function echeances(c) {
@@ -180,7 +210,7 @@ function echeances(c) {
 
 /* résultats Notion -> {clients, prospects} */
 function mapRows(rows) {
-  const clients = [], prospects = [], membres = [], bniProspects = [];
+  const clients = [], prospects = [], membres = [], bniProspects = [], perfs = [];
   let objId = null, objData = null, tunId = null, tunData = null, bniId = null, bniData = null;
   rows.forEach((r) => {
     const p = r.properties || {};
@@ -224,6 +254,23 @@ function mapRows(rows) {
       });
       return;
     }
+    if (statut === "Activité BNI") { /* perf mensuelle d'un membre */
+      let met = {};
+      try { met = JSON.parse(rtext(p["Notes"]) || "{}") || {}; } catch (e) { met = {}; }
+      const debut = p["Début"] && p["Début"].date ? p["Début"].date.start : "";
+      perfs.push({
+        id: r.id,
+        membreId: rtext(p["Offre"]),
+        membreNom: rtext(p["Contact"]),
+        mkey: debut ? debut.slice(0, 7) : "",
+        refD: Number(met.refD) || 0,
+        refR: Number(met.refR) || 0,
+        vis: Number(met.vis) || 0,
+        o2o: Number(met.o2o) || 0,
+        ca: Number(met.ca) || 0,
+      });
+      return;
+    }
     if (statut === "Pipeline") {
       const etName = p["Étape"] && p["Étape"].select ? p["Étape"].select.name : "Prospect";
       prospects.push({
@@ -252,7 +299,7 @@ function mapRows(rows) {
       clients.push(c);
     }
   });
-  return { clients, prospects, membres, bniProspects, objId, objData, tunId, tunData, bniId, bniData };
+  return { clients, prospects, membres, bniProspects, perfs, objId, objData, tunId, tunData, bniId, bniData };
 }
 
 /* ---- calculs du simulateur d'objectifs ---- */
@@ -360,8 +407,10 @@ function Cockpit() {
   const [bniConf, setBniConf] = useState(BNI_DEFAUT);
   const [bniId, setBniId] = useState(null);
   const [bniSaveEtat, setBniSaveEtat] = useState("");
+  const [membrePerfs, setPerfs] = useState([]);
   const [fMembre, setFMembre] = useState(null);
   const [fBniProspect, setFBniProspect] = useState(null);
+  const [fPerf, setFPerf] = useState(null); // { membreId?, mkey?, ... }
   const [bniConfirm, setBniConfirm] = useState(null); // { type: "renew"|"new", cible }
 
   const [fProspect, setFProspect] = useState(null);
@@ -373,11 +422,12 @@ function Cockpit() {
     setErreur("");
     try {
       const rows = await apiGet();
-      const { clients, prospects, membres: mbs, bniProspects: bps, objId: oid, objData, tunId: tid, tunData, bniId: bid, bniData } = mapRows(rows);
+      const { clients, prospects, membres: mbs, bniProspects: bps, perfs, objId: oid, objData, tunId: tid, tunData, bniId: bid, bniData } = mapRows(rows);
       setClients(clients);
       setProspects(prospects);
       setMembres(mbs);
       setBniProspects(bps);
+      setPerfs(perfs);
       setBniId(bid);
       if (bniData) setBniConf({ ...BNI_DEFAUT, ...bniData, metiers: Array.isArray(bniData.metiers) ? bniData.metiers : [] });
       setObjId(oid);
@@ -534,6 +584,22 @@ function Cockpit() {
     if (Number(montant) > 0) await commissionBni(`BNI — nouveau membre ${b.nom}`, montant);
   }, "Nouveau membre");
 
+  /* perfs des membres (rapport PALMS) — upsert par membre + mois */
+  const champsPerf = (p) => ({
+    "Client": `Perf ${p.membreNom || "?"} ${p.mkey}`,
+    "Statut": "Activité BNI",
+    "Offre": p.membreId || "",
+    "Contact": p.membreNom || "",
+    "Début": (p.mkey || perfMoisKey(new Date())) + "-01",
+    "Montant HT": Number(p.ca) || 0,
+    "Notes": JSON.stringify({ refD: Number(p.refD) || 0, refR: Number(p.refR) || 0, vis: Number(p.vis) || 0, o2o: Number(p.o2o) || 0, ca: Number(p.ca) || 0 }),
+  });
+  const majPerf = (p) => {
+    const exist = membrePerfs.find((x) => x.membreId === p.membreId && x.mkey === p.mkey);
+    const id = p.id && isNotionId(p.id) ? p.id : exist ? exist.id : null;
+    return ecrire(() => (id ? apiUpdate(id, champsPerf(p)) : apiCreate(champsPerf(p))), "Enregistrement de la performance");
+  };
+
   /* ---------------- calculs partagés ---------------- */
   const moisSigne = FY.map((o) =>
     clients.reduce((s, c) => s + (c.ech || []).filter((e) => e.mkey === o.key).reduce((x, e) => x + e.du, 0), 0)
@@ -689,7 +755,7 @@ function Cockpit() {
         {vue === "crm" && <CRM {...{ prospects, setFProspect, bougerEtape, marquerPerdu, pipePondere, pipeBrut }} />}
         {vue === "tunnel" && <Tunnel {...{ tunnels, prospects, clients, caSigne, setFLevier, saveLevier, tunSaveEtat }} />}
         {vue === "contrats" && <Contrats {...{ clients, moisSigne, setFClient, setASupprimer, caSigne }} />}
-        {vue === "bni" && <VueBNI {...{ membres, bniProspects, bniConf, majBniConf, clients, setFMembre, setFBniProspect, bougerEtapeBni, abandonnerBniProspect, setBniConfirm, setASupprimer, bniSaveEtat }} />}
+        {vue === "bni" && <VueBNI {...{ membres, bniProspects, bniConf, majBniConf, clients, membrePerfs, setFMembre, setFBniProspect, setFPerf, bougerEtapeBni, abandonnerBniProspect, setBniConfirm, setASupprimer, bniSaveEtat }} />}
         {vue === "objectifs" && <Objectifs {...{ prestas, heures, charges, objSim, majPresta, ajouterPresta, supprimerPresta, setHeuresObj, setChargesObj, setConfirmReset, objSaveEtat, caSigne }} />}
       </div>
 
@@ -710,6 +776,7 @@ function Cockpit() {
       {fLevier && <FicheLevier ctx={fLevier} onClose={() => setFLevier(null)} onSave={(lev) => { saveLevier(fLevier.offre, fLevier.phase, lev); setFLevier(null); }} onDelete={(id) => { deleteLevier(fLevier.offre, fLevier.phase, id); setFLevier(null); }} />}
       {fMembre && <FicheMembre m={fMembre} onClose={() => setFMembre(null)} onSave={(m) => { majMembre(m); setFMembre(null); }} onDelete={(m) => { setFMembre(null); setASupprimer({ ...m, kind: "membre" }); }} />}
       {fBniProspect && <FicheBniProspect b={fBniProspect} onClose={() => setFBniProspect(null)} onSave={(b) => { majBniProspect(b); setFBniProspect(null); }} onDelete={(b) => { setFBniProspect(null); setASupprimer({ ...b, kind: "prospect BNI" }); }} />}
+      {fPerf && <FichePerf ctx={fPerf} membres={membres} onClose={() => setFPerf(null)} onSave={(p) => { majPerf(p); setFPerf(null); }} />}
       {bniConfirm && <ConfirmCommission ctx={bniConfirm} conf={bniConf} onClose={() => setBniConfirm(null)}
         onConfirm={(montant) => { const c = bniConfirm; setBniConfirm(null); if (c.type === "renew") renouvelerMembre(c.cible, montant); else devenirMembre(c.cible, montant); }} />}
       {aSupprimer && (
@@ -1338,8 +1405,9 @@ function FicheLevier({ ctx, onClose, onSave, onDelete }) {
 }
 
 /* ================= VUE BNI (pilotage Directeur Consultant) ================= */
-function VueBNI({ membres, bniProspects, bniConf, majBniConf, clients, setFMembre, setFBniProspect, bougerEtapeBni, abandonnerBniProspect, setBniConfirm, setASupprimer, bniSaveEtat }) {
+function VueBNI({ membres, bniProspects, bniConf, majBniConf, clients, membrePerfs, setFMembre, setFBniProspect, setFPerf, bougerEtapeBni, abandonnerBniProspect, setBniConfirm, setASupprimer, bniSaveEtat }) {
   const [nvMetier, setNvMetier] = useState("");
+  const [sousVue, setSousVue] = useState("pilotage");
   const etatTxt = { "en cours": "enregistrement…", ok: "enregistré dans Notion", err: "échec enregistrement" };
   const now = new Date();
   const msJ = 86400000;
@@ -1383,6 +1451,16 @@ function VueBNI({ membres, bniProspects, bniConf, majBniConf, clients, setFMembr
         </div>
         {bniSaveEtat && <span style={{ fontSize: 11.5, color: bniSaveEtat === "err" ? S.rust : S.soft }}>{etatTxt[bniSaveEtat]}</span>}
       </div>
+
+      {/* sous-navigation : pilotage / performances */}
+      <div style={{ display: "flex", gap: 6, marginTop: 12, background: S.grid, borderRadius: 12, padding: 4 }}>
+        {[{ id: "pilotage", nom: "Pilotage" }, { id: "perf", nom: "Performances" }].map((v) => (
+          <button key={v.id} onClick={() => setSousVue(v.id)}
+            style={{ flex: 1, padding: "9px 8px", borderRadius: 9, fontSize: 13, fontWeight: 600, cursor: "pointer", border: "none", background: sousVue === v.id ? S.paper : "transparent", color: sousVue === v.id ? S.ink : S.soft, boxShadow: sousVue === v.id ? "0 1px 3px rgba(0,0,0,0.08)" : "none" }}>{v.nom}</button>
+        ))}
+      </div>
+
+      {sousVue === "perf" ? <BNIPerformances {...{ membres, membrePerfs, setFPerf }} /> : (<>
 
       {/* synthèse */}
       <div style={{ background: S.panel, borderRadius: 16, padding: "18px 18px", marginTop: 12, color: S.cream }}>
@@ -1547,7 +1625,206 @@ function VueBNI({ membres, bniProspects, bniConf, majBniConf, clients, setFMembr
         </div>
         <p style={{ fontSize: 11, color: S.soft, marginTop: 8 }}>Chaque renouvellement ou nouveau membre validé te propose de créer la commission correspondante en contrat BNI, directement dans ton CA.</p>
       </div>
+      </>)}
     </div>
+  );
+}
+
+/* ---- Performances des membres : vue globale (leaderboard) + individuelle ---- */
+function BNIPerformances({ membres, membrePerfs, setFPerf }) {
+  const [periode, setPeriode] = useState("6m");
+  const [mode, setMode] = useState("global"); // "global" | "indiv"
+  const [tri, setTri] = useState("ca");
+  const [membreSel, setMembreSel] = useState(membres[0] ? membres[0].id : "");
+
+  const per = PERF_PERIODES.find((x) => x.id === periode) || PERF_PERIODES[2];
+  const moisSet = periode === "tout" ? null : perfMoisRecents(per.n);
+  const dans = (p) => moisSet === null || moisSet.has(p.mkey);
+  const perfsPer = membrePerfs.filter(dans);
+
+  /* cumul par membre sur la période */
+  const parMembre = membres.map((m) => {
+    const ps = perfsPer.filter((p) => p.membreId === m.id || (!p.membreId && p.membreNom && p.membreNom === m.nom));
+    const cum = { refD: 0, refR: 0, vis: 0, o2o: 0, ca: 0 };
+    ps.forEach((p) => PERF_METS.forEach((mt) => { cum[mt.k] += Number(p[mt.k]) || 0; }));
+    return { id: m.id, nom: m.nom, profession: m.profession, ...cum, aDonnees: ps.length > 0 };
+  });
+  const totaux = { refD: 0, refR: 0, vis: 0, o2o: 0, ca: 0 };
+  parMembre.forEach((m) => PERF_METS.forEach((mt) => { totaux[mt.k] += m[mt.k]; }));
+  const nbAvec = parMembre.filter((m) => m.aDonnees).length || 1;
+  const moyenne = {}; PERF_METS.forEach((mt) => { moyenne[mt.k] = totaux[mt.k] / nbAvec; });
+
+  const trie = [...parMembre].sort((a, b) => (a.aDonnees === b.aDonnees ? b[tri] - a[tri] : a.aDonnees ? -1 : 1));
+  const maxCol = {}; PERF_METS.forEach((mt) => { maxCol[mt.k] = Math.max(1, ...parMembre.map((m) => m[mt.k])); });
+  const fmt = (v, mt) => (mt.euro ? (v ? court(v) + " €" : "·") : (v || "·"));
+
+  const barre = (
+    <div style={{ display: "flex", gap: 5, flexWrap: "wrap", alignItems: "center", marginTop: 12 }}>
+      {PERF_PERIODES.map((p) => (
+        <button key={p.id} onClick={() => setPeriode(p.id)} style={{ padding: "6px 11px", borderRadius: 20, fontSize: 12, fontWeight: 600, cursor: "pointer", border: `1px solid ${periode === p.id ? S.deep : S.line}`, background: periode === p.id ? S.deep : "#fff", color: periode === p.id ? S.cream : S.soft }}>{p.nom}</button>
+      ))}
+      <div style={{ flex: 1 }} />
+      <div style={{ display: "flex", background: S.grid, borderRadius: 9, padding: 3 }}>
+        {[{ id: "global", nom: "Globale" }, { id: "indiv", nom: "Individuelle" }].map((v) => (
+          <button key={v.id} onClick={() => setMode(v.id)} style={{ padding: "6px 12px", borderRadius: 7, fontSize: 12, fontWeight: 600, cursor: "pointer", border: "none", background: mode === v.id ? S.paper : "transparent", color: mode === v.id ? S.ink : S.soft }}>{v.nom}</button>
+        ))}
+      </div>
+    </div>
+  );
+
+  if (membres.length === 0) {
+    return (<div>{barre}<p style={{ fontSize: 13, color: S.soft, marginTop: 16 }}>Ajoute d'abord des membres (onglet Pilotage) pour suivre leurs performances.</p></div>);
+  }
+
+  /* ---- vue individuelle ---- */
+  if (mode === "indiv") {
+    const m = membres.find((x) => x.id === membreSel) || membres[0];
+    const stat = parMembre.find((x) => x.id === m.id) || { refD: 0, refR: 0, vis: 0, o2o: 0, ca: 0, aDonnees: false };
+    const serieN = periode === "tout" ? 12 : Math.max(6, per.n);
+    const serie = perfMoisSerie(serieN);
+    const parMois = serie.map((mk) => {
+      const ps = membrePerfs.filter((p) => p.mkey === mk && (p.membreId === m.id || (!p.membreId && p.membreNom === m.nom)));
+      const o = { mk }; PERF_METS.forEach((mt) => { o[mt.k] = ps.reduce((s, p) => s + (Number(p[mt.k]) || 0), 0); }); return o;
+    });
+    return (
+      <div>
+        {barre}
+        <div style={{ marginTop: 14 }}>
+          <select value={m.id} onChange={(e) => setMembreSel(e.target.value)} style={{ ...inp, maxWidth: 320 }}>
+            {membres.map((x) => <option key={x.id} value={x.id}>{x.nom}{x.profession ? ` — ${x.profession}` : ""}</option>)}
+          </select>
+        </div>
+        {/* KPI période vs moyenne groupe */}
+        <div style={{ display: "flex", gap: 9, flexWrap: "wrap", marginTop: 12 }}>
+          {PERF_METS.map((mt) => {
+            const v = stat[mt.k], moy = moyenne[mt.k];
+            const dessus = v >= moy;
+            return (
+              <div key={mt.k} style={{ flex: "1 1 100px", background: S.paper, border: `1px solid ${S.line}`, borderRadius: 12, padding: "10px 12px" }}>
+                <div style={{ fontSize: 9.5, letterSpacing: "0.04em", textTransform: "uppercase", color: S.deep, fontWeight: 700 }}>{mt.nom}</div>
+                <div style={{ ...serif, fontSize: 20, color: S.ink, marginTop: 2 }}>{fmt(v, mt)}</div>
+                <div style={{ fontSize: 10.5, fontWeight: 600, color: dessus ? S.green : S.rust }}>{dessus ? "▲" : "▼"} moy. {fmt(Math.round(moy), mt)}</div>
+              </div>
+            );
+          })}
+        </div>
+        {/* mini-graphes mensuels */}
+        <div style={{ display: "flex", flexDirection: "column", gap: 12, marginTop: 14 }}>
+          {PERF_METS.map((mt) => {
+            const mx = Math.max(1, ...parMois.map((o) => o[mt.k]));
+            return (
+              <div key={mt.k} style={{ background: S.paper, border: `1px solid ${S.line}`, borderRadius: 12, padding: "11px 13px" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12.5, marginBottom: 8 }}>
+                  <b style={{ color: S.ink, fontWeight: 600 }}>{mt.nom}</b>
+                  <span style={{ color: S.soft }}>{serieN} derniers mois</span>
+                </div>
+                <div style={{ display: "flex", alignItems: "flex-end", gap: 3, height: 46 }}>
+                  {parMois.map((o, i) => {
+                    const cur = i === parMois.length - 1;
+                    return (
+                      <div key={o.mk} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 2 }} title={`${o.mk} : ${fmt(o[mt.k], mt)}`}>
+                        <div style={{ width: "100%", height: `${(o[mt.k] / mx) * 38}px`, minHeight: o[mt.k] ? 2 : 0, background: cur ? `linear-gradient(180deg,${S.gold},${S.deep})` : S.line, borderRadius: "2px 2px 0 0" }} />
+                        <div style={{ fontSize: 7.5, color: cur ? S.deep : S.soft, fontWeight: cur ? 700 : 400 }}>{MOIS[Number(o.mk.slice(5)) - 1].slice(0, 1).toUpperCase()}</div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+        <button onClick={() => setFPerf({ membreId: m.id, membreNom: m.nom, mkey: perfMoisKey(new Date()), refD: "", refR: "", vis: "", o2o: "", ca: "" })}
+          style={{ ...btnAdd, marginTop: 14 }}><Plus size={15} /> Saisir un mois pour {m.nom}</button>
+      </div>
+    );
+  }
+
+  /* ---- vue globale : leaderboard ---- */
+  return (
+    <div>
+      {barre}
+      <div style={{ fontSize: 11.5, color: S.soft, marginTop: 10 }}>Cumul sur <b style={{ color: S.deep }}>{per.nom.toLowerCase()}</b> · {perfsPer.length} relevé{perfsPer.length > 1 ? "s" : ""} · touche une colonne pour trier.</div>
+      <div className="wrap" style={{ overflowX: "auto", marginTop: 8, paddingBottom: 6 }}>
+        <table style={{ borderCollapse: "separate", borderSpacing: 0, background: S.paper, border: `1px solid ${S.line}`, borderRadius: 12, overflow: "hidden", minWidth: 520, width: "100%" }}>
+          <thead>
+            <tr>
+              <th style={{ position: "sticky", left: 0, zIndex: 3, background: S.panel, color: S.cream, fontSize: 10.5, fontWeight: 700, textTransform: "uppercase", padding: "9px 10px", textAlign: "left" }}>Membre</th>
+              {PERF_METS.map((mt) => (
+                <th key={mt.k} onClick={() => setTri(mt.k)} title="Trier"
+                  style={{ background: tri === mt.k ? S.deep : S.panel, color: tri === mt.k ? "#fff" : S.cream, fontSize: 10, fontWeight: 700, textTransform: "uppercase", padding: "9px 8px", textAlign: "right", cursor: "pointer", whiteSpace: "nowrap" }}>{mt.court}{tri === mt.k ? " ↓" : ""}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {trie.map((m) => (
+              <tr key={m.id} style={{ opacity: m.aDonnees ? 1 : 0.5 }}>
+                <td style={{ position: "sticky", left: 0, zIndex: 2, background: S.paper, borderRight: `2px solid ${S.line}`, borderBottom: `1px solid ${S.grid}`, padding: "8px 10px" }}>
+                  <div style={{ ...serif, fontSize: 13.5, fontWeight: 600, color: S.ink, lineHeight: 1.1 }}>{m.nom}</div>
+                  {m.profession && <div style={{ fontSize: 10.5, color: S.soft }}>{m.profession}</div>}
+                </td>
+                {PERF_METS.map((mt) => (
+                  <td key={mt.k} style={{ borderBottom: `1px solid ${S.grid}`, borderRight: `1px solid ${S.grid}`, padding: "0", textAlign: "right", position: "relative", background: tri === mt.k ? "#FBF6EC" : "#fff" }}>
+                    <div style={{ position: "absolute", right: 0, top: 0, bottom: 0, width: `${(m[mt.k] / maxCol[mt.k]) * 100}%`, background: mt.euro ? "rgba(91,122,91,0.14)" : "rgba(176,141,87,0.14)" }} />
+                    <div style={{ position: "relative", padding: "9px 9px", fontSize: 12.5, fontWeight: 600, color: m[mt.k] ? S.ink : S.line }}>{fmt(m[mt.k], mt)}</div>
+                  </td>
+                ))}
+              </tr>
+            ))}
+            <tr>
+              <td style={{ position: "sticky", left: 0, background: S.panel, borderRight: `1px solid #3a352e`, padding: "8px 10px" }}>
+                <span style={{ ...serif, fontSize: 13, fontWeight: 600, color: S.cream }}>Total groupe</span>
+              </td>
+              {PERF_METS.map((mt) => (
+                <td key={mt.k} style={{ background: S.panel, borderRight: `1px solid #3a352e`, padding: "8px 9px", textAlign: "right", fontSize: 12.5, fontWeight: 700, color: S.cream }}>{fmt(totaux[mt.k], mt)}</td>
+              ))}
+            </tr>
+            <tr>
+              <td style={{ position: "sticky", left: 0, background: "#EFE9DF", borderRight: `2px solid ${S.line}`, padding: "6px 10px" }}>
+                <span style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", color: S.deep }}>Moy. / membre</span>
+              </td>
+              {PERF_METS.map((mt) => (
+                <td key={mt.k} style={{ background: "#EFE9DF", padding: "6px 9px", textAlign: "right", fontSize: 12, fontWeight: 600, color: S.deep }}>{fmt(Math.round(moyenne[mt.k] * 10) / 10, mt)}</td>
+              ))}
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <button onClick={() => setFPerf({ membreId: membres[0].id, membreNom: membres[0].nom, mkey: perfMoisKey(new Date()), refD: "", refR: "", vis: "", o2o: "", ca: "" })}
+        style={{ ...btnAdd, marginTop: 12 }}><Plus size={15} /> Saisir un relevé mensuel</button>
+    </div>
+  );
+}
+function FichePerf({ ctx, membres, onClose, onSave }) {
+  const [f, setF] = useState({ ...ctx });
+  const set = (k, v) => setF({ ...f, [k]: v });
+  const setMembre = (id) => { const m = membres.find((x) => x.id === id); setF({ ...f, membreId: id, membreNom: m ? m.nom : "" }); };
+  const moisChoix = perfMoisSerie(18).reverse();
+  return (
+    <Modal onClose={onClose} bas>
+      <TitreModale titre="Performance mensuelle" onClose={onClose} />
+      <div style={{ display: "flex", gap: 10 }}>
+        <div style={{ flex: 1.4 }}><Ch label="Membre">
+          <select value={f.membreId || ""} onChange={(e) => setMembre(e.target.value)} style={inp}>
+            <option value="">— choisir —</option>
+            {membres.map((m) => <option key={m.id} value={m.id}>{m.nom}</option>)}
+          </select>
+        </Ch></div>
+        <div style={{ flex: 1 }}><Ch label="Mois">
+          <select value={f.mkey || ""} onChange={(e) => set("mkey", e.target.value)} style={inp}>
+            {moisChoix.map((mk) => <option key={mk} value={mk}>{labKey(mk)}</option>)}
+          </select>
+        </Ch></div>
+      </div>
+      <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+        {PERF_METS.map((mt) => (
+          <div key={mt.k} style={{ flex: "1 1 90px" }}>
+            <Ch label={mt.nom}><input type="number" min="0" value={f[mt.k]} onChange={(e) => set(mt.k, e.target.value)} placeholder="0" style={inp} /></Ch>
+          </div>
+        ))}
+      </div>
+      <button onClick={() => f.membreId && f.mkey && onSave(f)} disabled={!f.membreId || !f.mkey}
+        style={{ ...btnMain, marginTop: 8, background: (!f.membreId || !f.mkey) ? S.line : S.panel, color: (!f.membreId || !f.mkey) ? S.soft : S.cream }}><Check size={16} /> Enregistrer</button>
+    </Modal>
   );
 }
 function FicheMembre({ m, onClose, onSave, onDelete }) {
