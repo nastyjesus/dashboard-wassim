@@ -1,0 +1,37 @@
+name: Deploy pilotage-notion-worker
+
+# Déploiement manuel (bouton "Run workflow") du Worker pilotage-notion-worker.
+# Code-only : ne reprovisionne PAS les secrets (NOTION_TOKEN, PILOT_WRITE_KEY),
+# déjà présents dans Cloudflare — `wrangler deploy` les conserve.
+
+on:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: "Branch/ref to deploy from"
+        type: string
+        default: main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: workers/pilotage-notion-worker
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: workers/pilotage-notion-worker/package-lock.json
+
+      - run: npm ci
+
+      - run: npx wrangler deploy

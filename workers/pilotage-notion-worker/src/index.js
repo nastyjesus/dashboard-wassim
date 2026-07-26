@@ -4,21 +4,23 @@
    Le token Notion reste secret côté serveur. Écriture whitelistée : le Worker ne construit que
    des propriétés connues de CETTE base — il ne peut pas servir de proxy Notion ouvert. */
 
-const TITLE   = ["Client"];
-const SELECTS = ["Type", "Statut", "Étape", "Source"];
-const NUMBERS = ["Montant HT", "Durée mois", "Encaissé HT", "Nombre"];
-const DATES   = ["Début", "Relance"];
-const TEXTS   = ["Contact", "Offre", "Notes", "Encaissements"];
+const TITLE    = ["Client"];
+const SELECTS  = ["Type", "Statut", "Étape", "Source"];
+const NUMBERS  = ["Montant HT", "Durée mois", "Encaissé HT", "Nombre"];
+const DATES    = ["Début", "Relance", "RDV prévu"];
+const TEXTS    = ["Contact", "Offre", "Notes", "Encaissements"];
+const CHECKBOX = ["RDV fait"];
 
 function buildProps(f) {
   const p = {};
   for (const [k, v] of Object.entries(f)) {
     if (v === undefined) continue;
-    if (TITLE.includes(k))        p[k] = { title: v ? [{ text: { content: String(v) } }] : [] };
-    else if (SELECTS.includes(k)) p[k] = v ? { select: { name: String(v) } } : { select: null };
-    else if (NUMBERS.includes(k)) p[k] = { number: (v === null || v === "") ? null : Number(v) };
-    else if (DATES.includes(k))   p[k] = { date: v ? { start: String(v) } : null };
-    else if (TEXTS.includes(k))   p[k] = { rich_text: v ? [{ text: { content: String(v) } }] : [] };
+    if (TITLE.includes(k))         p[k] = { title: v ? [{ text: { content: String(v) } }] : [] };
+    else if (SELECTS.includes(k))  p[k] = v ? { select: { name: String(v) } } : { select: null };
+    else if (NUMBERS.includes(k))  p[k] = { number: (v === null || v === "") ? null : Number(v) };
+    else if (DATES.includes(k))    p[k] = { date: v ? { start: String(v) } : null };
+    else if (TEXTS.includes(k))    p[k] = { rich_text: v ? [{ text: { content: String(v) } }] : [] };
+    else if (CHECKBOX.includes(k)) p[k] = { checkbox: Boolean(v) };
     /* clés inconnues ignorées : pas de proxy Notion ouvert */
   }
   return p;
