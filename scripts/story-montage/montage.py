@@ -81,6 +81,19 @@ SEO_KEYWORDS = {
 # Words that trigger a short "punch zoom" on the video (dynamism on key moments).
 PUNCH_WORDS = {"gpt", "chatgpt", "4gpt", "perplexity", "plexity", "claude", "cloud", "google", "hubspot", "gemini", "gmini", "mistral", "reddit", "clarity"}
 
+# --- Targeted story cut: hesitations / bugs / language tics (--cut-fillers) ---
+# The story keeps its natural rhythm; we only excise doubt/hesitation sounds, false starts (stutters)
+# and verbal crutches. Kept conservative on purpose (over-cutting sounds choppy): tune per video with
+# --filler-words / --filler-phrases. Tokens are normalized (lowercase, accents stripped, no punctuation).
+FILLER_WORDS = {"euh", "heu", "heuh", "hein", "hum", "hmm", "mmh", "mh", "bah", "ben"}
+# Multi-word tics cut as one block only when spoken consecutively (normalized token sequences).
+FILLER_PHRASES = [
+    ["en", "fait"],
+    ["du", "coup"],
+    ["tu", "vois"],
+    ["en", "gros"],
+]
+
 # Subtitle spelling fixes: Whisper mis-hears brand/tech names. Normalized token -> correct display word.
 # Applied to the caption text only (keys are lowercased + accent-stripped). Extend as needed.
 SUBTITLE_CORRECTIONS = {
@@ -322,6 +335,72 @@ def find_punch_times(segments: list[dict], punch_words: set[str]) -> list[float]
     return out
 
 
+def _norm_token(word: str) -> str:
+    """Lowercase, strip accents + punctuation -> comparable token ('Euh,' -> 'euh')."""
+    return re.sub(r"[^a-z0-9]", "", strip_accents(word.strip().lower()))
+
+
+def find_filler_ranges(
+    segments: list[dict],
+    filler_words: set[str],
+    filler_phrases: list[list[str]],
+    cut_stutter: bool = True,
+    pad: float = 0.06,
+) -> list[tuple[float, float]]:
+    """Time ranges to delete for a targeted story cut: hesitation sounds + verbal-crutch words,
+    multi-word tics spoken back-to-back, and immediate stutters (a word repeated right after itself,
+    e.g. 'je je', 'le le' = a false start / bug). Returns merged, padded (start,end) ranges on the
+    CURRENT timeline of `segments`. Silences are handled separately by cut_silence()."""
+    flat: list[tuple[str, float, float]] = []
+    for seg in segments:
+        for w in seg.get("words") or []:
+            tok = _norm_token(w["word"])
+            if tok:
+                flat.append((tok, float(w["start"]), float(w["end"])))
+
+    filler_norm = {_norm_token(w) for w in filler_words}
+    phrases_norm = [[_norm_token(x) for x in ph] for ph in filler_phrases if ph]
+    removes: list[tuple[float, float]] = []
+    n = len(flat)
+    i = 0
+    while i < n:
+        tok, s, e = flat[i]
+        # 1. Multi-word tic: match the longest phrase whose tokens are consecutive here.
+        matched = False
+        for ph in sorted(phrases_norm, key=len, reverse=True):
+            m = len(ph)
+            if i + m <= n and [flat[i + k][0] for k in range(m)] == ph:
+                removes.append((flat[i][1], flat[i + m - 1][2]))
+                i += m
+                matched = True
+                break
+        if matched:
+            continue
+        # 2. Single filler token (hesitation / crutch word).
+        if tok in filler_norm:
+            removes.append((s, e))
+            i += 1
+            continue
+        # 3. Immediate stutter: same token repeated back-to-back within 0.5s -> cut the first one.
+        if cut_stutter and i + 1 < n and flat[i + 1][0] == tok and len(tok) >= 1 and flat[i + 1][1] - e < 0.5:
+            removes.append((s, e))
+            i += 1
+            continue
+        i += 1
+
+    if not removes:
+        return []
+    # Pad a touch so the trailing breath goes with the word, then merge overlaps.
+    padded = sorted((max(0.0, a - pad), b + pad) for a, b in removes)
+    merged: list[list[float]] = []
+    for a, b in padded:
+        if merged and a <= merged[-1][1]:
+            merged[-1][1] = max(merged[-1][1], b)
+        else:
+            merged.append([a, b])
+    return [(a, b) for a, b in merged]
+
+
 def find_brand_mentions(segments: list[dict]) -> list[dict]:
     """Earliest mention per distinct logo FILE (so 'gpt'/'chatgpt' or 'claude'/'cloud' don't double up),
     sorted by time. Returns [{'file': fname, 'spoken': float}]."""
@@ -391,11 +470,15 @@ def _probe_duration(src: Path) -> float:
 
 # HDR (HLG/PQ) sources dumped to SDR without tonemapping come out washed-out/overexposed.
 # Samsung phone footage is HLG (arib-std-b67). Hable picked over mobius: mobius leaves
-# highlights blown on this footage.
+# highlights blown on this footage. desat=2 (not 0): desat=0 leaves lit skin oversaturated
+# -> faces come out too red/orange. desat=2 re-enables highlight desaturation = natural skin.
+# npl=400 (not 100): the HLG signal peaks well above 100 nits, so declaring 100 leaves the
+# tonemapper nothing to compress -> ceiling and white t-shirt clip to pure white. 1000 is
+# too dark on this footage.
 HDR_TRANSFERS = {"arib-std-b67", "smpte2084"}
 TONEMAP_SDR = (
-    "zscale=t=linear:npl=100,format=gbrpf32le,zscale=p=bt709,"
-    "tonemap=hable:desat=0,zscale=t=bt709:m=bt709:r=tv,format=yuv420p"
+    "zscale=t=linear:npl=400,format=gbrpf32le,zscale=p=bt709,"
+    "tonemap=hable:desat=2,zscale=t=bt709:m=bt709:r=tv,format=yuv420p"
 )
 
 
@@ -408,7 +491,8 @@ def _probe_color_transfer(src: Path) -> str:
     return out.decode().strip()
 
 
-def cut_silence(src: Path, out: Path, threshold_db: float, min_silence: float, pad: float = 0.10) -> None:
+def cut_silence(src: Path, out: Path, threshold_db: float, min_silence: float, pad: float = 0.10,
+                tonemap: bool = True) -> None:
     """Remove silent/breathing pauses and concat the spoken segments into a tighter clip.
     Uses ffmpeg silencedetect to find pauses, keeps the complement (padded so word edges aren't clipped),
     then trim+concat with a re-encode."""
@@ -449,15 +533,27 @@ def cut_silence(src: Path, out: Path, threshold_db: float, min_silence: float, p
     removed = duration - sum(b - a for a, b in merged)
     print(f"  {len(silences)} silences -> keeping {len(merged)} segments, cutting ~{removed:.1f}s")
 
-    hdr = _probe_color_transfer(src) in HDR_TRANSFERS
+    is_hdr = _probe_color_transfer(src) in HDR_TRANSFERS
+    hdr = is_hdr and tonemap          # apply the hable tonemap
+    preserve = is_hdr and not tonemap  # HDR source but keep base colors (just 10->8 bit)
     if hdr:
         print("  HDR source detected -> tonemapping to SDR (bt709, hable)")
+    elif preserve:
+        print("  HDR source detected -> --no-tonemap: preserving base colors (10->8 bit only)")
 
     if not merged or removed < 0.15:
         print("  Nothing meaningful to cut; copying through.")
         if hdr:
             run(["ffmpeg", "-y", "-i", str(src), "-vf", TONEMAP_SDR,
                  "-c:v", "libx264", "-crf", "18", "-preset", "medium",
+                 "-c:a", "copy", "-movflags", "+faststart", str(out)])
+        elif preserve:
+            # Keep base pixel values (no tonemap) but RE-TAG as bt709 SDR so colour-managed
+            # renderers (Chrome/HyperFrames) don't re-apply an HLG->SDR tonemap and darken it.
+            run(["ffmpeg", "-y", "-i", str(src),
+                 "-vf", "setparams=color_primaries=bt709:color_trc=bt709:colorspace=bt709,format=yuv420p",
+                 "-c:v", "libx264", "-crf", "18", "-preset", "medium",
+                 "-color_primaries", "bt709", "-color_trc", "bt709", "-colorspace", "bt709",
                  "-c:a", "copy", "-movflags", "+faststart", str(out)])
         else:
             run(["ffmpeg", "-y", "-i", str(src), "-c", "copy", str(out)])
@@ -474,10 +570,17 @@ def cut_silence(src: Path, out: Path, threshold_db: float, min_silence: float, p
     if hdr:
         fc += f";[v]{TONEMAP_SDR}[vsdr]"
         v_map = "[vsdr]"
+    enc = ["-c:v", "libx264", "-crf", "18", "-preset", "medium"]
+    if preserve:
+        # HDR 10-bit source, no tonemap: keep base values but re-tag bt709 SDR (8-bit) so
+        # colour-managed renderers don't re-tonemap HLG and darken the image.
+        fc += ";[v]setparams=color_primaries=bt709:color_trc=bt709:colorspace=bt709,format=yuv420p[vout]"
+        v_map = "[vout]"
+        enc += ["-color_primaries", "bt709", "-color_trc", "bt709", "-colorspace", "bt709"]
     run(
         ["ffmpeg", "-y", "-i", str(src), "-filter_complex", fc,
          "-map", v_map, "-map", "[a]",
-         "-c:v", "libx264", "-crf", "18", "-preset", "medium",
+         *enc,
          "-c:a", "aac", "-b:a", "160k", "-movflags", "+faststart", str(out)]
     )
 
@@ -692,7 +795,7 @@ def build_filter_complex(
     accent_hex: str = "#2563EB",
     punch_times: list[float] | None = None,
     brand_overlays: list[dict] | None = None,
-    progress_bar: bool = True,
+    progress_bar: bool = False,
 ) -> str:
     """Build the ffmpeg filter graph: zoom punches + subtitles + overlays + progress bar + watermark + brand logos."""
     fc = []
@@ -810,6 +913,13 @@ def main():
     ap.add_argument("--input", required=True, help="Source video path")
     ap.add_argument("--output", default="story_finale.mp4", help="Output file")
     ap.add_argument("--handle", default="@wassimloumi", help="Watermark handle")
+    ap.add_argument(
+        "--clean",
+        action="store_true",
+        help="Story epuree: keep ONLY dynamic zooms + karaoke subtitles + @handle watermark + blurred "
+        "background. Drops ALL inserts/incrustations: brand logos, emoji/keyword pops, pop sound, "
+        "progress bar. Use for the story render; short/reel keep the full habillage.",
+    )
     ap.add_argument("--model", default="small", help="faster-whisper model size")
     ap.add_argument("--skip-transcribe", action="store_true", help="Reuse existing transcript.json")
     ap.add_argument(
@@ -841,7 +951,8 @@ def main():
     ap.add_argument(
         "--no-progress-bar",
         action="store_true",
-        help="Hide the story progress bar at the top of the frame.",
+        default=True,
+        help="Hide the story progress bar at the top of the frame (hidden by default).",
     )
     ap.add_argument(
         "--bg-blur",
@@ -873,6 +984,27 @@ def main():
     ap.add_argument("--silence-db", type=float, default=-35.0, help="Silence threshold in dB (closer to 0 = more aggressive; too aggressive cuts into speech)")
     ap.add_argument("--silence-min", type=float, default=0.40, help="Min silence length to cut, seconds")
     ap.add_argument("--skip-cut", action="store_true", help="Reuse an existing work/tightened.mp4")
+    ap.add_argument(
+        "--cut-fillers",
+        action="store_true",
+        help="Targeted story cut: after transcribing, also remove hesitation sounds (euh/heu/hum), "
+        "verbal-crutch tics (en fait, du coup, tu vois) and immediate stutters/false-starts. Shifts "
+        "the timeline, so it re-transcribes + re-mattes automatically. Silences are cut by --cut-silence.",
+    )
+    ap.add_argument(
+        "--filler-words",
+        default=",".join(sorted(FILLER_WORDS)),
+        help="Comma-separated single filler tokens to cut with --cut-fillers (default: hesitation sounds + ben/bah).",
+    )
+    ap.add_argument(
+        "--filler-phrases",
+        default=";".join(" ".join(p) for p in FILLER_PHRASES),
+        help="Semicolon-separated multi-word tics to cut with --cut-fillers, e.g. 'en fait;du coup;tu vois'.",
+    )
+    ap.add_argument("--no-cut-stutter", action="store_true",
+                    help="With --cut-fillers, keep immediate word repeats (don't treat 'je je' as a false start).")
+    ap.add_argument("--no-tonemap", action="store_true",
+                    help="HDR source: skip the hable tonemap, preserve base colors (just 10->8 bit). Use when the tonemap washes out / greys the footage.")
     ap.add_argument(
         "--no-logo-pop-sound",
         action="store_true",
@@ -944,7 +1076,7 @@ def main():
         if args.skip_cut and tightened.exists():
             print(f"Reusing tightened clip: {tightened.name}")
         else:
-            cut_silence(src, tightened, args.silence_db, args.silence_min)
+            cut_silence(src, tightened, args.silence_db, args.silence_min, tonemap=not args.no_tonemap)
             # New timeline invalidates any cached audio/transcript/matte.
             if audio.exists():
                 audio.unlink()
@@ -1011,6 +1143,35 @@ def main():
     else:
         segments = transcribe(audio, transcript_json, model_size=args.model)
 
+    # 3b. Targeted story cut (--cut-fillers): drop hesitation sounds / tics / stutters using the
+    #     word-level timings we just got. This shifts the timeline, so we re-cut, re-extract audio
+    #     and re-transcribe once on the cleaned clip (matte is invalidated too).
+    if args.cut_fillers:
+        filler_words = {w.strip() for w in args.filler_words.split(",") if w.strip()}
+        filler_phrases = [p.split() for p in args.filler_phrases.split(";") if p.strip()]
+        ranges = find_filler_ranges(
+            segments, filler_words, filler_phrases, cut_stutter=not args.no_cut_stutter,
+        )
+        if ranges:
+            cut = sum(b - a for a, b in ranges)
+            print(f"Cutting {len(ranges)} filler/hesitation range(s) (~{cut:.1f}s)")
+            cleaned = work / "tightened.mp4"
+            tmp = work / "tightened_fillers.mp4"
+            remove_ranges(src, tmp, ranges, duration)
+            tmp.replace(cleaned)
+            src = cleaned
+            duration = _probe_duration(src)
+            print(f"Duration after filler cut: {duration:.2f}s")
+            # New timeline -> refresh audio + transcript, invalidate matte.
+            if audio.exists():
+                audio.unlink()
+            run(["ffmpeg", "-y", "-i", str(src), "-vn", "-acodec", "pcm_s16le",
+                 "-ar", "16000", "-ac", "1", str(audio)])
+            segments = transcribe(audio, transcript_json, model_size=args.model)
+            args.skip_matte = False
+        else:
+            print("No filler/hesitation ranges detected; nothing to cut.")
+
     # 4. Group into short chunks for dynamic captions
     chunks = group_words(segments)
     print(f"{len(chunks)} caption chunks")
@@ -1075,6 +1236,15 @@ def main():
         brand_overlays.append({"path": logo_path, "start": start, "end": end, "base_w": base_w, "row": row})
     print(f"{len(brand_overlays)} brand overlays")
 
+    # 6b-bis. Story epuree (--clean): strip every insert/incrustation, keep zooms + captions + watermark.
+    #         Zeroing pops/emoji/brand_overlays here means no extra ffmpeg inputs get added below and the
+    #         pop-sound block (gated on brand_overlays) is skipped automatically. Blur (bg_blur) untouched.
+    if args.clean:
+        pops = []
+        emoji_files = {}
+        brand_overlays = []
+        print("  --clean: story epuree (zooms + sous-titres + watermark + flou ; sans logos/emoji/pops/barre)")
+
     # 6c. Optional background replacement (RVM matting -> blurred background) BEFORE the montage
     #     chain, so subtitles / zoom / logos all sit on top of the new background. Matting runs on
     #     the sharp original (best segmentation); the result becomes the video source for the render.
@@ -1117,7 +1287,7 @@ def main():
         accent_hex=args.accent,
         punch_times=punch_times,
         brand_overlays=brand_overlays,
-        progress_bar=not args.no_progress_bar,
+        progress_bar=(not args.no_progress_bar) and not args.clean,
     )
 
     # 7b. Play a little 'pop' sound at each brand-logo appearance, summed onto the original audio
