@@ -1,0 +1,75 @@
+name: Deploy geo-tracker worker
+
+on:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: "Branch/ref to deploy from"
+        type: string
+        default: main
+      provision-secrets:
+        description: "Provision/refresh LLM + Notion + auth secrets before deploy"
+        type: boolean
+        default: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: workers/geo-tracker
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: workers/geo-tracker/package-lock.json
+
+      - run: npm ci
+
+      - run: npm test
+
+      - name: Provision secrets
+        if: ${{ inputs.provision-secrets }}
+        env:
+          PERPLEXITY_API_KEY: ${{ secrets.PERPLEXITY_API_KEY }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
+          WASSIM_AUTH_TOKEN: ${{ secrets.WASSIM_AUTH_TOKEN }}
+        run: |
+          put_if_set() {
+            if [ -n "$2" ]; then
+              printf '%s' "$2" | npx wrangler secret put "$1"
+            else
+              echo "$1 not set; engine/feature will be skipped"
+            fi
+          }
+          put_if_set PERPLEXITY_API_KEY "$PERPLEXITY_API_KEY"
+          put_if_set ANTHROPIC_API_KEY  "$ANTHROPIC_API_KEY"
+          put_if_set OPENAI_API_KEY     "$OPENAI_API_KEY"
+          put_if_set GEMINI_API_KEY     "$GEMINI_API_KEY"
+          put_if_set NOTION_TOKEN       "$NOTION_TOKEN"
+          printf '%s' "$WASSIM_AUTH_TOKEN" | npx wrangler secret put WASSIM_AUTH_TOKEN
+
+      - run: npx wrangler deploy
+
+      - name: Smoke test /health
+        run: |
+          for i in 1 2 3 4 5; do
+            sleep 3
+            out=$(curl -fsS "https://geo-tracker-wassim.${CF_SUBDOMAIN:-workers}.workers.dev/health" || true)
+            echo "$out"
+            echo "$out" | grep -q '"ok":true' && exit 0
+          done
+          echo "Worker did not become healthy in time" >&2
+          exit 1
+        continue-on-error: true

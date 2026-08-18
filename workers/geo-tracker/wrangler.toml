@@ -1,0 +1,49 @@
+## Worker Cloudflare — geo-tracker-wassim
+## Tracker GEO maison : interroge les moteurs IA (Perplexity, Claude, ChatGPT,
+## Gemini) sur les prompts cibles de chaque client et logge mentions + citations.
+## Complète AEO Sensor (les réponses API ≠ moteurs grand public — c'est une
+## tendance mesurée et datée, pas une mesure absolue de visibilité).
+
+name = "geo-tracker-wassim"
+main = "src/index.js"
+compatibility_date = "2025-01-15"
+compatibility_flags = ["nodejs_compat"]
+
+# Variables non secrètes (les vrais secrets passent par `wrangler secret put`)
+[vars]
+NOTION_VERSION = "2022-06-28"
+NOTION_API_BASE = "https://api.notion.com"
+# Modèles interrogés — ajustables sans redéploiement de code.
+PERPLEXITY_MODEL = "sonar"
+ANTHROPIC_MODEL = "claude-sonnet-4-5"
+OPENAI_MODEL = "gpt-4o"
+GEMINI_MODEL = "gemini-2.5-flash"
+# Active le mode mock tant que les clés API ne sont pas configurées.
+# Mettre à "false" en production (ou `wrangler secret put MOCK_MODE`).
+MOCK_MODE = "true"
+# Origines autorisées pour CORS (séparées par des virgules).
+ALLOWED_ORIGINS = "https://nastyjesus.github.io,http://localhost:3000,http://localhost:5173,http://localhost:8000"
+
+# Cron : les 1er et 15 du mois à 6h UTC — cadence bi-mensuelle du monitoring GEO
+# (cf. skill wassim-seo-program, fiche geo.md : point toutes les 2 semaines).
+[triggers]
+crons = ["0 6 1,15 * *"]
+
+# KV namespace : config clients + historique des runs.
+# Avant le 1er deploy, créer le namespace : `npx wrangler kv namespace create RUNS`
+# Cloudflare renverra un id long ; remplir ci-dessous avec.
+[[kv_namespaces]]
+binding = "RUNS"
+id = "REPLACE_WITH_KV_NAMESPACE_ID"
+
+# Les secrets à provisionner via `wrangler secret put` :
+#   PERPLEXITY_API_KEY   (api.perplexity.ai — citations natives, le plus proche du réel)
+#   ANTHROPIC_API_KEY    (Claude + web search)
+#   OPENAI_API_KEY       (ChatGPT + web search)
+#   GEMINI_API_KEY       (Gemini + grounding Google Search)
+#   NOTION_TOKEN         (log des runs dans les pages clients)
+#   WASSIM_AUTH_TOKEN    (header partagé X-Wassim-Auth front <-> worker)
+# Un moteur sans clé est simplement sauté (le run continue avec les autres).
+
+[observability]
+enabled = true
