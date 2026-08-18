@@ -122,7 +122,12 @@ function validateClients(body) {
     if (!c || typeof c !== 'object') return 'each client must be an object';
     if (!c.id || !/^[a-z0-9-]+$/.test(c.id)) return `invalid id: ${c && c.id}`;
     if (!c.name) return `missing name for ${c.id}`;
-    if (!c.domain || !/^[a-z0-9.-]+\.[a-z]{2,}$/i.test(c.domain)) return `invalid domain for ${c.id}`;
+    // Domaine optionnel (pro sans site, visible via sa fiche Google) — mais il
+    // faut alors des alias pour détecter les mentions.
+    if (c.domain && !/^[a-z0-9.-]+\.[a-z]{2,}$/i.test(c.domain)) return `invalid domain for ${c.id}`;
+    if (!c.domain && (!Array.isArray(c.aliases) || !c.aliases.length)) {
+      return `client ${c.id} needs a domain or at least one alias`;
+    }
     if (!Array.isArray(c.prompts) || !c.prompts.length) return `missing prompts for ${c.id}`;
     if (c.prompts.length > MAX_PROMPTS) return `too many prompts for ${c.id} (max ${MAX_PROMPTS})`;
     if (c.prompts.some((p) => typeof p !== 'string' || !p.trim())) return `empty prompt for ${c.id}`;

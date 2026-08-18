@@ -78,6 +78,19 @@ describe('config clients', () => {
     expect(await bad([{ id: 'a', name: 'A', domain: 'pas-un-domaine', prompts: ['x'] }])).toBe(400);
     expect(await bad([{ id: 'a', name: 'A', domain: 'a.fr', prompts: [] }])).toBe(400);
     expect(await bad([{ id: 'a', name: 'A', domain: 'a.fr', prompts: Array(21).fill('p') }])).toBe(400);
+    // ni domaine ni alias → refusé
+    expect(await bad([{ id: 'a', name: 'A', prompts: ['x'] }])).toBe(400);
+  });
+
+  it('accepte et tracke un client sans site (alias seulement)', async () => {
+    const env = mockEnv();
+    const clients = [{ id: 'osteo', name: 'Nicolas', aliases: ['Nicolas Fournials'], prompts: ['Quel ostéopathe à Bruz ?'] }];
+    expect((await run(env, '/clients', { method: 'PUT', body: JSON.stringify(clients) })).status).toBe(200);
+    const body = await (await run(env, '/run', { method: 'POST', body: '{}' })).json();
+    expect(body.errors).toEqual([]);
+    const s = body.tracked[0].summary;
+    expect(s.answers).toBe(4);
+    expect(s.cited).toBe(0); // pas de domaine → jamais cité, seules les mentions comptent
   });
 });
 

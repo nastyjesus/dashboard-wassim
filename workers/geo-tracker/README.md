@@ -53,6 +53,8 @@ l'historique de citations daté qu'aucun concurrent n'apporte en rendez-vous.
 ```
 
 - `domain` : domaine du client — détection des citations (sources) et mentions.
+  Optionnel pour un pro sans site (fiche Google uniquement) : fournir alors au
+  moins un alias — le suivi se fait sur les mentions, jamais sur les citations.
 - `aliases` : optionnel — noms de marque pour la détection de mention dans le texte.
 - `prompts` : max 20 — à dériver du tableau « requêtes IA cibles » de la
   stratégie GEO du client (les KW SEO reformulés en questions).

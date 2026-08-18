@@ -44,6 +44,19 @@ describe('analyzeAnswer', () => {
     expect(r.mentioned).toBe(false);
     expect(r.cited).toBe(false);
   });
+
+  it('client sans site (fiche Google) : mention par alias, jamais cité', () => {
+    const noSite = { aliases: ['Nicolas Fournials'] };
+    const mention = analyzeAnswer(
+      { text: 'Nicolas Fournials est un ostéopathe recommandé à Bruz.', sources: ['https://google.com/maps/x'] },
+      noSite,
+    );
+    expect(mention.mentioned).toBe(true);
+    expect(mention.cited).toBe(false);
+
+    const silent = analyzeAnswer({ text: 'Autre réponse.', sources: [] }, noSite);
+    expect(silent.mentioned).toBe(false);
+  });
 });
 
 describe('summarize', () => {

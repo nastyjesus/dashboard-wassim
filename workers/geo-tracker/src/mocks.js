@@ -28,12 +28,14 @@ const MOCK_COMPETITORS = [
  * @returns {{ text: string, sources: string[] }}
  */
 export function mockAnswer(engine, prompt, client, dateKey) {
-  const seed = hash(`${engine}|${prompt}|${client.domain}`);
+  const identity = client.domain || (client.aliases && client.aliases[0]) || client.id;
+  const seed = hash(`${engine}|${prompt}|${identity}`);
   const monthIndex = Number(dateKey.slice(0, 7).replace('-', '')) % 100;
   const progress = (monthIndex % 12) / 24; // léger biais croissant au fil des mois
   const roll = ((seed % 100) / 100 + progress) % 1;
 
-  const cited = roll > 0.55;
+  // Sans domaine (fiche Google uniquement), une citation par source est impossible.
+  const cited = Boolean(client.domain) && roll > 0.55;
   const mentionedOnly = !cited && roll > 0.35;
 
   const comp1 = MOCK_COMPETITORS[seed % MOCK_COMPETITORS.length];

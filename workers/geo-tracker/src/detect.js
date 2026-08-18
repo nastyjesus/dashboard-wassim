@@ -23,19 +23,21 @@ export function hostMatches(host, domain) {
 
 /**
  * Analyse une réponse moteur pour un client.
+ * Un client peut ne pas avoir de site (ex : pro visible uniquement via sa fiche
+ * Google) — dans ce cas seuls les alias comptent, et "cité" est impossible.
  * @param {{ text: string, sources: string[] }} answer texte + URLs sources
- * @param {{ domain: string, aliases?: string[] }} client
+ * @param {{ domain?: string, aliases?: string[] }} client
  * @returns {{ mentioned: boolean, cited: boolean, sourceDomains: string[] }}
  */
 export function analyzeAnswer(answer, client) {
   const text = (answer.text || '').toLowerCase();
-  const domain = client.domain.toLowerCase().replace(/^www\./, '');
+  const domain = client.domain ? client.domain.toLowerCase().replace(/^www\./, '') : '';
 
   const needles = [domain, ...(client.aliases || []).map((a) => a.toLowerCase())].filter(Boolean);
   const mentionedInText = needles.some((n) => text.includes(n));
 
   const sourceDomains = [...new Set((answer.sources || []).map(hostOf).filter(Boolean))];
-  const cited = sourceDomains.some((h) => hostMatches(h, domain));
+  const cited = Boolean(domain) && sourceDomains.some((h) => hostMatches(h, domain));
 
   return {
     mentioned: mentionedInText || cited,
@@ -48,7 +50,7 @@ export function analyzeAnswer(answer, client) {
  * Agrège les résultats d'un run en synthèse : taux globaux, détail par moteur,
  * domaines concurrents les plus cités (sources ≠ client).
  * @param {Record<string, {ok: boolean, results?: Array<{mentioned:boolean,cited:boolean,sourceDomains:string[]}>}>} engines
- * @param {{ domain: string }} client
+ * @param {{ domain?: string }} client
  */
 export function summarize(engines, client) {
   let total = 0;
@@ -68,7 +70,7 @@ export function summarize(engines, client) {
       if (r.cited) { cited += 1; e.cited += 1; }
       if (r.mentioned) { mentioned += 1; e.mentioned += 1; }
       for (const h of r.sourceDomains || []) {
-        if (!hostMatches(h, client.domain)) {
+        if (!client.domain || !hostMatches(h, client.domain)) {
           competitorCounts.set(h, (competitorCounts.get(h) || 0) + 1);
         }
       }
