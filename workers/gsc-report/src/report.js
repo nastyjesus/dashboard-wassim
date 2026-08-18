@@ -1,4 +1,5 @@
-// Construction du rapport : périodes, deltas, insights factuels.
+// Construction du rapport : mois analysé + comparaisons à 1, 3 et 6 mois,
+// deltas, tendance mensuelle sur 7 mois, insights factuels.
 // Règle héritée du skill wassim-gsc-report : aucun chiffre inventé — tout est
 // calculé depuis la data GSC (ou les mocks, flagués comme tels).
 
@@ -10,10 +11,17 @@ const MONTHS_FR = [
 /** Seuil de stabilité (cf. skill) : sous ±2 %, on parle de stabilité. */
 const STABLE_THRESHOLD = 2;
 
+/** Horizons de comparaison : mois analysé vs M-1, M-3, M-6. */
+export const HORIZONS = [
+  { id: 'm1', back: 1, label: '1 mois' },
+  { id: 'm3', back: 3, label: '3 mois' },
+  { id: 'm6', back: 6, label: '6 mois' },
+];
+
 /**
- * Bornes du mois calendaire précédent une date de référence.
+ * Bornes du mois calendaire situé `monthsBack` mois avant une date de référence.
  * @param {Date} ref
- * @param {number} monthsBack 1 = mois précédent, 2 = celui d'avant, 13 = N-1 du mois précédent…
+ * @param {number} monthsBack 1 = mois précédent, 2 = celui d'avant…
  */
 export function monthBounds(ref, monthsBack) {
   const first = new Date(Date.UTC(ref.getUTCFullYear(), ref.getUTCMonth() - monthsBack, 1));
@@ -27,26 +35,23 @@ export function monthBounds(ref, monthsBack) {
 }
 
 /**
- * Résout période d'analyse + comparaison pour un run.
+ * Résout les 7 mois du rapport : le mois analysé + les 6 mois qui précèdent
+ * (nécessaires pour les comparaisons M-1 / M-3 / M-6 et la courbe de tendance).
  * @param {Date} now date du run (le cron tourne le 3 → mois précédent complet)
- * @param {'prev'|'yoy'} compareMode vs mois précédent, ou vs même mois N-1 (saisonnalité)
  * @param {string} [periodKey] YYYY-MM explicite (run manuel) — sinon mois précédent
+ * @returns {{ months: object[], current: object }} months ordonnés du plus ancien au mois analysé
  */
-export function resolvePeriods(now, compareMode = 'prev', periodKey) {
-  let current;
+export function resolveMonths(now, periodKey) {
+  let backToCurrent = 1;
   if (periodKey) {
     const [y, m] = periodKey.split('-').map(Number);
-    // monthsBack depuis "now" jusqu'au mois demandé
-    const back = (now.getUTCFullYear() - y) * 12 + (now.getUTCMonth() + 1 - m);
-    current = monthBounds(now, back);
-  } else {
-    current = monthBounds(now, 1);
+    backToCurrent = (now.getUTCFullYear() - y) * 12 + (now.getUTCMonth() + 1 - m);
   }
-  const refDate = new Date(`${current.startDate}T00:00:00Z`);
-  const compare = compareMode === 'yoy'
-    ? monthBounds(new Date(Date.UTC(refDate.getUTCFullYear(), refDate.getUTCMonth() + 1, 1)), 13)
-    : monthBounds(refDate, 1);
-  return { current, compare };
+  const months = [];
+  for (let back = backToCurrent + 6; back >= backToCurrent; back--) {
+    months.push(monthBounds(now, back));
+  }
+  return { months, current: months[months.length - 1] };
 }
 
 /** Delta % signé, arrondi à une décimale. `null` si base à zéro. */
@@ -80,41 +85,70 @@ function fmtPos(p) {
 }
 
 /**
- * Normalise une série quotidienne en jours relatifs (J1, J2…) pour superposer
- * deux périodes de longueurs différentes sur le même axe.
+ * Agrège les lignes quotidiennes GSC d'un mois : totaux + série.
+ * CTR et position recalculés en pondéré (la moyenne des moyennes serait fausse).
+ * @param {Array<{date:string, clicks:number, impressions:number, position:number}>} daily
+ * @param {{startDate:string, endDate:string}} bounds
  */
-function normalizeSeries(series) {
-  return series.map((d, i) => ({ day: i + 1, clicks: d.clicks, impressions: d.impressions }));
+export function aggregateMonth(daily, bounds) {
+  const series = daily
+    .filter((d) => d.date >= bounds.startDate && d.date <= bounds.endDate)
+    .sort((a, b) => a.date.localeCompare(b.date));
+  const clicks = series.reduce((s, d) => s + d.clicks, 0);
+  const impressions = series.reduce((s, d) => s + d.impressions, 0);
+  const posWeighted = series.reduce((s, d) => s + (d.position || 0) * d.impressions, 0);
+  return {
+    totals: {
+      clicks,
+      impressions,
+      ctr: impressions ? clicks / impressions : 0,
+      position: impressions ? posWeighted / impressions : 0,
+    },
+    series: series.map((d, i) => ({ day: i + 1, clicks: d.clicks, impressions: d.impressions })),
+  };
 }
 
 /**
  * Insights factuels en français — dérivés uniquement des chiffres calculés,
  * ton sobre lisible par un dirigeant non-technique (règle du skill).
  */
-export function buildInsights(kpis, topQueries, mock) {
+export function buildInsights(kpis, trend, topQueries, mock) {
   const out = [];
   const { clicks, impressions, position } = kpis;
+  const m1 = (k) => k.horizons.m1;
 
-  const trendWord = { hausse: 'en hausse', baisse: 'en baisse', stable: 'stables' };
-  if (clicks.direction === 'stable') {
-    out.push(`Les clics depuis Google sont stables ce mois-ci (${fmtDelta(clicks.delta)} par rapport à la période de comparaison).`);
+  const trendWord = { hausse: 'en hausse', baisse: 'en baisse' };
+  if (m1(clicks).direction === 'stable') {
+    out.push(`Les clics depuis Google sont stables ce mois-ci (${fmtDelta(m1(clicks).delta)} par rapport au mois précédent).`);
   } else {
-    out.push(`Les clics depuis Google sont ${trendWord[clicks.direction]} de ${fmtDelta(clicks.delta).replace('+', '')} (${fmtInt(clicks.current)} clics sur la période).`);
+    out.push(`Les clics depuis Google sont ${trendWord[m1(clicks).direction]} de ${fmtDelta(m1(clicks).delta).replace('+', '')} sur un mois (${fmtInt(clicks.current)} clics sur la période).`);
   }
 
-  if (impressions.direction !== 'stable' && impressions.direction !== clicks.direction) {
-    if (impressions.direction === 'hausse') {
-      out.push(`La visibilité progresse (${fmtDelta(impressions.delta)} d'impressions) sans que les clics suivent encore : le site apparaît plus souvent dans les résultats, mais les titres et descriptions des pages peuvent être retravaillés pour convertir cette visibilité en visites.`);
+  if (m1(impressions).direction !== 'stable' && m1(impressions).direction !== m1(clicks).direction) {
+    if (m1(impressions).direction === 'hausse') {
+      out.push(`La visibilité progresse (${fmtDelta(m1(impressions).delta)} d'impressions) sans que les clics suivent encore : le site apparaît plus souvent dans les résultats, mais les titres et descriptions des pages peuvent être retravaillés pour convertir cette visibilité en visites.`);
     } else {
-      out.push(`Les impressions reculent (${fmtDelta(impressions.delta)}) alors que les clics tiennent : le site convertit mieux sa visibilité, mais celle-ci s'érode — un point à surveiller.`);
+      out.push(`Les impressions reculent (${fmtDelta(m1(impressions).delta)}) alors que les clics tiennent : le site convertit mieux sa visibilité, mais celle-ci s'érode — un point à surveiller.`);
     }
   }
 
   // Position : baisse du chiffre = amélioration.
-  if (position.direction === 'baisse') {
-    out.push(`La position moyenne s'améliore (${fmtPos(position.current)} contre ${fmtPos(position.previous)} auparavant) : le site remonte dans les résultats de recherche.`);
-  } else if (position.direction === 'hausse') {
-    out.push(`La position moyenne recule (${fmtPos(position.current)} contre ${fmtPos(position.previous)} auparavant) : le site descend dans les résultats — à creuser requête par requête.`);
+  if (m1(position).direction === 'baisse') {
+    out.push(`La position moyenne s'améliore (${fmtPos(position.current)} contre ${fmtPos(m1(position).previous)} le mois précédent) : le site remonte dans les résultats de recherche.`);
+  } else if (m1(position).direction === 'hausse') {
+    out.push(`La position moyenne recule (${fmtPos(position.current)} contre ${fmtPos(m1(position).previous)} le mois précédent) : le site descend dans les résultats — à creuser requête par requête.`);
+  }
+
+  // Trajectoire 6 mois — la lecture qui compte pour un programme de 6 mois.
+  const h6 = clicks.horizons.m6;
+  if (h6.delta !== null) {
+    const oldest = trend[0];
+    const latest = trend[trend.length - 1];
+    if (h6.direction === 'stable') {
+      out.push(`Sur 6 mois, les clics mensuels sont stables : ${fmtInt(oldest.clicks)} en ${oldest.label}, ${fmtInt(latest.clicks)} ce mois-ci (${fmtDelta(h6.delta)}).`);
+    } else {
+      out.push(`Sur 6 mois, les clics mensuels sont passés de ${fmtInt(oldest.clicks)} (${oldest.label}) à ${fmtInt(latest.clicks)} (${fmtDelta(h6.delta)}) : la trajectoire de fond est ${h6.direction === 'hausse' ? 'positive' : 'négative'}.`);
+    }
   }
 
   if (topQueries && topQueries.length) {
@@ -130,46 +164,68 @@ export function buildInsights(kpis, topQueries, mock) {
 }
 
 /**
- * Assemble le rapport complet à partir des deux pulls GSC.
- * @returns {{ meta: object, kpis: object, series: object, tables: object, insights: string[] }}
+ * Assemble le rapport complet.
+ * @param {{ client: object, months: object[], daily: array, queries: array,
+ *           pages: array, mock: boolean, generatedAt: string }} input
+ *   `months` : les 7 mois ordonnés (cf. resolveMonths), le dernier = mois analysé.
+ *   `daily`  : lignes quotidiennes GSC couvrant tout l'intervalle.
  */
-export function buildReport({ client, current, compare, currentData, compareData, generatedAt }) {
-  const mkKpi = (key, cur, prev, transform = (v) => v) => {
-    const c = transform(cur.totals[key]);
-    const p = transform(prev.totals[key]);
-    const delta = deltaPct(c, p);
-    return { current: c, previous: p, delta, direction: direction(delta) };
+export function buildReport({ client, months, daily, queries, pages, mock, generatedAt }) {
+  const perMonth = months.map((m) => ({ ...m, ...aggregateMonth(daily, m) }));
+  const current = perMonth[perMonth.length - 1];
+
+  const mkKpi = (key) => {
+    const horizons = {};
+    for (const h of HORIZONS) {
+      const ref = perMonth[perMonth.length - 1 - h.back];
+      const prev = ref ? ref.totals[key] : 0;
+      const delta = deltaPct(current.totals[key], prev);
+      horizons[h.id] = { previous: prev, delta, direction: direction(delta) };
+    }
+    return { current: current.totals[key], horizons };
   };
 
   const kpis = {
-    clicks: mkKpi('clicks', currentData, compareData),
-    impressions: mkKpi('impressions', currentData, compareData),
-    ctr: mkKpi('ctr', currentData, compareData),
-    position: mkKpi('position', currentData, compareData),
+    clicks: mkKpi('clicks'),
+    impressions: mkKpi('impressions'),
+    ctr: mkKpi('ctr'),
+    position: mkKpi('position'),
   };
 
-  const mock = Boolean(currentData.mock || compareData.mock);
+  const trend = perMonth.map((m) => ({
+    key: m.key,
+    label: m.label,
+    clicks: m.totals.clicks,
+    impressions: m.totals.impressions,
+  }));
+
+  const prevMonth = perMonth[perMonth.length - 2];
 
   return {
     meta: {
       clientId: client.id,
       clientName: client.name,
       property: client.property,
-      period: { ...current },
-      compare: { ...compare },
+      period: { startDate: current.startDate, endDate: current.endDate, label: current.label, key: current.key },
+      compareLabels: {
+        m1: prevMonth ? prevMonth.label : '',
+        m3: perMonth[perMonth.length - 4] ? perMonth[perMonth.length - 4].label : '',
+        m6: perMonth[0] ? perMonth[0].label : '',
+      },
       generatedAt,
       mock,
     },
     kpis,
     series: {
-      current: normalizeSeries(currentData.series),
-      compare: normalizeSeries(compareData.series),
+      current: current.series,
+      compare: prevMonth ? prevMonth.series : [],
     },
+    trend,
     tables: {
-      queries: (currentData.queries || []).slice(0, 10),
-      pages: (currentData.pages || []).slice(0, 10),
+      queries: (queries || []).slice(0, 10),
+      pages: (pages || []).slice(0, 10),
     },
-    insights: buildInsights(kpis, currentData.queries, mock),
+    insights: buildInsights(kpis, trend, queries, mock),
   };
 }
 

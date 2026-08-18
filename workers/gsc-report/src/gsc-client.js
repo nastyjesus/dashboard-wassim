@@ -3,7 +3,8 @@
 // clairement flaguées `mock: true` — jamais mélangées à de la vraie data.
 
 import { getAccessToken, hasGoogleCreds } from './google-auth.js';
-import { mockPeriodData } from './mocks.js';
+import { mockDailySeries, mockTopTables } from './mocks.js';
+import { aggregateMonth } from './report.js';
 
 export class GscClient {
   constructor(env) {
@@ -13,45 +14,56 @@ export class GscClient {
   }
 
   /**
-   * Pull complet d'une période : totaux, série quotidienne, top requêtes, top pages.
+   * Pull complet pour un rapport : série quotidienne couvrant tout l'intervalle
+   * (7 mois — comparaisons 1/3/6 mois + tendance), et top requêtes / top pages
+   * du mois analysé uniquement.
    * @param {string} property propriété GSC (`sc-domain:example.fr` ou `https://example.fr/`)
-   * @param {string} startDate YYYY-MM-DD
-   * @param {string} endDate YYYY-MM-DD
+   * @param {string} rangeStart YYYY-MM-DD (début du mois le plus ancien)
+   * @param {{startDate:string, endDate:string}} currentBounds mois analysé
+   * @returns {Promise<{daily: array, queries: array, pages: array, mock: boolean}>}
    */
-  async fetchPeriod(property, startDate, endDate) {
+  async fetchReportData(property, rangeStart, currentBounds) {
     if (this.mock) {
-      return { ...mockPeriodData(property, startDate, endDate), mock: true };
+      const daily = mockDailySeries(property, rangeStart, currentBounds.endDate);
+      const { totals } = aggregateMonth(daily, currentBounds);
+      const { queries, pages } = mockTopTables(property, totals);
+      return { daily, queries, pages, mock: true };
     }
-    const [daily, queries, pages] = await Promise.all([
-      this.query(property, { startDate, endDate, dimensions: ['date'], rowLimit: 1000 }),
-      this.query(property, { startDate, endDate, dimensions: ['query'], rowLimit: 10 }),
-      this.query(property, { startDate, endDate, dimensions: ['page'], rowLimit: 10 }),
+
+    const [dailyRes, queriesRes, pagesRes] = await Promise.all([
+      this.query(property, {
+        startDate: rangeStart,
+        endDate: currentBounds.endDate,
+        dimensions: ['date'],
+        rowLimit: 1000, // ~215 jours pour 7 mois — large marge
+      }),
+      this.query(property, {
+        startDate: currentBounds.startDate,
+        endDate: currentBounds.endDate,
+        dimensions: ['query'],
+        rowLimit: 10,
+      }),
+      this.query(property, {
+        startDate: currentBounds.startDate,
+        endDate: currentBounds.endDate,
+        dimensions: ['page'],
+        rowLimit: 10,
+      }),
     ]);
 
-    const series = (daily.rows || [])
+    const daily = (dailyRes.rows || [])
       .map((r) => ({
         date: r.keys[0],
         clicks: r.clicks || 0,
         impressions: r.impressions || 0,
+        position: r.position || 0,
       }))
       .sort((a, b) => a.date.localeCompare(b.date));
 
-    const clicks = series.reduce((s, d) => s + d.clicks, 0);
-    const impressions = series.reduce((s, d) => s + d.impressions, 0);
-    // CTR et position moyens pondérés — recalculés depuis les lignes quotidiennes
-    // pour rester exacts (la moyenne des moyennes serait fausse).
-    const ctr = impressions ? clicks / impressions : 0;
-    const posWeighted = (daily.rows || []).reduce(
-      (s, r) => s + (r.position || 0) * (r.impressions || 0),
-      0,
-    );
-    const position = impressions ? posWeighted / impressions : 0;
-
     return {
-      totals: { clicks, impressions, ctr, position },
-      series,
-      queries: queries.rows || [],
-      pages: pages.rows || [],
+      daily,
+      queries: queriesRes.rows || [],
+      pages: pagesRes.rows || [],
       mock: false,
     };
   }

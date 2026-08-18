@@ -10,11 +10,14 @@ récap dans la page Notion du client.
 
 - **Cron** : le 3 du mois à 6h UTC (les données GSC ont ~2 jours de latence, le
   mois précédent est donc complet).
-- **Par client** : pull des deux périodes (mois M-1 + comparaison), calcul des
-  deltas (seuil de stabilité ±2 %, couleur inversée pour la position moyenne),
-  insights factuels en français, rendu HTML autonome (Chart.js).
-- **Comparaison** : `prev` (mois précédent, défaut) ou `yoy` (même mois N-1,
-  pour les secteurs saisonniers) — réglable par client.
+- **Par client** : un seul pull quotidien couvrant 7 mois (mois analysé + 6 mois
+  d'historique), agrégé par mois côté worker (CTR et position pondérés par les
+  impressions), puis calcul des deltas (seuil de stabilité ±2 %, couleur
+  inversée pour la position moyenne), insights factuels en français, rendu HTML
+  autonome (Chart.js).
+- **Comparaisons sur trois horizons** : chaque KPI affiche son delta vs 1 mois,
+  3 mois et 6 mois — le court terme et la trajectoire d'un programme complet.
+  Le rapport inclut aussi une carte « Tendance 6 mois » (totaux mensuels).
 - **Lien client** : `GET /r/:slug` est public mais le slug est aléatoire
   (32 hex) et la page est `noindex` — c'est le lien qu'on envoie au client.
   Un re-run du même mois remplace le contenu mais les anciens liens restent valides.
@@ -43,15 +46,13 @@ récap dans la page Notion du client.
     "id": "acme",
     "name": "ACME",
     "property": "sc-domain:acme.fr",
-    "notionPageId": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
-    "compare": "prev"
+    "notionPageId": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
   }
 ]
 ```
 
 - `property` : propriété GSC exacte (`sc-domain:…` ou `https://…/`).
 - `notionPageId` : optionnel — page Notion du client où logger le récap.
-- `compare` : `prev` (défaut) ou `yoy`.
 
 ## Mise en service (une fois les clés prêtes)
 

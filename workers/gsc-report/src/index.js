@@ -14,7 +14,7 @@
 //   GET  /latest          — auth  (dernier rapport par client — pour le dashboard)
 
 import { GscClient } from './gsc-client.js';
-import { resolvePeriods, buildReport } from './report.js';
+import { resolveMonths, buildReport } from './report.js';
 import { renderReport } from './render.js';
 import { logReportToNotion, notionConfigured } from './notion-log.js';
 import { jsonResponse, preflightResponse } from './cors.js';
@@ -143,7 +143,6 @@ function validateClients(body) {
     if (!c.id || !/^[a-z0-9-]+$/.test(c.id)) return `invalid id: ${c && c.id}`;
     if (!c.name) return `missing name for ${c.id}`;
     if (!c.property) return `missing property for ${c.id}`;
-    if (c.compare && !['prev', 'yoy'].includes(c.compare)) return `invalid compare for ${c.id} (prev|yoy)`;
   }
   return null;
 }
@@ -170,13 +169,14 @@ async function runReports(env, origin, opts = {}) {
 
   for (const client of targets) {
     try {
-      const { current, compare } = resolvePeriods(now, client.compare || 'prev', opts.periodKey);
-      const [currentData, compareData] = await Promise.all([
-        gsc.fetchPeriod(client.property, current.startDate, current.endDate),
-        gsc.fetchPeriod(client.property, compare.startDate, compare.endDate),
-      ]);
+      const { months, current } = resolveMonths(now, opts.periodKey);
+      const { daily, queries, pages, mock } = await gsc.fetchReportData(
+        client.property,
+        months[0].startDate,
+        current,
+      );
       const report = buildReport({
-        client, current, compare, currentData, compareData,
+        client, months, daily, queries, pages, mock,
         generatedAt: new Date().toISOString(),
       });
       const html = renderReport(report);
@@ -221,11 +221,15 @@ async function runReports(env, origin, opts = {}) {
 
 function summaryKpis(report) {
   const { kpis } = report;
+  const one = (k) => ({
+    value: k.current,
+    deltas: { m1: k.horizons.m1.delta, m3: k.horizons.m3.delta, m6: k.horizons.m6.delta },
+  });
   return {
-    clicks: { value: kpis.clicks.current, delta: kpis.clicks.delta },
-    impressions: { value: kpis.impressions.current, delta: kpis.impressions.delta },
-    ctr: { value: kpis.ctr.current, delta: kpis.ctr.delta },
-    position: { value: kpis.position.current, delta: kpis.position.delta },
+    clicks: one(kpis.clicks),
+    impressions: one(kpis.impressions),
+    ctr: one(kpis.ctr),
+    position: one(kpis.position),
   };
 }
 

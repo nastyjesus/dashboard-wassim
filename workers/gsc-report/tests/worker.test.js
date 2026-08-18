@@ -68,7 +68,7 @@ describe('config clients', () => {
 
   it('PUT /clients valide et stocke la config', async () => {
     const env = mockEnv();
-    const clients = [{ id: 'acme', name: 'ACME', property: 'sc-domain:acme.fr', compare: 'yoy' }];
+    const clients = [{ id: 'acme', name: 'ACME', property: 'sc-domain:acme.fr' }];
     const putRes = await run(env, '/clients', { method: 'PUT', body: JSON.stringify(clients) });
     expect(putRes.status).toBe(200);
     const getRes = await run(env, '/clients');
@@ -119,6 +119,9 @@ describe('génération de rapports', () => {
     const latest = (await (await run(env, '/latest')).json()).latest;
     expect(latest['demo-wassim'].period).toBe('2026-07');
     expect(latest['demo-wassim'].kpis.clicks.value).toBeGreaterThan(0);
+    expect(latest['demo-wassim'].kpis.clicks.deltas).toHaveProperty('m1');
+    expect(latest['demo-wassim'].kpis.clicks.deltas).toHaveProperty('m3');
+    expect(latest['demo-wassim'].kpis.clicks.deltas).toHaveProperty('m6');
   });
 
   it('un slug inconnu renvoie 404', async () => {

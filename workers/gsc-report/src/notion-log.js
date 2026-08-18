@@ -2,7 +2,7 @@
 // Appende une section « Rapport GSC — [période] » : récap KPIs + lien du rapport.
 // Ne touche jamais à la structure existante de la page (append only).
 
-import { fmt } from './report.js';
+import { fmt, HORIZONS } from './report.js';
 import { logger } from './logger.js';
 
 export function notionConfigured(env) {
@@ -19,14 +19,19 @@ export async function logReportToNotion(env, pageId, report, reportUrl) {
   const { meta, kpis, insights } = report;
   const base = env.NOTION_API_BASE || 'https://api.notion.com';
 
-  const line = (label, kpi, format, invert = false) => {
-    const d = kpi.delta;
+  const horizonPart = (kpi, h, invert) => {
+    const d = kpi.horizons[h.id].delta;
     let emoji = '➡️';
     if (d !== null && Math.abs(d) >= 2) {
       const eff = invert ? -d : d;
       emoji = eff > 0 ? '🟢' : '🔴';
     }
-    return `${label} : ${format(kpi.current)} (${fmt.fmtDelta(d)} ${emoji})`;
+    return `${h.label} ${fmt.fmtDelta(d)} ${emoji}`;
+  };
+
+  const line = (label, kpi, format, invert = false) => {
+    const parts = HORIZONS.map((h) => horizonPart(kpi, h, invert)).join(' · ');
+    return `${label} : ${format(kpi.current)} (${parts})`;
   };
 
   const kpiText = [
@@ -48,7 +53,7 @@ export async function logReportToNotion(env, pageId, report, reportUrl) {
       object: 'block',
       type: 'paragraph',
       paragraph: {
-        rich_text: [{ type: 'text', text: { content: `Comparaison : ${meta.compare.label}\n${kpiText}` } }],
+        rich_text: [{ type: 'text', text: { content: `Comparaisons : 1 mois (${meta.compareLabels.m1}) · 3 mois (${meta.compareLabels.m3}) · 6 mois (${meta.compareLabels.m6})\n${kpiText}` } }],
       },
     },
     {

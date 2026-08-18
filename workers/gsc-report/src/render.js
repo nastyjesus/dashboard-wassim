@@ -1,11 +1,13 @@
 // Rendu HTML du rapport — adapté du template du skill wassim-gsc-report
 // (assets/template.html). Différences avec la version artefact :
 //   - insights injectés côté serveur (pas de window.cowork ici),
-//   - tables top requêtes / top pages ajoutées,
+//   - trois horizons de comparaison par KPI (1 mois / 3 mois / 6 mois),
+//   - carte « Tendance 6 mois » (totaux mensuels),
+//   - tables top requêtes / top pages,
 //   - bandeau "données de démonstration" en mode mock.
 // Charte : cohérente avec wassimloumicorporate.fr (bleu profond / orange).
 
-import { fmt } from './report.js';
+import { fmt, HORIZONS } from './report.js';
 
 function esc(s) {
   return String(s)
@@ -15,16 +17,25 @@ function esc(s) {
     .replace(/"/g, '&quot;');
 }
 
-function deltaSpan(kpi, invert = false) {
-  const d = kpi.delta;
-  const label = fmt.fmtDelta(d);
+function deltaRow(horizon, label, invert = false) {
+  const d = horizon.delta;
+  const text = fmt.fmtDelta(d);
   let cls = 'flat', arrow = '→';
   if (d !== null && Math.abs(d) >= 2) {
     const eff = invert ? -d : d;
     cls = eff > 0 ? 'up' : 'down';
     arrow = d > 0 ? '▲' : '▼';
   }
-  return `<div class="delta ${cls}">${arrow} ${esc(label)}</div>`;
+  return `<div class="delta ${cls}"><span class="h">${esc(label)}</span><span>${arrow} ${esc(text)}</span></div>`;
+}
+
+function kpiCard(label, value, kpi, invert = false) {
+  const rows = HORIZONS.map((h) => deltaRow(kpi.horizons[h.id], h.label, invert)).join('\n      ');
+  return `<div class="kpi">
+      <div class="label">${esc(label)}</div>
+      <div class="value">${value}</div>
+      ${rows}
+    </div>`;
 }
 
 function tableRows(rows, labelFn) {
@@ -55,7 +66,7 @@ function shortenUrl(u) {
  * @returns {string} page HTML complète, autonome (Chart.js via CDN)
  */
 export function renderReport(report) {
-  const { meta, kpis, series, tables, insights } = report;
+  const { meta, kpis, series, trend, tables, insights } = report;
   const siteName = meta.property.replace('sc-domain:', '');
   const generated = new Date(meta.generatedAt).toLocaleDateString('fr-FR', {
     day: 'numeric', month: 'long', year: 'numeric',
@@ -84,11 +95,13 @@ export function renderReport(report) {
   header.report-head h1 { color: var(--accent); font-size: 1.5rem; margin: 0 0 4px; }
   header.report-head .periods { color: var(--muted); font-size: .95rem; }
   .kpis { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin: 28px 0; }
-  .kpi { background: var(--card); border-radius: 12px; padding: 24px;
+  .kpi { background: var(--card); border-radius: 12px; padding: 20px 24px;
     box-shadow: 0 1px 3px rgba(0,0,0,.08), 0 1px 2px rgba(0,0,0,.04); }
   .kpi .label { color: var(--muted); font-size: .82rem; text-transform: uppercase; letter-spacing: .04em; }
-  .kpi .value { font-size: 1.9rem; font-weight: 700; color: var(--accent); margin: 6px 0 2px; }
-  .kpi .delta { font-size: .9rem; font-weight: 600; display: inline-flex; align-items: center; gap: 4px; }
+  .kpi .value { font-size: 1.9rem; font-weight: 700; color: var(--accent); margin: 6px 0 8px; }
+  .kpi .delta { font-size: .82rem; font-weight: 600; display: flex; align-items: center;
+    justify-content: space-between; gap: 8px; padding: 2px 0; }
+  .kpi .delta .h { color: var(--muted); font-weight: 500; font-size: .76rem; }
   .delta.up { color: var(--pos); } .delta.down { color: var(--neg); } .delta.flat { color: var(--stable); }
   .card { background: var(--card); border-radius: 12px; padding: 24px;
     box-shadow: 0 1px 3px rgba(0,0,0,.08), 0 1px 2px rgba(0,0,0,.04); margin-bottom: 24px; }
@@ -113,39 +126,32 @@ export function renderReport(report) {
   ${meta.mock ? '<div class="mock-banner">⚠️ Données de démonstration — mode test, sans connexion à Search Console.</div>' : ''}
   <header class="report-head">
     <h1>${esc(siteName)}</h1>
-    <div class="periods">Période : ${esc(meta.period.label)} · Comparaison : ${esc(meta.compare.label)}</div>
+    <div class="periods">Période : ${esc(meta.period.label)} · Comparaisons : 1 mois (${esc(meta.compareLabels.m1)}) · 3 mois (${esc(meta.compareLabels.m3)}) · 6 mois (${esc(meta.compareLabels.m6)})</div>
   </header>
 
   <section class="kpis">
-    <div class="kpi">
-      <div class="label">Clics</div>
-      <div class="value">${fmt.fmtInt(kpis.clicks.current)}</div>
-      ${deltaSpan(kpis.clicks)}
-    </div>
-    <div class="kpi">
-      <div class="label">Impressions</div>
-      <div class="value">${fmt.fmtInt(kpis.impressions.current)}</div>
-      ${deltaSpan(kpis.impressions)}
-    </div>
-    <div class="kpi">
-      <div class="label">CTR moyen</div>
-      <div class="value">${fmt.fmtCtr(kpis.ctr.current)}</div>
-      ${deltaSpan(kpis.ctr)}
-    </div>
-    <div class="kpi">
-      <div class="label">Position moyenne</div>
-      <div class="value">${fmt.fmtPos(kpis.position.current)}</div>
-      ${deltaSpan(kpis.position, true)}
-    </div>
+    ${kpiCard('Clics', fmt.fmtInt(kpis.clicks.current), kpis.clicks)}
+    ${kpiCard('Impressions', fmt.fmtInt(kpis.impressions.current), kpis.impressions)}
+    ${kpiCard('CTR moyen', fmt.fmtCtr(kpis.ctr.current), kpis.ctr)}
+    ${kpiCard('Position moyenne', fmt.fmtPos(kpis.position.current), kpis.position, true)}
   </section>
 
   <div class="card">
-    <h2>Évolution</h2>
+    <h2>Évolution du mois (vs mois précédent)</h2>
     <div class="toggle">
       <button id="btn-clicks" class="active">Clics</button>
       <button id="btn-impr">Impressions</button>
     </div>
     <canvas id="chart" height="120"></canvas>
+  </div>
+
+  <div class="card">
+    <h2>Tendance 6 mois</h2>
+    <div class="toggle">
+      <button id="btn-t-clicks" class="active">Clics</button>
+      <button id="btn-t-impr">Impressions</button>
+    </div>
+    <canvas id="trend-chart" height="110"></canvas>
   </div>
 
   <div class="card">
@@ -181,9 +187,11 @@ export function renderReport(report) {
 <script>
   const SERIES_CURRENT = ${JSON.stringify(series.current)};
   const SERIES_COMPARE = ${JSON.stringify(series.compare)};
+  const TREND = ${JSON.stringify(trend)};
   const PERIOD = ${JSON.stringify(meta.period.label)};
-  const COMPARE = ${JSON.stringify(meta.compare.label)};
+  const COMPARE = ${JSON.stringify(meta.compareLabels.m1)};
 
+  // — Courbe quotidienne : mois analysé vs mois précédent —
   const labels = SERIES_CURRENT.map(d => 'J' + d.day);
   let metric = 'clicks';
   const ctx = document.getElementById('chart');
@@ -220,6 +228,35 @@ export function renderReport(report) {
   const bImpr = document.getElementById('btn-impr');
   bClicks.onclick = () => setMetric('clicks', bClicks, bImpr);
   bImpr.onclick = () => setMetric('impressions', bImpr, bClicks);
+
+  // — Tendance 6 mois : totaux mensuels (le mois analysé en plein, le reste atténué) —
+  let trendMetric = 'clicks';
+  const tctx = document.getElementById('trend-chart');
+  const trendData = () => ({
+    labels: TREND.map(t => t.label),
+    datasets: [{
+      label: trendMetric === 'clicks' ? 'Clics / mois' : 'Impressions / mois',
+      data: TREND.map(t => t[trendMetric]),
+      backgroundColor: TREND.map((t, i) => i === TREND.length - 1 ? '#1e3a5f' : 'rgba(30,58,95,.35)'),
+      borderRadius: 6,
+    }]
+  });
+  const trendChart = new Chart(tctx, {
+    type: 'bar',
+    data: trendData(),
+    options: { responsive: true, plugins: { legend: { display: false } },
+      scales: { y: { beginAtZero: true } } }
+  });
+  function setTrendMetric(m, btnOn, btnOff) {
+    trendMetric = m;
+    trendChart.data = trendData();
+    trendChart.update();
+    btnOn.classList.add('active'); btnOff.classList.remove('active');
+  }
+  const bTClicks = document.getElementById('btn-t-clicks');
+  const bTImpr = document.getElementById('btn-t-impr');
+  bTClicks.onclick = () => setTrendMetric('clicks', bTClicks, bTImpr);
+  bTImpr.onclick = () => setTrendMetric('impressions', bTImpr, bTClicks);
 </script>
 </body>
 </html>`;
