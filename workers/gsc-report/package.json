@@ -1,0 +1,18 @@
+{
+  "name": "gsc-report-wassim",
+  "version": "1.0.0",
+  "description": "Cloudflare Worker — rapport GSC mensuel automatisé (pull Search Console + rendu HTML + log Notion)",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "tail": "wrangler tail",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "devDependencies": {
+    "vitest": "^1.6.0",
+    "wrangler": "^3.78.0"
+  }
+}

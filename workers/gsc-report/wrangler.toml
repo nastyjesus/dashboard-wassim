@@ -1,0 +1,43 @@
+## Worker Cloudflare — gsc-report-wassim
+## Rapport GSC mensuel automatisé : pull Search Console, rendu HTML, log Notion.
+## Tourne en cron le 3 du mois (données du mois précédent complètes, GSC a ~2 j de latence).
+
+name = "gsc-report-wassim"
+main = "src/index.js"
+compatibility_date = "2025-01-15"
+compatibility_flags = ["nodejs_compat"]
+
+# Variables non secrètes (les vrais secrets passent par `wrangler secret put`)
+[vars]
+NOTION_VERSION = "2022-06-28"
+NOTION_API_BASE = "https://api.notion.com"
+GSC_API_BASE = "https://searchconsole.googleapis.com"
+GOOGLE_TOKEN_URL = "https://oauth2.googleapis.com/token"
+# Active le mode mock tant que le service account Google n'est pas configuré.
+# Mettre à "false" en production (ou `wrangler secret put MOCK_MODE`).
+MOCK_MODE = "true"
+# Origines autorisées pour CORS (séparées par des virgules).
+ALLOWED_ORIGINS = "https://nastyjesus.github.io,http://localhost:3000,http://localhost:5173,http://localhost:8000"
+# URL publique du worker — sert au cron à construire les liens /r/:slug.
+# À remplacer par l'URL réelle après le 1er deploy (workers.dev ou domaine custom).
+PUBLIC_BASE_URL = "https://gsc-report-wassim.workers.dev"
+
+# Cron : le 3 de chaque mois à 6h UTC → rapport du mois calendaire précédent.
+[triggers]
+crons = ["0 6 3 * *"]
+
+# KV namespace : config clients + rapports générés (HTML + data).
+# Avant le 1er deploy, créer le namespace : `npx wrangler kv namespace create REPORTS`
+# Cloudflare renverra un id long ; remplir ci-dessous avec.
+[[kv_namespaces]]
+binding = "REPORTS"
+id = "REPLACE_WITH_KV_NAMESPACE_ID"
+
+# Les secrets à provisionner via `wrangler secret put` :
+#   GOOGLE_SA_EMAIL        (email du service account, ex: gsc-report@….iam.gserviceaccount.com)
+#   GOOGLE_SA_PRIVATE_KEY  (clé privée PKCS8 du service account, PEM complet avec \n)
+#   NOTION_TOKEN           (intégration Notion — log des rapports dans les pages clients)
+#   WASSIM_AUTH_TOKEN      (header partagé X-Wassim-Auth front <-> worker)
+
+[observability]
+enabled = true
