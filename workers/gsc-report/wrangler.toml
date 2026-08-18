@@ -20,7 +20,7 @@ MOCK_MODE = "true"
 ALLOWED_ORIGINS = "https://nastyjesus.github.io,http://localhost:3000,http://localhost:5173,http://localhost:8000"
 # URL publique du worker — sert au cron à construire les liens /r/:slug.
 # À remplacer par l'URL réelle après le 1er deploy (workers.dev ou domaine custom).
-PUBLIC_BASE_URL = "https://gsc-report-wassim.workers.dev"
+PUBLIC_BASE_URL = "https://gsc-report-wassim.loumiwassim.workers.dev"
 
 # Cron : le 3 de chaque mois à 6h UTC → rapport du mois calendaire précédent.
 [triggers]
