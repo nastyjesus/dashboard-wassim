@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Automations SEO</title>
+<style>
+  :root {
+    --accent: #1e3a5f; --neg: #e85a4f; --pos: #2e7d52; --stable: #8a8f98;
+    --bg: #f6f8fa; --card: #ffffff; --text: #1c2733; --muted: #5c6773; --line: #e3e8ee;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); line-height: 1.5;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+  .wrap { max-width: 860px; margin: 0 auto; padding: 28px 16px 60px; }
+  header h1 { color: var(--accent); font-size: 1.4rem; margin: 0; }
+  header .sub { color: var(--muted); font-size: .9rem; margin-top: 2px; }
+  .statusbar { display: flex; gap: 10px; flex-wrap: wrap; margin: 16px 0 22px; align-items: center; }
+  .pill { font-size: .78rem; font-weight: 600; border-radius: 999px; padding: 4px 12px; background: #e8eef5; color: var(--accent); }
+  .pill.ok { background: #e6f2ec; color: var(--pos); }
+  .pill.bad { background: #fdecea; color: var(--neg); }
+  .pill.warn { background: #fff3cd; color: #7a5d00; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 20px; margin-bottom: 18px; }
+  .card h2 { color: var(--accent); font-size: 1.05rem; margin: 0 0 4px; }
+  .card .hint { color: var(--muted); font-size: .85rem; margin: 0 0 14px; }
+  .row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+  button { border: 0; border-radius: 10px; padding: 12px 18px; font-size: .92rem; font-weight: 600;
+    cursor: pointer; background: var(--accent); color: #fff; }
+  button.secondary { background: #e8eef5; color: var(--accent); }
+  button.small { padding: 6px 12px; font-size: .8rem; border-radius: 8px; }
+  button:disabled { opacity: .45; cursor: default; }
+  input[type="month"], input[type="text"] { border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; font-size: .9rem; background: #fff; color: var(--text); }
+  .out { margin-top: 12px; font-size: .86rem; }
+  .out .msg { padding: 10px 14px; border-radius: 8px; margin-bottom: 8px; }
+  .msg.ok { background: #e6f2ec; color: #1d5c3e; }
+  .msg.err { background: #fdecea; color: #a33025; }
+  .msg.info { background: #e8eef5; color: var(--accent); }
+  table { border-collapse: collapse; width: 100%; font-size: .85rem; margin-top: 10px; }
+  th { text-align: left; color: var(--muted); font-size: .74rem; text-transform: uppercase; letter-spacing: .04em;
+    padding: 6px 10px 6px 0; border-bottom: 1px solid var(--line); }
+  td { padding: 8px 10px 8px 0; border-bottom: 1px solid #eef1f5; vertical-align: top; }
+  td.num { font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .d { font-weight: 600; }
+  .d.up { color: var(--pos); } .d.down { color: var(--neg); } .d.flat { color: var(--stable); }
+  a.rep { color: var(--accent); font-weight: 600; }
+  .tbl-scroll { overflow-x: auto; }
+  .spin { display: inline-block; width: 14px; height: 14px; border: 2px solid #fff; border-top-color: transparent;
+    border-radius: 50%; animation: r .7s linear infinite; vertical-align: -2px; margin-right: 6px; }
+  @keyframes r { to { transform: rotate(360deg); } }
+  @media (prefers-reduced-motion: reduce) { .spin { animation: none; } }
+  footer { color: var(--muted); font-size: .78rem; text-align: center; margin-top: 26px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Automations SEO</h1>
+    <div class="sub">Rapports GSC mensuels · Tracker de citations IA</div>
+  </header>
+
+  <div class="statusbar" id="statusbar">
+    <span class="pill" id="st-gsc">GSC : …</span>
+    <span class="pill" id="st-geo">GEO : …</span>
+    <button class="small secondary" onclick="configure()">⚙️ Token</button>
+  </div>
+
+  <div class="card" id="setup-card" style="display:none">
+    <h2>Première mise en route</h2>
+    <p class="hint">Les workers tournent mais n'ont pas encore ta liste de clients. Un clic par worker et c'est réglé.</p>
+    <div class="row">
+      <button id="btn-push-gsc" onclick="pushGscConfig()">Pousser les 8 clients → Rapports GSC</button>
+      <button id="btn-push-geo" onclick="pushGeoConfig()">Pousser les 8 clients → Tracker GEO</button>
+    </div>
+    <div class="out" id="setup-out"></div>
+  </div>
+
+  <div class="card">
+    <h2>📊 Rapports GSC</h2>
+    <p class="hint">Le cron tourne le 3 du mois. Ici : génération manuelle + derniers rapports (lien à envoyer au client).</p>
+    <div class="row">
+      <button id="btn-run-gsc" onclick="runGsc()">Générer les rapports du mois</button>
+      <input type="month" id="gsc-period" title="Mois à générer (défaut : mois précédent)">
+    </div>
+    <div class="out" id="gsc-out"></div>
+    <div class="tbl-scroll"><table id="gsc-table" style="display:none">
+      <thead><tr><th>Client</th><th>Mois</th><th>Clics</th><th>1 mois</th><th>3 mois</th><th>6 mois</th><th>Rapport</th><th></th></tr></thead>
+      <tbody></tbody>
+    </table></div>
+  </div>
+
+  <div class="card">
+    <h2>🤖 Tracker citations IA</h2>
+    <p class="hint">Le cron tourne les 1er et 15. Ici : relevé manuel + dernier taux de citation par client.</p>
+    <div class="row">
+      <button id="btn-run-geo" onclick="runGeo()">Lancer un relevé (tous les clients)</button>
+      <button class="secondary" id="btn-run-geo-one" onclick="runGeoOne()">Relevé test (1 client)</button>
+    </div>
+    <div class="out" id="geo-out"></div>
+    <div class="tbl-scroll"><table id="geo-table" style="display:none">
+      <thead><tr><th>Client</th><th>Date</th><th>Cité</th><th>Mentionné</th><th>Moteurs</th><th></th></tr></thead>
+      <tbody></tbody>
+    </table></div>
+  </div>
+
+  <footer>Workers : gsc-report-wassim · geo-tracker-wassim (Cloudflare) · Les crons tournent seuls, cette page sert au pilotage manuel.</footer>
+</div>
+
+<script>
+const GSC_URL = 'https://gsc-report-wassim.loumiwassim.workers.dev';
+const GEO_URL = 'https://geo-tracker-wassim.loumiwassim.workers.dev';
+
+/* Configs clients embarquées — poussées via les boutons de mise en route. */
+const GSC_CLIENTS = [
+  {"id":"myefarm","name":"MyeFarm","property":"sc-domain:myefarm.net"},
+  {"id":"simco","name":"Agence Simco","property":"sc-domain:agence-simco.com","notionPageId":"35dfe946b3848175b871f88c0ea1de5d"},
+  {"id":"crezabeille","name":"Crezabeille","property":"sc-domain:crezabeille.fr","notionPageId":"35dfe946b38481a4bddbc2a14abcacd0"},
+  {"id":"david-di2a","name":"David DI2A","property":"sc-domain:alarme-videosurveillance-rennes.fr","notionPageId":"379fe946b38481e8a0b4ff9850659364"},
+  {"id":"delphine","name":"Delphine (Courtier sur mesure)","property":"sc-domain:courtiersurmesure.fr","notionPageId":"347fe946b38481a2a5eceace37c89c01"},
+  {"id":"julien-mcr","name":"Julien MCR","property":"sc-domain:serrurerie-porte-blindee-rennes.fr","notionPageId":"379fe946b384815bb471cbcf38f7c90e"},
+  {"id":"optel","name":"SEO EVA (Optel)","property":"sc-domain:optel-services.fr","notionPageId":"347fe946b38481c3825cd4d1780c60a0"},
+  {"id":"wassim","name":"Wassim Loumi","property":"sc-domain:wassimloumicorporate.fr","notionPageId":"35dfe946b384817d8e21c15d706ddf83"}
+];
+
+const GEO_CLIENTS = [
+  {"id":"simco","name":"Agence Simco","domain":"agence-simco.com","aliases":["Agence Simco","Simco"],
+   "notionPageId":"35dfe946b3848175b871f88c0ea1de5d",
+   "prompts":["meilleure agence comm Rennes commerce local","agences comm digitale Rennes","agence community management Rennes","agence marque employeur Rennes","agence webmarketing Rennes","top agences TPE-PME Bretagne","agence réseaux sociaux Rennes","Agence Simco Rennes avis","meilleurs prestataires comm Rennes","comparatif agences comm Rennes 2026"]},
+  {"id":"david-di2a","name":"David DI2A","domain":"alarme-videosurveillance-rennes.fr","aliases":["DI2A"],
+   "notionPageId":"379fe946b38481e8a0b4ff9850659364",
+   "prompts":["installateur alarme Rennes","meilleure entreprise vidéosurveillance","qui pour installer une alarme maison","entreprise vidéosurveillance Rennes","qui pour installer une alarme maison Rennes"]},
+  {"id":"delphine","name":"Delphine (Courtier sur mesure)","domain":"courtiersurmesure.fr","aliases":["SUR-MESURE Courtier en prêt","Sur Mesure Courtage","Courtier sur mesure"],
+   "notionPageId":"347fe946b38481a2a5eceace37c89c01",
+   "prompts":["quel courtier prêt immo choisir Rennes","meilleur courtier crédit Rennes","courtier prêt immo Bretagne","quel courtier en prêt immobilier choisir à Rennes ?","courtier Bretagne"]},
+  {"id":"nicolas-fournials","name":"Nicolas Fournials (Ostéopathe)","aliases":["FOURNIALS Nicolas Ostéopathe D.O.","Nicolas Fournials","Fournials"],
+   "notionPageId":"37ffe946b3848181ad54fb08258f2ea1",
+   "prompts":["meilleur ostéopathe du sport à Saint-Jacques / Rennes sud ouvert en soirée","ostéopathe pour nourrisson à Rennes / Saint-Jacques, lequel choisir","meilleur ostéopathe Saint-Jacques-de-la-Lande","ostéopathe nourrisson Rennes","ostéopathe du sport Rennes","ostéopathe Saint-Jacques-de-la-Lande","ostéopathe ou kiné Rennes"]},
+  {"id":"crezabeille","name":"Crezabeille","domain":"crezabeille.fr","aliases":["Crézabeille","Crezabeille"],
+   "notionPageId":"35dfe946b38481a4bddbc2a14abcacd0",
+   "prompts":["éponge tawashi crochet Vendée","éponge tawashi lavable France","attrape-rêves fait main","accessoires zéro déchet salle de bain made in France"]},
+  {"id":"julien-mcr","name":"Julien MCR","domain":"serrurerie-porte-blindee-rennes.fr","aliases":["MCR"],
+   "notionPageId":"379fe946b384815bb471cbcf38f7c90e",
+   "prompts":["Quel serrurier recommandes-tu à Rennes ?","Qui appeler pour un serrurier en urgence à Rennes ?","Quelle serrure multipoints choisir ?","Qui contacter pour une ouverture de porte à Rennes ?","Comment choisir une serrure haute sécurité ?"]},
+  {"id":"wassim","name":"Wassim Loumi","domain":"wassimloumicorporate.fr","aliases":["Wassim Loumi"],
+   "notionPageId":"35dfe946b384817d8e21c15d706ddf83",
+   "prompts":["Quel consultant SEO recommandes-tu à Rennes ?","Qui est le meilleur expert SEO à Rennes ?","Combien coûte un audit SEO à Rennes ?","Quelle formation Claude / IA recommandes-tu ?","Qui pour créer un site internet à Rennes ?","Freelance SEO à Rennes, qui choisir ?"]},
+  {"id":"optel","name":"SEO EVA (Optel)","domain":"optel-services.fr","aliases":["Optel Services","OP'TEL","Optel"],
+   "notionPageId":"347fe946b38481c3825cd4d1780c60a0",
+   "prompts":["Quel télésecrétariat médical choisir ?","Comment choisir un secrétariat externalisé ?","Quelle permanence téléphonique pour un cabinet médical ?","Combien coûte un secrétariat externalisé ?","Quel télésecrétariat pour professions libérales ?","À qui externaliser la gestion d'agenda d'un cabinet ?"]}
+];
+
+/* ---------- token (partagé avec la page Finances) ---------- */
+function getToken() {
+  const own = localStorage.getItem('wassim:automations:token');
+  if (own) return own;
+  try {
+    const fin = JSON.parse(localStorage.getItem('wassim:finances:config') || '{}');
+    if (fin.authToken) return fin.authToken;
+  } catch {}
+  return '';
+}
+function configure() {
+  const t = prompt('Token X-Wassim-Auth (le même que la page Finances)', getToken());
+  if (t !== null) { localStorage.setItem('wassim:automations:token', t.trim()); refresh(); }
+}
+function ensureToken() {
+  if (getToken()) return true;
+  configure();
+  return Boolean(getToken());
+}
+
+/* ---------- helpers ---------- */
+async function api(base, path, opts = {}) {
+  const res = await fetch(base + path, {
+    ...opts,
+    headers: { 'Content-Type': 'application/json', 'X-Wassim-Auth': getToken(), ...(opts.headers || {}) },
+  });
+  const body = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(body.message || body.error || ('HTTP ' + res.status));
+  return body;
+}
+function msg(elId, kind, text) {
+  const el = document.getElementById(elId);
+  el.insertAdjacentHTML('afterbegin', `<div class="msg ${kind}">${text}</div>`);
+  while (el.children.length > 10) el.removeChild(el.lastChild);
+}
+function busy(btnId, on) {
+  const b = document.getElementById(btnId);
+  b.disabled = on;
+  if (on) { b.dataset.label = b.textContent; b.innerHTML = '<span class="spin"></span>' + b.dataset.label; }
+  else if (b.dataset.label) b.textContent = b.dataset.label;
+}
+const fmtInt = (n) => Math.round(n).toLocaleString('fr-FR');
+function deltaCell(d, invert = false) {
+  if (d === null || d === undefined) return '<span class="d flat">—</span>';
+  const eff = invert ? -d : d;
+  const cls = Math.abs(d) < 2 ? 'flat' : eff > 0 ? 'up' : 'down';
+  const arrow = Math.abs(d) < 2 ? '→' : d > 0 ? '▲' : '▼';
+  return `<span class="d ${cls}">${arrow} ${String(d).replace('.', ',')}%</span>`;
+}
+function esc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+/* ---------- état / health ---------- */
+async function refresh() {
+  await Promise.all([refreshWorker('gsc'), refreshWorker('geo')]);
+  await Promise.all([loadGscLatest(), loadGeoLatest()]);
+  await checkSetup();
+}
+async function refreshWorker(which) {
+  const el = document.getElementById('st-' + which);
+  const base = which === 'gsc' ? GSC_URL : GEO_URL;
+  try {
+    const h = await fetch(base + '/health').then((r) => r.json());
+    if (h.mock) { el.textContent = (which === 'gsc' ? 'GSC' : 'GEO') + ' : mode démo'; el.className = 'pill warn'; }
+    else {
+      el.textContent = which === 'gsc' ? 'GSC : en ligne' : `GEO : en ligne (${(h.engines || []).length} moteurs)`;
+      el.className = 'pill ok';
+    }
+  } catch { el.textContent = (which === 'gsc' ? 'GSC' : 'GEO') + ' : injoignable'; el.className = 'pill bad'; }
+}
+async function checkSetup() {
+  if (!getToken()) { document.getElementById('setup-card').style.display = ''; return; }
+  try {
+    const [g, t] = await Promise.all([api(GSC_URL, '/clients'), api(GEO_URL, '/clients')]);
+    const gscOk = (g.clients || []).length > 0 && !g.mock;
+    const geoOk = (t.clients || []).length > 0 && !t.mock;
+    document.getElementById('setup-card').style.display = gscOk && geoOk ? 'none' : '';
+    document.getElementById('btn-push-gsc').style.display = gscOk ? 'none' : '';
+    document.getElementById('btn-push-geo').style.display = geoOk ? 'none' : '';
+  } catch { document.getElementById('setup-card').style.display = ''; }
+}
+
+/* ---------- setup ---------- */
+async function pushGscConfig() {
+  if (!ensureToken()) return;
+  busy('btn-push-gsc', true);
+  try {
+    const r = await api(GSC_URL, '/clients', { method: 'PUT', body: JSON.stringify(GSC_CLIENTS) });
+    msg('setup-out', 'ok', `Config GSC en place (${r.count} clients).`);
+  } catch (e) { msg('setup-out', 'err', 'Config GSC : ' + esc(e.message)); }
+  busy('btn-push-gsc', false);
+  checkSetup();
+}
+async function pushGeoConfig() {
+  if (!ensureToken()) return;
+  busy('btn-push-geo', true);
+  try {
+    const r = await api(GEO_URL, '/clients', { method: 'PUT', body: JSON.stringify(GEO_CLIENTS) });
+    msg('setup-out', 'ok', `Config GEO en place (${r.count} clients).`);
+  } catch (e) { msg('setup-out', 'err', 'Config GEO : ' + esc(e.message)); }
+  busy('btn-push-geo', false);
+  checkSetup();
+}
+
+/* ---------- rapports GSC ---------- */
+async function runGsc(clientId) {
+  if (!ensureToken()) return;
+  const period = document.getElementById('gsc-period').value || undefined;
+  if (!confirm(clientId
+    ? `Re-générer le rapport de « ${clientId} »${period ? ' pour ' + period : ''} ?`
+    : `Générer les rapports${period ? ' de ' + period : ' du mois précédent'} pour tous les clients ?`)) return;
+  busy('btn-run-gsc', true);
+  try {
+    const body = {};
+    if (clientId) body.client = clientId;
+    if (period) body.period = period;
+    const r = await api(GSC_URL, '/run', { method: 'POST', body: JSON.stringify(body) });
+    const okList = r.generated.map((g) => g.clientId).join(', ');
+    if (r.generated.length) msg('gsc-out', 'ok', `✅ ${r.generated.length} rapport(s) : ${esc(okList)}${r.generated.some((g) => g.notionLogged) ? ' · loggés dans Notion' : ''}`);
+    for (const e of r.errors) msg('gsc-out', 'err', `⛔ ${esc(e.clientId)} : ${esc(e.error)}${/40[34]/.test(e.error) ? ' — le service account n’a sans doute pas encore l’accès à cette propriété GSC.' : ''}`);
+    if (!r.generated.length && !r.errors.length) msg('gsc-out', 'info', 'Aucun client configuré.');
+  } catch (e) { msg('gsc-out', 'err', esc(e.message)); }
+  busy('btn-run-gsc', false);
+  loadGscLatest();
+}
+async function loadGscLatest() {
+  if (!getToken()) return;
+  try {
+    const { latest } = await api(GSC_URL, '/latest');
+    const rows = Object.values(latest || {}).sort((a, b) => a.clientName.localeCompare(b.clientName));
+    const table = document.getElementById('gsc-table');
+    table.style.display = rows.length ? '' : 'none';
+    table.querySelector('tbody').innerHTML = rows.map((r) => `<tr>
+      <td>${esc(r.clientName)}${r.mock ? ' <span class="pill warn">démo</span>' : ''}</td>
+      <td class="num">${esc(r.periodLabel)}</td>
+      <td class="num">${fmtInt(r.kpis.clicks.value)}</td>
+      <td class="num">${deltaCell(r.kpis.clicks.deltas.m1)}</td>
+      <td class="num">${deltaCell(r.kpis.clicks.deltas.m3)}</td>
+      <td class="num">${deltaCell(r.kpis.clicks.deltas.m6)}</td>
+      <td><a class="rep" href="${esc(r.url)}" target="_blank" rel="noopener">Ouvrir ↗</a></td>
+      <td><button class="small secondary" onclick="runGsc('${esc(r.clientId)}')">↻</button></td>
+    </tr>`).join('');
+  } catch {}
+}
+
+/* ---------- tracker GEO ---------- */
+async function runGeo(clientId) {
+  if (!ensureToken()) return;
+  if (!confirm(clientId
+    ? `Lancer un relevé de citations pour « ${clientId} » ? (appels API réels)`
+    : 'Lancer un relevé de citations pour TOUS les clients ? (~190 appels API, quelques minutes)')) return;
+  busy('btn-run-geo', true); busy('btn-run-geo-one', true);
+  try {
+    const r = await api(GEO_URL, '/run', { method: 'POST', body: JSON.stringify(clientId ? { client: clientId } : {}) });
+    for (const t of r.tracked) {
+      msg('geo-out', 'ok', `✅ ${esc(t.clientName)} : cité ${String(t.summary.citationRate).replace('.', ',')}% · mentionné ${String(t.summary.mentionRate).replace('.', ',')}% (${t.summary.answers} réponses)${t.notionLogged ? ' · loggé dans Notion' : ''}`);
+    }
+    for (const e of r.errors) msg('geo-out', 'err', `⛔ ${esc(e.clientId)} : ${esc(e.error)}`);
+  } catch (e) { msg('geo-out', 'err', esc(e.message)); }
+  busy('btn-run-geo', false); busy('btn-run-geo-one', false);
+  loadGeoLatest();
+}
+function runGeoOne() {
+  const id = prompt('Id du client (ex: simco, delphine, optel…)', 'simco');
+  if (id) runGeo(id.trim());
+}
+async function loadGeoLatest() {
+  if (!getToken()) return;
+  try {
+    const { latest } = await api(GEO_URL, '/latest');
+    const rows = Object.values(latest || {}).sort((a, b) => a.clientName.localeCompare(b.clientName));
+    const table = document.getElementById('geo-table');
+    table.style.display = rows.length ? '' : 'none';
+    const engineNames = { perplexity: 'Perplexity', anthropic: 'Claude', openai: 'ChatGPT', gemini: 'Gemini' };
+    table.querySelector('tbody').innerHTML = rows.map((r) => {
+      const engines = Object.entries(r.summary.perEngine)
+        .map(([n, e]) => e.ok ? `${engineNames[n] || n} ${e.cited}/${e.total}` : `${engineNames[n] || n} ✕`)
+        .join(' · ');
+      return `<tr>
+        <td>${esc(r.clientName)}${r.mock ? ' <span class="pill warn">démo</span>' : ''}</td>
+        <td class="num">${esc(r.date)}</td>
+        <td class="num"><b>${String(r.summary.citationRate).replace('.', ',')}%</b></td>
+        <td class="num">${String(r.summary.mentionRate).replace('.', ',')}%</td>
+        <td>${esc(engines)}</td>
+        <td><button class="small secondary" onclick="runGeo('${esc(r.clientId)}')">↻</button></td>
+      </tr>`;
+    }).join('');
+  } catch {}
+}
+
+refresh();
+</script>
+</body>
+</html>
