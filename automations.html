@@ -111,15 +111,17 @@ const GSC_URL = 'https://gsc-report-wassim.loumiwassim.workers.dev';
 const GEO_URL = 'https://geo-tracker-wassim.loumiwassim.workers.dev';
 
 /* Configs clients embarquées — poussées via les boutons de mise en route. */
+/* Propriétés vérifiées dans GSC le 18/08/2026 : toutes en « Préfixe d'URL »
+   (avec ou sans www selon le site), sauf agence-simco.com (propriété Domaine). */
 const GSC_CLIENTS = [
-  {"id":"myefarm","name":"MyeFarm","property":"sc-domain:myefarm.net"},
+  {"id":"myefarm","name":"MyeFarm","property":"https://www.myefarm.net/"},
   {"id":"simco","name":"Agence Simco","property":"sc-domain:agence-simco.com","notionPageId":"35dfe946b3848175b871f88c0ea1de5d"},
-  {"id":"crezabeille","name":"Crezabeille","property":"sc-domain:crezabeille.fr","notionPageId":"35dfe946b38481a4bddbc2a14abcacd0"},
-  {"id":"david-di2a","name":"David DI2A","property":"sc-domain:alarme-videosurveillance-rennes.fr","notionPageId":"379fe946b38481e8a0b4ff9850659364"},
-  {"id":"delphine","name":"Delphine (Courtier sur mesure)","property":"sc-domain:courtiersurmesure.fr","notionPageId":"347fe946b38481a2a5eceace37c89c01"},
-  {"id":"julien-mcr","name":"Julien MCR","property":"sc-domain:serrurerie-porte-blindee-rennes.fr","notionPageId":"379fe946b384815bb471cbcf38f7c90e"},
-  {"id":"optel","name":"SEO EVA (Optel)","property":"sc-domain:optel-services.fr","notionPageId":"347fe946b38481c3825cd4d1780c60a0"},
-  {"id":"wassim","name":"Wassim Loumi","property":"sc-domain:wassimloumicorporate.fr","notionPageId":"35dfe946b384817d8e21c15d706ddf83"}
+  {"id":"crezabeille","name":"Crezabeille","property":"https://crezabeille.fr/","notionPageId":"35dfe946b38481a4bddbc2a14abcacd0"},
+  {"id":"david-di2a","name":"David DI2A","property":"https://www.alarme-videosurveillance-rennes.fr/","notionPageId":"379fe946b38481e8a0b4ff9850659364"},
+  {"id":"delphine","name":"Delphine (Courtier sur mesure)","property":"https://courtiersurmesure.fr/","notionPageId":"347fe946b38481a2a5eceace37c89c01"},
+  {"id":"julien-mcr","name":"Julien MCR","property":"https://www.serrurerie-porte-blindee-rennes.fr/","notionPageId":"379fe946b384815bb471cbcf38f7c90e"},
+  {"id":"optel","name":"SEO EVA (Optel)","property":"https://optel-services.fr/","notionPageId":"347fe946b38481c3825cd4d1780c60a0"},
+  {"id":"wassim","name":"Wassim Loumi","property":"https://www.wassimloumicorporate.fr/","notionPageId":"35dfe946b384817d8e21c15d706ddf83"}
 ];
 
 const GEO_CLIENTS = [
