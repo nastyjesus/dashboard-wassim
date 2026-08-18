@@ -14,6 +14,7 @@
 //   GET  /latest          — auth  (dernier rapport par client — pour le dashboard)
 
 import { GscClient } from './gsc-client.js';
+import { checkKeyFormat } from './google-auth.js';
 import { resolveMonths, buildReport } from './report.js';
 import { renderReport } from './render.js';
 import { logReportToNotion, notionConfigured } from './notion-log.js';
@@ -31,7 +32,11 @@ export default {
     const path = url.pathname.replace(/\/+$/, '') || '/';
 
     if (path === '/health' || path === '/') {
-      return jsonResponse({ ok: true, mock: isMock(env), ts: new Date().toISOString() }, 200, request, env);
+      const googleKey = await checkKeyFormat(env);
+      return jsonResponse(
+        { ok: true, mock: isMock(env), googleKey, ts: new Date().toISOString() },
+        200, request, env,
+      );
     }
 
     // Rapport public — le slug (aléatoire, 26+ caractères) fait office de capacité.

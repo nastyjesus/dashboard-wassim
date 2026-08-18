@@ -55,23 +55,81 @@ export async function getAccessToken(env) {
 }
 
 /**
- * Importe la clé privée PEM (PKCS8) du service account.
- * Accepte les \n littéraux (copier-coller du JSON Google) comme les vrais retours ligne.
+ * Normalise la clé privée quel que soit le format collé dans le secret :
+ * - le JSON complet du service account (on extrait `private_key`),
+ * - la valeur avec ou sans guillemets,
+ * - des `\n` littéraux (copier-coller du JSON) ou de vrais retours ligne.
+ * Renvoie le corps base64 du bloc PKCS8, ou jette une erreur explicite.
+ * @param {string} raw
+ * @returns {string}
  */
-async function importPrivateKey(pem) {
-  const body = pem
-    .replace(/\\n/g, '\n')
-    .replace(/-----BEGIN PRIVATE KEY-----/, '')
-    .replace(/-----END PRIVATE KEY-----/, '')
-    .replace(/\s+/g, '');
-  const raw = Uint8Array.from(atob(body), (c) => c.charCodeAt(0));
-  return crypto.subtle.importKey(
-    'pkcs8',
-    raw.buffer,
-    { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' },
-    false,
-    ['sign'],
-  );
+export function extractPemBody(raw) {
+  let s = String(raw || '').trim();
+  if (!s) throw new Error('GOOGLE_SA_PRIVATE_KEY vide');
+  // JSON complet du service account collé tel quel ?
+  if (s.startsWith('{')) {
+    try {
+      const parsed = JSON.parse(s);
+      if (parsed.private_key) s = parsed.private_key;
+    } catch {
+      // JSON invalide (souvent tronqué) — on tente quand même l'extraction du bloc PEM.
+    }
+  }
+  s = s.replace(/\\n/g, '\n').replace(/^["']+|["'],?$/g, '');
+  const m = s.match(/-----BEGIN PRIVATE KEY-----([\s\S]*?)-----END PRIVATE KEY-----/);
+  if (!m) {
+    throw new Error(
+      'GOOGLE_SA_PRIVATE_KEY: bloc "-----BEGIN PRIVATE KEY-----…-----END PRIVATE KEY-----" introuvable — '
+      + 'colle le champ private_key complet du JSON (ou le JSON entier), sans le tronquer',
+    );
+  }
+  const body = m[1].replace(/[^A-Za-z0-9+/=]/g, '');
+  // Une clé RSA 2048 PKCS8 fait ~1600 caractères base64 : nettement moins = tronquée.
+  if (body.length < 1000) {
+    throw new Error(`GOOGLE_SA_PRIVATE_KEY: clé tronquée (${body.length} caractères base64) — recolle-la en entier`);
+  }
+  return body;
+}
+
+/** Importe la clé privée PKCS8 pour signature RS256. */
+export async function importPrivateKey(pem) {
+  const body = extractPemBody(pem);
+  let rawBytes;
+  try {
+    rawBytes = Uint8Array.from(atob(body), (c) => c.charCodeAt(0));
+  } catch {
+    throw new Error('GOOGLE_SA_PRIVATE_KEY: base64 invalide — la clé a été altérée au collage, recolle-la depuis key.json');
+  }
+  try {
+    return await crypto.subtle.importKey(
+      'pkcs8',
+      rawBytes.buffer,
+      { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' },
+      false,
+      ['sign'],
+    );
+  } catch (e) {
+    throw new Error(
+      'GOOGLE_SA_PRIVATE_KEY: clé illisible (PKCS8 invalide) — probablement tronquée ou altérée au collage. '
+      + 'Regénère une clé (`gcloud iam service-accounts keys create`) et recolle le champ private_key tel quel. '
+      + `Détail: ${e.message || e}`,
+    );
+  }
+}
+
+/**
+ * Diagnostic du format de clé pour /health : n'expose rien, dit juste si la
+ * clé stockée est exploitable.
+ * @returns {Promise<{ok: boolean, error?: string}>}
+ */
+export async function checkKeyFormat(env) {
+  if (!hasGoogleCreds(env)) return { ok: false, error: 'GOOGLE_SA_EMAIL / GOOGLE_SA_PRIVATE_KEY manquants' };
+  try {
+    await importPrivateKey(env.GOOGLE_SA_PRIVATE_KEY);
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, error: e.message || String(e) };
+  }
 }
 
 function b64url(str) {
