@@ -11,6 +11,10 @@ on:
         description: "Provision/refresh LLM + Notion + auth secrets before deploy"
         type: boolean
         default: true
+      mock-mode:
+        description: "Deploy with MOCK_MODE (demo data)"
+        type: boolean
+        default: false
 
 jobs:
   deploy:
@@ -35,6 +39,31 @@ jobs:
       - run: npm ci
 
       - run: npm test
+
+      # Crée le namespace KV s'il n'existe pas et injecte son id dans
+      # wrangler.toml — aucune manipulation manuelle Cloudflare nécessaire.
+      - name: Ensure KV namespace and inject id
+        run: |
+          title="geo-tracker-wassim-RUNS"
+          get_id() {
+            npx wrangler kv namespace list 2>/dev/null \
+              | node -e "let d='';process.stdin.on('data',c=>d+=c).on('end',()=>{const a=d.indexOf('[');const b=d.lastIndexOf(']');let l=[];try{l=JSON.parse(d.slice(a,b+1))}catch{};const n=l.find(x=>x.title===process.argv[1]);process.stdout.write(n?n.id:'')})" "$title"
+          }
+          id=$(get_id)
+          if [ -z "$id" ]; then
+            npx wrangler kv namespace create RUNS
+            id=$(get_id)
+          fi
+          if [ -z "$id" ]; then echo "Could not resolve KV namespace id for $title" >&2; exit 1; fi
+          sed -i "s/^id = \".*\"/id = \"$id\"/" wrangler.toml
+          grep '^id = ' wrangler.toml
+
+      - name: Set MOCK_MODE
+        env:
+          MODE: ${{ inputs.mock-mode }}
+        run: |
+          sed -i "s/^MOCK_MODE = \".*\"/MOCK_MODE = \"$MODE\"/" wrangler.toml
+          grep '^MOCK_MODE' wrangler.toml
 
       - name: Provision secrets
         if: ${{ inputs.provision-secrets }}

@@ -66,14 +66,21 @@ simplement sauté en production (le run continue avec les autres).
 
 ## Mise en service (une fois les clés prêtes)
 
-1. **KV** : `npx wrangler kv namespace create RUNS` → reporter l'id dans
-   `wrangler.toml`.
+> Le workflow GitHub `deploy-geo-tracker-worker.yml` fait presque tout : il
+> crée le namespace KV s'il n'existe pas, injecte son id, pousse les secrets
+> GitHub vers le worker et déploie (MOCK_MODE désactivé par défaut,
+> réactivable via l'input `mock-mode`).
+
+1. **KV** : rien à faire — créé automatiquement au premier deploy par le
+   workflow (en local : `npx wrangler kv namespace create RUNS` + id dans
+   `wrangler.toml`).
 2. **Clés API** (au moins une) : Perplexity, Anthropic, OpenAI, Gemini.
-3. **Secrets** (`npx wrangler secret put …`) : `PERPLEXITY_API_KEY`,
-   `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `GEMINI_API_KEY`, `NOTION_TOKEN`,
-   `WASSIM_AUTH_TOKEN`.
-4. Passer `MOCK_MODE` à `"false"`, ajuster les modèles dans `[vars]` si besoin,
-   puis `npm run deploy` (ou le workflow GitHub `deploy-geo-tracker-worker.yml`).
+3. **Secrets GitHub** (Settings → Secrets → Actions ; `NOTION_TOKEN`,
+   `WASSIM_AUTH_TOKEN`, `CLOUDFLARE_*` existent déjà pour bridge-proxy) :
+   `PERPLEXITY_API_KEY`, `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`,
+   `GEMINI_API_KEY` — un moteur sans clé est simplement sauté.
+4. Lancer le workflow `Deploy geo-tracker worker` (Actions) ; ajuster les
+   modèles dans `[vars]` si besoin.
 5. Charger la config clients via `PUT /clients`, puis tester un
    `POST /run {"client": "..."}` et vérifier le log Notion.
 

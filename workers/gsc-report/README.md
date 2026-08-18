@@ -56,8 +56,15 @@ récap dans la page Notion du client.
 
 ## Mise en service (une fois les clés prêtes)
 
-1. **KV** : `npx wrangler kv namespace create REPORTS` → reporter l'id dans
-   `wrangler.toml`.
+> Le workflow GitHub `deploy-gsc-report-worker.yml` fait presque tout : il crée
+> le namespace KV s'il n'existe pas, injecte son id, pousse les secrets GitHub
+> vers le worker et déploie (MOCK_MODE désactivé par défaut, réactivable via
+> l'input `mock-mode`). Il ne reste qu'à préparer le service account et les
+> secrets GitHub ci-dessous.
+
+1. **KV** : rien à faire — créé automatiquement au premier deploy par le
+   workflow (en local : `npx wrangler kv namespace create REPORTS` + id dans
+   `wrangler.toml`).
 2. **Service account Google** :
    - Google Cloud Console → créer un projet (ou réutiliser) → activer l'API
      « Google Search Console API ».
@@ -65,15 +72,13 @@ récap dans la page Notion du client.
    - Dans **chaque propriété GSC** (Search Console → Paramètres → Utilisateurs
      et autorisations), ajouter l'email du service account en accès complet
      restreint (« Full » n'est pas requis, « Restricted » suffit pour la lecture).
-3. **Secrets** (`npx wrangler secret put …`) :
+3. **Secrets GitHub** (Settings → Secrets → Actions ; `NOTION_TOKEN`,
+   `WASSIM_AUTH_TOKEN`, `CLOUDFLARE_*` existent déjà pour bridge-proxy) :
    - `GOOGLE_SA_EMAIL` — email du service account
    - `GOOGLE_SA_PRIVATE_KEY` — champ `private_key` du JSON (avec les `\n`)
-   - `NOTION_TOKEN` — intégration Notion (partagée avec les pages clients)
-   - `WASSIM_AUTH_TOKEN` — même token partagé que bridge-proxy
-4. Passer `MOCK_MODE` à `"false"` dans `wrangler.toml`, définir
-   `PUBLIC_BASE_URL` (URL publique du worker, utilisée par le cron pour les
-   liens), puis `npm run deploy` (ou le workflow GitHub
-   `deploy-gsc-report-worker.yml`).
+4. Lancer le workflow `Deploy gsc-report worker` (Actions). Après le premier
+   deploy, reporter l'URL réelle du worker dans `PUBLIC_BASE_URL`
+   (`wrangler.toml`) — elle sert au cron à construire les liens des rapports.
 5. Charger la config clients via `PUT /clients`, puis tester un
    `POST /run {"client": "...", "period": "2026-07"}`.
 
