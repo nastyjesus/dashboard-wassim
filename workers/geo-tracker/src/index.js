@@ -13,7 +13,7 @@
 //   GET  /latest          — auth  (dernier relevé par client — pour le dashboard)
 
 import { enabledEngines, askEngine, isMock } from './engines.js';
-import { analyzeAnswer, summarize } from './detect.js';
+import { analyzeAnswer, summarize, keepExistingRun } from './detect.js';
 import { logRunToNotion, notionConfigured } from './notion-log.js';
 import { jsonResponse, preflightResponse } from './cors.js';
 import { logger } from './logger.js';
@@ -191,15 +191,22 @@ async function runTracking(env, opts = {}) {
       };
 
       let previousRun = null;
+      let stored = true;
       if (env.RUNS) {
         const history = await listRuns(env, client.id);
         previousRun = [...history].reverse().find((r) => r.date < date) || null;
-        await env.RUNS.put(`run:${client.id}:${date}`, JSON.stringify(run));
+        const existing = history.find((r) => r.date === date) || null;
+        if (keepExistingRun(existing, run)) {
+          stored = false;
+          logger.warn('run.empty.discarded', { client: client.id, date });
+        } else {
+          await env.RUNS.put(`run:${client.id}:${date}`, JSON.stringify(run));
+        }
       }
 
       let notionLogged = false;
       let notionError;
-      if (opts.notion && client.notionPageId && notionConfigured(env)) {
+      if (opts.notion && client.notionPageId && notionConfigured(env) && run.summary.answers > 0) {
         try {
           await logRunToNotion(env, client.notionPageId, run, previousRun);
           notionLogged = true;
@@ -211,7 +218,7 @@ async function runTracking(env, opts = {}) {
         notionError = 'NOTION_TOKEN absent du worker';
       }
 
-      tracked.push({ ...runSummary(run), notionLogged, ...(notionError ? { notionError } : {}) });
+      tracked.push({ ...runSummary(run), notionLogged, stored, ...(notionError ? { notionError } : {}) });
     } catch (e) {
       logger.error('tracking.failed', { client: client.id, err: String(e) });
       errors.push({ clientId: client.id, error: e.message || String(e) });

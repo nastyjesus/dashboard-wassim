@@ -47,6 +47,16 @@ export function analyzeAnswer(answer, client) {
 }
 
 /**
+ * Un relevé sans aucune réponse (tous moteurs en échec — crédits, quotas…)
+ * ne doit jamais écraser un relevé valide du même jour.
+ * @param {{summary?: {answers: number}}|null} existing run déjà stocké pour la date
+ * @param {{summary: {answers: number}}} next nouveau run
+ */
+export function keepExistingRun(existing, next) {
+  return Boolean(existing && existing.summary && existing.summary.answers > 0 && next.summary.answers === 0);
+}
+
+/**
  * Agrège les résultats d'un run en synthèse : taux globaux, détail par moteur,
  * domaines concurrents les plus cités (sources ≠ client).
  * @param {Record<string, {ok: boolean, results?: Array<{mentioned:boolean,cited:boolean,sourceDomains:string[]}>}>} engines
