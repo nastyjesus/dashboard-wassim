@@ -198,13 +198,17 @@ async function runReports(env, origin, opts = {}) {
       }
 
       let notionLogged = false;
+      let notionError;
       if (opts.notion && client.notionPageId && notionConfigured(env)) {
         try {
           await logReportToNotion(env, client.notionPageId, report, reportUrl);
           notionLogged = true;
         } catch (e) {
           logger.error('notion.log.failed', { client: client.id, err: String(e) });
+          notionError = String(e.message || e).slice(0, 300);
         }
+      } else if (opts.notion && client.notionPageId) {
+        notionError = 'NOTION_TOKEN absent du worker';
       }
 
       generated.push({
@@ -213,6 +217,7 @@ async function runReports(env, origin, opts = {}) {
         url: reportUrl,
         mock: report.meta.mock,
         notionLogged,
+        ...(notionError ? { notionError } : {}),
         kpis: summaryKpis(report),
       });
     } catch (e) {

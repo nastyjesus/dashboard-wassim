@@ -121,7 +121,7 @@ async function askOpenai(env, prompt) {
 }
 
 async function askGemini(env, prompt) {
-  const model = env.GEMINI_MODEL || 'gemini-2.5-flash';
+  const model = env.GEMINI_MODEL || 'gemini-3.6-flash';
   const data = await postJson(
     `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`,
     {

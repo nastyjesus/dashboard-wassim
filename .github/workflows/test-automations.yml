@@ -20,6 +20,12 @@ on:
         description: "Client GEO (id, vide = tous les clients un par un)"
         type: string
         default: ""
+  # Déclenchement par push : committer .github/test-request.json sur la branche
+  # de travail lance le test avec les paramètres du fichier. Permet de piloter
+  # les tests depuis une session distante sans droit « Actions write ».
+  push:
+    branches: [claude/seo-expert-optimization-pu2z52]
+    paths: ['.github/test-request.json']
 
 jobs:
   test:
@@ -31,6 +37,22 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Résoudre les paramètres (dispatch ou test-request.json)
+        env:
+          IN_TARGET: ${{ inputs.target }}
+          IN_PERIOD: ${{ inputs.gsc-period }}
+          IN_CLIENT: ${{ inputs.geo-client }}
+        run: |
+          if [ "${{ github.event_name }}" = "push" ] && [ -f .github/test-request.json ]; then
+            TARGET=$(node -e "console.log(require('./.github/test-request.json').target||'all')")
+            PERIOD=$(node -e "console.log(require('./.github/test-request.json')['gsc-period']||'')")
+            CLIENT=$(node -e "console.log(require('./.github/test-request.json')['geo-client']||'')")
+          else
+            TARGET="${IN_TARGET:-all}"; PERIOD="$IN_PERIOD"; CLIENT="$IN_CLIENT"
+          fi
+          { echo "TARGET=$TARGET"; echo "PERIOD=$PERIOD"; echo "CLIENT=$CLIENT"; } >> "$GITHUB_ENV"
+          echo "→ target=$TARGET period=$PERIOD client=$CLIENT"
+
       - name: Health des deux workers
         run: |
           echo "== GSC /health =="
@@ -39,7 +61,7 @@ jobs:
           curl -sS --max-time 30 -w '\nHTTP %{http_code}\n' "$GEO/health"
 
       - name: Pousser les configs clients
-        if: inputs.target == 'push-config' || inputs.target == 'all'
+        if: env.TARGET == 'push-config' || env.TARGET == 'all'
         run: |
           node .github/scripts/extract-configs.js gsc > /tmp/gsc.json
           node .github/scripts/extract-configs.js geo > /tmp/geo.json
@@ -51,9 +73,7 @@ jobs:
             -H "X-Wassim-Auth: $TOKEN" -H "Content-Type: application/json" --data @/tmp/geo.json
 
       - name: Générer les rapports GSC
-        if: inputs.target == 'run-gsc' || inputs.target == 'all'
-        env:
-          PERIOD: ${{ inputs.gsc-period }}
+        if: env.TARGET == 'run-gsc' || env.TARGET == 'all'
         run: |
           body='{}'
           [ -n "$PERIOD" ] && body="{\"period\":\"$PERIOD\"}"
@@ -62,12 +82,10 @@ jobs:
             -H "X-Wassim-Auth: $TOKEN" -H "Content-Type: application/json" -d "$body"
 
       - name: Relevé GEO (client par client pour éviter les timeouts)
-        if: inputs.target == 'run-geo' || inputs.target == 'all'
-        env:
-          ONLY: ${{ inputs.geo-client }}
+        if: env.TARGET == 'run-geo' || env.TARGET == 'all'
         run: |
-          if [ -n "$ONLY" ]; then
-            ids="$ONLY"
+          if [ -n "$CLIENT" ]; then
+            ids="$CLIENT"
           else
             node .github/scripts/extract-configs.js geo > /tmp/geo.json
             ids=$(node -e "console.log(JSON.parse(require('fs').readFileSync('/tmp/geo.json')).map(c=>c.id).join(' '))")

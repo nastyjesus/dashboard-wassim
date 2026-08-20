@@ -1,11 +1,12 @@
-// Rendu HTML du rapport — adapté du template du skill wassim-gsc-report
-// (assets/template.html). Différences avec la version artefact :
-//   - insights injectés côté serveur (pas de window.cowork ici),
+// Rendu HTML du rapport — charte graphique wassimloumicorporate.fr :
+// palette or (#B8873A) sur fonds chauds, titres EB Garamond, corps Raleway.
+// Le vert/rouge des deltas est conservé en version discrète et réchauffée
+// (couleur fonctionnelle : une hausse/baisse doit se lire d'un coup d'œil).
+//   - insights injectés côté serveur,
 //   - trois horizons de comparaison par KPI (1 mois / 3 mois / 6 mois),
 //   - carte « Tendance 6 mois » (totaux mensuels),
 //   - tables top requêtes / top pages,
 //   - bandeau "données de démonstration" en mode mock.
-// Charte : cohérente avec wassimloumicorporate.fr (bleu profond / orange).
 
 import { fmt, HORIZONS } from './report.js';
 
@@ -67,7 +68,7 @@ function shortenUrl(u) {
  */
 export function renderReport(report) {
   const { meta, kpis, series, trend, tables, insights } = report;
-  const siteName = meta.property.replace('sc-domain:', '');
+  const siteName = meta.property.replace('sc-domain:', '').replace(/^https?:\/\//, '').replace(/\/$/, '');
   const generated = new Date(meta.generatedAt).toLocaleDateString('fr-FR', {
     day: 'numeric', month: 'long', year: 'numeric',
   });
@@ -79,52 +80,80 @@ export function renderReport(report) {
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex">
 <title>Rapport SEO — ${esc(siteName)} — ${esc(meta.period.label)}</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&family=Raleway:wght@300;400;500;600&display=swap">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
 <style>
   :root {
-    --accent: #1e3a5f; --neg: #e85a4f; --pos: #2e7d52; --stable: #8a8f98;
-    --bg: #f6f8fa; --card: #ffffff; --text: #1c2733; --muted: #5c6773;
+    --gold: #B8873A; --gold-light: #e8d9c0; --gold-pale: #faf4ec;
+    --dark: #1a1208; --mid: #5a4e3a; --muted: #8a7a65;
+    --off: #faf8f5; --cream: #f0ebe3; --white: #ffffff;
+    --border: rgba(184,135,58,0.18);
+    --pos: #3e7d55; --neg: #b5472f; --stable: #8a7a65;
   }
   * { box-sizing: border-box; }
-  body { margin: 0; background: var(--bg); color: var(--text);
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-    line-height: 1.5; }
-  .wrap { max-width: 980px; margin: 0 auto; padding: 32px 20px 48px; }
-  .mock-banner { background: #fff3cd; color: #7a5d00; border: 1px solid #ffe08a;
-    border-radius: 8px; padding: 10px 16px; font-size: .88rem; margin-bottom: 20px; }
-  header.report-head h1 { color: var(--accent); font-size: 1.5rem; margin: 0 0 4px; }
-  header.report-head .periods { color: var(--muted); font-size: .95rem; }
-  .kpis { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin: 28px 0; }
-  .kpi { background: var(--card); border-radius: 12px; padding: 20px 24px;
-    box-shadow: 0 1px 3px rgba(0,0,0,.08), 0 1px 2px rgba(0,0,0,.04); }
-  .kpi .label { color: var(--muted); font-size: .82rem; text-transform: uppercase; letter-spacing: .04em; }
-  .kpi .value { font-size: 1.9rem; font-weight: 700; color: var(--accent); margin: 6px 0 8px; }
-  .kpi .delta { font-size: .82rem; font-weight: 600; display: flex; align-items: center;
+  html, body { overflow-x: hidden; }
+  body { margin: 0; background: var(--off); color: var(--dark); line-height: 1.6;
+    font-family: 'Raleway', -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    font-weight: 300; }
+  .wrap { max-width: 980px; margin: 0 auto; padding: 40px 20px 56px; }
+  .mock-banner { background: var(--cream); color: var(--mid); border-left: 2px solid var(--gold);
+    border-radius: 2px; padding: 11px 16px; font-size: .88rem; margin-bottom: 24px; font-weight: 400; }
+  .head-label { display: flex; align-items: center; gap: 12px; margin-bottom: 8px; }
+  .head-label::before { content: ""; width: 24px; height: 1px; background: var(--gold); }
+  .head-label span { font-size: .68rem; text-transform: uppercase; letter-spacing: .2em;
+    color: var(--gold); font-weight: 500; }
+  header.report-head h1 { font-family: 'EB Garamond', Georgia, serif; font-weight: 500;
+    color: var(--dark); font-size: 2rem; margin: 0 0 4px; letter-spacing: .01em; }
+  header.report-head .periods { color: var(--mid); font-size: .9rem; font-weight: 300; }
+  .kpis { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin: 30px 0 24px; }
+  .kpi { background: var(--white); border: 1px solid var(--border); border-top: 2px solid var(--gold);
+    border-radius: 2px; padding: 20px 22px; }
+  .kpi .label { color: var(--gold); font-size: .66rem; text-transform: uppercase;
+    letter-spacing: .18em; font-weight: 500; }
+  .kpi .value { font-family: 'EB Garamond', Georgia, serif; font-size: 2.1rem; font-weight: 500;
+    color: var(--dark); margin: 6px 0 10px; font-variant-numeric: tabular-nums; }
+  .kpi .delta { font-size: .8rem; font-weight: 600; display: flex; align-items: center;
     justify-content: space-between; gap: 8px; padding: 2px 0; }
-  .kpi .delta .h { color: var(--muted); font-weight: 500; font-size: .76rem; }
+  .kpi .delta .h { color: var(--muted); font-weight: 400; font-size: .74rem; }
   .delta.up { color: var(--pos); } .delta.down { color: var(--neg); } .delta.flat { color: var(--stable); }
-  .card { background: var(--card); border-radius: 12px; padding: 24px;
-    box-shadow: 0 1px 3px rgba(0,0,0,.08), 0 1px 2px rgba(0,0,0,.04); margin-bottom: 24px; }
-  .card h2 { color: var(--accent); font-size: 1.1rem; margin: 0 0 16px; }
-  .toggle { display: inline-flex; gap: 8px; margin-bottom: 12px; }
-  .toggle button { border: 1px solid #d0d7de; background: #fff; color: var(--muted);
-    border-radius: 8px; padding: 6px 14px; cursor: pointer; font-size: .85rem; }
-  .toggle button.active { background: var(--accent); color: #fff; border-color: var(--accent); }
-  #insights p { margin: 0 0 10px; }
+  .card { background: var(--white); border: 1px solid var(--border); border-left: 2px solid var(--gold);
+    border-radius: 2px; padding: 24px 26px; margin-bottom: 20px; }
+  .card h2 { font-family: 'EB Garamond', Georgia, serif; font-weight: 500; color: var(--dark);
+    font-size: 1.3rem; margin: 0 0 16px; }
+  .toggle { display: inline-flex; gap: 8px; margin-bottom: 14px; }
+  .toggle button { border: 1px solid var(--border); background: var(--white); color: var(--muted);
+    border-radius: 2px; padding: 6px 16px; cursor: pointer; font-size: .72rem;
+    font-family: 'Raleway', sans-serif; font-weight: 600; letter-spacing: .1em; text-transform: uppercase; }
+  .toggle button.active { background: var(--gold); color: var(--white); border-color: var(--gold); }
+  #insights p { margin: 0 0 12px; font-size: .95rem; color: var(--mid); font-weight: 400; max-width: 68ch; }
+  #insights p:first-child { font-family: 'EB Garamond', Georgia, serif; font-style: italic;
+    font-size: 1.15rem; color: var(--dark); }
   .tbl-scroll { overflow-x: auto; }
-  table { border-collapse: collapse; width: 100%; font-size: .88rem; }
-  th { text-align: left; color: var(--muted); font-weight: 600; font-size: .78rem;
-    text-transform: uppercase; letter-spacing: .04em; padding: 8px 12px 8px 0; border-bottom: 1px solid #e3e8ee; }
-  td { padding: 8px 12px 8px 0; border-bottom: 1px solid #eef1f5; white-space: nowrap; }
-  td.k { white-space: normal; max-width: 340px; overflow-wrap: anywhere; }
-  footer.report-foot { color: var(--muted); font-size: .82rem; text-align: center; margin-top: 32px; }
-  @media (max-width: 720px) { .kpis { grid-template-columns: repeat(2, 1fr); } .kpi .value { font-size: 1.6rem; } }
+  table { border-collapse: collapse; width: 100%; font-size: .87rem; }
+  th { text-align: left; color: var(--muted); font-weight: 500; font-size: .66rem;
+    text-transform: uppercase; letter-spacing: .15em; padding: 8px 12px 8px 0;
+    border-bottom: 1px solid var(--gold-light); }
+  td { padding: 9px 12px 9px 0; border-bottom: 1px solid var(--border); white-space: nowrap;
+    color: var(--mid); font-weight: 400; font-variant-numeric: tabular-nums; }
+  td.k { white-space: normal; max-width: 340px; overflow-wrap: anywhere; color: var(--dark); }
+  footer.report-foot { color: var(--muted); font-size: .78rem; text-align: center; margin-top: 34px;
+    font-weight: 300; }
+  footer.report-foot b { color: var(--gold); font-weight: 500; }
+  @media (max-width: 720px) {
+    .wrap { padding: 28px 14px 48px; }
+    .kpis { grid-template-columns: repeat(2, 1fr); }
+    .kpi .value { font-size: 1.7rem; }
+    header.report-head h1 { font-size: 1.6rem; }
+  }
 </style>
 </head>
 <body>
 <div class="wrap">
   ${meta.mock ? '<div class="mock-banner">⚠️ Données de démonstration — mode test, sans connexion à Search Console.</div>' : ''}
   <header class="report-head">
+    <div class="head-label"><span>Rapport SEO mensuel</span></div>
     <h1>${esc(siteName)}</h1>
     <div class="periods">Période : ${esc(meta.period.label)} · Comparaisons : 1 mois (${esc(meta.compareLabels.m1)}) · 3 mois (${esc(meta.compareLabels.m3)}) · 6 mois (${esc(meta.compareLabels.m6)})</div>
   </header>
@@ -180,7 +209,7 @@ export function renderReport(report) {
   </div>
 
   <footer class="report-foot">
-    Généré le ${esc(generated)} · Données : Google Search Console · ${esc(siteName)}
+    Généré le ${esc(generated)} · Données : Google Search Console · <b>${esc(siteName)}</b>
   </footer>
 </div>
 
@@ -191,6 +220,9 @@ export function renderReport(report) {
   const PERIOD = ${JSON.stringify(meta.period.label)};
   const COMPARE = ${JSON.stringify(meta.compareLabels.m1)};
 
+  Chart.defaults.font.family = "'Raleway', sans-serif";
+  Chart.defaults.color = '#8a7a65';
+
   // — Courbe quotidienne : mois analysé vs mois précédent —
   const labels = SERIES_CURRENT.map(d => 'J' + d.day);
   let metric = 'clicks';
@@ -199,24 +231,25 @@ export function renderReport(report) {
     const ds = [{
       label: PERIOD,
       data: SERIES_CURRENT.map(d => d[metric]),
-      borderColor: '#1e3a5f', backgroundColor: 'rgba(30,58,95,.08)',
+      borderColor: '#B8873A', backgroundColor: 'rgba(184,135,58,.10)',
       tension: .3, fill: true, pointRadius: 0
     }];
     if (SERIES_COMPARE && SERIES_COMPARE.length) {
       ds.push({
         label: COMPARE,
         data: SERIES_COMPARE.map(d => d[metric]),
-        borderColor: '#e85a4f', borderDash: [5,4],
+        borderColor: '#8a7a65', borderDash: [5,4],
         tension: .3, fill: false, pointRadius: 0
       });
     }
     return ds;
   };
+  const gridColor = 'rgba(184,135,58,.12)';
   const chart = new Chart(ctx, {
     type: 'line',
     data: { labels, datasets: datasets() },
     options: { responsive: true, plugins: { legend: { position: 'bottom' } },
-      scales: { y: { beginAtZero: true } } }
+      scales: { y: { beginAtZero: true, grid: { color: gridColor } }, x: { grid: { display: false } } } }
   });
   function setMetric(m, btnOn, btnOff) {
     metric = m;
@@ -229,7 +262,7 @@ export function renderReport(report) {
   bClicks.onclick = () => setMetric('clicks', bClicks, bImpr);
   bImpr.onclick = () => setMetric('impressions', bImpr, bClicks);
 
-  // — Tendance 6 mois : totaux mensuels (le mois analysé en plein, le reste atténué) —
+  // — Tendance 6 mois : totaux mensuels (le mois analysé en or plein) —
   let trendMetric = 'clicks';
   const tctx = document.getElementById('trend-chart');
   const trendData = () => ({
@@ -237,15 +270,15 @@ export function renderReport(report) {
     datasets: [{
       label: trendMetric === 'clicks' ? 'Clics / mois' : 'Impressions / mois',
       data: TREND.map(t => t[trendMetric]),
-      backgroundColor: TREND.map((t, i) => i === TREND.length - 1 ? '#1e3a5f' : 'rgba(30,58,95,.35)'),
-      borderRadius: 6,
+      backgroundColor: TREND.map((t, i) => i === TREND.length - 1 ? '#B8873A' : 'rgba(184,135,58,.30)'),
+      borderRadius: 2,
     }]
   });
   const trendChart = new Chart(tctx, {
     type: 'bar',
     data: trendData(),
     options: { responsive: true, plugins: { legend: { display: false } },
-      scales: { y: { beginAtZero: true } } }
+      scales: { y: { beginAtZero: true, grid: { color: gridColor } }, x: { grid: { display: false } } } }
   });
   function setTrendMetric(m, btnOn, btnOff) {
     trendMetric = m;

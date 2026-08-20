@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { hostOf, hostMatches, analyzeAnswer, summarize } from '../src/detect.js';
+import { hostOf, hostMatches, analyzeAnswer, summarize, keepExistingRun } from '../src/detect.js';
 
 const CLIENT = { domain: 'acme.fr', aliases: ['ACME Conseil'] };
 
@@ -85,6 +85,9 @@ describe('summarize', () => {
     expect(s.mentionRate).toBe(50);
     expect(s.perEngine.perplexity).toEqual({ ok: true, total: 2, cited: 1, mentioned: 2 });
     expect(s.perEngine.openai).toEqual({ ok: false });
+    // Un moteur en échec remonte son message d'erreur pour diagnostic direct.
+    const withErr = summarize({ gemini: { ok: false, error: 'gemini 400: API key not valid' } }, { domain: 'acme.fr' });
+    expect(withErr.perEngine.gemini.error).toContain('API key not valid');
     expect(s.topCompetitors[0]).toEqual({ domain: 'semrush.com', count: 3 });
     // le domaine du client n'apparaît jamais en concurrent
     expect(s.topCompetitors.find((c) => c.domain === 'acme.fr')).toBeUndefined();
@@ -94,5 +97,16 @@ describe('summarize', () => {
     const s = summarize({ openai: { ok: false } }, { domain: 'acme.fr' });
     expect(s.answers).toBe(0);
     expect(s.citationRate).toBe(0);
+  });
+});
+
+describe('keepExistingRun', () => {
+  it('un run vide n\'écrase pas un bon relevé du même jour', () => {
+    const good = { summary: { answers: 10 } };
+    const empty = { summary: { answers: 0 } };
+    expect(keepExistingRun(good, empty)).toBe(true);   // garder le bon
+    expect(keepExistingRun(good, good)).toBe(false);   // un bon run remplace
+    expect(keepExistingRun(empty, empty)).toBe(false); // rien à protéger
+    expect(keepExistingRun(null, empty)).toBe(false);  // premier relevé du jour
   });
 });

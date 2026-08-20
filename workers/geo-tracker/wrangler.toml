@@ -17,7 +17,7 @@ NOTION_API_BASE = "https://api.notion.com"
 PERPLEXITY_MODEL = "sonar"
 ANTHROPIC_MODEL = "claude-sonnet-4-5"
 OPENAI_MODEL = "gpt-4o"
-GEMINI_MODEL = "gemini-2.5-flash"
+GEMINI_MODEL = "gemini-3.6-flash"
 # Active le mode mock tant que les clés API ne sont pas configurées.
 # Mettre à "false" en production (ou `wrangler secret put MOCK_MODE`).
 MOCK_MODE = "true"
