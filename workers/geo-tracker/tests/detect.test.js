@@ -85,6 +85,9 @@ describe('summarize', () => {
     expect(s.mentionRate).toBe(50);
     expect(s.perEngine.perplexity).toEqual({ ok: true, total: 2, cited: 1, mentioned: 2 });
     expect(s.perEngine.openai).toEqual({ ok: false });
+    // Un moteur en échec remonte son message d'erreur pour diagnostic direct.
+    const withErr = summarize({ gemini: { ok: false, error: 'gemini 400: API key not valid' } }, { domain: 'acme.fr' });
+    expect(withErr.perEngine.gemini.error).toContain('API key not valid');
     expect(s.topCompetitors[0]).toEqual({ domain: 'semrush.com', count: 3 });
     // le domaine du client n'apparaît jamais en concurrent
     expect(s.topCompetitors.find((c) => c.domain === 'acme.fr')).toBeUndefined();

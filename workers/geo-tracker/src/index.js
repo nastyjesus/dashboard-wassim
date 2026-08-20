@@ -198,16 +198,20 @@ async function runTracking(env, opts = {}) {
       }
 
       let notionLogged = false;
+      let notionError;
       if (opts.notion && client.notionPageId && notionConfigured(env)) {
         try {
           await logRunToNotion(env, client.notionPageId, run, previousRun);
           notionLogged = true;
         } catch (e) {
           logger.error('notion.log.failed', { client: client.id, err: String(e) });
+          notionError = String(e.message || e).slice(0, 300);
         }
+      } else if (opts.notion && client.notionPageId) {
+        notionError = 'NOTION_TOKEN absent du worker';
       }
 
-      tracked.push({ ...runSummary(run), notionLogged });
+      tracked.push({ ...runSummary(run), notionLogged, ...(notionError ? { notionError } : {}) });
     } catch (e) {
       logger.error('tracking.failed', { client: client.id, err: String(e) });
       errors.push({ clientId: client.id, error: e.message || String(e) });

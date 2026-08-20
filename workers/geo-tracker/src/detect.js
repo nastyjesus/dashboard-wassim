@@ -61,7 +61,9 @@ export function summarize(engines, client) {
 
   for (const [name, engine] of Object.entries(engines)) {
     if (!engine.ok || !engine.results) {
-      perEngine[name] = { ok: false };
+      // L'erreur remonte dans la synthèse pour un diagnostic direct (clé
+      // invalide, quota, modèle inconnu…) sans avoir à lire les logs worker.
+      perEngine[name] = { ok: false, error: engine.error ? String(engine.error).slice(0, 300) : undefined };
       continue;
     }
     const e = { ok: true, total: engine.results.length, cited: 0, mentioned: 0 };
