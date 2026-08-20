@@ -27,6 +27,9 @@ on:
     branches: [claude/seo-expert-optimization-pu2z52]
     paths: ['.github/test-request.json']
 
+permissions:
+  contents: write
+
 jobs:
   test:
     runs-on: ubuntu-latest
@@ -102,3 +105,25 @@ jobs:
           curl -sS --max-time 60 -w '\nHTTP %{http_code}\n' "$GSC/latest" -H "X-Wassim-Auth: $TOKEN"
           echo "== GET $GEO/latest =="
           curl -sS --max-time 60 -w '\nHTTP %{http_code}\n' "$GEO/latest" -H "X-Wassim-Auth: $TOKEN"
+
+      # Publie l'état complet dans le repo : lisible par simple git pull, sans
+      # accès à l'API GitHub Actions (routines de surveillance de la session).
+      - name: Publier .github/last-check.json
+        if: github.event_name == 'push' && always()
+        run: |
+          gsc_health=$(curl -sS --max-time 30 "$GSC/health" || echo '{}')
+          geo_health=$(curl -sS --max-time 30 "$GEO/health" || echo '{}')
+          gsc_latest=$(curl -sS --max-time 60 "$GSC/latest" -H "X-Wassim-Auth: $TOKEN" || echo '{}')
+          geo_latest=$(curl -sS --max-time 60 "$GEO/latest" -H "X-Wassim-Auth: $TOKEN" || echo '{}')
+          jq -n --arg at "$(date -u +%Y-%m-%dT%H:%M:%SZ)" --arg target "$TARGET" \
+            --argjson gscHealth "$gsc_health" --argjson geoHealth "$geo_health" \
+            --argjson gsc "$gsc_latest" --argjson geo "$geo_latest" \
+            '{checkedAt:$at, target:$target, gscHealth:$gscHealth, geoHealth:$geoHealth, gsc:$gsc, geo:$geo}' \
+            > .github/last-check.json
+          git config user.name "test-automations[bot]"
+          git config user.email "actions@users.noreply.github.com"
+          git add .github/last-check.json
+          git diff --cached --quiet && exit 0
+          git commit -m "chore: résultat du dernier check ($TARGET)"
+          git pull --rebase origin "$GITHUB_REF_NAME" || true
+          git push origin "HEAD:$GITHUB_REF_NAME" || echo "push best-effort échoué (branche avancée entre-temps)"
