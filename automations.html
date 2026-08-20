@@ -192,6 +192,17 @@ const GEO_CLIENTS = [
 ];
 
 /* ---------- token (partagé avec la page Finances) ---------- */
+/* Bootstrap par l'URL : ouvrir la page via un favori du type
+   automations.html#t=<token> enregistre le token une fois pour toutes dans ce
+   navigateur, puis nettoie l'URL. Le token ne vit jamais dans le code de la
+   page (elle est servie publiquement). */
+(function bootstrapToken() {
+  const m = location.hash.match(/[#&]t=([A-Za-z0-9._-]{16,})/) || location.search.match(/[?&]token=([A-Za-z0-9._-]{16,})/);
+  if (m) {
+    localStorage.setItem('wassim:automations:token', m[1]);
+    history.replaceState(null, '', location.pathname);
+  }
+})();
 function getToken() {
   const own = localStorage.getItem('wassim:automations:token');
   if (own) return own;
