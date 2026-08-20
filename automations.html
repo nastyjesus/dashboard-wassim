@@ -77,7 +77,21 @@
   .spin { display: inline-block; width: 13px; height: 13px; border: 2px solid currentColor; border-top-color: transparent;
     border-radius: 50%; animation: r .7s linear infinite; vertical-align: -2px; margin-right: 6px; }
   @keyframes r { to { transform: rotate(360deg); } }
-  @media (prefers-reduced-motion: reduce) { .spin { animation: none; } button { transition: none; } }
+  @media (prefers-reduced-motion: reduce) { .spin { animation: none; } button { transition: none; } .progress i { transition: none; } }
+  /* --- Vue simple : cartes clients --- */
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(255px, 1fr)); gap: 14px; margin-bottom: 22px; }
+  .ccard { background: var(--white); border: 1px solid var(--border); border-left: 2px solid var(--gold);
+    border-radius: 2px; padding: 18px 20px; }
+  .ccard h3 { font-family: 'EB Garamond', Georgia, serif; font-weight: 500; font-size: 1.08rem;
+    margin: 0 0 8px; color: var(--dark); }
+  .stat { font-size: .84rem; color: var(--mid); margin-top: 8px; font-weight: 400; }
+  .stat .lbl { display: block; font-size: .6rem; text-transform: uppercase; letter-spacing: .14em;
+    color: var(--muted); margin-bottom: 1px; font-weight: 500; }
+  .stat b { color: var(--dark); font-weight: 600; }
+  .stat.empty { color: var(--muted); }
+  .progress { height: 3px; background: var(--gold-pale); border-radius: 2px; margin-top: 14px;
+    overflow: hidden; display: none; }
+  .progress i { display: block; height: 100%; background: var(--gold); width: 0; transition: width .3s ease; }
   footer { color: var(--muted); font-size: .76rem; text-align: center; margin-top: 34px; font-weight: 300; }
   @media (max-width: 640px) {
     .wrap { padding: 28px 14px 56px; }
@@ -100,6 +114,7 @@
     <span class="pill" id="st-gsc">GSC : …</span>
     <span class="pill" id="st-geo">GEO : …</span>
     <button class="small secondary" onclick="configure()">⚙️ Token</button>
+    <button class="small secondary" id="btn-advanced" onclick="toggleAdvanced()">Mode avancé</button>
   </div>
 
   <div class="card" id="setup-card" style="display:none">
@@ -113,6 +128,21 @@
     <div class="out" id="setup-out"></div>
   </div>
 
+  <div class="card">
+    <div class="section-label"><span>Actions</span></div>
+    <h2>Tout piloter en deux boutons</h2>
+    <p class="hint">Les crons tournent seuls (rapports le 3, relevé IA les 1er et 15). Ces boutons servent à lancer à la main entre deux échéances.</p>
+    <div class="row">
+      <button id="btn-simple-gsc" onclick="runGscSimple()">📊 Rapports du mois</button>
+      <button id="btn-simple-geo" onclick="runGeoSimple()">🤖 Relevé citations IA</button>
+    </div>
+    <div class="progress" id="simple-progress"><i></i></div>
+    <div class="out" id="simple-status"></div>
+  </div>
+
+  <div class="grid" id="clients-grid"></div>
+
+  <div id="advanced" style="display:none">
   <div class="card">
     <div class="section-label"><span>Search Console</span></div>
     <h2>Rapports mensuels</h2>
@@ -141,6 +171,7 @@
       <thead><tr><th>Client</th><th>Date</th><th>Cité</th><th>Mentionné</th><th>Moteurs</th><th></th></tr></thead>
       <tbody></tbody>
     </table></div>
+  </div>
   </div>
 
   <footer>Workers : gsc-report-wassim · geo-tracker-wassim (Cloudflare) · Les crons tournent seuls, cette page sert au pilotage manuel.</footer>
@@ -244,6 +275,7 @@ function busy(btnId, on) {
   else if (b.dataset.label) b.textContent = b.dataset.label;
 }
 const fmtInt = (n) => Math.round(n).toLocaleString('fr-FR');
+const fmtPct = (n) => String(n).replace('.', ',') + '%';
 function deltaCell(d, invert = false) {
   if (d === null || d === undefined) return '<span class="d flat">—</span>';
   const eff = invert ? -d : d;
@@ -253,8 +285,115 @@ function deltaCell(d, invert = false) {
 }
 function esc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 
+/* ---------- vue simple : cartes clients ---------- */
+/* Fusion des deux configs : un client peut n'être que GSC (MyeFarm) ou que
+   GEO (Nicolas, sans site). Les cartes affichent le dernier état connu. */
+const CLIENTS = (() => {
+  const map = new Map();
+  for (const c of GSC_CLIENTS) map.set(c.id, { id: c.id, name: c.name, gsc: true, geo: false, hasSite: true });
+  for (const c of GEO_CLIENTS) {
+    const e = map.get(c.id) || { id: c.id, name: c.name, gsc: false, hasSite: Boolean(c.domain) };
+    e.geo = true;
+    map.set(c.id, e);
+  }
+  return [...map.values()].sort((a, b) => a.name.localeCompare(b.name));
+})();
+const latestGsc = {};
+const latestGeo = {};
+
+function renderCards() {
+  const grid = document.getElementById('clients-grid');
+  grid.innerHTML = CLIENTS.map((c) => {
+    const parts = [];
+    if (c.gsc) {
+      const g = latestGsc[c.id];
+      parts.push(g
+        ? `<div class="stat"><span class="lbl">Google · ${esc(g.periodLabel)}</span>
+            <b>${fmtInt(g.kpis.clicks.value)} clics</b> ${deltaCell(g.kpis.clicks.deltas.m1)}
+            · <a class="rep" href="${esc(g.url)}" target="_blank" rel="noopener">Rapport ↗</a></div>`
+        : '<div class="stat empty"><span class="lbl">Google</span>Pas encore de rapport</div>');
+    }
+    if (c.geo) {
+      const t = latestGeo[c.id];
+      if (t) {
+        const s = t.summary;
+        const down = Object.values(s.perEngine || {}).filter((e) => !e.ok).length;
+        const main = c.hasSite
+          ? `Cité par les IA : <b>${fmtPct(s.citationRate)}</b>`
+          : `Mentionné par les IA : <b>${fmtPct(s.mentionRate)}</b>`;
+        parts.push(`<div class="stat"><span class="lbl">Citations IA · ${esc(t.date)}</span>
+          ${main}${down ? ` · <span class="d down">⚠ ${down} moteur${down > 1 ? 's' : ''} en panne</span>` : ''}</div>`);
+      } else {
+        parts.push('<div class="stat empty"><span class="lbl">Citations IA</span>Pas encore de relevé</div>');
+      }
+    }
+    return `<div class="ccard"><h3>${esc(c.name)}</h3>${parts.join('')}</div>`;
+  }).join('');
+}
+
+function setStatus(kind, html) {
+  document.getElementById('simple-status').innerHTML = html ? `<div class="msg ${kind}">${html}</div>` : '';
+}
+function setProgress(pct) {
+  const bar = document.getElementById('simple-progress');
+  bar.style.display = pct === null ? 'none' : 'block';
+  if (pct !== null) bar.firstElementChild.style.width = pct + '%';
+}
+
+async function runGscSimple() {
+  if (!ensureToken()) return;
+  if (!confirm('Générer les rapports Search Console du mois précédent, pour tous les clients ?')) return;
+  busy('btn-simple-gsc', true);
+  setStatus('info', '<span class="spin"></span>Génération des rapports en cours (une à deux minutes)…');
+  try {
+    const r = await api(GSC_URL, '/run', { method: 'POST', body: '{}' });
+    const errs = (r.errors || []).map((e) => `⛔ ${esc(e.clientId)} : ${esc(e.error)}`);
+    setStatus(errs.length ? 'err' : 'ok',
+      `✅ ${r.generated.length} rapport(s) généré(s) — les liens sont à jour sur les cartes.`
+      + (errs.length ? '<br>' + errs.join('<br>') : ''));
+  } catch (e) { setStatus('err', '⛔ ' + esc(e.message)); }
+  busy('btn-simple-gsc', false);
+  await loadGscLatest();
+}
+
+async function runGeoSimple() {
+  if (!ensureToken()) return;
+  if (!confirm(`Interroger les 4 moteurs IA pour les ${GEO_CLIENTS.length} clients ?\nDurée : quelques minutes — l'avancement s'affiche client par client.`)) return;
+  busy('btn-simple-geo', true);
+  const errs = [];
+  let done = 0;
+  setProgress(0);
+  for (const c of GEO_CLIENTS) {
+    setStatus('info', `<span class="spin"></span>Relevé IA ${done + 1}/${GEO_CLIENTS.length} — ${esc(c.name)}…`);
+    try {
+      const r = await api(GEO_URL, '/run', { method: 'POST', body: JSON.stringify({ client: c.id }) });
+      const t = (r.tracked || [])[0];
+      if (t) latestGeo[t.clientId] = t;
+      for (const e of r.errors || []) errs.push(`⛔ ${esc(e.clientId)} : ${esc(e.error)}`);
+    } catch (e) { errs.push(`⛔ ${esc(c.name)} : ${esc(e.message)}`); }
+    done += 1;
+    setProgress(Math.round((done / GEO_CLIENTS.length) * 100));
+    renderCards();
+  }
+  setProgress(null);
+  setStatus(errs.length ? 'err' : 'ok',
+    errs.length
+      ? `Relevé terminé — ${GEO_CLIENTS.length - errs.length}/${GEO_CLIENTS.length} clients ok.<br>` + errs.join('<br>')
+      : `✅ Relevé terminé pour les ${GEO_CLIENTS.length} clients — cartes à jour.`);
+  busy('btn-simple-geo', false);
+  loadGeoLatest();
+}
+
+function toggleAdvanced() {
+  const adv = document.getElementById('advanced');
+  const on = adv.style.display === 'none';
+  adv.style.display = on ? '' : 'none';
+  document.getElementById('btn-advanced').textContent = on ? 'Mode simple' : 'Mode avancé';
+}
+
 /* ---------- état / health ---------- */
 async function refresh() {
+  renderCards();
   await Promise.all([refreshWorker('gsc'), refreshWorker('geo')]);
   await Promise.all([loadGscLatest(), loadGeoLatest()]);
   await checkSetup();
@@ -305,7 +444,7 @@ async function pushGeoConfig() {
   checkSetup();
 }
 
-/* ---------- rapports GSC ---------- */
+/* ---------- rapports GSC (mode avancé) ---------- */
 async function runGsc(clientId) {
   if (!ensureToken()) return;
   const period = document.getElementById('gsc-period').value || undefined;
@@ -331,6 +470,8 @@ async function loadGscLatest() {
   try {
     const { latest } = await api(GSC_URL, '/latest');
     const rows = Object.values(latest || {}).sort((a, b) => a.clientName.localeCompare(b.clientName));
+    for (const r of rows) latestGsc[r.clientId] = r;
+    renderCards();
     const table = document.getElementById('gsc-table');
     table.style.display = rows.length ? '' : 'none';
     table.querySelector('tbody').innerHTML = rows.map((r) => `<tr>
@@ -346,7 +487,7 @@ async function loadGscLatest() {
   } catch {}
 }
 
-/* ---------- tracker GEO ---------- */
+/* ---------- tracker GEO (mode avancé) ---------- */
 async function runGeo(clientId) {
   if (!ensureToken()) return;
   if (!confirm(clientId
@@ -372,6 +513,8 @@ async function loadGeoLatest() {
   try {
     const { latest } = await api(GEO_URL, '/latest');
     const rows = Object.values(latest || {}).sort((a, b) => a.clientName.localeCompare(b.clientName));
+    for (const r of rows) latestGeo[r.clientId] = r;
+    renderCards();
     const table = document.getElementById('geo-table');
     table.style.display = rows.length ? '' : 'none';
     const engineNames = { perplexity: 'Perplexity', anthropic: 'Claude', openai: 'ChatGPT', gemini: 'Gemini' };
