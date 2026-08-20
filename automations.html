@@ -5,58 +5,95 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex">
 <title>Automations SEO</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&family=Raleway:wght@300;400;500;600&display=swap">
 <style>
   :root {
-    --accent: #1e3a5f; --neg: #e85a4f; --pos: #2e7d52; --stable: #8a8f98;
-    --bg: #f6f8fa; --card: #ffffff; --text: #1c2733; --muted: #5c6773; --line: #e3e8ee;
+    --gold: #B8873A; --gold-light: #e8d9c0; --gold-pale: #faf4ec;
+    --dark: #1a1208; --mid: #5a4e3a; --muted: #8a7a65;
+    --off: #faf8f5; --cream: #f0ebe3; --white: #ffffff;
+    --border: rgba(184,135,58,0.18);
+    /* Couleurs fonctionnelles (deltas de métriques) — réchauffées pour la palette or */
+    --pos: #3e7d55; --neg: #b5472f; --stable: #8a7a65;
   }
   * { box-sizing: border-box; }
-  body { margin: 0; background: var(--bg); color: var(--text); line-height: 1.5;
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
-  .wrap { max-width: 860px; margin: 0 auto; padding: 28px 16px 60px; }
-  header h1 { color: var(--accent); font-size: 1.4rem; margin: 0; }
-  header .sub { color: var(--muted); font-size: .9rem; margin-top: 2px; }
-  .statusbar { display: flex; gap: 10px; flex-wrap: wrap; margin: 16px 0 22px; align-items: center; }
-  .pill { font-size: .78rem; font-weight: 600; border-radius: 999px; padding: 4px 12px; background: #e8eef5; color: var(--accent); }
-  .pill.ok { background: #e6f2ec; color: var(--pos); }
-  .pill.bad { background: #fdecea; color: var(--neg); }
-  .pill.warn { background: #fff3cd; color: #7a5d00; }
-  .card { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 20px; margin-bottom: 18px; }
-  .card h2 { color: var(--accent); font-size: 1.05rem; margin: 0 0 4px; }
-  .card .hint { color: var(--muted); font-size: .85rem; margin: 0 0 14px; }
+  html, body { overflow-x: hidden; }
+  body { margin: 0; background: var(--off); color: var(--dark); line-height: 1.6;
+    font-family: 'Raleway', -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    font-weight: 300; }
+  .wrap { max-width: 880px; margin: 0 auto; padding: 40px 20px 72px; }
+  .section-label { display: flex; align-items: center; gap: 12px; margin-bottom: 10px; }
+  .section-label::before { content: ""; width: 24px; height: 1px; background: var(--gold); }
+  .section-label span { font-size: .68rem; text-transform: uppercase; letter-spacing: .2em;
+    color: var(--gold); font-weight: 500; }
+  header h1 { font-family: 'EB Garamond', Georgia, serif; font-weight: 500; color: var(--dark);
+    font-size: 2rem; margin: 0; letter-spacing: .01em; text-wrap: balance; }
+  header .sub { color: var(--mid); font-size: .92rem; margin-top: 6px; font-weight: 300; }
+  .statusbar { display: flex; gap: 10px; flex-wrap: wrap; margin: 22px 0 28px; align-items: center; }
+  .pill { font-size: .72rem; font-weight: 500; letter-spacing: .08em; text-transform: uppercase;
+    border-radius: 999px; padding: 5px 14px; background: var(--gold-pale); color: var(--gold);
+    border: 1px solid var(--border); }
+  .pill.ok { background: var(--gold-pale); color: var(--gold); }
+  .pill.bad { background: #f7e8e3; color: var(--neg); border-color: rgba(181,71,47,.25); }
+  .pill.warn { background: var(--cream); color: var(--mid); }
+  .card { background: var(--white); border: 1px solid var(--border); border-left: 2px solid var(--gold);
+    border-radius: 2px; padding: 26px 28px; margin-bottom: 22px; }
+  .card h2 { font-family: 'EB Garamond', Georgia, serif; font-weight: 500; color: var(--dark);
+    font-size: 1.35rem; margin: 0 0 4px; }
+  .card .hint { color: var(--muted); font-size: .85rem; margin: 0 0 16px; font-weight: 300; }
   .row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
-  button { border: 0; border-radius: 10px; padding: 12px 18px; font-size: .92rem; font-weight: 600;
-    cursor: pointer; background: var(--accent); color: #fff; }
-  button.secondary { background: #e8eef5; color: var(--accent); }
-  button.small { padding: 6px 12px; font-size: .8rem; border-radius: 8px; }
-  button:disabled { opacity: .45; cursor: default; }
-  input[type="month"], input[type="text"] { border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; font-size: .9rem; background: #fff; color: var(--text); }
-  .out { margin-top: 12px; font-size: .86rem; }
-  .out .msg { padding: 10px 14px; border-radius: 8px; margin-bottom: 8px; }
-  .msg.ok { background: #e6f2ec; color: #1d5c3e; }
-  .msg.err { background: #fdecea; color: #a33025; }
-  .msg.info { background: #e8eef5; color: var(--accent); }
-  table { border-collapse: collapse; width: 100%; font-size: .85rem; margin-top: 10px; }
-  th { text-align: left; color: var(--muted); font-size: .74rem; text-transform: uppercase; letter-spacing: .04em;
-    padding: 6px 10px 6px 0; border-bottom: 1px solid var(--line); }
-  td { padding: 8px 10px 8px 0; border-bottom: 1px solid #eef1f5; vertical-align: top; }
+  button { border: 1px solid var(--gold); border-radius: 2px; padding: 12px 20px; font-size: .78rem;
+    font-family: 'Raleway', sans-serif; font-weight: 600; letter-spacing: .12em; text-transform: uppercase;
+    cursor: pointer; background: var(--gold); color: var(--white);
+    transition: transform .18s ease, background .18s ease, color .18s ease; }
+  button:hover:not(:disabled) { transform: translateY(-2px); }
+  button.secondary { background: transparent; color: var(--gold); }
+  button.secondary:hover:not(:disabled) { background: var(--gold-pale); }
+  button.small { padding: 6px 12px; font-size: .68rem; letter-spacing: .08em; }
+  button:disabled { opacity: .4; cursor: default; }
+  input[type="month"], input[type="text"] { border: 1px solid var(--border); border-radius: 2px;
+    padding: 11px 14px; font-size: .88rem; background: var(--white); color: var(--dark);
+    font-family: 'Raleway', sans-serif; font-weight: 400; }
+  input[type="month"]:focus, input[type="text"]:focus { outline: 2px solid var(--gold-light); border-color: var(--gold); }
+  .out { margin-top: 14px; font-size: .86rem; }
+  .out .msg { padding: 11px 16px; border-radius: 2px; margin-bottom: 8px; border-left: 2px solid transparent; font-weight: 400; }
+  .msg.ok { background: var(--gold-pale); color: var(--dark); border-left-color: var(--gold); }
+  .msg.err { background: #f7e8e3; color: #7c3120; border-left-color: var(--neg); }
+  .msg.info { background: var(--cream); color: var(--mid); border-left-color: var(--gold-light); }
+  table { border-collapse: collapse; width: 100%; font-size: .85rem; margin-top: 12px; }
+  th { text-align: left; color: var(--muted); font-weight: 500; font-size: .66rem;
+    text-transform: uppercase; letter-spacing: .15em;
+    padding: 8px 12px 8px 0; border-bottom: 1px solid var(--gold-light); }
+  td { padding: 10px 12px 10px 0; border-bottom: 1px solid var(--border); vertical-align: top;
+    color: var(--mid); font-weight: 400; }
+  td:first-child { color: var(--dark); font-weight: 500; }
   td.num { font-variant-numeric: tabular-nums; white-space: nowrap; }
   .d { font-weight: 600; }
   .d.up { color: var(--pos); } .d.down { color: var(--neg); } .d.flat { color: var(--stable); }
-  a.rep { color: var(--accent); font-weight: 600; }
+  a.rep { color: var(--gold); font-weight: 600; text-decoration: none; border-bottom: 1px solid var(--gold-light); }
+  a.rep:hover { border-bottom-color: var(--gold); }
   .tbl-scroll { overflow-x: auto; }
-  .spin { display: inline-block; width: 14px; height: 14px; border: 2px solid #fff; border-top-color: transparent;
+  .spin { display: inline-block; width: 13px; height: 13px; border: 2px solid currentColor; border-top-color: transparent;
     border-radius: 50%; animation: r .7s linear infinite; vertical-align: -2px; margin-right: 6px; }
   @keyframes r { to { transform: rotate(360deg); } }
-  @media (prefers-reduced-motion: reduce) { .spin { animation: none; } }
-  footer { color: var(--muted); font-size: .78rem; text-align: center; margin-top: 26px; }
+  @media (prefers-reduced-motion: reduce) { .spin { animation: none; } button { transition: none; } }
+  footer { color: var(--muted); font-size: .76rem; text-align: center; margin-top: 34px; font-weight: 300; }
+  @media (max-width: 640px) {
+    .wrap { padding: 28px 14px 56px; }
+    .card { padding: 20px 18px; }
+    header h1 { font-size: 1.6rem; }
+    button { width: 100%; }
+    button.small { width: auto; }
+  }
 </style>
 </head>
 <body>
 <div class="wrap">
   <header>
+    <div class="section-label"><span>Pilotage automatisé</span></div>
     <h1>Automations SEO</h1>
-    <div class="sub">Rapports GSC mensuels · Tracker de citations IA</div>
+    <div class="sub">Rapports Search Console mensuels — Suivi des citations IA</div>
   </header>
 
   <div class="statusbar" id="statusbar">
@@ -66,7 +103,8 @@
   </div>
 
   <div class="card" id="setup-card" style="display:none">
-    <h2>Première mise en route</h2>
+    <div class="section-label"><span>Mise en route</span></div>
+    <h2>Première configuration</h2>
     <p class="hint">Les workers tournent mais n'ont pas encore ta liste de clients. Un clic par worker et c'est réglé.</p>
     <div class="row">
       <button id="btn-push-gsc" onclick="pushGscConfig()">Pousser les 8 clients → Rapports GSC</button>
@@ -76,7 +114,8 @@
   </div>
 
   <div class="card">
-    <h2>📊 Rapports GSC</h2>
+    <div class="section-label"><span>Search Console</span></div>
+    <h2>Rapports mensuels</h2>
     <p class="hint">Le cron tourne le 3 du mois. Ici : génération manuelle + derniers rapports (lien à envoyer au client).</p>
     <div class="row">
       <button id="btn-run-gsc" onclick="runGsc()">Générer les rapports du mois</button>
@@ -90,7 +129,8 @@
   </div>
 
   <div class="card">
-    <h2>🤖 Tracker citations IA</h2>
+    <div class="section-label"><span>Moteurs génératifs</span></div>
+    <h2>Citations IA</h2>
     <p class="hint">Le cron tourne les 1er et 15. Ici : relevé manuel + dernier taux de citation par client.</p>
     <div class="row">
       <button id="btn-run-geo" onclick="runGeo()">Lancer un relevé (tous les clients)</button>
