@@ -1,0 +1,74 @@
+name: Deploy on-sort worker (POC side hustle)
+
+on:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: "Branch/ref to deploy from"
+        type: string
+        default: main
+      mock-mode:
+        description: "Deploy with MOCK_MODE (demo data)"
+        type: boolean
+        default: false
+  # Déploiement automatique quand le code du worker change sur la branche de
+  # travail (la session distante n'a pas le droit de dispatch manuel).
+  push:
+    branches: [claude/side-hustle-brainstorm-ykikf8]
+    paths: ['workers/on-sort/**', '.github/workflows/deploy-on-sort-worker.yml']
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: workers/on-sort
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: workers/on-sort/package-lock.json
+
+      - run: npm ci
+
+      - run: npm test
+
+      - name: Set MOCK_MODE
+        env:
+          MODE: ${{ inputs.mock-mode || 'false' }}
+        run: |
+          sed -i "s/^MOCK_MODE = \".*\"/MOCK_MODE = \"$MODE\"/" wrangler.toml
+          grep '^MOCK_MODE' wrangler.toml
+
+      - run: npx wrangler deploy
+
+      - name: Smoke test /health
+        run: |
+          for i in 1 2 3 4 5; do
+            sleep 3
+            out=$(curl -fsS "https://on-sort-poc.loumiwassim.workers.dev/health" || true)
+            echo "$out"
+            echo "$out" | grep -q '"ok":true' && exit 0
+          done
+          echo "Worker did not become healthy in time" >&2
+          exit 1
+        continue-on-error: true
+
+      # Le verdict du week-end 1, directement dans le log du run : comptages
+      # réels d'événements famille en Ille-et-Vilaine + état de la sonde
+      # DATAtourisme.
+      - name: Diagnostic go/no-go (données réelles)
+        run: |
+          curl -fsS "https://on-sort-poc.loumiwassim.workers.dev/diagnostic" | node -e "
+            let d='';process.stdin.on('data',c=>d+=c).on('end',()=>{
+              try{console.log(JSON.stringify(JSON.parse(d),null,2))}catch{console.log(d)}
+            })"
+        continue-on-error: true

@@ -1,0 +1,39 @@
+## Worker Cloudflare — on-sort-poc
+## POC « On sort ? » (side hustle, week-end 1) : le pipeline de données.
+## Agrège les événements famille autour d'un point (défaut : Rennes), croise
+## avec la météo du jour demandé et sort un top 5 scoré (âge, météo
+## intérieur/extérieur, distance, gratuité).
+##
+## Objectif du POC : valider la qualité/densité des données famille en
+## Ille-et-Vilaine AVANT d'investir dans l'app mobile. Le verdict se lit sur
+## GET /diagnostic (comptages réels par source + échantillons).
+
+name = "on-sort-poc"
+main = "src/index.js"
+compatibility_date = "2025-01-15"
+compatibility_flags = ["nodejs_compat"]
+
+# Variables non secrètes. Aucun secret nécessaire : toutes les sources sont
+# des données ouvertes sans clé (licence ouverte / Etalab).
+[vars]
+# Miroir OpenDataSoft des événements publics OpenAgenda — source principale
+# du POC : API stable, sans authentification.
+ODS_BASE = "https://public.opendatasoft.com/api/explore/v2.1/catalog/datasets/evenements-publics-openagenda/records"
+# API ouverte DATAtourisme (mars 2026) — la doc exacte n'a pas pu être
+# vérifiée depuis la session de dev (réseau restreint) : l'adaptateur sonde
+# ces endpoints candidats et /diagnostic dit lequel répond. Ajuster ici
+# quand le bon endpoint est confirmé, sans toucher au code.
+DATATOURISME_ENDPOINTS = "https://api.datatourisme.fr/api/open/evenements.json,https://www.datatourisme.fr/api/open/evenements.json"
+# Prévisions météo (Open-Meteo, sans clé — usage non commercial OK pour le
+# POC ; passer sur l'offre payante ou Météo-France open data avant de
+# monétiser l'app).
+METEO_BASE = "https://api.open-meteo.com/v1/forecast"
+# Mode démo : renvoie des événements fictifs clairement marqués mock:true
+# (aucun chiffre inventé présenté comme réel). Utile pour développer le
+# front sans réseau.
+MOCK_MODE = "false"
+# Origines autorisées pour CORS (séparées par des virgules).
+ALLOWED_ORIGINS = "https://nastyjesus.github.io,http://localhost:3000,http://localhost:5173,http://localhost:8000"
+
+[observability]
+enabled = true
