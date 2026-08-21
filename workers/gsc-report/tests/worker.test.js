@@ -128,4 +128,31 @@ describe('génération de rapports', () => {
     const res = await run(mockEnv(), '/r/deadbeefdeadbeefdeadbeefdeadbeef');
     expect(res.status).toBe(404);
   });
+
+  it('GET /export renvoie la data complète (mots-clés, pages, apparences) pour analyse', async () => {
+    const env = mockEnv();
+    await run(env, '/run', { method: 'POST', body: JSON.stringify({ period: '2026-06' }) });
+    await run(env, '/run', { method: 'POST', body: JSON.stringify({ period: '2026-07' }) });
+
+    // Sans filtre : dernier rapport de chaque client, data brute complète.
+    const exp = await (await run(env, '/export')).json();
+    expect(exp.count).toBe(1);
+    const c = exp.clients[0];
+    expect(c.meta.clientId).toBe('demo-wassim');
+    expect(c.meta.period.key).toBe('2026-07');
+    expect(c.url).toContain('/r/');
+    expect(c.tables.queries.length).toBeGreaterThan(0);
+    expect(c.tables.queries[0]).toHaveProperty('keys');
+    expect(c.tables.queries[0]).toHaveProperty('clicks');
+    expect(c.tables).toHaveProperty('searchAppearance');
+    expect(c.kpis.clicks.horizons.m6).toHaveProperty('delta');
+
+    // Filtre ?period= : le mois demandé, pas le dernier.
+    const june = await (await run(env, '/export?period=2026-06')).json();
+    expect(june.clients[0].meta.period.key).toBe('2026-06');
+
+    // Filtre ?client= inconnu : export vide, pas d'erreur.
+    const none = await (await run(env, '/export?client=nope')).json();
+    expect(none.count).toBe(0);
+  });
 });

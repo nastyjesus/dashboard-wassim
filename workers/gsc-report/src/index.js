@@ -12,6 +12,9 @@
 //   POST /run             — auth  (run manuel : {client?, period? "YYYY-MM", notion? bool})
 //   GET  /reports         — auth  (index des rapports générés, filtre ?client=)
 //   GET  /latest          — auth  (dernier rapport par client — pour le dashboard)
+//   GET  /export          — auth  (data complète des rapports — mots-clés, pages,
+//                                  apparences, KPIs détaillés — pour analyse par
+//                                  un skill Claude ; filtres ?client= et ?period=)
 
 import { GscClient } from './gsc-client.js';
 import { checkKeyFormat } from './google-auth.js';
@@ -109,6 +112,31 @@ export default {
         return jsonResponse({ latest: byClient }, 200, request, env);
       }
 
+      if (path === '/export' && request.method === 'GET') {
+        if (!env.REPORTS) return jsonResponse({ error: 'kv_not_bound' }, 503, request, env);
+        const clientFilter = url.searchParams.get('client');
+        const period = url.searchParams.get('period'); // YYYY-MM ; défaut = dernier rapport de chaque client
+        const prefix = clientFilter ? `report:${clientFilter}:` : 'report:';
+        const list = await env.REPORTS.list({ prefix });
+        const byClient = {};
+        for (const k of list.keys) {
+          const stored = await env.REPORTS.get(k.name, 'json');
+          if (!stored) continue;
+          const key = stored.data.meta.period.key;
+          if (period && key !== period) continue;
+          const cid = stored.data.meta.clientId;
+          const prev = byClient[cid];
+          if (!prev || key > prev.data.meta.period.key) byClient[cid] = stored;
+        }
+        const clients = Object.values(byClient)
+          .map((s) => ({ url: `${url.origin}/r/${s.slug}`, ...s.data }))
+          .sort((a, b) => a.meta.clientName.localeCompare(b.meta.clientName));
+        return jsonResponse(
+          { exportedAt: new Date().toISOString(), period: period || 'latest', count: clients.length, clients },
+          200, request, env,
+        );
+      }
+
       return jsonResponse({ error: 'not_found', path }, 404, request, env);
     } catch (err) {
       logger.error('worker.error', { err: String(err), path });
@@ -175,13 +203,13 @@ async function runReports(env, origin, opts = {}) {
   for (const client of targets) {
     try {
       const { months, current } = resolveMonths(now, opts.periodKey);
-      const { daily, queries, pages, mock } = await gsc.fetchReportData(
+      const { daily, queries, pages, appearance, mock } = await gsc.fetchReportData(
         client.property,
         months[0].startDate,
         current,
       );
       const report = buildReport({
-        client, months, daily, queries, pages, mock,
+        client, months, daily, queries, pages, appearance, mock,
         generatedAt: new Date().toISOString(),
       });
       const html = renderReport(report);

@@ -166,11 +166,12 @@ export function buildInsights(kpis, trend, topQueries, mock) {
 /**
  * Assemble le rapport complet.
  * @param {{ client: object, months: object[], daily: array, queries: array,
- *           pages: array, mock: boolean, generatedAt: string }} input
+ *           pages: array, appearance?: array, mock: boolean, generatedAt: string }} input
  *   `months` : les 7 mois ordonnés (cf. resolveMonths), le dernier = mois analysé.
  *   `daily`  : lignes quotidiennes GSC couvrant tout l'intervalle.
+ *   `appearance` : lignes searchAppearance du mois (vide si Google n'expose rien).
  */
-export function buildReport({ client, months, daily, queries, pages, mock, generatedAt }) {
+export function buildReport({ client, months, daily, queries, pages, appearance, mock, generatedAt }) {
   const perMonth = months.map((m) => ({ ...m, ...aggregateMonth(daily, m) }));
   const current = perMonth[perMonth.length - 1];
 
@@ -222,8 +223,11 @@ export function buildReport({ client, months, daily, queries, pages, mock, gener
     },
     trend,
     tables: {
-      queries: (queries || []).slice(0, 10),
+      queries: (queries || []).slice(0, 25),
       pages: (pages || []).slice(0, 10),
+      // Apparences dans les résultats — inclura l'IA Overview le jour où
+      // Google l'expose dans l'API ; en attendant ce trafic est dans les totaux.
+      searchAppearance: (appearance || []).slice(0, 25),
     },
     insights: buildInsights(kpis, trend, queries, mock),
   };
