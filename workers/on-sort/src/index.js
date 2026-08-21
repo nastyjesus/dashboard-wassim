@@ -114,7 +114,7 @@ async function calculerTop(request, url, env) {
     evenements = [...oa.evenements, ...dt.evenements].filter((ev) => actifCeJour(ev, p.dateISO));
   }
 
-  const resultat = top(evenements, { lat: p.lat, lon: p.lon, age: p.age, rayonKm: p.rayonKm, meteo });
+  const resultat = top(evenements, { dateISO: p.dateISO, lat: p.lat, lon: p.lon, age: p.age, rayonKm: p.rayonKm, meteo });
   return {
     mock: isMock(env),
     date: p.dateISO,
@@ -159,7 +159,7 @@ async function diagnostic(url, env) {
 
   const bilanOA = analyse(oa.evenements);
   const retenus = top([...oa.evenements, ...dt.evenements].filter((ev) => actifCeJour(ev, p.dateISO)),
-    { lat: p.lat, lon: p.lon, age: p.age, rayonKm: p.rayonKm, meteo }).retenus;
+    { dateISO: p.dateISO, lat: p.lat, lon: p.lon, age: p.age, rayonKm: p.rayonKm, meteo }).retenus;
 
   return {
     mock: false,
@@ -177,9 +177,11 @@ async function diagnostic(url, env) {
   };
 }
 
-/** Cache HTTP (6 h) sur les réponses live — les sources sont lentes. */
+/** Cache HTTP (6 h) sur les réponses live — les sources sont lentes.
+ *  `?fresh=1` force le recalcul (un redéploiement ne purge pas le cache). */
 async function repondreAvecCache(request, env, ctx, calcul) {
-  const utilisable = !isMock(env) && typeof caches !== 'undefined' && caches.default;
+  const fresh = new URL(request.url).searchParams.get('fresh') === '1';
+  const utilisable = !fresh && !isMock(env) && typeof caches !== 'undefined' && caches.default;
   const cle = new Request(request.url, { method: 'GET' });
   if (utilisable) {
     const enCache = await caches.default.match(cle);

@@ -55,6 +55,19 @@ describe('scorer', () => {
     expect(dedans.raisons).toContain('À l’abri s’il pleut');
   });
 
+  it('exclut un récurrent qui n’a pas lieu le jour demandé', () => {
+    // 2026-08-22 est un samedi ; l'événement n'a lieu que le dimanche.
+    const s = scorer(atelier({ horaires: 'les dimanches de 14h à 17h' }), { ...CTX, dateISO: '2026-08-22' });
+    expect(s).toBeNull();
+  });
+
+  it('un événement ponctuel passe devant l’animation permanente équivalente', () => {
+    const ponctuel = scorer(atelier({ dateDebut: '2026-08-22', dateFin: '2026-08-22' }), CTX);
+    const permanent = scorer(atelier({ dateDebut: '2026-01-01', dateFin: '2026-12-31' }), CTX);
+    expect(ponctuel.score).toBeGreaterThan(permanent.score);
+    expect(ponctuel.raisons).toContain('Événement ponctuel');
+  });
+
   it('garde un événement sans coordonnées ni âge (pas d’info ≠ exclusion)', () => {
     const s = scorer(atelier({ lat: null, lon: null, description: 'Spectacle pour toute la famille' }), CTX);
     expect(s).not.toBeNull();

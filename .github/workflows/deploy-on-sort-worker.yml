@@ -72,3 +72,20 @@ jobs:
               try{console.log(JSON.stringify(JSON.parse(d),null,2))}catch{console.log(d)}
             })"
         continue-on-error: true
+
+      # Aperçu lisible du produit : le top 5 réel du prochain samedi, avec
+      # horaires et raisons — pour juger la pertinence sans ouvrir le JSON.
+      - name: Aperçu du top 5 réel
+        run: |
+          curl -fsS "https://on-sort-poc.loumiwassim.workers.dev/top?fresh=1" | node -e "
+            let d='';process.stdin.on('data',c=>d+=c).on('end',()=>{
+              const r=JSON.parse(d);
+              console.log('Date:', r.date, '—', r.meteo ? r.meteo.resume : 'météo indisponible');
+              console.log('Stats:', JSON.stringify(r.stats));
+              for (const e of r.top) {
+                console.log('---');
+                console.log('•', e.titre, '(score', e.score + ')');
+                console.log('  ', e.horaires || 'horaires n/c', '|', e.ville || '?', '|', e.raisons.join(', '));
+              }
+            })"
+        continue-on-error: true

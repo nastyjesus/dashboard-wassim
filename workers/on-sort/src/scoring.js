@@ -4,6 +4,7 @@
 // les raisons alimentent directement l'UI (« À l'abri s'il pleut », « À 12 km »).
 
 import { scoreFamille, trancheAge, lieuType } from './famille.js';
+import { jourCompatible, dureeJours } from './jours.js';
 
 const RAYON_DEFAUT_KM = 40;
 
@@ -23,9 +24,18 @@ export function scorer(ev, ctx) {
   const famille = scoreFamille(ev);
   if (famille < 0) return null; // signal explicitement anti-famille
 
+  // Récurrent un autre jour (« les dimanches » un samedi) : hors-jeu.
+  if (!jourCompatible(ev, ctx.dateISO)) return null;
+
   const raisons = [];
   let score = famille * 2;
   if (famille >= 2) raisons.push('Pensé pour les enfants');
+
+  // Les vrais événements du jour passent devant les expos/animations
+  // permanentes qui « couvrent » toutes les dates.
+  const duree = dureeJours(ev);
+  if (duree !== null && duree <= 3) { score += 1.5; raisons.push('Événement ponctuel'); }
+  if (duree !== null && duree > 90) score -= 1;
 
   // Âge : exclusion si l'enfant est trop jeune, bonus si la tranche colle.
   const age = trancheAge(ev);

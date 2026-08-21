@@ -43,6 +43,17 @@ export async function evenementsOpenAgenda(env, { departement, dateISO }) {
   }
 }
 
+/** Les descriptions arrivent avec du HTML et des entités : on nettoie. */
+function texteBrut(html) {
+  return String(html || '')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&amp;/g, '&')
+    .replace(/&#\d+;|&\w+;/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
 /** Passe un enregistrement ODS au format interne commun aux sources. */
 function normaliser(r) {
   if (!r || !(r.title_fr || r.title)) return null;
@@ -51,7 +62,7 @@ function normaliser(r) {
     source: 'openagenda',
     id: r.uid ? String(r.uid) : null,
     titre: r.title_fr || r.title,
-    description: [r.description_fr, r.longdescription_fr].filter(Boolean).join(' ').slice(0, 1200),
+    description: texteBrut([r.description_fr, r.longdescription_fr].filter(Boolean).join(' ')).slice(0, 1200),
     motsCles: Array.isArray(r.keywords_fr) ? r.keywords_fr : [],
     dateDebut: (r.firstdate_begin || '').slice(0, 10) || null,
     dateFin: (r.lastdate_end || '').slice(0, 10) || null,
