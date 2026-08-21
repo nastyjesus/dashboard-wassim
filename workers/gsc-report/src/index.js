@@ -76,11 +76,13 @@ export default {
 
       if (path === '/run' && request.method === 'POST') {
         const body = (await safeJson(request)) || {};
-        const result = await runReports(env, url.origin, {
-          clientId: body.client,
-          periodKey: body.period,
-          notion: body.notion !== false,
-        });
+        const opts = { clientId: body.client, periodKey: body.period, notion: body.notion !== false };
+        // Sans client ciblé : une invocation par client via le binding SELF —
+        // le pull d'audit (8 appels API/client) dépasserait sinon la limite
+        // Cloudflare de 50 sous-requêtes par invocation.
+        const result = !opts.clientId && env.SELF
+          ? await fanOutRun(env, url.origin, opts)
+          : await runReports(env, url.origin, opts);
         return jsonResponse(result, 200, request, env);
       }
 
@@ -148,13 +150,47 @@ export default {
   /** Cron mensuel (le 3 à 6h UTC) — rapports du mois précédent pour tous les clients. */
   async scheduled(_event, env, ctx) {
     const origin = env.PUBLIC_BASE_URL || 'https://gsc-report-wassim.workers.dev';
+    const runner = env.SELF ? fanOutRun : runReports;
     ctx.waitUntil(
-      runReports(env, origin, { notion: true })
+      runner(env, origin, { notion: true })
         .then((r) => logger.info('cron.reports.done', { generated: r.generated.length, errors: r.errors.length }))
         .catch((e) => logger.error('cron.reports.error', { err: String(e) })),
     );
   },
 };
+
+/**
+ * Run « tous les clients » en une invocation par client via le binding SELF :
+ * chaque client dispose de son propre budget de sous-requêtes Cloudflare.
+ */
+async function fanOutRun(env, origin, opts = {}) {
+  const clients = await getClients(env);
+  const generated = [];
+  const errors = [];
+  for (const client of clients) {
+    try {
+      const res = await env.SELF.fetch(`${origin}/run`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-Wassim-Auth': env.WASSIM_AUTH_TOKEN || '' },
+        body: JSON.stringify({
+          client: client.id,
+          notion: opts.notion !== false,
+          ...(opts.periodKey ? { period: opts.periodKey } : {}),
+        }),
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        errors.push({ clientId: client.id, error: body.message || body.error || `HTTP ${res.status}` });
+        continue;
+      }
+      generated.push(...(body.generated || []));
+      errors.push(...(body.errors || []));
+    } catch (e) {
+      errors.push({ clientId: client.id, error: e.message || String(e) });
+    }
+  }
+  return { generated, errors, mock: isMock(env) };
+}
 
 function isMock(env) {
   return (env.MOCK_MODE || '').toLowerCase() === 'true';

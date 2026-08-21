@@ -1,5 +1,5 @@
 {
   "target": "run-gsc",
-  "requestedAt": "2026-08-21T12:42:00Z",
-  "note": "Re-génération juillet avec mots-clés (25) + searchAppearance après deploy /export"
+  "requestedAt": "2026-08-21T12:54:00Z",
+  "note": "Run complet apres fan-out SELF — audit pour les 8 clients"
 }

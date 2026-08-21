@@ -62,10 +62,13 @@ export default {
 
       if (path === '/run' && request.method === 'POST') {
         const body = (await safeJson(request)) || {};
-        const result = await runTracking(env, {
-          clientId: body.client,
-          notion: body.notion !== false,
-        });
+        const opts = { clientId: body.client, notion: body.notion !== false };
+        // Sans client ciblé : une invocation par client via le binding SELF —
+        // jusqu'à 4 moteurs × 10 prompts par client, la limite Cloudflare de
+        // 50 sous-requêtes par invocation serait sinon dépassée.
+        const result = !opts.clientId && env.SELF
+          ? await fanOutRun(env, url.origin, opts)
+          : await runTracking(env, opts);
         return jsonResponse(result, 200, request, env);
       }
 
@@ -130,13 +133,45 @@ export default {
 
   /** Cron bi-mensuel (1er et 15 à 6h UTC) — relevé pour tous les clients. */
   async scheduled(_event, env, ctx) {
+    const runner = env.SELF
+      ? () => fanOutRun(env, 'https://geo-tracker-wassim.loumiwassim.workers.dev', { notion: true })
+      : () => runTracking(env, { notion: true });
     ctx.waitUntil(
-      runTracking(env, { notion: true })
+      runner()
         .then((r) => logger.info('cron.tracking.done', { tracked: r.tracked.length, errors: r.errors.length }))
         .catch((e) => logger.error('cron.tracking.error', { err: String(e) })),
     );
   },
 };
+
+/**
+ * Run « tous les clients » en une invocation par client via le binding SELF :
+ * chaque client dispose de son propre budget de sous-requêtes Cloudflare.
+ */
+async function fanOutRun(env, origin, opts = {}) {
+  const clients = await getClients(env);
+  const tracked = [];
+  const errors = [];
+  for (const client of clients) {
+    try {
+      const res = await env.SELF.fetch(`${origin}/run`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-Wassim-Auth': env.WASSIM_AUTH_TOKEN || '' },
+        body: JSON.stringify({ client: client.id, notion: opts.notion !== false }),
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        errors.push({ clientId: client.id, error: body.message || body.error || `HTTP ${res.status}` });
+        continue;
+      }
+      tracked.push(...(body.tracked || []));
+      errors.push(...(body.errors || []));
+    } catch (e) {
+      errors.push({ clientId: client.id, error: e.message || String(e) });
+    }
+  }
+  return { tracked, errors, mock: isMock(env), engines: enabledEngines(env) };
+}
 
 async function getClients(env) {
   if (env.RUNS) {

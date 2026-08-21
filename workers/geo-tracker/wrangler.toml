@@ -36,6 +36,14 @@ crons = ["0 6 1,15 * *"]
 binding = "RUNS"
 id = "REPLACE_WITH_KV_NAMESPACE_ID"
 
+# Binding du worker vers lui-même : le run « tous les clients » (cron ou POST
+# /run sans client) déclenche une invocation par client, chacune avec son
+# propre budget de sous-requêtes — jusqu'à 4 moteurs × 10 prompts par client,
+# la limite de 50 sous-requêtes serait dépassée en une seule invocation.
+[[services]]
+binding = "SELF"
+service = "geo-tracker-wassim"
+
 # Les secrets à provisionner via `wrangler secret put` :
 #   PERPLEXITY_API_KEY   (api.perplexity.ai — citations natives, le plus proche du réel)
 #   ANTHROPIC_API_KEY    (Claude + web search)

@@ -1,5 +1,5 @@
 {
-  "checkedAt": "2026-08-21T12:39:17Z",
+  "checkedAt": "2026-08-21T12:53:29Z",
   "target": "run-gsc",
   "gscHealth": {
     "ok": true,
@@ -7,7 +7,7 @@
     "googleKey": {
       "ok": true
     },
-    "ts": "2026-08-21T12:39:17.501Z"
+    "ts": "2026-08-21T12:53:29.271Z"
   },
   "geoHealth": {
     "ok": true,
@@ -17,7 +17,7 @@
       "openai",
       "gemini"
     ],
-    "ts": "2026-08-21T12:39:17.579Z"
+    "ts": "2026-08-21T12:53:29.335Z"
   },
   "gsc": {
     "latest": {
@@ -27,9 +27,9 @@
         "property": "https://crezabeille.fr/",
         "period": "2026-07",
         "periodLabel": "juillet 2026",
-        "generatedAt": "2026-08-21T12:39:07.837Z",
+        "generatedAt": "2026-08-21T12:53:21.660Z",
         "mock": false,
-        "url": "https://gsc-report-wassim.loumiwassim.workers.dev/r/11d37d36fbc86c2c95060bda6b06a382",
+        "url": "https://gsc-report-wassim.loumiwassim.workers.dev/r/6e08c7f75d4e073a96d5bbc649774088",
         "kpis": {
           "clicks": {
             "value": 32,
@@ -71,9 +71,9 @@
         "property": "https://www.alarme-videosurveillance-rennes.fr/",
         "period": "2026-07",
         "periodLabel": "juillet 2026",
-        "generatedAt": "2026-08-21T12:39:08.716Z",
+        "generatedAt": "2026-08-21T12:53:22.502Z",
         "mock": false,
-        "url": "https://gsc-report-wassim.loumiwassim.workers.dev/r/766cf54dac9266807b8d422fbb64012c",
+        "url": "https://gsc-report-wassim.loumiwassim.workers.dev/r/74e2aba285bba516ba9e7d0328fc2de4",
         "kpis": {
           "clicks": {
             "value": 69,
@@ -115,9 +115,9 @@
         "property": "https://courtiersurmesure.fr/",
         "period": "2026-07",
         "periodLabel": "juillet 2026",
-        "generatedAt": "2026-08-21T12:39:09.629Z",
+        "generatedAt": "2026-08-21T12:53:23.324Z",
         "mock": false,
-        "url": "https://gsc-report-wassim.loumiwassim.workers.dev/r/c675c6c360e971a9b8b4a08cc0be69ed",
+        "url": "https://gsc-report-wassim.loumiwassim.workers.dev/r/2e851c7ef6ab11d5f3e8ee9d1fce381f",
         "kpis": {
           "clicks": {
             "value": 163,
@@ -159,9 +159,9 @@
         "property": "https://www.serrurerie-porte-blindee-rennes.fr/",
         "period": "2026-07",
         "periodLabel": "juillet 2026",
-        "generatedAt": "2026-08-21T12:39:10.543Z",
+        "generatedAt": "2026-08-21T12:53:24.273Z",
         "mock": false,
-        "url": "https://gsc-report-wassim.loumiwassim.workers.dev/r/b4fc6d82b5482621c1f4040e775b32e9",
+        "url": "https://gsc-report-wassim.loumiwassim.workers.dev/r/52f023a966d8cf4ec31832c554fda3ce",
         "kpis": {
           "clicks": {
             "value": 82,
@@ -203,9 +203,9 @@
         "property": "https://www.myefarm.net/",
         "period": "2026-07",
         "periodLabel": "juillet 2026",
-        "generatedAt": "2026-08-21T12:39:07.101Z",
+        "generatedAt": "2026-08-21T12:53:20.847Z",
         "mock": false,
-        "url": "https://gsc-report-wassim.loumiwassim.workers.dev/r/a0df496d1d2b6f2bc7a4aad098df24ec",
+        "url": "https://gsc-report-wassim.loumiwassim.workers.dev/r/b04825ddba362c93118bae10e8292bc8",
         "kpis": {
           "clicks": {
             "value": 55,
@@ -247,9 +247,9 @@
         "property": "https://optel-services.fr/",
         "period": "2026-07",
         "periodLabel": "juillet 2026",
-        "generatedAt": "2026-08-21T12:39:13.007Z",
+        "generatedAt": "2026-08-21T12:53:25.313Z",
         "mock": false,
-        "url": "https://gsc-report-wassim.loumiwassim.workers.dev/r/e23739c2ff7579069063f3e90fd42b83",
+        "url": "https://gsc-report-wassim.loumiwassim.workers.dev/r/4eb09536358935f3bea3b5035baa70ac",
         "kpis": {
           "clicks": {
             "value": 11,
@@ -291,9 +291,9 @@
         "property": "https://www.wassimloumicorporate.fr/",
         "period": "2026-07",
         "periodLabel": "juillet 2026",
-        "generatedAt": "2026-08-21T12:39:13.864Z",
+        "generatedAt": "2026-08-21T12:53:26.163Z",
         "mock": false,
-        "url": "https://gsc-report-wassim.loumiwassim.workers.dev/r/c2ac203ebc8da6d2a53c6872b7d4ec59",
+        "url": "https://gsc-report-wassim.loumiwassim.workers.dev/r/81a8962d566c93651e3090541bcf4142",
         "kpis": {
           "clicks": {
             "value": 15,
