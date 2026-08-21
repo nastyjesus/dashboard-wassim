@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { monthBounds, resolveMonths, deltaPct, direction, aggregateMonth, buildReport } from '../src/report.js';
+import { monthBounds, resolveMonths, deltaPct, direction, aggregateMonth, buildReport, buildMovers, findOpportunities } from '../src/report.js';
 import { mockDailySeries, mockTopTables } from '../src/mocks.js';
 import { renderReport } from '../src/render.js';
 
@@ -111,6 +111,35 @@ describe('buildReport', () => {
     const b = demoReport();
     expect(a.kpis.clicks.current).toBe(b.kpis.clicks.current);
     expect(a.kpis.clicks.horizons.m6.delta).toBe(b.kpis.clicks.horizons.m6.delta);
+  });
+});
+
+describe('buildMovers / findOpportunities', () => {
+  const row = (key, clicks, impressions = clicks * 20, position = 8) => ({ keys: [key], clicks, impressions, ctr: impressions ? clicks / impressions : 0, position });
+
+  it('classe gagnants, perdants, nouveaux et perdus dans le bon sens (delta = mois analysé − précédent)', () => {
+    const cur = [row('gagnant', 30), row('perdant', 5), row('nouveau', 12), row('stable', 10)];
+    const prev = [row('gagnant', 10), row('perdant', 25), row('perdu', 8), row('stable', 10)];
+    const m = buildMovers(cur, prev);
+    expect(m.up[0]).toMatchObject({ key: 'gagnant', deltaClicks: 20, clicks: 30, prevClicks: 10 });
+    expect(m.down[0]).toMatchObject({ key: 'perdant', deltaClicks: -20 });
+    expect(m.new[0].key).toBe('nouveau');
+    expect(m.lost[0].key).toBe('perdu');
+    // Une ligne au delta nul n'est ni gagnante ni perdante.
+    expect([...m.up, ...m.down].find((e) => e.key === 'stable')).toBeUndefined();
+  });
+
+  it('opportunités : position 4-20 avec volume, triées par impressions', () => {
+    const queries = [
+      row('deja-premier', 50, 2000, 1.5),   // trop bien classé — pas une opportunité
+      row('grosse-oppo', 8, 900, 9),
+      row('petite-oppo', 3, 120, 15),
+      row('trop-loin', 2, 500, 35),         // au-delà de la position 20
+      row('sans-volume', 1, 5, 12),         // pas assez d'impressions
+    ];
+    const opps = findOpportunities(queries);
+    expect(opps.map((o) => o.query)).toEqual(['grosse-oppo', 'petite-oppo']);
+    expect(opps[0]).toMatchObject({ impressions: 900, position: 9 });
   });
 });
 

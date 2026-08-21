@@ -93,6 +93,34 @@ export function mockTopTables(property, totals) {
   return { queries, pages };
 }
 
+/**
+ * Répartitions mock par appareil et par pays pour le mois analysé —
+ * dérivées des totaux pour rester cohérentes avec le reste de la démo.
+ * @param {string} property
+ * @param {{clicks:number, impressions:number}} totals
+ */
+export function mockBreakdowns(property, totals) {
+  const rand = rng(`${property}|breakdowns`);
+  const mobile = 0.5 + rand() * 0.2;
+  const part = (share, pos) => ({
+    clicks: Math.round(totals.clicks * share),
+    impressions: Math.round(totals.impressions * share),
+    ctr: totals.impressions ? (totals.clicks * share) / (totals.impressions * share) : 0,
+    position: pos,
+  });
+  const devices = [
+    { keys: ['MOBILE'], ...part(mobile, 11 + rand() * 6) },
+    { keys: ['DESKTOP'], ...part((1 - mobile) * 0.85, 9 + rand() * 6) },
+    { keys: ['TABLET'], ...part((1 - mobile) * 0.15, 13 + rand() * 6) },
+  ];
+  const countries = [
+    { keys: ['fra'], ...part(0.93, 10 + rand() * 5) },
+    { keys: ['bel'], ...part(0.04, 18 + rand() * 8) },
+    { keys: ['che'], ...part(0.03, 22 + rand() * 8) },
+  ];
+  return { devices, countries };
+}
+
 /** Clients d'exemple servis quand aucune config n'existe encore en KV (mock uniquement). */
 export const MOCK_CLIENTS = [
   {

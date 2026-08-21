@@ -146,6 +146,15 @@ describe('génération de rapports', () => {
     expect(c.tables.queries[0]).toHaveProperty('clicks');
     expect(c.tables).toHaveProperty('searchAppearance');
     expect(c.kpis.clicks.horizons.m6).toHaveProperty('delta');
+    // Vues d'audit : répartitions + gagnants/perdants + opportunités.
+    expect(c.tables.devices.length).toBeGreaterThan(0);
+    expect(c.tables.countries.length).toBeGreaterThan(0);
+    expect(c.audit.comparedTo).toBeTruthy();
+    expect(c.audit.queries).toHaveProperty('up');
+    expect(c.audit.queries).toHaveProperty('down');
+    expect(c.audit.queries).toHaveProperty('new');
+    expect(c.audit.queries).toHaveProperty('lost');
+    expect(Array.isArray(c.audit.opportunities)).toBe(true);
 
     // Filtre ?period= : le mois demandé, pas le dernier.
     const june = await (await run(env, '/export?period=2026-06')).json();

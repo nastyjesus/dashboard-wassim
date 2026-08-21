@@ -11,6 +11,10 @@
 //   POST /run             — auth  (run manuel : {client?, notion? bool})
 //   GET  /runs?client=id  — auth  (historique des relevés — résumés ; &date=YYYY-MM-DD pour le détail complet)
 //   GET  /latest          — auth  (dernier relevé par client — pour le dashboard)
+//   GET  /export          — auth  (data complète par client : config + prompts,
+//                                  dernier relevé détaillé par moteur et par prompt,
+//                                  historique — pour analyse par un skill Claude ;
+//                                  filtre ?client=)
 
 import { enabledEngines, askEngine, isMock } from './engines.js';
 import { analyzeAnswer, summarize, keepExistingRun } from './detect.js';
@@ -88,6 +92,32 @@ export default {
           if (runs.length) latest[client.id] = runSummary(runs[runs.length - 1]);
         }
         return jsonResponse({ latest }, 200, request, env);
+      }
+
+      if (path === '/export' && request.method === 'GET') {
+        if (!env.RUNS) return jsonResponse({ error: 'kv_not_bound' }, 503, request, env);
+        const clientFilter = url.searchParams.get('client');
+        const clients = await getClients(env);
+        const targets = clientFilter ? clients.filter((c) => c.id === clientFilter) : clients;
+        const out = [];
+        for (const client of targets) {
+          const runs = await listRuns(env, client.id);
+          out.push({
+            client: {
+              id: client.id, name: client.name, domain: client.domain,
+              aliases: client.aliases || [], prompts: client.prompts,
+            },
+            // Dernier relevé complet : détail par moteur et par prompt
+            // (cité/mentionné, sources, extrait de réponse).
+            latest: runs.length ? runs[runs.length - 1] : null,
+            history: runs.map(runSummary),
+          });
+        }
+        out.sort((a, b) => a.client.name.localeCompare(b.client.name));
+        return jsonResponse(
+          { exportedAt: new Date().toISOString(), count: out.length, clients: out, mock: isMock(env) },
+          200, request, env,
+        );
       }
 
       return jsonResponse({ error: 'not_found', path }, 404, request, env);

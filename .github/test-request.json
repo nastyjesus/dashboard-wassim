@@ -1,5 +1,5 @@
 {
-  "target": "run-geo",
-  "geo-client": "crezabeille",
-  "requested_at": "2026-08-20T20:56:00Z"
+  "target": "run-gsc",
+  "requestedAt": "2026-08-21T12:42:00Z",
+  "note": "Re-génération juillet avec mots-clés (25) + searchAppearance après deploy /export"
 }
