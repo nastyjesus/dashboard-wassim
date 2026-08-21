@@ -70,6 +70,8 @@
   td:first-child { color: var(--dark); font-weight: 500; }
   td.num { font-variant-numeric: tabular-nums; white-space: nowrap; }
   .d { font-weight: 600; }
+  .subd { display: block; font-size: .72rem; color: var(--muted); margin-top: 2px; }
+  .subd .d { font-weight: 500; }
   .d.up { color: var(--pos); } .d.down { color: var(--neg); } .d.flat { color: var(--stable); }
   a.rep { color: var(--gold); font-weight: 600; text-decoration: none; border-bottom: 1px solid var(--gold-light); }
   a.rep:hover { border-bottom-color: var(--gold); }
@@ -153,7 +155,7 @@
     </div>
     <div class="out" id="gsc-out"></div>
     <div class="tbl-scroll"><table id="gsc-table" style="display:none">
-      <thead><tr><th>Client</th><th>Mois</th><th>Clics</th><th>1 mois</th><th>3 mois</th><th>6 mois</th><th>Rapport</th><th></th></tr></thead>
+      <thead><tr><th>Client</th><th>Mois</th><th>Clics</th><th>Impressions</th><th>1 mois</th><th>3 mois</th><th>6 mois</th><th>Rapport</th><th></th></tr></thead>
       <tbody></tbody>
     </table></div>
   </div>
@@ -474,13 +476,16 @@ async function loadGscLatest() {
     renderCards();
     const table = document.getElementById('gsc-table');
     table.style.display = rows.length ? '' : 'none';
+    // Cellule d'évolution : clics en 1ère ligne, impressions en dessous.
+    const dd = (r, h) => `${deltaCell(r.kpis.clicks.deltas[h])}<span class="subd">${deltaCell(r.kpis.impressions.deltas[h])} impr.</span>`;
     table.querySelector('tbody').innerHTML = rows.map((r) => `<tr>
       <td>${esc(r.clientName)}${r.mock ? ' <span class="pill warn">démo</span>' : ''}</td>
       <td class="num">${esc(r.periodLabel)}</td>
       <td class="num">${fmtInt(r.kpis.clicks.value)}</td>
-      <td class="num">${deltaCell(r.kpis.clicks.deltas.m1)}</td>
-      <td class="num">${deltaCell(r.kpis.clicks.deltas.m3)}</td>
-      <td class="num">${deltaCell(r.kpis.clicks.deltas.m6)}</td>
+      <td class="num">${fmtInt(r.kpis.impressions.value)}</td>
+      <td class="num">${dd(r, 'm1')}</td>
+      <td class="num">${dd(r, 'm3')}</td>
+      <td class="num">${dd(r, 'm6')}</td>
       <td><a class="rep" href="${esc(r.url)}" target="_blank" rel="noopener">Ouvrir ↗</a></td>
       <td><button class="small secondary" onclick="runGsc('${esc(r.clientId)}')">↻</button></td>
     </tr>`).join('');
