@@ -1,5 +1,5 @@
 {
-  "checkedAt": "2026-08-21T12:39:17Z",
+  "checkedAt": "2026-08-21T12:48:51Z",
   "target": "run-gsc",
   "gscHealth": {
     "ok": true,
@@ -7,7 +7,7 @@
     "googleKey": {
       "ok": true
     },
-    "ts": "2026-08-21T12:39:17.501Z"
+    "ts": "2026-08-21T12:48:51.311Z"
   },
   "geoHealth": {
     "ok": true,
@@ -17,7 +17,7 @@
       "openai",
       "gemini"
     ],
-    "ts": "2026-08-21T12:39:17.579Z"
+    "ts": "2026-08-21T12:48:51.361Z"
   },
   "gsc": {
     "latest": {
@@ -27,9 +27,9 @@
         "property": "https://crezabeille.fr/",
         "period": "2026-07",
         "periodLabel": "juillet 2026",
-        "generatedAt": "2026-08-21T12:39:07.837Z",
+        "generatedAt": "2026-08-21T12:48:46.469Z",
         "mock": false,
-        "url": "https://gsc-report-wassim.loumiwassim.workers.dev/r/11d37d36fbc86c2c95060bda6b06a382",
+        "url": "https://gsc-report-wassim.loumiwassim.workers.dev/r/d812cca6e750e000bdf7847ca2fe6337",
         "kpis": {
           "clicks": {
             "value": 32,
@@ -71,9 +71,9 @@
         "property": "https://www.alarme-videosurveillance-rennes.fr/",
         "period": "2026-07",
         "periodLabel": "juillet 2026",
-        "generatedAt": "2026-08-21T12:39:08.716Z",
+        "generatedAt": "2026-08-21T12:48:47.279Z",
         "mock": false,
-        "url": "https://gsc-report-wassim.loumiwassim.workers.dev/r/766cf54dac9266807b8d422fbb64012c",
+        "url": "https://gsc-report-wassim.loumiwassim.workers.dev/r/c2516a40f4139996820a5483b8a05528",
         "kpis": {
           "clicks": {
             "value": 69,
@@ -115,9 +115,9 @@
         "property": "https://courtiersurmesure.fr/",
         "period": "2026-07",
         "periodLabel": "juillet 2026",
-        "generatedAt": "2026-08-21T12:39:09.629Z",
+        "generatedAt": "2026-08-21T12:48:48.245Z",
         "mock": false,
-        "url": "https://gsc-report-wassim.loumiwassim.workers.dev/r/c675c6c360e971a9b8b4a08cc0be69ed",
+        "url": "https://gsc-report-wassim.loumiwassim.workers.dev/r/50b50d562bde33780da6478d9f70b609",
         "kpis": {
           "clicks": {
             "value": 163,
@@ -203,9 +203,9 @@
         "property": "https://www.myefarm.net/",
         "period": "2026-07",
         "periodLabel": "juillet 2026",
-        "generatedAt": "2026-08-21T12:39:07.101Z",
+        "generatedAt": "2026-08-21T12:48:45.746Z",
         "mock": false,
-        "url": "https://gsc-report-wassim.loumiwassim.workers.dev/r/a0df496d1d2b6f2bc7a4aad098df24ec",
+        "url": "https://gsc-report-wassim.loumiwassim.workers.dev/r/5995acbdf4b483de8b583d6901ddbe23",
         "kpis": {
           "clicks": {
             "value": 55,
