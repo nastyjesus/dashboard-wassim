@@ -164,14 +164,73 @@ export function buildInsights(kpis, trend, topQueries, mock) {
 }
 
 /**
+ * Gagnants / perdants entre deux mois pour un tableau à clé unique (requêtes ou
+ * pages). Arithmétique pure sur la data GSC — `delta = mois analysé − mois
+ * précédent`, positif = gain.
+ * @param {Array<{keys:string[], clicks:number, impressions:number, position:number}>} cur
+ * @param {Array<{keys:string[], clicks:number, impressions:number, position:number}>} prev
+ */
+export function buildMovers(cur, prev) {
+  const prevMap = new Map((prev || []).map((r) => [r.keys[0], r]));
+  const curMap = new Map((cur || []).map((r) => [r.keys[0], r]));
+  const up = [];
+  const down = [];
+  const fresh = [];
+  const lost = [];
+  for (const r of cur || []) {
+    const p = prevMap.get(r.keys[0]);
+    if (!p) {
+      if (r.clicks > 0) fresh.push({ key: r.keys[0], clicks: r.clicks, impressions: r.impressions, position: r.position });
+      continue;
+    }
+    const deltaClicks = r.clicks - p.clicks;
+    const entry = {
+      key: r.keys[0],
+      clicks: r.clicks, prevClicks: p.clicks, deltaClicks,
+      position: r.position, prevPosition: p.position,
+    };
+    if (deltaClicks > 0) up.push(entry);
+    else if (deltaClicks < 0) down.push(entry);
+  }
+  for (const p of prev || []) {
+    if (!curMap.has(p.keys[0]) && p.clicks > 0) {
+      lost.push({ key: p.keys[0], prevClicks: p.clicks, prevPosition: p.position });
+    }
+  }
+  up.sort((a, b) => b.deltaClicks - a.deltaClicks);
+  down.sort((a, b) => a.deltaClicks - b.deltaClicks);
+  fresh.sort((a, b) => b.clicks - a.clicks);
+  lost.sort((a, b) => b.prevClicks - a.prevClicks);
+  return { up: up.slice(0, 15), down: down.slice(0, 15), new: fresh.slice(0, 15), lost: lost.slice(0, 15) };
+}
+
+/**
+ * Opportunités : requêtes déjà visibles (position moyenne 4 à 20) avec un vrai
+ * volume d'impressions — le gisement classique d'un audit (title/meta/contenu
+ * à retravailler pour gagner les premières positions). Filtre factuel, aucune
+ * estimation.
+ * @param {Array<{keys:string[], clicks:number, impressions:number, ctr:number, position:number}>} queries
+ * @param {number} [minImpressions]
+ */
+export function findOpportunities(queries, minImpressions = 20) {
+  return (queries || [])
+    .filter((q) => q.position >= 4 && q.position <= 20 && q.impressions >= minImpressions)
+    .map((q) => ({ query: q.keys[0], clicks: q.clicks, impressions: q.impressions, ctr: q.ctr, position: q.position }))
+    .sort((a, b) => b.impressions - a.impressions)
+    .slice(0, 15);
+}
+
+/**
  * Assemble le rapport complet.
  * @param {{ client: object, months: object[], daily: array, queries: array,
  *           pages: array, appearance?: array, mock: boolean, generatedAt: string }} input
  *   `months` : les 7 mois ordonnés (cf. resolveMonths), le dernier = mois analysé.
  *   `daily`  : lignes quotidiennes GSC couvrant tout l'intervalle.
  *   `appearance` : lignes searchAppearance du mois (vide si Google n'expose rien).
+ *   `queriesPrev` / `pagesPrev` : tops du mois précédent (gagnants/perdants).
+ *   `devices` / `countries` : répartitions du mois analysé.
  */
-export function buildReport({ client, months, daily, queries, pages, appearance, mock, generatedAt }) {
+export function buildReport({ client, months, daily, queries, pages, queriesPrev, pagesPrev, devices, countries, appearance, mock, generatedAt }) {
   const perMonth = months.map((m) => ({ ...m, ...aggregateMonth(daily, m) }));
   const current = perMonth[perMonth.length - 1];
 
@@ -223,11 +282,21 @@ export function buildReport({ client, months, daily, queries, pages, appearance,
     },
     trend,
     tables: {
-      queries: (queries || []).slice(0, 25),
-      pages: (pages || []).slice(0, 10),
+      queries: (queries || []).slice(0, 250),
+      pages: (pages || []).slice(0, 100),
+      devices: devices || [],
+      countries: countries || [],
       // Apparences dans les résultats — inclura l'IA Overview le jour où
       // Google l'expose dans l'API ; en attendant ce trafic est dans les totaux.
       searchAppearance: (appearance || []).slice(0, 25),
+    },
+    // Vues d'audit pré-calculées (arithmétique sur la data GSC, rien d'estimé) —
+    // consommées par l'extraction JSON pour analyse par un skill Claude.
+    audit: {
+      comparedTo: prevMonth ? prevMonth.label : null,
+      queries: buildMovers(queries, queriesPrev),
+      pages: buildMovers(pages, pagesPrev),
+      opportunities: findOpportunities(queries),
     },
     insights: buildInsights(kpis, trend, queries, mock),
   };

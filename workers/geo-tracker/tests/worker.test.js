@@ -138,4 +138,25 @@ describe('tracking', () => {
   it('/runs sans client renvoie 400', async () => {
     expect((await run(mockEnv(), '/runs')).status).toBe(400);
   });
+
+  it('GET /export renvoie config, dernier relevé détaillé et historique par client', async () => {
+    const env = mockEnv();
+    await run(env, '/run', { method: 'POST', body: '{}' });
+
+    const exp = await (await run(env, '/export')).json();
+    expect(exp.count).toBe(1);
+    const c = exp.clients[0];
+    expect(c.client.id).toBe('demo-wassim');
+    expect(c.client.prompts.length).toBeGreaterThan(0);
+    // Détail complet : par moteur et par prompt, avec extraits de réponse.
+    expect(c.latest.engines.gemini.results[0]).toHaveProperty('excerpt');
+    expect(c.latest.summary).toHaveProperty('citationRate');
+    // Historique en résumés (sans le détail par prompt).
+    expect(c.history.length).toBe(1);
+    expect(c.history[0]).not.toHaveProperty('engines');
+
+    // Filtre ?client= inconnu : export vide, pas d'erreur.
+    const none = await (await run(env, '/export?client=nope')).json();
+    expect(none.count).toBe(0);
+  });
 });

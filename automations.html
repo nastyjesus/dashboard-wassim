@@ -398,7 +398,8 @@ async function toggleDetail(clientId) {
   cell.innerHTML = renderDetail(d);
 }
 function renderDetail(d) {
-  const queries = (d.tables && d.tables.queries) || [];
+  const allQueries = (d.tables && d.tables.queries) || [];
+  const queries = allQueries.slice(0, 25); // affichage compact — l'extraction JSON porte tout
   const pct = (x) => (x * 100).toFixed(1).replace('.', ',') + '%';
   const qRows = queries.map((q) => `<tr>
     <td>${esc(q.keys[0])}</td>
@@ -426,9 +427,10 @@ function renderDetail(d) {
   }
 
   return `<div class="detail-box">
-    <h4>Mots-clés — ${esc(d.meta.period.label)} (top ${queries.length})</h4>
+    <h4>Mots-clés — ${esc(d.meta.period.label)} (top ${queries.length}${allQueries.length > queries.length ? ` affiché sur ${allQueries.length} extraits` : ''})</h4>
     ${queries.length
-      ? `<div class="tbl-scroll"><table><thead><tr><th>Mot-clé</th><th>Clics</th><th>Impressions</th><th>CTR</th><th>Position</th></tr></thead><tbody>${qRows}</tbody></table></div>`
+      ? `<div class="tbl-scroll"><table><thead><tr><th>Mot-clé</th><th>Clics</th><th>Impressions</th><th>CTR</th><th>Position</th></tr></thead><tbody>${qRows}</tbody></table></div>
+        <p class="detail-note">L'extraction JSON contient l'audit complet : jusqu'à 250 mots-clés, gagnants/perdants vs mois précédent, opportunités (position 4-20), pages, appareils, pays et la data GEO.</p>`
       : '<p class="detail-note">Aucune requête remontée par Search Console sur ce mois.</p>'}
     <h4>IA Overview & apparences dans les résultats</h4>
     ${aBlock}
@@ -436,22 +438,30 @@ function renderDetail(d) {
 }
 
 /* ---------- extraction JSON pour analyse Claude ---------- */
+/* Un seul fichier d'audit : data GSC complète (KPIs 1/3/6 mois, top 250
+   mots-clés, gagnants/perdants vs mois précédent, opportunités position 4-20,
+   pages, appareils, pays, apparences, tendance 7 mois) + data GEO complète
+   (prompts, détail par moteur et par prompt, historique des relevés). */
 async function exportJson() {
   if (!ensureToken()) return;
   busy('btn-export', true);
   try {
     const period = document.getElementById('gsc-period').value || '';
-    const data = await api(GSC_URL, '/export' + (period ? '?period=' + period : ''));
-    if (!data.count) {
-      msg('gsc-out', 'info', period ? `Aucun rapport stocké pour ${period}.` : 'Aucun rapport stocké.');
+    const [gsc, geo] = await Promise.all([
+      api(GSC_URL, '/export' + (period ? '?period=' + period : '')),
+      api(GEO_URL, '/export').catch((e) => ({ error: e.message, clients: [] })),
+    ]);
+    if (!gsc.count && !(geo.clients || []).length) {
+      msg('gsc-out', 'info', period ? `Aucune donnée stockée pour ${period}.` : 'Aucune donnée stockée.');
     } else {
+      const data = { exportedAt: new Date().toISOString(), period: period || 'dernier-mois', gsc, geo };
       const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
       const a = document.createElement('a');
       a.href = URL.createObjectURL(blob);
-      a.download = `extraction-gsc-${period || 'dernier-mois'}.json`;
+      a.download = `audit-seo-geo-${period || 'dernier-mois'}.json`;
       a.click();
       URL.revokeObjectURL(a.href);
-      msg('gsc-out', 'ok', `⬇️ Extraction téléchargée (${data.count} clients : KPIs détaillés, mots-clés, pages, apparences, tendance 7 mois). À glisser dans Claude pour analyse.`);
+      msg('gsc-out', 'ok', `⬇️ Audit téléchargé — GSC : ${gsc.count} clients (KPIs 1/3/6 mois, top 250 mots-clés, gagnants/perdants, opportunités, pages, appareils, pays, apparences)${geo.error ? ' · GEO indisponible : ' + esc(geo.error) : ' · GEO : ' + (geo.clients || []).length + ' clients (prompts, détail par moteur, historique)'}. À glisser dans Claude pour l'audit complet.`);
     }
   } catch (e) { msg('gsc-out', 'err', esc(e.message)); }
   busy('btn-export', false);

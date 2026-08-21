@@ -203,13 +203,15 @@ async function runReports(env, origin, opts = {}) {
   for (const client of targets) {
     try {
       const { months, current } = resolveMonths(now, opts.periodKey);
-      const { daily, queries, pages, appearance, mock } = await gsc.fetchReportData(
+      const prevMonth = months[months.length - 2];
+      const { daily, queries, pages, queriesPrev, pagesPrev, devices, countries, appearance, mock } = await gsc.fetchReportData(
         client.property,
         months[0].startDate,
         current,
+        prevMonth,
       );
       const report = buildReport({
-        client, months, daily, queries, pages, appearance, mock,
+        client, months, daily, queries, pages, queriesPrev, pagesPrev, devices, countries, appearance, mock,
         generatedAt: new Date().toISOString(),
       });
       const html = renderReport(report);
