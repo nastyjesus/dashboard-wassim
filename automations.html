@@ -22,7 +22,7 @@
   body { margin: 0; background: var(--off); color: var(--dark); line-height: 1.6;
     font-family: 'Raleway', -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
     font-weight: 300; }
-  .wrap { max-width: 880px; margin: 0 auto; padding: 40px 20px 72px; }
+  .wrap { max-width: 980px; margin: 0 auto; padding: 40px 20px 72px; }
   .section-label { display: flex; align-items: center; gap: 12px; margin-bottom: 10px; }
   .section-label::before { content: ""; width: 24px; height: 1px; background: var(--gold); }
   .section-label span { font-size: .68rem; text-transform: uppercase; letter-spacing: .2em;
@@ -70,30 +70,27 @@
   td:first-child { color: var(--dark); font-weight: 500; }
   td.num { font-variant-numeric: tabular-nums; white-space: nowrap; }
   .d { font-weight: 600; }
+  .d.up { color: var(--pos); } .d.down { color: var(--neg); } .d.flat { color: var(--stable); }
   .subd { display: block; font-size: .72rem; color: var(--muted); margin-top: 2px; }
   .subd .d { font-weight: 500; }
-  .d.up { color: var(--pos); } .d.down { color: var(--neg); } .d.flat { color: var(--stable); }
   a.rep { color: var(--gold); font-weight: 600; text-decoration: none; border-bottom: 1px solid var(--gold-light); }
   a.rep:hover { border-bottom-color: var(--gold); }
   .tbl-scroll { overflow-x: auto; }
+  tr.detail > td { background: var(--gold-pale); padding: 0 0 0 0; }
+  .detail-box { padding: 16px 18px 20px; }
+  .detail-box h4 { font-family: 'EB Garamond', Georgia, serif; font-weight: 500; color: var(--dark);
+    font-size: 1.05rem; margin: 14px 0 4px; }
+  .detail-box h4:first-child { margin-top: 0; }
+  .detail-box table { margin-top: 6px; background: var(--white); }
+  .detail-box table th, .detail-box table td { padding-left: 10px; }
+  .detail-note { color: var(--mid); font-size: .8rem; font-weight: 300; margin: 6px 0 0; }
   .spin { display: inline-block; width: 13px; height: 13px; border: 2px solid currentColor; border-top-color: transparent;
     border-radius: 50%; animation: r .7s linear infinite; vertical-align: -2px; margin-right: 6px; }
   @keyframes r { to { transform: rotate(360deg); } }
-  @media (prefers-reduced-motion: reduce) { .spin { animation: none; } button { transition: none; } .progress i { transition: none; } }
-  /* --- Vue simple : cartes clients --- */
-  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(255px, 1fr)); gap: 14px; margin-bottom: 22px; }
-  .ccard { background: var(--white); border: 1px solid var(--border); border-left: 2px solid var(--gold);
-    border-radius: 2px; padding: 18px 20px; }
-  .ccard h3 { font-family: 'EB Garamond', Georgia, serif; font-weight: 500; font-size: 1.08rem;
-    margin: 0 0 8px; color: var(--dark); }
-  .stat { font-size: .84rem; color: var(--mid); margin-top: 8px; font-weight: 400; }
-  .stat .lbl { display: block; font-size: .6rem; text-transform: uppercase; letter-spacing: .14em;
-    color: var(--muted); margin-bottom: 1px; font-weight: 500; }
-  .stat b { color: var(--dark); font-weight: 600; }
-  .stat.empty { color: var(--muted); }
   .progress { height: 3px; background: var(--gold-pale); border-radius: 2px; margin-top: 14px;
     overflow: hidden; display: none; }
   .progress i { display: block; height: 100%; background: var(--gold); width: 0; transition: width .3s ease; }
+  @media (prefers-reduced-motion: reduce) { .spin { animation: none; } button { transition: none; } .progress i { transition: none; } }
   footer { color: var(--muted); font-size: .76rem; text-align: center; margin-top: 34px; font-weight: 300; }
   @media (max-width: 640px) {
     .wrap { padding: 28px 14px 56px; }
@@ -116,7 +113,6 @@
     <span class="pill" id="st-gsc">GSC : …</span>
     <span class="pill" id="st-geo">GEO : …</span>
     <button class="small secondary" onclick="configure()">⚙️ Token</button>
-    <button class="small secondary" id="btn-advanced" onclick="toggleAdvanced()">Mode avancé</button>
   </div>
 
   <div class="card" id="setup-card" style="display:none">
@@ -131,27 +127,13 @@
   </div>
 
   <div class="card">
-    <div class="section-label"><span>Actions</span></div>
-    <h2>Tout piloter en deux boutons</h2>
-    <p class="hint">Les crons tournent seuls (rapports le 3, relevé IA les 1er et 15). Ces boutons servent à lancer à la main entre deux échéances.</p>
-    <div class="row">
-      <button id="btn-simple-gsc" onclick="runGscSimple()">📊 Rapports du mois</button>
-      <button id="btn-simple-geo" onclick="runGeoSimple()">🤖 Relevé citations IA</button>
-    </div>
-    <div class="progress" id="simple-progress"><i></i></div>
-    <div class="out" id="simple-status"></div>
-  </div>
-
-  <div class="grid" id="clients-grid"></div>
-
-  <div id="advanced" style="display:none">
-  <div class="card">
     <div class="section-label"><span>Search Console</span></div>
     <h2>Rapports mensuels</h2>
-    <p class="hint">Le cron tourne le 3 du mois. Ici : génération manuelle + derniers rapports (lien à envoyer au client).</p>
+    <p class="hint">Le cron tourne le 3 du mois. « 🔍 Mots-clés » sous chaque client montre les requêtes derrière les chiffres et les apparences IA Overview. « ⬇️ Extraction JSON » télécharge la data complète, à donner à Claude pour analyse.</p>
     <div class="row">
       <button id="btn-run-gsc" onclick="runGsc()">Générer les rapports du mois</button>
-      <input type="month" id="gsc-period" title="Mois à générer (défaut : mois précédent)">
+      <input type="month" id="gsc-period" title="Mois à générer / exporter (défaut : mois précédent)">
+      <button class="secondary" id="btn-export" onclick="exportJson()">⬇️ Extraction JSON</button>
     </div>
     <div class="out" id="gsc-out"></div>
     <div class="tbl-scroll"><table id="gsc-table" style="display:none">
@@ -163,17 +145,17 @@
   <div class="card">
     <div class="section-label"><span>Moteurs génératifs</span></div>
     <h2>Citations IA</h2>
-    <p class="hint">Le cron tourne les 1er et 15. Ici : relevé manuel + dernier taux de citation par client.</p>
+    <p class="hint">Le cron tourne les 1er et 15. Le relevé complet passe client par client, avec l'avancement affiché en direct.</p>
     <div class="row">
       <button id="btn-run-geo" onclick="runGeo()">Lancer un relevé (tous les clients)</button>
       <button class="secondary" id="btn-run-geo-one" onclick="runGeoOne()">Relevé test (1 client)</button>
     </div>
+    <div class="progress" id="geo-progress"><i></i></div>
     <div class="out" id="geo-out"></div>
     <div class="tbl-scroll"><table id="geo-table" style="display:none">
       <thead><tr><th>Client</th><th>Date</th><th>Cité</th><th>Mentionné</th><th>Moteurs</th><th></th></tr></thead>
       <tbody></tbody>
     </table></div>
-  </div>
   </div>
 
   <footer>Workers : gsc-report-wassim · geo-tracker-wassim (Cloudflare) · Les crons tournent seuls, cette page sert au pilotage manuel.</footer>
@@ -277,7 +259,6 @@ function busy(btnId, on) {
   else if (b.dataset.label) b.textContent = b.dataset.label;
 }
 const fmtInt = (n) => Math.round(n).toLocaleString('fr-FR');
-const fmtPct = (n) => String(n).replace('.', ',') + '%';
 function deltaCell(d, invert = false) {
   if (d === null || d === undefined) return '<span class="d flat">—</span>';
   const eff = invert ? -d : d;
@@ -287,115 +268,8 @@ function deltaCell(d, invert = false) {
 }
 function esc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 
-/* ---------- vue simple : cartes clients ---------- */
-/* Fusion des deux configs : un client peut n'être que GSC (MyeFarm) ou que
-   GEO (Nicolas, sans site). Les cartes affichent le dernier état connu. */
-const CLIENTS = (() => {
-  const map = new Map();
-  for (const c of GSC_CLIENTS) map.set(c.id, { id: c.id, name: c.name, gsc: true, geo: false, hasSite: true });
-  for (const c of GEO_CLIENTS) {
-    const e = map.get(c.id) || { id: c.id, name: c.name, gsc: false, hasSite: Boolean(c.domain) };
-    e.geo = true;
-    map.set(c.id, e);
-  }
-  return [...map.values()].sort((a, b) => a.name.localeCompare(b.name));
-})();
-const latestGsc = {};
-const latestGeo = {};
-
-function renderCards() {
-  const grid = document.getElementById('clients-grid');
-  grid.innerHTML = CLIENTS.map((c) => {
-    const parts = [];
-    if (c.gsc) {
-      const g = latestGsc[c.id];
-      parts.push(g
-        ? `<div class="stat"><span class="lbl">Google · ${esc(g.periodLabel)}</span>
-            <b>${fmtInt(g.kpis.clicks.value)} clics</b> ${deltaCell(g.kpis.clicks.deltas.m1)}
-            · <a class="rep" href="${esc(g.url)}" target="_blank" rel="noopener">Rapport ↗</a></div>`
-        : '<div class="stat empty"><span class="lbl">Google</span>Pas encore de rapport</div>');
-    }
-    if (c.geo) {
-      const t = latestGeo[c.id];
-      if (t) {
-        const s = t.summary;
-        const down = Object.values(s.perEngine || {}).filter((e) => !e.ok).length;
-        const main = c.hasSite
-          ? `Cité par les IA : <b>${fmtPct(s.citationRate)}</b>`
-          : `Mentionné par les IA : <b>${fmtPct(s.mentionRate)}</b>`;
-        parts.push(`<div class="stat"><span class="lbl">Citations IA · ${esc(t.date)}</span>
-          ${main}${down ? ` · <span class="d down">⚠ ${down} moteur${down > 1 ? 's' : ''} en panne</span>` : ''}</div>`);
-      } else {
-        parts.push('<div class="stat empty"><span class="lbl">Citations IA</span>Pas encore de relevé</div>');
-      }
-    }
-    return `<div class="ccard"><h3>${esc(c.name)}</h3>${parts.join('')}</div>`;
-  }).join('');
-}
-
-function setStatus(kind, html) {
-  document.getElementById('simple-status').innerHTML = html ? `<div class="msg ${kind}">${html}</div>` : '';
-}
-function setProgress(pct) {
-  const bar = document.getElementById('simple-progress');
-  bar.style.display = pct === null ? 'none' : 'block';
-  if (pct !== null) bar.firstElementChild.style.width = pct + '%';
-}
-
-async function runGscSimple() {
-  if (!ensureToken()) return;
-  if (!confirm('Générer les rapports Search Console du mois précédent, pour tous les clients ?')) return;
-  busy('btn-simple-gsc', true);
-  setStatus('info', '<span class="spin"></span>Génération des rapports en cours (une à deux minutes)…');
-  try {
-    const r = await api(GSC_URL, '/run', { method: 'POST', body: '{}' });
-    const errs = (r.errors || []).map((e) => `⛔ ${esc(e.clientId)} : ${esc(e.error)}`);
-    setStatus(errs.length ? 'err' : 'ok',
-      `✅ ${r.generated.length} rapport(s) généré(s) — les liens sont à jour sur les cartes.`
-      + (errs.length ? '<br>' + errs.join('<br>') : ''));
-  } catch (e) { setStatus('err', '⛔ ' + esc(e.message)); }
-  busy('btn-simple-gsc', false);
-  await loadGscLatest();
-}
-
-async function runGeoSimple() {
-  if (!ensureToken()) return;
-  if (!confirm(`Interroger les 4 moteurs IA pour les ${GEO_CLIENTS.length} clients ?\nDurée : quelques minutes — l'avancement s'affiche client par client.`)) return;
-  busy('btn-simple-geo', true);
-  const errs = [];
-  let done = 0;
-  setProgress(0);
-  for (const c of GEO_CLIENTS) {
-    setStatus('info', `<span class="spin"></span>Relevé IA ${done + 1}/${GEO_CLIENTS.length} — ${esc(c.name)}…`);
-    try {
-      const r = await api(GEO_URL, '/run', { method: 'POST', body: JSON.stringify({ client: c.id }) });
-      const t = (r.tracked || [])[0];
-      if (t) latestGeo[t.clientId] = t;
-      for (const e of r.errors || []) errs.push(`⛔ ${esc(e.clientId)} : ${esc(e.error)}`);
-    } catch (e) { errs.push(`⛔ ${esc(c.name)} : ${esc(e.message)}`); }
-    done += 1;
-    setProgress(Math.round((done / GEO_CLIENTS.length) * 100));
-    renderCards();
-  }
-  setProgress(null);
-  setStatus(errs.length ? 'err' : 'ok',
-    errs.length
-      ? `Relevé terminé — ${GEO_CLIENTS.length - errs.length}/${GEO_CLIENTS.length} clients ok.<br>` + errs.join('<br>')
-      : `✅ Relevé terminé pour les ${GEO_CLIENTS.length} clients — cartes à jour.`);
-  busy('btn-simple-geo', false);
-  loadGeoLatest();
-}
-
-function toggleAdvanced() {
-  const adv = document.getElementById('advanced');
-  const on = adv.style.display === 'none';
-  adv.style.display = on ? '' : 'none';
-  document.getElementById('btn-advanced').textContent = on ? 'Mode simple' : 'Mode avancé';
-}
-
 /* ---------- état / health ---------- */
 async function refresh() {
-  renderCards();
   await Promise.all([refreshWorker('gsc'), refreshWorker('geo')]);
   await Promise.all([loadGscLatest(), loadGeoLatest()]);
   await checkSetup();
@@ -446,7 +320,7 @@ async function pushGeoConfig() {
   checkSetup();
 }
 
-/* ---------- rapports GSC (mode avancé) ---------- */
+/* ---------- rapports GSC ---------- */
 async function runGsc(clientId) {
   if (!ensureToken()) return;
   const period = document.getElementById('gsc-period').value || undefined;
@@ -465,6 +339,7 @@ async function runGsc(clientId) {
     if (!r.generated.length && !r.errors.length) msg('gsc-out', 'info', 'Aucun client configuré.');
   } catch (e) { msg('gsc-out', 'err', esc(e.message)); }
   busy('btn-run-gsc', false);
+  DETAIL_CACHE.clear();
   loadGscLatest();
 }
 async function loadGscLatest() {
@@ -472,8 +347,6 @@ async function loadGscLatest() {
   try {
     const { latest } = await api(GSC_URL, '/latest');
     const rows = Object.values(latest || {}).sort((a, b) => a.clientName.localeCompare(b.clientName));
-    for (const r of rows) latestGsc[r.clientId] = r;
-    renderCards();
     const table = document.getElementById('gsc-table');
     table.style.display = rows.length ? '' : 'none';
     // Cellule d'évolution : clics en 1ère ligne, impressions en dessous.
@@ -487,27 +360,144 @@ async function loadGscLatest() {
       <td class="num">${dd(r, 'm3')}</td>
       <td class="num">${dd(r, 'm6')}</td>
       <td><a class="rep" href="${esc(r.url)}" target="_blank" rel="noopener">Ouvrir ↗</a></td>
-      <td><button class="small secondary" onclick="runGsc('${esc(r.clientId)}')">↻</button></td>
-    </tr>`).join('');
+      <td style="white-space:nowrap"><button class="small secondary" onclick="toggleDetail('${esc(r.clientId)}')" id="btn-det-${esc(r.clientId)}">🔍 Mots-clés</button>
+        <button class="small secondary" onclick="runGsc('${esc(r.clientId)}')" title="Re-générer">↻</button></td>
+    </tr>
+    <tr class="detail" id="det-${esc(r.clientId)}" style="display:none"><td colspan="9"></td></tr>`).join('');
   } catch {}
 }
 
-/* ---------- tracker GEO (mode avancé) ---------- */
+/* ---------- détail par client : mots-clés + IA Overview ---------- */
+const DETAIL_CACHE = new Map();
+const APPEARANCE_FR = {
+  'AMP_BLUE_LINK': 'AMP', 'AMP_TOP_STORIES': 'AMP — À la une',
+  'REVIEW_SNIPPET': 'Extrait d’avis', 'PRODUCT_SNIPPETS': 'Extraits produit',
+  'MERCHANT_LISTINGS': 'Fiches marchand', 'ORGANIC_SHOPPING': 'Shopping (naturel)',
+  'VIDEO': 'Vidéo', 'TRANSLATED_RESULT': 'Résultat traduit',
+  'JOB_LISTING': 'Offre d’emploi', 'JOB_DETAILS': 'Détail d’offre d’emploi',
+  'EVENTS_LISTING': 'Évènements', 'RECIPE_FEATURE': 'Recettes',
+  'SPECIAL_ANNOUNCEMENT': 'Annonce spéciale',
+};
+async function toggleDetail(clientId) {
+  const row = document.getElementById('det-' + clientId);
+  if (row.style.display !== 'none') { row.style.display = 'none'; return; }
+  row.style.display = '';
+  const cell = row.firstElementChild;
+  if (!DETAIL_CACHE.has(clientId)) {
+    cell.innerHTML = '<div class="detail-box"><span class="spin"></span>Chargement du détail…</div>';
+    try {
+      const exp = await api(GSC_URL, '/export?client=' + encodeURIComponent(clientId));
+      DETAIL_CACHE.set(clientId, (exp.clients || [])[0] || null);
+    } catch (e) {
+      cell.innerHTML = `<div class="detail-box"><div class="msg err">⛔ ${esc(e.message)}</div></div>`;
+      return;
+    }
+  }
+  const d = DETAIL_CACHE.get(clientId);
+  if (!d) { cell.innerHTML = '<div class="detail-box detail-note">Pas encore de rapport pour ce client.</div>'; return; }
+  cell.innerHTML = renderDetail(d);
+}
+function renderDetail(d) {
+  const queries = (d.tables && d.tables.queries) || [];
+  const pct = (x) => (x * 100).toFixed(1).replace('.', ',') + '%';
+  const qRows = queries.map((q) => `<tr>
+    <td>${esc(q.keys[0])}</td>
+    <td class="num">${fmtInt(q.clicks)}</td>
+    <td class="num">${fmtInt(q.impressions)}</td>
+    <td class="num">${pct(q.ctr || 0)}</td>
+    <td class="num">${(q.position || 0).toFixed(1).replace('.', ',')}</td>
+  </tr>`).join('');
+
+  const appearance = d.tables && d.tables.searchAppearance;
+  let aBlock;
+  if (appearance === undefined) {
+    aBlock = `<p class="detail-note">Ce rapport a été généré avant l'ajout du suivi des apparences — re-génère le rapport (↻) pour récupérer cette donnée.</p>`;
+  } else if (appearance.length) {
+    aBlock = `<table><thead><tr><th>Apparence</th><th>Clics</th><th>Impressions</th></tr></thead><tbody>`
+      + appearance.map((a) => {
+        const code = a.keys[0];
+        const isAI = /(^|_)AI(_|$)|OVERVIEW/i.test(code);
+        return `<tr><td>${isAI ? '🤖 ' : ''}${esc(APPEARANCE_FR[code] || code)}</td>
+          <td class="num">${fmtInt(a.clicks)}</td><td class="num">${fmtInt(a.impressions)}</td></tr>`;
+      }).join('') + '</tbody></table>'
+      + `<p class="detail-note">Répartition « apparence dans les résultats » fournie par l'API Search Console pour ${esc(d.meta.period.label)}. Google n'y distingue pas encore les AI Overviews : ce trafic est compté dans les totaux du rapport. La ligne apparaîtra ici automatiquement le jour où Google l'expose.</p>`;
+  } else {
+    aBlock = `<p class="detail-note">Google ne renvoie aucune répartition par apparence pour cette propriété sur ${esc(d.meta.period.label)} — et l'API Search Console n'expose pas (encore) le trafic AI Overviews séparément : il est compté dans les clics et impressions ci-dessus. Dès que Google publie cette donnée, elle s'affichera ici automatiquement. En attendant, la visibilité IA se mesure avec le relevé « Citations IA » ci-dessous.</p>`;
+  }
+
+  return `<div class="detail-box">
+    <h4>Mots-clés — ${esc(d.meta.period.label)} (top ${queries.length})</h4>
+    ${queries.length
+      ? `<div class="tbl-scroll"><table><thead><tr><th>Mot-clé</th><th>Clics</th><th>Impressions</th><th>CTR</th><th>Position</th></tr></thead><tbody>${qRows}</tbody></table></div>`
+      : '<p class="detail-note">Aucune requête remontée par Search Console sur ce mois.</p>'}
+    <h4>IA Overview & apparences dans les résultats</h4>
+    ${aBlock}
+  </div>`;
+}
+
+/* ---------- extraction JSON pour analyse Claude ---------- */
+async function exportJson() {
+  if (!ensureToken()) return;
+  busy('btn-export', true);
+  try {
+    const period = document.getElementById('gsc-period').value || '';
+    const data = await api(GSC_URL, '/export' + (period ? '?period=' + period : ''));
+    if (!data.count) {
+      msg('gsc-out', 'info', period ? `Aucun rapport stocké pour ${period}.` : 'Aucun rapport stocké.');
+    } else {
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = `extraction-gsc-${period || 'dernier-mois'}.json`;
+      a.click();
+      URL.revokeObjectURL(a.href);
+      msg('gsc-out', 'ok', `⬇️ Extraction téléchargée (${data.count} clients : KPIs détaillés, mots-clés, pages, apparences, tendance 7 mois). À glisser dans Claude pour analyse.`);
+    }
+  } catch (e) { msg('gsc-out', 'err', esc(e.message)); }
+  busy('btn-export', false);
+}
+
+/* ---------- tracker GEO ---------- */
+function setGeoProgress(pct) {
+  const bar = document.getElementById('geo-progress');
+  bar.style.display = pct === null ? 'none' : 'block';
+  if (pct !== null) bar.firstElementChild.style.width = pct + '%';
+}
 async function runGeo(clientId) {
   if (!ensureToken()) return;
   if (!confirm(clientId
     ? `Lancer un relevé de citations pour « ${clientId} » ? (appels API réels)`
-    : 'Lancer un relevé de citations pour TOUS les clients ? (~190 appels API, quelques minutes)')) return;
+    : `Lancer un relevé de citations pour les ${GEO_CLIENTS.length} clients ?\nDurée : quelques minutes — l'avancement s'affiche client par client.`)) return;
   busy('btn-run-geo', true); busy('btn-run-geo-one', true);
   try {
-    const r = await api(GEO_URL, '/run', { method: 'POST', body: JSON.stringify(clientId ? { client: clientId } : {}) });
-    for (const t of r.tracked) {
-      msg('geo-out', 'ok', `✅ ${esc(t.clientName)} : cité ${String(t.summary.citationRate).replace('.', ',')}% · mentionné ${String(t.summary.mentionRate).replace('.', ',')}% (${t.summary.answers} réponses)${t.notionLogged ? ' · loggé dans Notion' : ''}`);
+    if (clientId) {
+      const r = await api(GEO_URL, '/run', { method: 'POST', body: JSON.stringify({ client: clientId }) });
+      reportGeoResults(r);
+    } else {
+      // Client par client : pas de gros run bloquant, avancement visible.
+      let done = 0;
+      setGeoProgress(0);
+      for (const c of GEO_CLIENTS) {
+        msg('geo-out', 'info', `<span class="spin"></span>Relevé ${done + 1}/${GEO_CLIENTS.length} — ${esc(c.name)}…`);
+        try {
+          const r = await api(GEO_URL, '/run', { method: 'POST', body: JSON.stringify({ client: c.id }) });
+          reportGeoResults(r);
+        } catch (e) { msg('geo-out', 'err', `⛔ ${esc(c.name)} : ${esc(e.message)}`); }
+        done += 1;
+        setGeoProgress(Math.round((done / GEO_CLIENTS.length) * 100));
+      }
+      setGeoProgress(null);
+      msg('geo-out', 'ok', `✅ Relevé terminé pour les ${GEO_CLIENTS.length} clients.`);
     }
-    for (const e of r.errors) msg('geo-out', 'err', `⛔ ${esc(e.clientId)} : ${esc(e.error)}`);
   } catch (e) { msg('geo-out', 'err', esc(e.message)); }
   busy('btn-run-geo', false); busy('btn-run-geo-one', false);
   loadGeoLatest();
+}
+function reportGeoResults(r) {
+  for (const t of r.tracked || []) {
+    msg('geo-out', 'ok', `✅ ${esc(t.clientName)} : cité ${String(t.summary.citationRate).replace('.', ',')}% · mentionné ${String(t.summary.mentionRate).replace('.', ',')}% (${t.summary.answers} réponses)${t.notionLogged ? ' · loggé dans Notion' : ''}`);
+  }
+  for (const e of r.errors || []) msg('geo-out', 'err', `⛔ ${esc(e.clientId)} : ${esc(e.error)}`);
 }
 function runGeoOne() {
   const id = prompt('Id du client (ex: simco, delphine, optel…)', 'simco');
@@ -518,8 +508,6 @@ async function loadGeoLatest() {
   try {
     const { latest } = await api(GEO_URL, '/latest');
     const rows = Object.values(latest || {}).sort((a, b) => a.clientName.localeCompare(b.clientName));
-    for (const r of rows) latestGeo[r.clientId] = r;
-    renderCards();
     const table = document.getElementById('geo-table');
     table.style.display = rows.length ? '' : 'none';
     const engineNames = { perplexity: 'Perplexity', anthropic: 'Claude', openai: 'ChatGPT', gemini: 'Gemini' };

@@ -20,17 +20,17 @@ export class GscClient {
    * @param {string} property propriété GSC (`sc-domain:example.fr` ou `https://example.fr/`)
    * @param {string} rangeStart YYYY-MM-DD (début du mois le plus ancien)
    * @param {{startDate:string, endDate:string}} currentBounds mois analysé
-   * @returns {Promise<{daily: array, queries: array, pages: array, mock: boolean}>}
+   * @returns {Promise<{daily: array, queries: array, pages: array, appearance: array, mock: boolean}>}
    */
   async fetchReportData(property, rangeStart, currentBounds) {
     if (this.mock) {
       const daily = mockDailySeries(property, rangeStart, currentBounds.endDate);
       const { totals } = aggregateMonth(daily, currentBounds);
       const { queries, pages } = mockTopTables(property, totals);
-      return { daily, queries, pages, mock: true };
+      return { daily, queries, pages, appearance: [], mock: true };
     }
 
-    const [dailyRes, queriesRes, pagesRes] = await Promise.all([
+    const [dailyRes, queriesRes, pagesRes, appearanceRes] = await Promise.all([
       this.query(property, {
         startDate: rangeStart,
         endDate: currentBounds.endDate,
@@ -41,7 +41,7 @@ export class GscClient {
         startDate: currentBounds.startDate,
         endDate: currentBounds.endDate,
         dimensions: ['query'],
-        rowLimit: 10,
+        rowLimit: 25,
       }),
       this.query(property, {
         startDate: currentBounds.startDate,
@@ -49,6 +49,17 @@ export class GscClient {
         dimensions: ['page'],
         rowLimit: 10,
       }),
+      // Apparences dans les résultats (searchAppearance). C'est ici que Google
+      // exposera le trafic AI Overviews s'il le publie un jour dans l'API —
+      // pour l'instant il est fondu dans les totaux. Best-effort : certaines
+      // propriétés renvoient une erreur sur cette dimension, on ne fait pas
+      // échouer le rapport pour ça.
+      this.query(property, {
+        startDate: currentBounds.startDate,
+        endDate: currentBounds.endDate,
+        dimensions: ['searchAppearance'],
+        rowLimit: 25,
+      }).catch(() => ({ rows: [] })),
     ]);
 
     const daily = (dailyRes.rows || [])
@@ -64,6 +75,7 @@ export class GscClient {
       daily,
       queries: queriesRes.rows || [],
       pages: pagesRes.rows || [],
+      appearance: appearanceRes.rows || [],
       mock: false,
     };
   }
