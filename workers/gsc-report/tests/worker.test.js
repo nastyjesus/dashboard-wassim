@@ -129,6 +129,27 @@ describe('génération de rapports', () => {
     expect(res.status).toBe(404);
   });
 
+  it('POST /run sans client passe par le binding SELF (une invocation par client)', async () => {
+    const env = mockEnv();
+    let selfCalls = 0;
+    env.SELF = {
+      fetch: (u, init) => {
+        selfCalls += 1;
+        // Chaque appel SELF simule une nouvelle invocation (sans binding, sinon récursion).
+        return worker.fetch(new Request(u, init), { ...env, SELF: undefined }, { waitUntil() {} });
+      },
+    };
+    const body = await (await run(env, '/run', { method: 'POST', body: '{}' })).json();
+    expect(selfCalls).toBe(1); // 1 client démo → 1 invocation
+    expect(body.generated.length).toBe(1);
+    expect(body.errors).toEqual([]);
+
+    // Un client ciblé ne passe pas par SELF.
+    selfCalls = 0;
+    await run(env, '/run', { method: 'POST', body: JSON.stringify({ client: 'demo-wassim' }) });
+    expect(selfCalls).toBe(0);
+  });
+
   it('GET /export renvoie la data complète (mots-clés, pages, apparences) pour analyse', async () => {
     const env = mockEnv();
     await run(env, '/run', { method: 'POST', body: JSON.stringify({ period: '2026-06' }) });

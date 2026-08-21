@@ -33,6 +33,14 @@ crons = ["0 6 3 * *"]
 binding = "REPORTS"
 id = "REPLACE_WITH_KV_NAMESPACE_ID"
 
+# Binding du worker vers lui-même : le run « tous les clients » (cron ou POST
+# /run sans client) déclenche une invocation par client, chacune avec son
+# propre budget de sous-requêtes — le pull d'audit (8 appels API/client)
+# dépasserait la limite de 50 sous-requêtes en une seule invocation.
+[[services]]
+binding = "SELF"
+service = "gsc-report-wassim"
+
 # Les secrets à provisionner via `wrangler secret put` :
 #   GOOGLE_SA_EMAIL        (email du service account, ex: gsc-report@….iam.gserviceaccount.com)
 #   GOOGLE_SA_PRIVATE_KEY  (clé privée PKCS8 du service account, PEM complet avec \n)
