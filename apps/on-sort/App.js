@@ -53,7 +53,7 @@ export default function App() {
         )}
         {onglet === 'couple' && <Couple />}
         {onglet === 'moi' && <Moi />}
-        {onglet === 'tribu' && <Tribu />}
+        {onglet === 'tribu' && <Tribu profil={profil} />}
       </View>
       <BarreOnglets actif={onglet} onChange={setOnglet} />
     </View>
