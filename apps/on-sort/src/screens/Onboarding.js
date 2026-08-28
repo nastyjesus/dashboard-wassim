@@ -12,20 +12,22 @@ export function Onboarding({ profilInitial, onValider }) {
 
   return (
     <ScrollView style={styles.ecran} contentContainerStyle={styles.contenu}>
-      <Text style={styles.titre}>On sort ? 👋</Text>
+      <Text style={styles.titre}>Papa Parfait</Text>
+      <Text style={styles.tagline}>Le QG des papas.</Text>
       <Text style={styles.intro}>
-        Dites-nous où vous êtes et l'âge de votre enfant : on vous propose les
-        meilleures sorties du jour, météo comprise.
+        Les meilleures sorties pour tes enfants, des idées pour ton couple, et
+        un coin pour souffler — entre papas. Dis-nous juste où tu es et l'âge
+        de ton enfant.
       </Text>
 
-      <Text style={styles.section}>Votre coin</Text>
+      <Text style={styles.section}>Ton coin</Text>
       <View style={styles.chips}>
         {VILLES.map((v) => (
           <Chip key={v.id} label={v.nom} actif={v.id === villeId} onPress={() => setVilleId(v.id)} />
         ))}
       </View>
 
-      <Text style={styles.section}>L'âge de votre enfant</Text>
+      <Text style={styles.section}>L'âge de ton enfant</Text>
       <View style={styles.chips}>
         {AGES.map((a) => (
           <Chip key={a} label={`${a} an${a > 1 ? 's' : ''}`} actif={a === age} onPress={() => setAge(a)} />
@@ -33,7 +35,7 @@ export function Onboarding({ profilInitial, onValider }) {
       </View>
 
       <Pressable style={styles.cta} onPress={() => onValider({ villeId, age })} accessibilityRole="button">
-        <Text style={styles.ctaTexte}>C'est parti !</Text>
+        <Text style={styles.ctaTexte}>Rejoindre le QG</Text>
       </Pressable>
     </ScrollView>
   );
@@ -43,6 +45,7 @@ const styles = StyleSheet.create({
   ecran: { flex: 1, backgroundColor: couleurs.fond },
   contenu: { padding: espace.xl, paddingTop: 72, paddingBottom: espace.xxl },
   titre: { fontSize: 34, fontWeight: '800', color: couleurs.encre },
+  tagline: { fontSize: 18, fontWeight: '700', color: couleurs.accent, marginTop: espace.xs },
   intro: { fontSize: 16, lineHeight: 23, color: couleurs.texte, marginTop: espace.m },
   section: {
     fontSize: 13,

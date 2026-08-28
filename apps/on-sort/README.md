@@ -1,22 +1,26 @@
-# On sort ? — app mobile (week-end 2)
+# Papa Parfait — app mobile
 
-App Expo du side hustle **« On sort ? »** : je choisis un jour, l'app me
-propose le top 5 des sorties famille autour de chez moi, météo comprise.
-Toute l'intelligence (sources open data, scoring, météo) vit dans le worker
-`workers/on-sort` — l'app ne fait qu'afficher.
+**Papa Parfait, le QG des papas** : sorties pour les enfants, idées pour le
+couple, bien-être du papa, et la tribu. Ton complice (« entre papas, on se
+comprend »), zone de lancement Bretagne (4 départements).
+L'intelligence sorties (sources open data, scoring, météo) vit dans le
+worker `workers/on-sort` — l'app affiche.
 
-## Les 3 écrans
+## Les 4 onglets
 
-1. **Onboarding** — votre coin (8 villes d'Ille-et-Vilaine) + l'âge de
-   l'enfant. Mémorisé en local, modifiable depuis l'accueil.
-2. **Accueil** — chips de dates (aujourd'hui / demain / week-end), météo du
-   jour, la « préférée » mise en avant puis le reste du top 5, avec les
-   raisons du worker (« À l'abri s'il pleut », « 3-5 ans », « Gratuit »).
-3. **Fiche** — lieu, horaires, âge, description, « Voir l'événement » et
-   « Y aller » (plan).
+1. **🎈 Sorties** — le moteur « On sort ? » : chips de dates, météo du jour,
+   la « préférée » mise en avant puis le reste du top 5, avec les raisons du
+   worker (« À l'abri s'il pleut », « 3-5 ans », « Gratuit ») + fiche détail.
+2. **❤️ Couple** — la mission de la semaine (rotation auto), teasers radar
+   date night et rappels de dates (à brancher avec les partenariats).
+3. **💪 Moi** — check-in « batterie papa » en un tap (local, 7 jours
+   d'historique), défi de la semaine, micro-conseil.
+4. **🔥 Tribu** — maquette du fil communautaire (posts d'exemple marqués) ;
+   le backend social (comptes, posts, modération) est le prochain chantier.
 
-Navigation volontairement sans dépendance (état local) : 3 écrans, pas
-besoin de react-navigation pour le POC.
+L'onboarding (ville bretonne + âge de l'enfant) est mémorisé en local.
+Navigation volontairement sans dépendance (état local + barre d'onglets
+maison).
 
 ## Lancer
 

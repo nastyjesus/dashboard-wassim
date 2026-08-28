@@ -30,13 +30,16 @@ export function Accueil({ profil, onOuvrirDetail, onModifierProfil }) {
     setChargement(true);
     setErreur(null);
     try {
-      setData(await chargerTop({ dateISO: date, lat: ville.lat, lon: ville.lon, age: profil.age }));
+      setData(await chargerTop({
+        dateISO: date, lat: ville.lat, lon: ville.lon, age: profil.age,
+        dept: ville.dept, code: ville.code,
+      }));
     } catch (e) {
       setErreur(e.message || 'Impossible de charger les sorties.');
     } finally {
       setChargement(false);
     }
-  }, [ville.lat, ville.lon, profil.age]);
+  }, [ville.lat, ville.lon, ville.dept, ville.code, profil.age]);
 
   useEffect(() => { charger(dateISO); }, [dateISO, charger]);
 

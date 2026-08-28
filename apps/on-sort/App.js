@@ -1,8 +1,7 @@
-// « On sort ? » — l'app qui répond à « qu'est-ce qu'on fait avec les enfants ? ».
-// POC week-end 2 : 3 écrans (onboarding, accueil, fiche), branchés sur le
-// worker on-sort-poc qui fait tout le travail (sources, météo, scoring).
-// Navigation volontairement minimale (état local) : pas de dépendance de nav
-// pour 3 écrans.
+// Papa Parfait — le QG des papas. 4 onglets : Sorties (le moteur « On
+// sort ? » branché sur le worker), Couple, Moi (bien-être, local), Tribu
+// (maquette du fil communautaire, backend à venir).
+// Navigation volontairement minimale (état local) : pas de dépendance de nav.
 
 import { useEffect, useState } from 'react';
 import { View, StyleSheet } from 'react-native';
@@ -10,14 +9,17 @@ import { StatusBar } from 'expo-status-bar';
 import { couleurs } from './src/theme.js';
 import { lireProfil, ecrireProfil } from './src/storage.js';
 import { Onboarding } from './src/screens/Onboarding.js';
-import { Accueil } from './src/screens/Accueil.js';
-import { Detail } from './src/screens/Detail.js';
+import { Sorties } from './src/screens/Sorties.js';
+import { Couple } from './src/screens/Couple.js';
+import { Moi } from './src/screens/Moi.js';
+import { Tribu } from './src/screens/Tribu.js';
+import { BarreOnglets } from './src/components/BarreOnglets.js';
 
 export default function App() {
   const [pret, setPret] = useState(false);
   const [profil, setProfil] = useState(null);
-  const [edition, setEdition] = useState(false); // onboarding rouvert depuis l'accueil
-  const [detail, setDetail] = useState(null);
+  const [edition, setEdition] = useState(false); // onboarding rouvert depuis Sorties
+  const [onglet, setOnglet] = useState('sorties');
 
   useEffect(() => {
     lireProfil().then((p) => { setProfil(p); setPret(true); });
@@ -29,31 +31,36 @@ export default function App() {
     ecrireProfil(p);
   };
 
-  let ecran = null;
-  if (pret) {
-    if (!profil || edition) {
-      ecran = <Onboarding profilInitial={profil} onValider={validerProfil} />;
-    } else if (detail) {
-      ecran = <Detail ev={detail} onRetour={() => setDetail(null)} />;
-    } else {
-      ecran = (
-        <Accueil
-          profil={profil}
-          onOuvrirDetail={setDetail}
-          onModifierProfil={() => setEdition(true)}
-        />
-      );
-    }
+  if (!pret) {
+    return <View style={styles.racine}><StatusBar style="dark" /></View>;
+  }
+
+  if (!profil || edition) {
+    return (
+      <View style={styles.racine}>
+        <StatusBar style="dark" />
+        <Onboarding profilInitial={profil} onValider={validerProfil} />
+      </View>
+    );
   }
 
   return (
     <View style={styles.racine}>
       <StatusBar style="dark" />
-      {ecran}
+      <View style={styles.corps}>
+        {onglet === 'sorties' && (
+          <Sorties profil={profil} onModifierProfil={() => setEdition(true)} />
+        )}
+        {onglet === 'couple' && <Couple />}
+        {onglet === 'moi' && <Moi />}
+        {onglet === 'tribu' && <Tribu />}
+      </View>
+      <BarreOnglets actif={onglet} onChange={setOnglet} />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   racine: { flex: 1, backgroundColor: couleurs.fond },
+  corps: { flex: 1 },
 });
