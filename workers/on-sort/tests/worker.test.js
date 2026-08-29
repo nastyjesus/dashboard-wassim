@@ -135,6 +135,49 @@ describe('/diagnostic', () => {
   });
 });
 
+describe('/votes (piliers en teaser)', () => {
+  function kvSimule() {
+    const cles = new Set();
+    return {
+      put: async (cle) => { cles.add(cle); },
+      list: async ({ prefix }) => ({ keys: [...cles].filter((c) => c.startsWith(prefix)).map((name) => ({ name })) }),
+    };
+  }
+
+  it('enregistre un vote idempotent par appareil et compte par pilier', async () => {
+    const env = envMock({ VOTES: kvSimule() });
+    const voter = (appareil) => worker.fetch(new Request('https://on-sort-poc.test/votes', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ pilier: 'couple', appareil }),
+    }), env, CTX);
+
+    await voter('11111111-aaaa-4bbb-8ccc-222222222222');
+    const res = await voter('11111111-aaaa-4bbb-8ccc-222222222222'); // revote même appareil
+    expect((await res.json()).total).toBe(1);
+
+    await voter('33333333-aaaa-4bbb-8ccc-444444444444');
+    const lecture = await worker.fetch(new Request('https://on-sort-poc.test/votes'), env, CTX);
+    const { votes } = await lecture.json();
+    expect(votes).toEqual({ couple: 2, moi: 0, tribu: 0 });
+  });
+
+  it('refuse un pilier inconnu ou un identifiant d’appareil louche', async () => {
+    const env = envMock({ VOTES: kvSimule() });
+    const res = await worker.fetch(new Request('https://on-sort-poc.test/votes', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ pilier: 'pub', appareil: 'x' }),
+    }), env, CTX);
+    expect(res.status).toBe(400);
+  });
+
+  it('503 explicite si le KV n’est pas branché', async () => {
+    const res = await worker.fetch(new Request('https://on-sort-poc.test/votes'), envMock(), CTX);
+    expect(res.status).toBe(503);
+  });
+});
+
 describe('routes inconnues', () => {
   it('404 JSON', async () => {
     const { res, body } = await appel('/nimporte', envMock());

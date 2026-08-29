@@ -20,3 +20,12 @@ export const VILLES = [
 ];
 
 export const AGES = [1, 2, 3, 4, 5, 6, 7, 8];
+
+/** Lien ajouté aux partages — mettre le lien Play Store dès la beta en ligne
+ *  (ou une page de destination). null = pas de lien dans le message. */
+export const LIEN_APP = null;
+
+/** Piliers actifs. Couple/Moi/Tribu sont en teaser (vote « Ça m'intéresse »)
+ *  tant que les Sorties n'ont pas fait leurs preuves — passer un pilier à
+ *  true réactive l'écran complet correspondant, déjà codé. */
+export const PILIERS_ACTIFS = { couple: false, moi: false, tribu: false };

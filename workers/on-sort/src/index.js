@@ -28,6 +28,8 @@ const DEFAUTS = {
   departement: 'Ille-et-Vilaine', codeDepartement: '35',
 };
 const CACHE_TTL = 6 * 3600; // les agendas bougent peu en journée
+/** Piliers en teaser dont on compte les « Ça m'intéresse ». */
+const PILIERS = ['couple', 'moi', 'tribu'];
 
 export default {
   async fetch(request, env, ctx) {
@@ -46,6 +48,29 @@ export default {
       }
       if (path === '/diagnostic' && request.method === 'GET') {
         return jsonResponse(await diagnostic(url, env), 200, request, env);
+      }
+      // Votes « Ça m'intéresse » des piliers en teaser (Couple/Moi/Tribu) :
+      // une clé KV par appareil et par pilier — idempotent, comptage par
+      // préfixe (list plafonné à 1000 : largement assez pour la beta).
+      if (path === '/votes' && request.method === 'POST') {
+        if (!env.VOTES) return jsonResponse({ error: 'kv_not_bound' }, 503, request, env);
+        const corps = (await request.json().catch(() => null)) || {};
+        const pilier = String(corps.pilier || '');
+        const appareil = String(corps.appareil || '');
+        if (!PILIERS.includes(pilier) || !/^[0-9a-f-]{8,64}$/i.test(appareil)) {
+          return jsonResponse({ error: 'bad_request' }, 400, request, env);
+        }
+        await env.VOTES.put(`vote:${pilier}:${appareil.toLowerCase()}`, '1');
+        const total = (await env.VOTES.list({ prefix: `vote:${pilier}:`, limit: 1000 })).keys.length;
+        return jsonResponse({ ok: true, pilier, total }, 201, request, env);
+      }
+      if (path === '/votes' && request.method === 'GET') {
+        if (!env.VOTES) return jsonResponse({ error: 'kv_not_bound' }, 503, request, env);
+        const totaux = {};
+        for (const pilier of PILIERS) {
+          totaux[pilier] = (await env.VOTES.list({ prefix: `vote:${pilier}:`, limit: 1000 })).keys.length;
+        }
+        return jsonResponse({ votes: totaux }, 200, request, env);
       }
     } catch (e) {
       return jsonResponse({ error: 'internal', message: String(e.message || e) }, 500, request, env);

@@ -13,7 +13,9 @@ import { Sorties } from './src/screens/Sorties.js';
 import { Couple } from './src/screens/Couple.js';
 import { Moi } from './src/screens/Moi.js';
 import { Tribu } from './src/screens/Tribu.js';
+import { Teaser } from './src/screens/Teaser.js';
 import { BarreOnglets } from './src/components/BarreOnglets.js';
+import { PILIERS_ACTIFS } from './src/config.js';
 
 export default function App() {
   const [pret, setPret] = useState(false);
@@ -51,9 +53,9 @@ export default function App() {
         {onglet === 'sorties' && (
           <Sorties profil={profil} onModifierProfil={() => setEdition(true)} />
         )}
-        {onglet === 'couple' && <Couple />}
-        {onglet === 'moi' && <Moi />}
-        {onglet === 'tribu' && <Tribu profil={profil} />}
+        {onglet === 'couple' && (PILIERS_ACTIFS.couple ? <Couple /> : <Teaser pilier="couple" />)}
+        {onglet === 'moi' && (PILIERS_ACTIFS.moi ? <Moi /> : <Teaser pilier="moi" />)}
+        {onglet === 'tribu' && (PILIERS_ACTIFS.tribu ? <Tribu profil={profil} /> : <Teaser pilier="tribu" />)}
       </View>
       <BarreOnglets actif={onglet} onChange={setOnglet} />
     </View>

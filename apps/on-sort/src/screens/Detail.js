@@ -1,9 +1,30 @@
 // Fiche d'une sortie : l'essentiel pour décider, puis deux actions —
 // voir l'événement (page source) et y aller (plan).
 
-import { Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Linking, Pressable, ScrollView, Share, StyleSheet, Text, View } from 'react-native';
 import { couleurs, espace, rayon } from '../theme.js';
 import { Pastille } from '../components/ui.js';
+import { LIEN_APP } from '../config.js';
+
+/** Message de partage : la sortie + la signature Papa Parfait. Chaque
+ *  partage entre parents est de l'acquisition gratuite. */
+function messagePartage(ev) {
+  const lignes = [`🎈 ${ev.titre}`];
+  if (ev.horaires) lignes.push(`🕐 ${ev.horaires}`);
+  const lieu = [ev.lieuNom, ev.ville].filter(Boolean).join(', ');
+  if (lieu) lignes.push(`📍 ${lieu}`);
+  if (ev.gratuit) lignes.push('💸 Gratuit');
+  if (ev.url) lignes.push(ev.url);
+  lignes.push('', 'Trouvé avec l\'appli Papa Parfait 🧡');
+  if (LIEN_APP) lignes.push(LIEN_APP);
+  return lignes.join('\n');
+}
+
+async function partager(ev) {
+  try {
+    await Share.share({ message: messagePartage(ev) });
+  } catch { /* partage annulé ou non supporté (web) : rien à faire */ }
+}
 
 function urlPlan(ev) {
   if (ev.lat && ev.lon) return `https://maps.google.com/?q=${ev.lat},${ev.lon}`;
@@ -55,6 +76,9 @@ export function Detail({ ev, onRetour }) {
           <Text style={styles.ctaTexte}>Voir l'événement</Text>
         </Pressable>
       )}
+      <Pressable style={styles.ctaSecondaire} onPress={() => partager(ev)} accessibilityRole="button">
+        <Text style={styles.ctaSecondaireTexte}>Partager cette sortie 📤</Text>
+      </Pressable>
       {!!plan && (
         <Pressable style={styles.ctaSecondaire} onPress={() => Linking.openURL(plan)} accessibilityRole="button">
           <Text style={styles.ctaSecondaireTexte}>Y aller 🗺️</Text>
