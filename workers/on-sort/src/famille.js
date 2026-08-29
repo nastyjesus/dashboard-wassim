@@ -33,7 +33,7 @@ const INTERIEUR = [
 
 const EXTERIEUR = [
   'balade', 'randonnée', 'randonnee', 'plein air', 'parc', 'jardin', 'forêt',
-  'foret', 'plage', 'marché', 'marche ', 'ferme', 'sentier', 'vélo', 'velo',
+  'foret', 'plage', 'marché', 'ferme', 'sentier', 'vélo', 'velo',
   'pique-nique', 'fête foraine', 'fete foraine',
 ];
 
@@ -41,8 +41,16 @@ function normalise(texte) {
   return (texte || '').toLowerCase();
 }
 
+function echapper(mot) {
+  return mot.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+// Matching par mot entier, pas par sous-chaîne : « contemporaine » ne doit
+// pas compter comme « conte », ni « réveil » comme « éveil » (bug constaté
+// sur données réelles : toutes les expos d'art contemporain passaient pour
+// du jeune public).
 function compte(texte, mots) {
-  return mots.filter((m) => texte.includes(m)).length;
+  return mots.filter((m) => new RegExp(`(^|[^\\p{L}])${echapper(m)}s?(?![\\p{L}])`, 'u').test(texte)).length;
 }
 
 /**

@@ -32,10 +32,16 @@ export function scorer(ev, ctx) {
   if (famille >= 2) raisons.push('Pensé pour les enfants');
 
   // Les vrais événements du jour passent devant les expos/animations
-  // permanentes qui « couvrent » toutes les dates.
+  // permanentes qui « couvrent » toutes les dates. Une animation au long
+  // cours (> 90 jours) n'est retenue que si elle est explicitement pensée
+  // pour les enfants — sinon les expos d'art « tout public » squattent le
+  // top 5 les jours de pluie (constaté sur données réelles).
   const duree = dureeJours(ev);
   if (duree !== null && duree <= 3) { score += 1.5; raisons.push('Événement ponctuel'); }
-  if (duree !== null && duree > 90) score -= 1;
+  if (duree !== null && duree > 90) {
+    if (famille < 2) return null;
+    score -= 1;
+  }
 
   // Âge : exclusion si l'enfant est trop jeune, bonus si la tranche colle.
   const age = trancheAge(ev);
@@ -79,6 +85,7 @@ export function scorer(ev, ctx) {
     distanceKm: km,
     lieuType: type,
     age: age || null,
+    dureeJours: duree,
     raisons,
   };
 }
@@ -97,14 +104,29 @@ export function dedoublonner(evenements) {
  * Pipeline complet : dédoublonnage, scoring, tri, top N.
  * Retourne aussi les comptages bruts pour le diagnostic.
  */
+const MAX_PERMANENTS_AU_TOP = 2;
+
 export function top(evenements, ctx, n = 5) {
   const uniques = dedoublonner(evenements);
   const scores = uniques.map((ev) => scorer(ev, ctx)).filter(Boolean);
   scores.sort((a, b) => b.score - a.score);
+
+  // Diversité : jamais plus de 2 animations permanentes dans le top — les
+  // événements du jour doivent rester la tête d'affiche.
+  const selection = [];
+  let permanents = 0;
+  for (const ev of scores) {
+    const longue = ev.dureeJours !== null && ev.dureeJours > 90;
+    if (longue && permanents >= MAX_PERMANENTS_AU_TOP) continue;
+    if (longue) permanents += 1;
+    selection.push(ev);
+    if (selection.length === n) break;
+  }
+
   return {
     total: evenements.length,
     uniques: uniques.length,
     retenus: scores.length,
-    top: scores.slice(0, n),
+    top: selection,
   };
 }

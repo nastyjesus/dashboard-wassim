@@ -21,6 +21,13 @@ describe('scoreFamille', () => {
   it('0 quand rien n’indique une sortie famille', () => {
     expect(scoreFamille({ titre: 'Réunion du conseil municipal', description: '' })).toBe(0);
   });
+
+  it('matche par mot entier : « contemporaine » ≠ « conte », « réveil » ≠ « éveil »', () => {
+    expect(scoreFamille({ titre: 'Exposition d’art contemporain', description: 'peinture contemporaine' })).toBe(0);
+    expect(scoreFamille({ titre: 'Réveil musculaire des seniors', description: '' })).toBe(0);
+    // …mais le vrai mot compte toujours.
+    expect(scoreFamille({ titre: 'Conte et comptines', description: '' })).toBe(3);
+  });
 });
 
 describe('trancheAge', () => {

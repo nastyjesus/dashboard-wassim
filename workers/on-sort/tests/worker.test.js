@@ -135,6 +135,30 @@ describe('/diagnostic', () => {
   });
 });
 
+describe('pagination OpenAgenda', () => {
+  it('enchaîne les pages tant que la limite est atteinte', async () => {
+    const enregistrement = (i) => ({
+      uid: i, title_fr: `Événement n°${i}`, description_fr: 'atelier',
+      firstdate_begin: '2026-08-22T10:00:00+02:00', lastdate_end: '2026-08-22T18:00:00+02:00',
+      location_city: 'Rennes', location_coordinates: { lat: 48.11, lon: -1.68 },
+    });
+    const appels = [];
+    vi.stubGlobal('fetch', vi.fn(async (url) => {
+      const u = String(url);
+      if (u.startsWith('https://ods.example/')) {
+        appels.push(u);
+        const offset = Number(new URL(u).searchParams.get('offset'));
+        const taille = offset === 0 ? 100 : 40; // page 2 incomplète → stop
+        return Response.json({ results: Array.from({ length: taille }, (_, i) => enregistrement(offset + i)) });
+      }
+      return new Response('not found', { status: 404 });
+    }));
+    const { body } = await appel('/top?date=2026-08-22', envMock({ MOCK_MODE: 'false' }));
+    expect(appels).toHaveLength(2);
+    expect(body.sources.openagenda.count).toBe(140);
+  });
+});
+
 describe('/votes (piliers en teaser)', () => {
   function kvSimule() {
     const cles = new Set();

@@ -8,6 +8,7 @@
 // parsing est volontairement tolérant.
 
 const LIMITE = 100; // max autorisé par requête sur l'API Explore
+const PAGES_MAX = 3; // jusqu'à 300 événements analysés par appel
 
 /** Échappe une valeur pour un littéral de chaîne ODSQL. */
 function odsql(valeur) {
@@ -31,14 +32,26 @@ export async function evenementsOpenAgenda(env, { departement, dateISO }) {
     `firstdate_begin<=date'${dateISO}'`,
     `lastdate_end>=date'${dateISO}'`,
   ].join(' AND ');
-  const url = `${base}?where=${encodeURIComponent(where)}&limit=${LIMITE}&order_by=firstdate_begin`;
+  // Pagination : le département dépasse largement les 100 événements par
+  // requête — on collecte jusqu'à PAGES_MAX pages pour élargir le vivier.
+  const evenements = [];
   try {
-    const res = await fetch(url, { headers: { Accept: 'application/json' } });
-    if (!res.ok) return { ok: false, evenements: [], erreur: `HTTP ${res.status}` };
-    const data = await res.json();
-    const resultats = Array.isArray(data.results) ? data.results : [];
-    return { ok: true, evenements: resultats.map(normaliser).filter(Boolean) };
+    for (let page = 0; page < PAGES_MAX; page++) {
+      const url = `${base}?where=${encodeURIComponent(where)}&limit=${LIMITE}`
+        + `&offset=${page * LIMITE}&order_by=firstdate_begin`;
+      const res = await fetch(url, { headers: { Accept: 'application/json' } });
+      if (!res.ok) {
+        if (page === 0) return { ok: false, evenements: [], erreur: `HTTP ${res.status}` };
+        break; // les pages déjà collectées restent exploitables
+      }
+      const data = await res.json();
+      const resultats = Array.isArray(data.results) ? data.results : [];
+      evenements.push(...resultats.map(normaliser).filter(Boolean));
+      if (resultats.length < LIMITE) break;
+    }
+    return { ok: true, evenements };
   } catch (e) {
+    if (evenements.length) return { ok: true, evenements };
     return { ok: false, evenements: [], erreur: String(e.message || e) };
   }
 }

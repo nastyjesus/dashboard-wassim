@@ -68,6 +68,16 @@ describe('scorer', () => {
     expect(ponctuel.raisons).toContain('Événement ponctuel');
   });
 
+  it('exclut une animation au long cours qui n’est pas explicitement jeune public', () => {
+    // Expo d'art « tout public » de 6 mois : un seul signal famille faible.
+    const s = scorer(atelier({
+      titre: 'Exposition de peinture contemporaine',
+      description: 'Atelier de médiation le mercredi.',
+      dateDebut: '2026-06-01', dateFin: '2026-12-20',
+    }), CTX);
+    expect(s).toBeNull();
+  });
+
   it('garde un événement sans coordonnées ni âge (pas d’info ≠ exclusion)', () => {
     const s = scorer(atelier({ lat: null, lon: null, description: 'Spectacle pour toute la famille' }), CTX);
     expect(s).not.toBeNull();
@@ -90,6 +100,25 @@ describe('dedoublonner', () => {
 });
 
 describe('top', () => {
+  it('jamais plus de 2 animations permanentes dans le top 5', () => {
+    // 5 expos jeune public permanentes très bien scorées + 3 ponctuels.
+    const permanents = Array.from({ length: 5 }, (_, i) => atelier({
+      id: `perm-${i}`, titre: `Expo jeune public n°${i}`,
+      description: 'Parcours pour les enfants de 3 à 6 ans. Gratuit.',
+      dateDebut: '2026-01-01', dateFin: '2026-12-31',
+    }));
+    const ponctuels = Array.from({ length: 3 }, (_, i) => atelier({
+      id: `ponc-${i}`, titre: `Atelier enfants du jour n°${i}`,
+      description: 'atelier',
+      dateDebut: '2026-08-29', dateFin: '2026-08-29',
+    }));
+    const r = top([...permanents, ...ponctuels], CTX);
+    const nbPermanents = r.top.filter((e) => e.dureeJours > 90).length;
+    expect(r.top).toHaveLength(5);
+    expect(nbPermanents).toBeLessThanOrEqual(2);
+    expect(r.top.filter((e) => e.id.startsWith('ponc-'))).toHaveLength(3);
+  });
+
   it('trie par score décroissant et limite à 5', () => {
     const evenements = Array.from({ length: 8 }, (_, i) => atelier({
       id: String(i),
