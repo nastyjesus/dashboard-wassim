@@ -1,5 +1,5 @@
 {
-  "target": "run-gsc",
-  "requestedAt": "2026-08-21T12:54:00Z",
-  "note": "Run complet apres fan-out SELF — audit pour les 8 clients"
+  "target": "health",
+  "requestedAt": "2026-09-03T08:11:00Z",
+  "note": "Verif post-cron rapports GSC aout (routine du 3)"
 }
