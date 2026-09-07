@@ -8,7 +8,7 @@ const TITLE    = ["Client"];
 const SELECTS  = ["Type", "Statut", "Étape", "Source"];
 const NUMBERS  = ["Montant HT", "Durée mois", "Encaissé HT", "Nombre"];
 const DATES    = ["Début", "Relance", "RDV prévu"];
-const TEXTS    = ["Contact", "Offre", "Notes", "Encaissements"];
+const TEXTS    = ["Contact", "Offre", "Notes", "Encaissements", "Echeances"];
 const CHECKBOX = ["RDV fait"];
 
 function buildProps(f) {
