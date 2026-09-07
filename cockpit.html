@@ -322,7 +322,7 @@ function mapRows(rows) {
       let encMap = {};
       try { encMap = JSON.parse(rtext(p["Encaissements"]) || "{}") || {}; } catch (e) { encMap = {}; }
       let planMap = {};
-      try { planMap = JSON.parse(rtext(p["Échéances"]) || "{}") || {}; } catch (e) { planMap = {}; }
+      try { planMap = JSON.parse(rtext(p["Echeances"]) || "{}") || {}; } catch (e) { planMap = {}; }
       const c = { id: r.id, nom: title, type: typeId, prix: montant, debut, duree, source: p["Source"] && p["Source"].select ? p["Source"].select.name : "", nombre: p["Nombre"] && p["Nombre"].number != null ? p["Nombre"].number : 1, echPlan: planMap };
       c.ech = echeances(c).map((e) => ({ ...e, encaisse: encMap[e.mkey] != null ? Number(encMap[e.mkey]) : null }));
       clients.push(c);
@@ -726,7 +726,7 @@ function Cockpit() {
     "Statut": "Signé",
     "Source": d.source || null,
     "Nombre": Number(d.nombre) || 1,
-    "Échéances": d.echPlan && Object.keys(d.echPlan).length ? JSON.stringify(d.echPlan) : "",
+    "Echeances": d.echPlan && Object.keys(d.echPlan).length ? JSON.stringify(d.echPlan) : "",
   });
   const confirmerSignature = (data) => {
     const base = { ...champsContrat(data), "Étape": "Signé" };
