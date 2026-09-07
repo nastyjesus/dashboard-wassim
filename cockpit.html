@@ -211,8 +211,37 @@ function perfMoisSerie(n) {
   return arr;
 }
 
+/* échéancier saisi en texte : "2026-09:1125; 2026-11:1125" (l'ancien JSON reste accepté) */
+function litPlan(txt) {
+  const s = (txt || "").trim();
+  if (!s) return {};
+  if (s[0] === "{") { try { return JSON.parse(s) || {}; } catch (e) { return {}; } }
+  const out = {};
+  s.split(/[;,\n]+/).forEach((part) => {
+    const m = part.trim().match(/^(\d{4}-\d{2})\s*[:=]\s*(-?[\d\s.,]+)$/);
+    if (m) {
+      const n = Number(m[2].replace(/\s/g, "").replace(",", "."));
+      if (!isNaN(n)) out[m[1]] = n;
+    }
+  });
+  return out;
+}
+const ecritPlan = (plan) => Object.keys(plan).sort().map((k) => `${k}:${plan[k]}`).join("; ");
+
+/* échéancier explicite : { "2026-09": 1125, "2026-11": 1125 } -> [{mkey, du}] borné à l'exercice */
+function planVersFY(plan) {
+  if (!plan || typeof plan !== "object") return [];
+  return Object.keys(plan)
+    .filter((mkey) => Number(plan[mkey]) > 0 && idxOf(mkey) >= 0 && idxOf(mkey) <= 11)
+    .sort()
+    .map((mkey) => ({ mkey, du: Number(plan[mkey]), encaisse: null }));
+}
+
 /* chaque contrat signé génère un tableau d'échéances {mkey, du, encaisse} */
 function echeances(c) {
+  /* un échéancier saisi sur le contrat prime sur la répartition automatique */
+  const plan = planVersFY(c.echPlan);
+  if (plan.length) return plan;
   const i0 = idxOf(c.debut);
   const rec = est(c.type).rec;
   const n = rec ? Number(c.duree) || 6 : 1;
@@ -309,7 +338,8 @@ function mapRows(rows) {
       const duree = p["Durée mois"] && p["Durée mois"].number != null ? p["Durée mois"].number : (est(typeId).rec ? 6 : 1);
       let encMap = {};
       try { encMap = JSON.parse(rtext(p["Encaissements"]) || "{}") || {}; } catch (e) { encMap = {}; }
-      const c = { id: r.id, nom: title, type: typeId, prix: montant, debut, duree, source: p["Source"] && p["Source"].select ? p["Source"].select.name : "", nombre: p["Nombre"] && p["Nombre"].number != null ? p["Nombre"].number : 1 };
+      const planMap = litPlan(rtext(p["Echeances"]));
+      const c = { id: r.id, nom: title, type: typeId, prix: montant, debut, duree, source: p["Source"] && p["Source"].select ? p["Source"].select.name : "", nombre: p["Nombre"] && p["Nombre"].number != null ? p["Nombre"].number : 1, echPlan: planMap };
       c.ech = echeances(c).map((e) => ({ ...e, encaisse: encMap[e.mkey] != null ? Number(encMap[e.mkey]) : null }));
       clients.push(c);
     }
@@ -712,6 +742,7 @@ function Cockpit() {
     "Statut": "Signé",
     "Source": d.source || null,
     "Nombre": Number(d.nombre) || 1,
+    "Echeances": d.echPlan && Object.keys(d.echPlan).length ? ecritPlan(d.echPlan) : "",
   });
   const confirmerSignature = (data) => {
     const base = { ...champsContrat(data), "Étape": "Signé" };
@@ -1185,15 +1216,16 @@ function CRM({ prospects, setFProspect, bougerEtape, marquerPerdu, pipePondere, 
 
 /* ================= VUE CONTRATS ================= */
 function Contrats({ clients, moisSigne, setFClient, setASupprimer, caSigne }) {
-  const W = 74, WN = 150;
+  /* colonnes resserrées pour que les 12 mois de l'exercice + le total tiennent sans défilement */
+  const W = 52, WN = 118;
   const lignes = clients.filter((c) => (c.ech || []).length);
-  const th = { position: "sticky", top: 0, background: S.panel, color: S.cream, fontSize: 10, fontWeight: 700, textTransform: "uppercase", padding: "8px 7px", textAlign: "right", whiteSpace: "nowrap" };
-  const td = { padding: 0, borderBottom: `1px solid ${S.grid}`, borderRight: `1px solid ${S.grid}`, textAlign: "right", fontSize: 12.5, height: 34 };
+  const th = { position: "sticky", top: 0, background: S.panel, color: S.cream, fontSize: 9, fontWeight: 700, textTransform: "uppercase", padding: "7px 4px", textAlign: "right", whiteSpace: "nowrap" };
+  const td = { padding: 0, borderBottom: `1px solid ${S.grid}`, borderRight: `1px solid ${S.grid}`, textAlign: "right", fontSize: 11.5, height: 32 };
   return (
     <div>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
         <div style={{ fontSize: 12.5, color: S.soft }}>{clients.length} contrats · {court(caSigne)} € sur l'exercice</div>
-        <button onClick={() => setFClient({ id: Date.now(), nom: "", type: "prog", prix: "", debut: FY[0].key, duree: 6, source: "", nombre: 1 })} style={{ ...btnAdd, width: "auto", padding: "9px 14px" }}><Plus size={15} /> Contrat</button>
+        <button onClick={() => setFClient({ id: Date.now(), nom: "", type: "prog", prix: "", debut: FY[0].key, duree: 6, source: "", nombre: 1, echPlan: {} })} style={{ ...btnAdd, width: "auto", padding: "9px 14px" }}><Plus size={15} /> Contrat</button>
       </div>
 
       {/* tableau CA mois par mois */}
@@ -1220,9 +1252,9 @@ function Contrats({ clients, moisSigne, setFClient, setASupprimer, caSigne }) {
                     </td>
                     {FY.map((o) => {
                       const e = (c.ech || []).find((x) => x.mkey === o.key);
-                      return <td key={o.key} style={{ ...td, width: W, minWidth: W, background: e ? "#FFFDF9" : "transparent" }}><div style={{ padding: "0 7px", lineHeight: "33px", color: e ? S.soft : S.line, textAlign: e ? "right" : "center", fontWeight: 600 }}>{e ? court(e.du) : "·"}</div></td>;
+                      return <td key={o.key} style={{ ...td, width: W, minWidth: W, background: e ? "#FFFDF9" : "transparent" }}><div style={{ padding: "0 4px", lineHeight: "31px", color: e ? S.soft : S.line, textAlign: e ? "right" : "center", fontWeight: 600 }}>{e ? court(e.du) : "·"}</div></td>;
                     })}
-                    <td style={{ ...td, width: W, minWidth: W, background: "#F6EDE4" }}><div style={{ ...serif, padding: "0 7px", lineHeight: "33px", fontSize: 13, fontWeight: 600, color: S.deep }}>{court(dansFY)}</div></td>
+                    <td style={{ ...td, width: W, minWidth: W, background: "#F6EDE4" }}><div style={{ ...serif, padding: "0 4px", lineHeight: "31px", fontSize: 13, fontWeight: 600, color: S.deep }}>{court(dansFY)}</div></td>
                   </tr>
                 );
               })}
@@ -1230,15 +1262,15 @@ function Contrats({ clients, moisSigne, setFClient, setASupprimer, caSigne }) {
                 <td style={{ position: "sticky", left: 0, zIndex: 2, background: S.panel, borderRight: `1px solid #3a352e`, padding: "6px 9px" }}>
                   <span style={{ ...serif, fontSize: 13.5, fontWeight: 600, color: S.cream }}>CA dû</span>
                 </td>
-                {moisSigne.map((v, i) => <td key={i} style={{ ...td, background: S.panel, borderRight: `1px solid #3a352e` }}><div style={{ ...serif, padding: "0 7px", lineHeight: "33px", fontSize: 13, color: v ? S.cream : "#5d564c" }}>{v ? court(v) : "·"}</div></td>)}
-                <td style={{ ...td, background: S.deep }}><div style={{ ...serif, padding: "0 7px", lineHeight: "33px", fontSize: 13, fontWeight: 700, color: S.cream }}>{court(caSigne)}</div></td>
+                {moisSigne.map((v, i) => <td key={i} style={{ ...td, background: S.panel, borderRight: `1px solid #3a352e` }}><div style={{ ...serif, padding: "0 4px", lineHeight: "31px", fontSize: 13, color: v ? S.cream : "#5d564c" }}>{v ? court(v) : "·"}</div></td>)}
+                <td style={{ ...td, background: S.deep }}><div style={{ ...serif, padding: "0 4px", lineHeight: "31px", fontSize: 13, fontWeight: 700, color: S.cream }}>{court(caSigne)}</div></td>
               </tr>
               <tr>
                 <td style={{ position: "sticky", left: 0, zIndex: 2, background: "#F6EDE4", borderRight: `2px solid ${S.line}`, padding: "6px 9px" }}>
                   <span style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", color: S.deep }}>TVA estim. 20 %</span>
                 </td>
-                {moisSigne.map((v, i) => { const t = v * TVA; return <td key={i} style={{ ...td, background: "#F6EDE4" }}><div style={{ padding: "0 7px", lineHeight: "33px", fontSize: 12.5, fontWeight: 600, color: t ? S.deep : S.line }}>{t ? court(t) : "·"}</div></td>; })}
-                <td style={{ ...td, background: "#EFE2CF" }}><div style={{ ...serif, padding: "0 7px", lineHeight: "33px", fontSize: 13, fontWeight: 700, color: S.deep }}>{court(caSigne * TVA)}</div></td>
+                {moisSigne.map((v, i) => { const t = v * TVA; return <td key={i} style={{ ...td, background: "#F6EDE4" }}><div style={{ padding: "0 4px", lineHeight: "31px", fontSize: 12.5, fontWeight: 600, color: t ? S.deep : S.line }}>{t ? court(t) : "·"}</div></td>; })}
+                <td style={{ ...td, background: "#EFE2CF" }}><div style={{ ...serif, padding: "0 4px", lineHeight: "31px", fontSize: 13, fontWeight: 700, color: S.deep }}>{court(caSigne * TVA)}</div></td>
               </tr>
             </tbody>
           </table>
@@ -2063,9 +2095,28 @@ function FicheSignature({ p, onClose, onConfirm }) {
 }
 
 function FicheClient({ c, sourcesList, onClose, onSave, onDelete }) {
-  const [f, setF] = useState({ ...c });
+  const planDepart = c.echPlan && typeof c.echPlan === "object" ? c.echPlan : {};
+  const [f, setF] = useState({
+    ...c,
+    echLignes: Object.keys(planDepart).sort().map((mkey) => ({ mkey, montant: planDepart[mkey] })),
+  });
   const set = (k, v) => setF({ ...f, [k]: v });
   const existant = isNotionId(c.id);
+  const lignes = f.echLignes || [];
+  const majLigne = (i, k, v) => set("echLignes", lignes.map((l, j) => (j === i ? { ...l, [k]: v } : l)));
+  const ajouterVersement = () => {
+    const dernier = lignes.length ? idxOf(lignes[lignes.length - 1].mkey) : idxOf(f.debut) - 1;
+    const suivant = CHOIX.find((o) => o.idx === dernier + 1) || CHOIX.find((o) => o.key === f.debut) || CHOIX[0];
+    set("echLignes", [...lignes, { mkey: suivant.key, montant: "" }]);
+  };
+  const sommeEch = lignes.reduce((s, l) => s + (Number(l.montant) || 0), 0);
+  const ecart = Math.round((sommeEch - (Number(f.prix) || 0)) * 100) / 100;
+  const enregistrer = () => {
+    const echPlan = {};
+    lignes.forEach((l) => { if (l.mkey && Number(l.montant) > 0) echPlan[l.mkey] = Number(l.montant); });
+    const { echLignes, ...reste } = f;
+    onSave({ ...reste, echPlan });
+  };
   return (
     <Modal onClose={onClose} bas>
       <TitreModale titre={c.nom ? "Modifier le contrat" : "Nouveau contrat"} onClose={onClose} />
@@ -2097,14 +2148,41 @@ function FicheClient({ c, sourcesList, onClose, onSave, onDelete }) {
           {f.source && !sourcesList.includes(f.source) && <option value={f.source}>{f.source}</option>}
         </select>
       </Ch>
+      <Ch label="Échéancier de paiement">
+        {lignes.length === 0 ? (
+          <button onClick={ajouterVersement} style={{ ...btnAdd, width: "100%", padding: "11px 12px" }}>
+            <Plus size={15} /> Découper en plusieurs versements
+          </button>
+        ) : (
+          <div>
+            {lignes.map((l, i) => (
+              <div key={i} style={{ display: "flex", gap: 6, marginBottom: 6, alignItems: "center" }}>
+                <select value={l.mkey} onChange={(e) => majLigne(i, "mkey", e.target.value)} style={{ ...inp, flex: 1.5, padding: "9px 10px", fontSize: 13.5 }}>
+                  {CHOIX.map((o) => <option key={o.key} value={o.key}>{lab(o.y, o.m)}{o.idx < 0 || o.idx > 11 ? " (hors exercice)" : ""}</option>)}
+                </select>
+                <input type="number" value={l.montant} onChange={(e) => majLigne(i, "montant", e.target.value)} placeholder="€ HT" style={{ ...inp, flex: 1, padding: "9px 10px", fontSize: 13.5 }} />
+                <button onClick={() => set("echLignes", lignes.filter((_, j) => j !== i))} title="Retirer ce versement" style={{ ...btnIcon, color: S.rust }}><X size={14} /></button>
+              </div>
+            ))}
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 8, gap: 8 }}>
+              <button onClick={ajouterVersement} style={{ ...btnAdd, padding: "8px 12px" }}><Plus size={14} /> Versement</button>
+              <span style={{ fontSize: 12.5, fontWeight: 600, color: ecart === 0 ? S.deep : S.rust, textAlign: "right" }}>
+                {eur(sommeEch)} / {eur(Number(f.prix) || 0)}
+                {ecart !== 0 && <><br /><span style={{ fontWeight: 500 }}>{ecart > 0 ? "dépasse de " : "manque "}{eur(Math.abs(ecart))}</span></>}
+              </span>
+            </div>
+          </div>
+        )}
+      </Ch>
+
       <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
         {existant && <button onClick={() => onDelete(c)} title="Supprimer le contrat" style={{ ...btnIcon, padding: "13px 15px", color: S.rust }}><Trash2 size={15} /></button>}
-        <button onClick={() => (f.nom.trim() && Number(f.prix) > 0) && onSave(f)} disabled={!f.nom.trim() || !(Number(f.prix) > 0)}
+        <button onClick={() => (f.nom.trim() && Number(f.prix) > 0) && enregistrer()} disabled={!f.nom.trim() || !(Number(f.prix) > 0)}
           style={{ ...btnMain, background: !f.nom.trim() || !(Number(f.prix) > 0) ? S.line : S.panel, color: !f.nom.trim() || !(Number(f.prix) > 0) ? S.soft : S.cream }}>
           <Check size={16} /> Enregistrer
         </button>
       </div>
-      <p style={{ fontSize: 11.5, color: S.soft, marginTop: 10, lineHeight: 1.5 }}>Modifier le prix, la durée ou les dates recalcule la répartition du CA sur les mois.</p>
+      <p style={{ fontSize: 11.5, color: S.soft, marginTop: 10, lineHeight: 1.5 }}>Modifier le prix, la durée ou les dates recalcule la répartition du CA sur les mois. Un échéancier saisi ici prend le pas sur ce calcul : le contrat reste une seule ligne et son CA se pose sur les mois que tu indiques. Les versements hors exercice sont conservés mais n'apparaissent pas dans le tableau.</p>
     </Modal>
   );
 }
