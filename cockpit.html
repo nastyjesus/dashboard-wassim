@@ -85,6 +85,43 @@ const eur = (n) => Math.round(n).toLocaleString("fr-FR") + " €";
 const court = (n) => (n ? Math.round(n).toLocaleString("fr-FR") : "");
 const TVA = 0.20;
 
+/* ---- dates de relance et d'ancienneté ---- */
+const DORMANT = 21; /* jours sans mouvement au-delà desquels un prospect est dit dormant */
+const minuit = () => { const d = new Date(); d.setHours(0, 0, 0, 0); return d; };
+const dateCourte = (iso) => { const p = (iso || "").slice(0, 10).split("-"); return p.length === 3 ? `${Number(p[2])} ${MOIS[Number(p[1]) - 1]}` : ""; };
+/* jours entre aujourd'hui et une date ISO : négatif = passé, 0 = aujourd'hui, positif = à venir */
+function joursAvant(iso) {
+  if (!iso) return null;
+  const d = new Date((iso || "").slice(0, 10) + "T00:00:00");
+  if (isNaN(d)) return null;
+  return Math.round((d - minuit()) / 86400000);
+}
+/* jours écoulés depuis un horodatage Notion (created_time / last_edited_time) */
+function joursDepuis(ts) {
+  if (!ts) return null;
+  const d = new Date(ts);
+  if (isNaN(d)) return null;
+  return Math.max(0, Math.floor((Date.now() - d.getTime()) / 86400000));
+}
+/* état visuel d'une relance ; urgent = à traiter sous 3 jours ou déjà en retard */
+function etatRelance(iso) {
+  const j = joursAvant(iso);
+  if (j === null) return null;
+  if (j < -1) return { niveau: "retard", txt: `${-j} j de retard`, col: S.rust, bg: "#F6E7DE", urgent: true };
+  if (j === -1) return { niveau: "retard", txt: "hier", col: S.rust, bg: "#F6E7DE", urgent: true };
+  if (j === 0) return { niveau: "auj", txt: "aujourd'hui", col: S.rust, bg: "#F6E7DE", urgent: true };
+  if (j === 1) return { niveau: "proche", txt: "demain", col: S.deep, bg: "#F3EAD9", urgent: true };
+  if (j <= 3) return { niveau: "proche", txt: `dans ${j} j`, col: S.deep, bg: "#F3EAD9", urgent: true };
+  if (j <= 14) return { niveau: "semaine", txt: `dans ${j} j`, col: S.soft, bg: S.cream, urgent: false };
+  return { niveau: "loin", txt: dateCourte(iso), col: S.soft, bg: S.cream, urgent: false };
+}
+const mediane = (arr) => {
+  if (!arr.length) return null;
+  const a = [...arr].sort((x, y) => x - y);
+  const m = Math.floor(a.length / 2);
+  return a.length % 2 ? a[m] : Math.round((a[m - 1] + a[m]) / 2);
+};
+
 const TYPES = [
   { id: "prog", nom: "Programme récurrent", rec: true },
   { id: "site", nom: "Site web", rec: false },
@@ -300,7 +337,10 @@ function mapRows(rows) {
         nom: title,
         metier: rtext(p["Contact"]),
         etape: ETAPE_ID[etN] || "prospect",
+        relance: ((p["Relance"] && p["Relance"].date ? p["Relance"].date.start : "") || "").slice(0, 10),
         note: rtext(p["Notes"]),
+        maj: r.last_edited_time || "",
+        cree: r.created_time || "",
       });
       return;
     }
@@ -326,9 +366,10 @@ function mapRows(rows) {
         montant: montant || "",
         offre: rtext(p["Offre"]),
         source: p["Source"] && p["Source"].select ? p["Source"].select.name : "",
-        relance: (p["Relance"] && p["Relance"].date ? p["Relance"].date.start : "") || "",
+        relance: ((p["Relance"] && p["Relance"].date ? p["Relance"].date.start : "") || "").slice(0, 10),
         note: rtext(p["Notes"]),
-        maj: 0,
+        maj: r.last_edited_time || "",
+        cree: r.created_time || "",
       });
     } else {
       const tName = p["Type"] && p["Type"].select ? p["Type"].select.name : "Autre ponctuel";
@@ -422,6 +463,9 @@ const RotateCcw = ic(<><polyline points="1 4 1 10 7 10" /><path d="M3.51 15a9 9 
 const ChevronDown = ic(<polyline points="6 9 12 15 18 9" />);
 const Funnel = ic(<polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3" />);
 const Award = ic(<><circle cx="12" cy="8" r="7" /><polyline points="8.21 13.89 7 23 12 20 17 23 15.79 13.88" /></>);
+const Clock = ic(<><circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" /></>);
+const Search = ic(<><circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" /></>);
+const BarChart = ic(<><line x1="4" y1="20" x2="4" y2="12" /><line x1="12" y1="20" x2="12" y2="4" /><line x1="20" y1="20" x2="20" y2="14" /></>);
 
 /* ================= APP ================= */
 function Cockpit() {
@@ -596,6 +640,7 @@ function Cockpit() {
     "Statut": "Prospect BNI",
     "Contact": b.metier || "",
     "Étape": ETAPE_NAME[b.etape] || "Prospect",
+    "Relance": b.relance || null,
     "Notes": b.note || "",
   });
   const majBniProspect = (b) => ecrire(
@@ -610,6 +655,12 @@ function Cockpit() {
     ecrire(() => apiUpdate(b.id, { "Étape": ETAPE_NAME[ordre[ni]] }), "Déplacement de l'étape");
   };
   const abandonnerBniProspect = (b) => ecrire(() => apiUpdate(b.id, { "Étape": "Perdu" }), "Mise à jour");
+  /* dépôt d'une carte sur une colonne du kanban recrutement (ou sur la zone « abandonner ») */
+  const deplacerBniVers = (b, etapeId) => {
+    if (!isNotionId(b.id) || b.etape === etapeId) return;
+    if (etapeId === "perdu") { abandonnerBniProspect(b); return; }
+    ecrire(() => apiUpdate(b.id, { "Étape": ETAPE_NAME[etapeId] }), "Déplacement de l'étape");
+  };
 
   const isoDans1An = (base) => {
     const d = base ? new Date(base) : new Date();
@@ -695,6 +746,16 @@ function Cockpit() {
     return Object.values(agg).filter((l) => l.caSigne > 0 || l.pipe > 0).sort((a, b) => b.caSigne - a.caSigne || b.pipe - a.pipe);
   })();
 
+  /* relances à traiter : pipeline commercial + recrutement BNI, de la plus en retard à la plus lointaine */
+  const relances = [
+    ...prospects
+      .filter((p) => !["signe", "perdu"].includes(p.etape) && p.relance)
+      .map((p) => ({ id: p.id, quoi: "crm", nom: p.societe || p.nom || "Sans nom", detail: etp(p.etape).nom, relance: p.relance, montant: Number(p.montant) || 0 })),
+    ...bniProspects
+      .filter((b) => !["signe", "perdu"].includes(b.etape) && b.relance)
+      .map((b) => ({ id: b.id, quoi: "bni", nom: b.nom || "Sans nom", detail: b.metier || (BNI_ETAPES.find((e) => e.id === b.etape) || {}).nom || "Recrutement", relance: b.relance, montant: 0 })),
+  ].sort((a, b) => a.relance.localeCompare(b.relance));
+
   const objSim = objCompute(prestas, heures, charges);
   const objectif = objSim.total > 0 ? objSim.total : 60000;
   const contratsReste = resteContrats(prestas, clients);
@@ -732,6 +793,13 @@ function Cockpit() {
     ecrire(() => apiUpdate(p.id, { "Étape": ETAPE_NAME[ordre[ni]] }), "Déplacement de l'étape");
   };
   const marquerPerdu = (p) => ecrire(() => apiUpdate(p.id, { "Étape": "Perdu" }), "Mise à jour");
+  /* dépôt d'une carte sur une colonne du kanban CRM ; « Signé » passe par la fiche de signature */
+  const deplacerVers = (p, etapeId) => {
+    if (!isNotionId(p.id) || p.etape === etapeId) return;
+    if (etapeId === "signe") { setSignature({ ...p }); return; }
+    if (etapeId === "perdu") { marquerPerdu(p); return; }
+    ecrire(() => apiUpdate(p.id, { "Étape": ETAPE_NAME[etapeId] }), "Déplacement de l'étape");
+  };
 
   const champsContrat = (d) => ({
     "Client": d.nom,
@@ -807,11 +875,11 @@ function Cockpit() {
       </div>
 
       <div style={{ padding: "20px 18px 0", maxWidth: 1120, margin: "0 auto" }}>
-        {vue === "pilotage" && <Pilotage {...{ caSigne, moisSigne, moisContratsActifs, moisNouveaux, cumulSigne, pipePondere, setVue, objectif, contratsReste, renouvellements, mrrEnJeu, parSource }} />}
-        {vue === "crm" && <CRM {...{ prospects, setFProspect, bougerEtape, marquerPerdu, pipePondere, pipeBrut }} />}
+        {vue === "pilotage" && <Pilotage {...{ caSigne, moisSigne, moisContratsActifs, moisNouveaux, cumulSigne, pipePondere, setVue, objectif, contratsReste, renouvellements, mrrEnJeu, parSource, relances }} />}
+        {vue === "crm" && <CRM {...{ prospects, setFProspect, bougerEtape, marquerPerdu, deplacerVers, pipePondere, pipeBrut }} />}
         {vue === "tunnel" && <Tunnel {...{ tunnels, setFLevier, saveLevier, basculerLevier, tunSaveEtat }} />}
         {vue === "contrats" && <Contrats {...{ clients, moisSigne, setFClient, setASupprimer, caSigne }} />}
-        {vue === "bni" && <VueBNI {...{ membres, bniProspects, bniConf, majBniConf, majMembre, clients, membrePerfs, setFMembre, setFBniProspect, setFPerf, bougerEtapeBni, abandonnerBniProspect, setBniConfirm, setASupprimer, bniSaveEtat }} />}
+        {vue === "bni" && <VueBNI {...{ membres, bniProspects, bniConf, majBniConf, majMembre, clients, membrePerfs, setFMembre, setFBniProspect, setFPerf, bougerEtapeBni, abandonnerBniProspect, deplacerBniVers, setBniConfirm, setASupprimer, bniSaveEtat }} />}
         {vue === "objectifs" && <Objectifs {...{ prestas, heures, charges, objSim, majPresta, ajouterPresta, supprimerPresta, setHeuresObj, setChargesObj, setConfirmReset, objSaveEtat, caSigne }} />}
       </div>
 
@@ -860,8 +928,12 @@ function Cockpit() {
 }
 
 /* ================= VUE PILOTAGE ================= */
-function Pilotage({ caSigne, moisSigne, moisContratsActifs, moisNouveaux, cumulSigne, pipePondere, setVue, objectif, contratsReste, renouvellements, mrrEnJeu, parSource }) {
+function Pilotage({ caSigne, moisSigne, moisContratsActifs, moisNouveaux, cumulSigne, pipePondere, setVue, objectif, contratsReste, renouvellements, mrrEnJeu, parSource, relances }) {
   const projete = caSigne + pipePondere;
+
+  /* relances : ce qui est dû sous trois jours (ou déjà en retard), le reste en aperçu */
+  const relancesDues = (relances || []).filter((r) => (etatRelance(r.relance) || {}).urgent);
+  const relancesPlusTard = (relances || []).filter((r) => !((etatRelance(r.relance) || {}).urgent)).slice(0, 3);
 
   /* rythme : où devrais-tu en être aujourd'hui vs objectif (cible linéaire sur 12 mois) */
   const nowP = new Date();
@@ -1039,6 +1111,47 @@ function Pilotage({ caSigne, moisSigne, moisContratsActifs, moisNouveaux, cumulS
         </div>
       </div>
 
+      {/* relances à faire : ce qui doit sortir aujourd'hui, pipeline commercial et recrutement BNI confondus */}
+      <div style={{ background: S.paper, border: `1px solid ${S.line}`, borderLeft: `4px solid ${relancesDues.length ? S.rust : S.line}`, borderRadius: 14, padding: "15px 17px", marginTop: 12 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", flexWrap: "wrap", gap: 6, marginBottom: 4 }}>
+          <div style={{ ...serif, fontSize: 18, fontWeight: 600, color: S.ink }}>Relances à faire</div>
+          <button onClick={() => setVue("crm")} style={{ background: "transparent", border: "none", color: S.deep, fontSize: 11.5, fontWeight: 600, cursor: "pointer", padding: 0 }}>CRM →</button>
+        </div>
+        {relances.length === 0 ? (
+          <p style={{ fontSize: 13, color: S.soft, lineHeight: 1.6, margin: "4px 0 0" }}>Aucune date de relance posée. Ouvre une fiche prospect, renseigne <b style={{ color: S.ink }}>Prochaine relance</b> : elle remontera ici le jour venu.</p>
+        ) : (
+          <>
+            <div style={{ fontSize: 13.5, color: S.soft, lineHeight: 1.6, marginBottom: relancesDues.length ? 10 : 0 }}>
+              {relancesDues.length > 0
+                ? <><b style={{ color: S.rust }}>{relancesDues.length} relance{relancesDues.length > 1 ? "s" : ""}</b> à passer d'ici trois jours. Décroche, écris, puis repousse la date sur la fiche.</>
+                : <span style={{ color: S.green, fontWeight: 600 }}>Rien à relancer dans les trois jours 👌</span>}
+            </div>
+            {relancesDues.length > 0 && (
+              <div style={{ display: "flex", flexDirection: "column", gap: 7 }}>
+                {relancesDues.map((r) => {
+                  const e = etatRelance(r.relance);
+                  return (
+                    <div key={r.quoi + r.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, background: "#fff", border: `1px solid ${S.line}`, borderRadius: 10, padding: "8px 11px" }}>
+                      <div style={{ minWidth: 0 }}>
+                        <span style={{ ...serif, fontSize: 14.5, fontWeight: 600, color: S.ink }}>{r.nom}</span>
+                        {r.montant > 0 && <span style={{ fontSize: 12, color: S.soft }}> · {court(r.montant)} €</span>}
+                        <div style={{ fontSize: 11.5, color: S.soft }}>{r.quoi === "bni" ? "Recrutement BNI" : "Pipeline"} · {r.detail} · relance prévue le {dateCourte(r.relance)}</div>
+                      </div>
+                      <span style={{ flex: "none", fontSize: 10.5, fontWeight: 700, color: e.col, background: e.bg, padding: "4px 9px", borderRadius: 10, whiteSpace: "nowrap" }}>{e.txt}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+            {relancesPlusTard.length > 0 && (
+              <div style={{ fontSize: 11.5, color: S.soft, marginTop: relancesDues.length ? 9 : 6, opacity: 0.9 }}>
+                Ensuite : {relancesPlusTard.map((r) => `${r.nom} le ${dateCourte(r.relance)}`).join(" · ")}
+              </div>
+            )}
+          </>
+        )}
+      </div>
+
       {/* radar des renouvellements : combler la falaise avant qu'elle arrive */}
       <div style={{ background: S.paper, border: `1px solid ${S.line}`, borderLeft: `4px solid ${mrrEnJeu > 0 ? S.rust : S.line}`, borderRadius: 14, padding: "15px 17px", marginTop: 12 }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", flexWrap: "wrap", gap: 6, marginBottom: 4 }}>
@@ -1152,9 +1265,184 @@ function Pilotage({ caSigne, moisSigne, moisContratsActifs, moisNouveaux, cumulS
 }
 
 /* ================= VUE CRM ================= */
-function CRM({ prospects, setFProspect, bougerEtape, marquerPerdu, pipePondere, pipeBrut }) {
+/* ================= BRIQUES PARTAGÉES PAR LES DEUX KANBANS ================= */
+
+/* pastille « prochaine relance » posée sur une carte */
+function ChipRelance({ iso }) {
+  const e = etatRelance(iso);
+  if (!e) return null;
+  return (
+    <span title={"Relance le " + dateCourte(iso)} style={{ display: "inline-flex", alignItems: "center", gap: 3, fontSize: 9.5, fontWeight: 700, color: e.col, background: e.bg, border: `1px solid ${e.urgent ? e.col : S.line}`, padding: "1px 6px", borderRadius: 9, whiteSpace: "nowrap" }}>
+      <Clock size={9} /> {e.txt}
+    </span>
+  );
+}
+
+/* pastille « dormant » : jours écoulés depuis la dernière modification de la fiche */
+function ChipDormant({ jours }) {
+  if (jours === null || jours < DORMANT) return null;
+  return (
+    <span title="Aucune modification de la fiche depuis" style={{ display: "inline-flex", alignItems: "center", gap: 3, fontSize: 9.5, fontWeight: 700, color: S.soft, background: S.cream, border: `1px solid ${S.line}`, padding: "1px 6px", borderRadius: 9, whiteSpace: "nowrap" }}>
+      {jours} j sans bouger
+    </span>
+  );
+}
+
+/* bouton-filtre à deux états */
+function Puce({ on, onClick, col, children }) {
+  const c = col || S.deep;
+  return (
+    <button onClick={onClick} style={{ flex: "0 0 auto", border: `1px solid ${on ? c : S.line}`, background: on ? c : "#fff", color: on ? "#fff" : S.soft, borderRadius: 9, padding: "7px 11px", fontSize: 11.5, fontWeight: 600, cursor: "pointer", whiteSpace: "nowrap", display: "inline-flex", alignItems: "center", gap: 5 }}>{children}</button>
+  );
+}
+
+/* champ de recherche avec croix d'effacement */
+function Recherche({ value, onChange, placeholder }) {
+  return (
+    <div style={{ position: "relative", flex: "1 1 200px", minWidth: 150, maxWidth: 340 }}>
+      <span style={{ position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)", color: S.soft, display: "flex" }}><Search size={13} /></span>
+      <input value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} style={{ ...inp, boxSizing: "border-box", padding: "8px 28px 8px 30px", fontSize: 13 }} />
+      {value && (
+        <button onClick={() => onChange("")} title="Effacer" style={{ position: "absolute", right: 5, top: "50%", transform: "translateY(-50%)", border: "none", background: "transparent", color: S.soft, cursor: "pointer", display: "flex", padding: 4 }}><X size={12} /></button>
+      )}
+    </div>
+  );
+}
+
+/* fabrique les gestionnaires de dépôt d'une zone de kanban */
+const zoneDepot = (etapeId, drag, setDrag, survol, setSurvol, deposer) => ({
+  onDragOver: (e) => { if (drag) { e.preventDefault(); if (survol !== etapeId) setSurvol(etapeId); } },
+  onDragLeave: (e) => { if (!e.currentTarget.contains(e.relatedTarget)) setSurvol((v) => (v === etapeId ? null : v)); },
+  onDrop: (e) => { e.preventDefault(); const item = drag; setDrag(null); setSurvol(null); if (item) deposer(item, etapeId); },
+});
+/* gestionnaires posés sur une carte déplaçable */
+const carteDeplacable = (item, setDrag, setSurvol) => ({
+  draggable: isNotionId(item.id),
+  onDragStart: (e) => {
+    setDrag(item);
+    if (e.dataTransfer) { e.dataTransfer.effectAllowed = "move"; try { e.dataTransfer.setData("text/plain", String(item.id)); } catch (err) {} }
+  },
+  onDragEnd: () => { setDrag(null); setSurvol(null); },
+});
+
+/* ---- lecture du pipeline, repliable ----
+   Notion ne conserve pas l'historique des étapes : le profil est reconstitué depuis la position
+   actuelle des prospects encore en vie (celui qui est en Propale a franchi les étapes d'avant) et
+   « sans mouvement » compte les jours depuis la dernière modification de la fiche dans Notion. */
+function StatsPipeline({ items, etapes, avecMontant, libelle }) {
+  const [ouvert, setOuvert] = useState(false);
+  const ordre = etapes.map((e) => e.id);
+  const actifs = items.filter((p) => ordre.includes(p.etape));
+  const perdus = items.filter((p) => p.etape === "perdu");
+  const atteint = ordre.map((_, i) => actifs.filter((p) => ordre.indexOf(p.etape) >= i).length);
+  const dormants = actifs.filter((p) => (joursDepuis(p.maj) || 0) >= DORMANT);
+  const ageMed = mediane(actifs.map((p) => joursDepuis(p.cree)).filter((j) => j !== null));
+  const clos = actifs.length + perdus.length;
+  const tauxPerte = clos ? Math.round((perdus.length / clos) * 100) : 0;
+  const maxCol = Math.max(1, ...etapes.map((e) => actifs.filter((p) => p.etape === e.id).length));
+
+  const tuiles = [
+    { l: "En vie", v: String(actifs.length) },
+    { l: "Ancienneté médiane", v: ageMed === null ? "—" : ageMed + " j" },
+    { l: "Dormants > " + DORMANT + " j", v: String(dormants.length), alerte: dormants.length > 0 },
+    { l: "Abandonnés", v: clos ? `${perdus.length} · ${tauxPerte} %` : String(perdus.length) },
+  ];
+  const th = { fontSize: 9.5, fontWeight: 700, letterSpacing: "0.04em", textTransform: "uppercase", color: S.soft, opacity: 0.8 };
+
+  return (
+    <div style={{ background: S.paper, border: `1px solid ${S.line}`, borderRadius: 14, marginTop: 12, overflow: "hidden" }}>
+      <button onClick={() => setOuvert(!ouvert)} style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, background: "transparent", border: "none", padding: "13px 16px", cursor: "pointer", textAlign: "left" }}>
+        <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <BarChart size={15} color={S.deep} />
+          <span style={{ ...serif, fontSize: 17, fontWeight: 600, color: S.ink }}>{libelle || "Lecture du pipeline"}</span>
+        </span>
+        <span style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 11.5, color: S.soft }}>
+          {dormants.length > 0 && <span style={{ fontWeight: 700, color: S.rust, background: "#F6E7DE", padding: "2px 8px", borderRadius: 9 }}>{dormants.length} dormant{dormants.length > 1 ? "s" : ""}</span>}
+          <span style={{ display: "flex", transform: ouvert ? "rotate(180deg)" : "none" }}><ChevronDown size={15} /></span>
+        </span>
+      </button>
+
+      {ouvert && (
+        <div style={{ padding: "0 16px 15px" }}>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 12 }}>
+            {tuiles.map((t) => (
+              <div key={t.l} style={{ flex: "1 1 110px", background: "#fff", border: `1px solid ${S.line}`, borderRadius: 11, padding: "9px 11px" }}>
+                <div style={{ fontSize: 9.5, fontWeight: 700, letterSpacing: "0.04em", textTransform: "uppercase", color: S.soft }}>{t.l}</div>
+                <div style={{ ...serif, fontSize: 20, fontWeight: 600, color: t.alerte ? S.rust : S.ink, marginTop: 2 }}>{t.v}</div>
+              </div>
+            ))}
+          </div>
+
+          <div style={{ overflowX: "auto" }}>
+            <div style={{ minWidth: avecMontant ? 460 : 400 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 10, paddingBottom: 5 }}>
+                <span style={{ ...th, width: 84, flex: "none" }}>Étape</span>
+                <span style={{ flex: 1, minWidth: 50 }} />
+                <span style={{ ...th, width: 26, textAlign: "right" }}>Nb</span>
+                {avecMontant && <span style={{ ...th, width: 66, textAlign: "right" }}>Valeur</span>}
+                <span style={{ ...th, width: 74, textAlign: "right" }}>Sans mvt</span>
+                <span style={{ ...th, width: 52, textAlign: "right" }}>Passage</span>
+              </div>
+              {etapes.map((e, i) => {
+                const dedans = actifs.filter((p) => p.etape === e.id);
+                const sm = mediane(dedans.map((p) => joursDepuis(p.maj)).filter((j) => j !== null));
+                const passage = i < ordre.length - 1 && atteint[i] > 0 ? Math.round((atteint[i + 1] / atteint[i]) * 100) : null;
+                const mnt = dedans.reduce((x, p) => x + (Number(p.montant) || 0), 0);
+                return (
+                  <div key={e.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "7px 0", borderTop: `1px solid ${S.grid}` }}>
+                    <span style={{ width: 84, flex: "none", fontSize: 11, fontWeight: 700, letterSpacing: "0.03em", textTransform: "uppercase", color: e.col }}>{e.nom}</span>
+                    <span style={{ flex: 1, minWidth: 50, height: 8, background: S.grid, borderRadius: 4, overflow: "hidden", display: "block" }}>
+                      <span style={{ display: "block", width: (dedans.length / maxCol) * 100 + "%", height: "100%", background: e.col, borderRadius: 4 }} />
+                    </span>
+                    <span style={{ width: 26, textAlign: "right", fontSize: 12.5, fontWeight: 600, color: S.ink }}>{dedans.length}</span>
+                    {avecMontant && <span style={{ width: 66, textAlign: "right", fontSize: 11.5, color: S.soft }}>{mnt ? court(mnt) + " €" : "—"}</span>}
+                    <span style={{ width: 74, textAlign: "right", fontSize: 11.5, color: sm !== null && sm >= DORMANT ? S.rust : S.soft }}>{sm === null ? "—" : sm + " j"}</span>
+                    <span style={{ width: 52, textAlign: "right", fontSize: 12, fontWeight: 600, color: passage === null ? S.soft : S.deep }}>{passage === null ? "—" : passage + " %"}</span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          <p style={{ fontSize: 11, color: S.soft, lineHeight: 1.6, margin: "10px 0 0", opacity: 0.9 }}>
+            Notion ne garde pas l'historique des étapes. <b>Passage</b> compare les prospects encore en vie ayant atteint chaque étape — c'est la forme de ton pipeline aujourd'hui, pas un taux de conversion dans le temps.
+            <b> Sans mvt</b> est la médiane des jours depuis la dernière modification de la fiche. Les abandonnés ne sont pas répartis par étape, leur étape la plus avancée n'étant pas conservée.
+          </p>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ================= VUE CRM ================= */
+function CRM({ prospects, setFProspect, bougerEtape, marquerPerdu, deplacerVers, pipePondere, pipeBrut }) {
   const colonnes = ETAPES.filter((e) => e.id !== "perdu");
-  const perdus = prospects.filter((p) => p.etape === "perdu");
+  const [q, setQ] = useState("");
+  const [fSource, setFSource] = useState("");
+  const [urgent, setUrgent] = useState(false);
+  const [dormant, setDormant] = useState(false);
+  const [drag, setDrag] = useState(null);
+  const [survol, setSurvol] = useState(null);
+
+  const texte = (p) => [p.societe, p.nom, p.offre, p.source, p.note].filter(Boolean).join(" ").toLowerCase();
+  const garde = (p) => {
+    const req = q.trim().toLowerCase();
+    if (req && !texte(p).includes(req)) return false;
+    if (fSource && (p.source || "Sans source") !== fSource) return false;
+    if (urgent && !((etatRelance(p.relance) || {}).urgent)) return false;
+    if (dormant && (joursDepuis(p.maj) || 0) < DORMANT) return false;
+    return true;
+  };
+  const vus = prospects.filter(garde);
+  const perdus = vus.filter((p) => p.etape === "perdu");
+  const enVie = (p) => p.etape !== "perdu";
+  const nbTotal = prospects.filter(enVie).length;
+  const nbVus = vus.filter(enVie).length;
+  const nbUrgents = prospects.filter((p) => enVie(p) && (etatRelance(p.relance) || {}).urgent).length;
+  const nbDormants = prospects.filter((p) => enVie(p) && (joursDepuis(p.maj) || 0) >= DORMANT).length;
+  const sources = [...new Set(prospects.filter(enVie).map((p) => p.source || "Sans source"))].sort();
+  const filtreActif = !!(q.trim() || fSource || urgent || dormant);
+  const zone = (id) => zoneDepot(id, drag, setDrag, survol, setSurvol, deplacerVers);
 
   return (
     <div>
@@ -1166,50 +1454,107 @@ function CRM({ prospects, setFProspect, bougerEtape, marquerPerdu, pipePondere, 
           style={{ ...btnAdd, width: "auto", padding: "9px 14px" }}><Plus size={15} /> Prospect</button>
       </div>
 
-      <div className="wrap" style={{ overflowX: "auto", marginTop: 16, paddingBottom: 6 }}>
+      {/* recherche et filtres */}
+      <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 7, marginTop: 12 }}>
+        <Recherche value={q} onChange={setQ} placeholder="Société, contact, offre, note…" />
+        <select value={fSource} onChange={(e) => setFSource(e.target.value)} style={{ ...inp, flex: "0 0 auto", width: "auto", padding: "8px 10px", fontSize: 12.5, fontWeight: 600, color: fSource ? S.ink : S.soft }}>
+          <option value="">Toutes les sources</option>
+          {sources.map((sc) => <option key={sc} value={sc}>{sc}</option>)}
+        </select>
+        <Puce on={urgent} onClick={() => setUrgent(!urgent)} col={S.rust}><Clock size={12} /> À relancer{nbUrgents ? ` (${nbUrgents})` : ""}</Puce>
+        <Puce on={dormant} onClick={() => setDormant(!dormant)}>Dormants{nbDormants ? ` (${nbDormants})` : ""}</Puce>
+        {filtreActif && (
+          <button onClick={() => { setQ(""); setFSource(""); setUrgent(false); setDormant(false); }}
+            style={{ flex: "0 0 auto", border: "none", background: "transparent", color: S.deep, fontSize: 11.5, fontWeight: 600, cursor: "pointer", padding: "7px 4px" }}>Tout afficher</button>
+        )}
+      </div>
+      {filtreActif && (
+        <div style={{ fontSize: 11.5, color: S.soft, marginTop: 7 }}>
+          {nbVus} prospect{nbVus > 1 ? "s" : ""} sur {nbTotal}{nbVus === 0 ? " — aucun ne correspond à ces filtres." : ""}
+        </div>
+      )}
+
+      <div className="wrap" style={{ overflowX: "auto", marginTop: 14, paddingBottom: 6 }}>
         <div style={{ display: "flex", gap: 12, minWidth: 900 }}>
           {colonnes.map((col) => {
-            const items = prospects.filter((p) => p.etape === col.id);
+            const items = vus.filter((p) => p.etape === col.id);
+            const vise = survol === col.id;
             return (
-              <div key={col.id} style={{ flex: "1 1 0", minWidth: 172, background: S.paper, border: `1px solid ${S.line}`, borderTop: `3px solid ${col.col}`, borderRadius: 12, padding: 10 }}>
+              <div key={col.id} {...zone(col.id)}
+                style={{ flex: "1 1 0", minWidth: 172, background: vise ? "#FFFCF4" : S.paper, border: `1px solid ${vise ? col.col : S.line}`, borderTop: `3px solid ${col.col}`, borderRadius: 12, padding: 10, boxShadow: vise ? `0 0 0 2px ${col.col}33` : "none" }}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", padding: "2px 4px 8px" }}>
                   <span style={{ fontSize: 11.5, fontWeight: 700, letterSpacing: "0.03em", textTransform: "uppercase", color: col.col }}>{col.nom}</span>
                   <span style={{ fontSize: 10.5, color: S.soft }}>{items.length}</span>
                 </div>
-                {items.map((p) => (
-                  <div key={p.id} style={{ background: "#fff", border: `1px solid ${S.line}`, borderRadius: 9, padding: "8px 9px", marginBottom: 7 }}>
-                    <div onClick={() => setFProspect(p)} style={{ cursor: "pointer" }}>
-                      <div style={{ ...serif, fontSize: 14, fontWeight: 600, color: S.ink, lineHeight: 1.2 }}>{p.societe || p.nom || "Sans nom"}</div>
-                      {p.nom && p.societe && <div style={{ fontSize: 11, color: S.soft }}>{p.nom}</div>}
-                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 4 }}>
-                        <span style={{ fontSize: 12.5, fontWeight: 600, color: S.deep }}>{p.montant ? eur(p.montant) : "—"}</span>
-                        {p.source && <span style={{ fontSize: 9.5, fontWeight: 700, color: S.soft, background: S.cream, padding: "1px 6px", borderRadius: 10 }}>{p.source}</span>}
+                {items.map((p) => {
+                  const dorm = joursDepuis(p.maj);
+                  const rel = etatRelance(p.relance);
+                  const pris = drag && drag.id === p.id;
+                  return (
+                    <div key={p.id} {...carteDeplacable(p, setDrag, setSurvol)}
+                      style={{ background: "#fff", border: `1px solid ${rel && rel.urgent ? rel.col : S.line}`, borderRadius: 9, padding: "8px 9px", marginBottom: 7, opacity: pris ? 0.45 : 1, cursor: isNotionId(p.id) ? "grab" : "default" }}>
+                      <div onClick={() => setFProspect(p)} style={{ cursor: "pointer" }}>
+                        <div style={{ ...serif, fontSize: 14, fontWeight: 600, color: S.ink, lineHeight: 1.2 }}>{p.societe || p.nom || "Sans nom"}</div>
+                        {p.nom && p.societe && <div style={{ fontSize: 11, color: S.soft }}>{p.nom}</div>}
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 4 }}>
+                          <span style={{ fontSize: 12.5, fontWeight: 600, color: S.deep }}>{p.montant ? eur(p.montant) : "—"}</span>
+                          {p.source && <span style={{ fontSize: 9.5, fontWeight: 700, color: S.soft, background: S.cream, padding: "1px 6px", borderRadius: 10 }}>{p.source}</span>}
+                        </div>
+                        {(rel || (dorm !== null && dorm >= DORMANT)) && (
+                          <div style={{ display: "flex", flexWrap: "wrap", gap: 4, marginTop: 5 }}>
+                            <ChipRelance iso={p.relance} />
+                            {!rel || !rel.urgent ? <ChipDormant jours={dorm} /> : null}
+                          </div>
+                        )}
                       </div>
+                      {col.id !== "signe" && (
+                        <div style={{ display: "flex", gap: 4, marginTop: 7 }}>
+                          <button onClick={() => bougerEtape(p, 1)} title="Étape suivante"
+                            style={{ flex: 1, border: "none", background: col.col, color: "#fff", borderRadius: 7, padding: "5px", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 3, fontSize: 11, fontWeight: 600 }}>
+                            {col.id === "propale" ? <>Signer <Check size={12} /></> : <>Avancer <ArrowRight size={12} /></>}
+                          </button>
+                          <button onClick={() => marquerPerdu(p)} title="Perdu"
+                            style={{ border: `1px solid ${S.line}`, background: "#fff", color: S.rust, borderRadius: 7, padding: "5px 7px", cursor: "pointer" }}><X size={12} /></button>
+                        </div>
+                      )}
                     </div>
-                    {col.id !== "signe" && (
-                      <div style={{ display: "flex", gap: 4, marginTop: 7 }}>
-                        <button onClick={() => bougerEtape(p, 1)} title="Étape suivante"
-                          style={{ flex: 1, border: "none", background: col.col, color: "#fff", borderRadius: 7, padding: "5px", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 3, fontSize: 11, fontWeight: 600 }}>
-                          {col.id === "propale" ? <>Signer <Check size={12} /></> : <>Avancer <ArrowRight size={12} /></>}
-                        </button>
-                        <button onClick={() => marquerPerdu(p)} title="Perdu"
-                          style={{ border: `1px solid ${S.line}`, background: "#fff", color: S.rust, borderRadius: 7, padding: "5px 7px", cursor: "pointer" }}><X size={12} /></button>
-                      </div>
-                    )}
+                  );
+                })}
+                {items.length === 0 && (
+                  <div style={{ fontSize: 11, color: vise ? col.col : S.soft, textAlign: "center", padding: "10px 4px", opacity: vise ? 1 : 0.6, fontWeight: vise ? 600 : 400 }}>
+                    {drag ? "Déposer ici" : "—"}
                   </div>
-                ))}
-                {items.length === 0 && <div style={{ fontSize: 11, color: S.soft, textAlign: "center", padding: "10px 4px", opacity: 0.6 }}>—</div>}
+                )}
               </div>
             );
           })}
         </div>
       </div>
 
-      {perdus.length > 0 && (
-        <div style={{ marginTop: 10, fontSize: 12, color: S.soft }}>
-          <b>Perdus :</b> {perdus.map((p) => p.societe || p.nom).join(", ")}
+      {(drag || perdus.length > 0) && (
+        <div {...zone("perdu")}
+          style={{ marginTop: 10, border: `1px ${drag ? "dashed" : "solid"} ${survol === "perdu" ? S.rust : S.line}`, background: survol === "perdu" ? "#F6E7DE" : "transparent", borderRadius: 11, padding: "9px 12px", fontSize: 12, color: S.soft }}>
+          {drag ? (
+            <b style={{ color: S.rust }}>Déposer ici pour marquer perdu</b>
+          ) : (
+            <>
+              <b>Perdus ({perdus.length}) :</b>{" "}
+              {perdus.map((p, i) => (
+                <span key={p.id}>
+                  {i > 0 && ", "}
+                  <span onClick={() => setFProspect(p)} style={{ cursor: "pointer", textDecoration: "underline", textDecorationStyle: "dotted" }}>{p.societe || p.nom || "Sans nom"}</span>
+                </span>
+              ))}
+            </>
+          )}
         </div>
       )}
+
+      <StatsPipeline items={prospects} etapes={ETAPES.filter((e) => !["signe", "perdu"].includes(e.id))} avecMontant libelle="Lecture du pipeline" />
+
+      <p style={{ fontSize: 11.5, color: S.soft, marginTop: 10, opacity: 0.85 }}>
+        Sur ordinateur, glisse une carte d'une colonne à l'autre pour changer son étape, y compris en arrière ; dépose sur « Signé » pour ouvrir la fiche de signature. Sur mobile, les boutons Avancer et ✕ font le même travail.
+      </p>
     </div>
   );
 }
@@ -1387,7 +1732,11 @@ function FicheLevier({ ctx, onClose, onSave, onDelete }) {
 }
 
 /* ================= VUE BNI (pilotage Directeur Consultant) ================= */
-function VueBNI({ membres, bniProspects, bniConf, majBniConf, majMembre, clients, membrePerfs, setFMembre, setFBniProspect, setFPerf, bougerEtapeBni, abandonnerBniProspect, setBniConfirm, setASupprimer, bniSaveEtat }) {
+function VueBNI({ membres, bniProspects, bniConf, majBniConf, majMembre, clients, membrePerfs, setFMembre, setFBniProspect, setFPerf, bougerEtapeBni, abandonnerBniProspect, deplacerBniVers, setBniConfirm, setASupprimer, bniSaveEtat }) {
+  const [qRec, setQRec] = useState("");
+  const [urgentRec, setUrgentRec] = useState(false);
+  const [dragRec, setDragRec] = useState(null);
+  const [survolRec, setSurvolRec] = useState(null);
   const [nvMetier, setNvMetier] = useState("");
   const [sousVue, setSousVue] = useState("pilotage");
   const [openMetric, setOpenMetric] = useState(null);
@@ -1411,6 +1760,17 @@ function VueBNI({ membres, bniProspects, bniConf, majBniConf, majMembre, clients
   /* commissions BNI déjà passées au CA (contrats type bni) */
   const comCA = clients.filter((c) => c.type === "bni").reduce((s, c) => s + (c.ech || []).reduce((x, e) => x + e.du, 0), 0);
   const actifsRec = bniProspects.filter((b) => !["perdu", "signe"].includes(b.etape));
+  /* recherche, filtre relance et dépôt des cartes du kanban de recrutement */
+  const recGarde = (b) => {
+    const req = qRec.trim().toLowerCase();
+    if (req && ![b.nom, b.metier, b.note].filter(Boolean).join(" ").toLowerCase().includes(req)) return false;
+    if (urgentRec && !((etatRelance(b.relance) || {}).urgent)) return false;
+    return true;
+  };
+  const recVus = bniProspects.filter(recGarde);
+  const recPerdus = recVus.filter((b) => b.etape === "perdu");
+  const recUrgents = actifsRec.filter((b) => (etatRelance(b.relance) || {}).urgent).length;
+  const zoneRec = (id) => zoneDepot(id, dragRec, setDragRec, survolRec, setSurvolRec, deplacerBniVers);
   const match = (a, b) => !!(a && b && (a.trim().toLowerCase().includes(b.trim().toLowerCase()) || b.trim().toLowerCase().includes(a.trim().toLowerCase())));
 
   const CHIP_REN = {
@@ -1549,40 +1909,87 @@ function VueBNI({ membres, bniProspects, bniConf, majBniConf, majMembre, clients
       <div style={{ marginTop: 14 }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 8 }}>
           <div style={{ ...serif, fontSize: 18, fontWeight: 600, color: S.ink }}>Recrutement de membres</div>
-          <button onClick={() => setFBniProspect({ id: Date.now(), nom: "", metier: "", etape: "prospect", note: "" })} style={{ ...btnAdd, width: "auto", padding: "8px 13px" }}><Plus size={14} /> Prospect membre</button>
+          <button onClick={() => setFBniProspect({ id: Date.now(), nom: "", metier: "", etape: "prospect", relance: "", note: "" })} style={{ ...btnAdd, width: "auto", padding: "8px 13px" }}><Plus size={14} /> Prospect membre</button>
         </div>
+
+        <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 7, marginTop: 10 }}>
+          <Recherche value={qRec} onChange={setQRec} placeholder="Nom, métier, note…" />
+          <Puce on={urgentRec} onClick={() => setUrgentRec(!urgentRec)} col={S.rust}><Clock size={12} /> À relancer{recUrgents ? ` (${recUrgents})` : ""}</Puce>
+          {(qRec.trim() || urgentRec) && (
+            <button onClick={() => { setQRec(""); setUrgentRec(false); }} style={{ flex: "0 0 auto", border: "none", background: "transparent", color: S.deep, fontSize: 11.5, fontWeight: 600, cursor: "pointer", padding: "7px 4px" }}>Tout afficher</button>
+          )}
+          {(qRec.trim() || urgentRec) && <span style={{ fontSize: 11.5, color: S.soft }}>{recVus.filter((b) => b.etape !== "perdu").length} sur {actifsRec.length}</span>}
+        </div>
+
         <div className="wrap" style={{ overflowX: "auto", marginTop: 10, paddingBottom: 6 }}>
           <div style={{ display: "flex", gap: 12, minWidth: 760 }}>
             {BNI_ETAPES.map((col) => {
-              const items = bniProspects.filter((b) => b.etape === col.id);
+              const items = recVus.filter((b) => b.etape === col.id);
+              const vise = survolRec === col.id;
               return (
-                <div key={col.id} style={{ flex: "1 1 0", minWidth: 170, background: S.paper, border: `1px solid ${S.line}`, borderTop: `3px solid ${col.col}`, borderRadius: 12, padding: 10 }}>
+                <div key={col.id} {...zoneRec(col.id)}
+                  style={{ flex: "1 1 0", minWidth: 170, background: vise ? "#FFFCF4" : S.paper, border: `1px solid ${vise ? col.col : S.line}`, borderTop: `3px solid ${col.col}`, borderRadius: 12, padding: 10, boxShadow: vise ? `0 0 0 2px ${col.col}33` : "none" }}>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", padding: "2px 4px 8px" }}>
                     <span style={{ fontSize: 11.5, fontWeight: 700, letterSpacing: "0.03em", textTransform: "uppercase", color: col.col }}>{col.nom}</span>
                     <span style={{ fontSize: 10.5, color: S.soft }}>{items.length}</span>
                   </div>
-                  {items.map((b) => (
-                    <div key={b.id} style={{ background: "#fff", border: `1px solid ${S.line}`, borderRadius: 9, padding: "8px 9px", marginBottom: 7 }}>
-                      <div onClick={() => setFBniProspect(b)} style={{ cursor: "pointer" }}>
-                        <div style={{ ...serif, fontSize: 14, fontWeight: 600, color: S.ink, lineHeight: 1.2 }}>{b.nom || "Sans nom"}</div>
-                        {b.metier && <span style={{ display: "inline-block", fontSize: 9.5, fontWeight: 700, color: S.deep, background: S.cream, padding: "1px 7px", borderRadius: 10, marginTop: 4 }}>{b.metier}</span>}
+                  {items.map((b) => {
+                    const rel = etatRelance(b.relance);
+                    const dorm = joursDepuis(b.maj);
+                    const pris = dragRec && dragRec.id === b.id;
+                    return (
+                      <div key={b.id} {...carteDeplacable(b, setDragRec, setSurvolRec)}
+                        style={{ background: "#fff", border: `1px solid ${rel && rel.urgent ? rel.col : S.line}`, borderRadius: 9, padding: "8px 9px", marginBottom: 7, opacity: pris ? 0.45 : 1, cursor: isNotionId(b.id) ? "grab" : "default" }}>
+                        <div onClick={() => setFBniProspect(b)} style={{ cursor: "pointer" }}>
+                          <div style={{ ...serif, fontSize: 14, fontWeight: 600, color: S.ink, lineHeight: 1.2 }}>{b.nom || "Sans nom"}</div>
+                          <div style={{ display: "flex", flexWrap: "wrap", gap: 4, marginTop: 4 }}>
+                            {b.metier && <span style={{ fontSize: 9.5, fontWeight: 700, color: S.deep, background: S.cream, padding: "1px 7px", borderRadius: 10 }}>{b.metier}</span>}
+                            <ChipRelance iso={b.relance} />
+                            {!rel || !rel.urgent ? <ChipDormant jours={dorm} /> : null}
+                          </div>
+                        </div>
+                        <div style={{ display: "flex", gap: 4, marginTop: 7 }}>
+                          <button onClick={() => bougerEtapeBni(b, 1)} title={col.id === "propale" ? "Devenir membre" : "Étape suivante"}
+                            style={{ flex: 1, border: "none", background: col.col, color: "#fff", borderRadius: 7, padding: "5px", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 3, fontSize: 11, fontWeight: 600 }}>
+                            {col.id === "propale" ? <>Membre <Check size={12} /></> : <>Avancer <ArrowRight size={12} /></>}
+                          </button>
+                          <button onClick={() => abandonnerBniProspect(b)} title="Abandonner"
+                            style={{ border: `1px solid ${S.line}`, background: "#fff", color: S.rust, borderRadius: 7, padding: "5px 7px", cursor: "pointer" }}><X size={12} /></button>
+                        </div>
                       </div>
-                      <div style={{ display: "flex", gap: 4, marginTop: 7 }}>
-                        <button onClick={() => bougerEtapeBni(b, 1)} title={col.id === "propale" ? "Devenir membre" : "Étape suivante"}
-                          style={{ flex: 1, border: "none", background: col.col, color: "#fff", borderRadius: 7, padding: "5px", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 3, fontSize: 11, fontWeight: 600 }}>
-                          {col.id === "propale" ? <>Membre <Check size={12} /></> : <>Avancer <ArrowRight size={12} /></>}
-                        </button>
-                        <button onClick={() => abandonnerBniProspect(b)} title="Abandonner"
-                          style={{ border: `1px solid ${S.line}`, background: "#fff", color: S.rust, borderRadius: 7, padding: "5px 7px", cursor: "pointer" }}><X size={12} /></button>
-                      </div>
+                    );
+                  })}
+                  {items.length === 0 && (
+                    <div style={{ fontSize: 11, color: vise ? col.col : S.soft, textAlign: "center", padding: "10px 4px", opacity: vise ? 1 : 0.6, fontWeight: vise ? 600 : 400 }}>
+                      {dragRec ? "Déposer ici" : "—"}
                     </div>
-                  ))}
-                  {items.length === 0 && <div style={{ fontSize: 11, color: S.soft, textAlign: "center", padding: "10px 4px", opacity: 0.6 }}>—</div>}
+                  )}
                 </div>
               );
             })}
           </div>
         </div>
+
+        {(dragRec || recPerdus.length > 0) && (
+          <div {...zoneRec("perdu")}
+            style={{ marginTop: 10, border: `1px ${dragRec ? "dashed" : "solid"} ${survolRec === "perdu" ? S.rust : S.line}`, background: survolRec === "perdu" ? "#F6E7DE" : "transparent", borderRadius: 11, padding: "9px 12px", fontSize: 12, color: S.soft }}>
+            {dragRec ? (
+              <b style={{ color: S.rust }}>Déposer ici pour abandonner</b>
+            ) : (
+              <>
+                <b>Abandonnés ({recPerdus.length}) :</b>{" "}
+                {recPerdus.map((b, i) => (
+                  <span key={b.id}>
+                    {i > 0 && ", "}
+                    <span onClick={() => setFBniProspect(b)} style={{ cursor: "pointer", textDecoration: "underline", textDecorationStyle: "dotted" }}>{b.nom || "Sans nom"}</span>
+                  </span>
+                ))}
+              </>
+            )}
+          </div>
+        )}
+
+        <StatsPipeline items={bniProspects} etapes={BNI_ETAPES} libelle="Lecture du recrutement" />
       </div>
 
       {/* métiers à pourvoir */}
@@ -1835,6 +2242,7 @@ function FicheBniProspect({ b, onClose, onSave, onDelete }) {
           {BNI_ETAPES.map((s) => <option key={s.id} value={s.id}>{s.nom}</option>)}
         </select>
       </Ch>
+      <Ch label="Prochaine relance"><input type="date" value={f.relance || ""} onChange={(e) => set("relance", e.target.value)} style={inp} /></Ch>
       <Ch label="Notes"><textarea value={f.note} onChange={(e) => set("note", e.target.value)} rows={2} style={{ ...inp, resize: "vertical", minHeight: 48 }} /></Ch>
       <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
         {existant && <button onClick={() => onDelete(f)} title="Supprimer" style={{ ...btnIcon, padding: "13px 15px", color: S.rust }}><Trash2 size={15} /></button>}
