@@ -211,6 +211,23 @@ function perfMoisSerie(n) {
   return arr;
 }
 
+/* échéancier saisi en texte : "2026-09:1125; 2026-11:1125" (l'ancien JSON reste accepté) */
+function litPlan(txt) {
+  const s = (txt || "").trim();
+  if (!s) return {};
+  if (s[0] === "{") { try { return JSON.parse(s) || {}; } catch (e) { return {}; } }
+  const out = {};
+  s.split(/[;,\n]+/).forEach((part) => {
+    const m = part.trim().match(/^(\d{4}-\d{2})\s*[:=]\s*(-?[\d\s.,]+)$/);
+    if (m) {
+      const n = Number(m[2].replace(/\s/g, "").replace(",", "."));
+      if (!isNaN(n)) out[m[1]] = n;
+    }
+  });
+  return out;
+}
+const ecritPlan = (plan) => Object.keys(plan).sort().map((k) => `${k}:${plan[k]}`).join("; ");
+
 /* échéancier explicite : { "2026-09": 1125, "2026-11": 1125 } -> [{mkey, du}] borné à l'exercice */
 function planVersFY(plan) {
   if (!plan || typeof plan !== "object") return [];
@@ -321,8 +338,7 @@ function mapRows(rows) {
       const duree = p["Durée mois"] && p["Durée mois"].number != null ? p["Durée mois"].number : (est(typeId).rec ? 6 : 1);
       let encMap = {};
       try { encMap = JSON.parse(rtext(p["Encaissements"]) || "{}") || {}; } catch (e) { encMap = {}; }
-      let planMap = {};
-      try { planMap = JSON.parse(rtext(p["Echeances"]) || "{}") || {}; } catch (e) { planMap = {}; }
+      const planMap = litPlan(rtext(p["Echeances"]));
       const c = { id: r.id, nom: title, type: typeId, prix: montant, debut, duree, source: p["Source"] && p["Source"].select ? p["Source"].select.name : "", nombre: p["Nombre"] && p["Nombre"].number != null ? p["Nombre"].number : 1, echPlan: planMap };
       c.ech = echeances(c).map((e) => ({ ...e, encaisse: encMap[e.mkey] != null ? Number(encMap[e.mkey]) : null }));
       clients.push(c);
@@ -726,7 +742,7 @@ function Cockpit() {
     "Statut": "Signé",
     "Source": d.source || null,
     "Nombre": Number(d.nombre) || 1,
-    "Echeances": d.echPlan && Object.keys(d.echPlan).length ? JSON.stringify(d.echPlan) : "",
+    "Echeances": d.echPlan && Object.keys(d.echPlan).length ? ecritPlan(d.echPlan) : "",
   });
   const confirmerSignature = (data) => {
     const base = { ...champsContrat(data), "Étape": "Signé" };
