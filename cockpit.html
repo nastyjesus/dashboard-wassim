@@ -12,6 +12,13 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Cockpit — Wassim Loumi</title>
+<meta name="theme-color" content="#1F1B16">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="icon" href="icons/icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Cockpit">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=EB+Garamond:wght@400;500;600&family=Raleway:wght@400;500;600;700&display=swap" rel="stylesheet">
 <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
@@ -32,6 +39,9 @@ const { useState, useEffect } = React;
 /* ================= CONNEXION WORKER ================= */
 const WORKER_URL = "https://pilotage-notion-worker.loumiwassim.workers.dev";
 const PILOT_KEY  = "pilot-6f3a9c2e8b1d47-write"; /* clé d'écriture PUBLIQUE (gate anti-abus) */
+/* Clé publique VAPID du push web (publique par nature — la privée reste secrète côté Worker).
+   Générée par `npm run vapid` dans workers/pilotage-notion-worker. Vide = bouton de rappels masqué. */
+const VAPID_PUBLIC_KEY = "BDLrCIEIkTTUE-5xgHFtraANfEDAPgrMBl_2merS28XwkomyHDMhAnYheZBw6NfBqtgpoGMQYGmGke34YU-qwYU";
 
 async function apiGet() {
   const r = await fetch(WORKER_URL, { method: "GET" });
@@ -84,6 +94,24 @@ const keyOfIdx = (i) => { const y = 2026 + Math.floor((8 + i) / 12); const m = (
 const eur = (n) => Math.round(n).toLocaleString("fr-FR") + " €";
 const court = (n) => (n ? Math.round(n).toLocaleString("fr-FR") : "");
 const TVA = 0.20;
+
+/* ---- relances : mêmes conventions que le Worker (workers/pilotage-notion-worker/src/relances.js) ---- */
+const DELAI_RELANCE = 7;   /* « Relancé » repousse d'une semaine */
+const DELAI_SNOOZE = 3;
+/* Le jour à Paris, pas celui du fuseau du navigateur — « en-CA » rend directement AAAA-MM-JJ. */
+const aujourdhui = () => new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Paris", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date());
+/* Arithmétique en UTC : pas de dérive au passage à l'heure d'hiver. */
+const isoPlus = (iso, jours) => { const d = new Date(`${iso}T12:00:00Z`); d.setUTCDate(d.getUTCDate() + jours); return d.toISOString().slice(0, 10); };
+const joursEntre = (a, b) => Math.round((Date.parse(`${b}T12:00:00Z`) - Date.parse(`${a}T12:00:00Z`)) / 86400000);
+/* État d'une relance, pour la pastille sur la carte. */
+function etatRelance(iso, today = aujourdhui()) {
+  if (!iso) return { cle: "aucune", txt: "sans relance", col: "#8C8478", fond: "#ECE8E1", du: false };
+  const n = joursEntre(today, iso);
+  if (n < 0)  return { cle: "retard", txt: `${-n} j de retard`, col: "#A9683F", fond: "#F6E7DE", du: true };
+  if (n === 0) return { cle: "aujourdhui", txt: "aujourd'hui", col: "#B08D57", fond: "#F6EDE0", du: true };
+  if (n <= 3) return { cle: "bientot", txt: `dans ${n} j`, col: "#5B7A8C", fond: "#E6EDF1", du: false };
+  return { cle: "plus-tard", txt: `le ${iso.slice(8, 10)}/${iso.slice(5, 7)}`, col: "#8C8478", fond: "#F1EDE6", du: false };
+}
 
 const TYPES = [
   { id: "prog", nom: "Programme récurrent", rec: true },
@@ -422,6 +450,9 @@ const RotateCcw = ic(<><polyline points="1 4 1 10 7 10" /><path d="M3.51 15a9 9 
 const ChevronDown = ic(<polyline points="6 9 12 15 18 9" />);
 const Funnel = ic(<polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3" />);
 const Award = ic(<><circle cx="12" cy="8" r="7" /><polyline points="8.21 13.89 7 23 12 20 17 23 15.79 13.88" /></>);
+const Clock = ic(<><circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" /></>);
+const Bell = ic(<><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" /><path d="M13.73 21a2 2 0 0 1-3.46 0" /></>);
+const BellOff = ic(<><path d="M13.73 21a2 2 0 0 1-3.46 0" /><path d="M18.63 13A17.9 17.9 0 0 1 18 8" /><path d="M6.26 6.26A5.86 5.86 0 0 0 6 8c0 7-3 9-3 9h14" /><path d="M18 8a6 6 0 0 0-9.33-5" /><line x1="1" y1="1" x2="23" y2="23" /></>);
 
 /* ================= APP ================= */
 function Cockpit() {
@@ -729,9 +760,17 @@ function Cockpit() {
     const i = ordre.indexOf(p.etape);
     if (dir > 0 && p.etape === "propale") { setSignature({ ...p }); return; }
     const ni = Math.max(0, Math.min(ordre.length - 1, i + dir));
-    ecrire(() => apiUpdate(p.id, { "Étape": ETAPE_NAME[ordre[ni]] }), "Déplacement de l'étape");
+    /* un prospect qui bouge repart avec une échéance : sans date de relance il sort des radars */
+    ecrire(
+      () => apiUpdate(p.id, { "Étape": ETAPE_NAME[ordre[ni]], "Relance": isoPlus(aujourdhui(), DELAI_RELANCE) }),
+      "Déplacement de l'étape"
+    );
   };
-  const marquerPerdu = (p) => ecrire(() => apiUpdate(p.id, { "Étape": "Perdu" }), "Mise à jour");
+  const marquerPerdu = (p) => ecrire(() => apiUpdate(p.id, { "Étape": "Perdu", "Relance": null }), "Mise à jour");
+  const relancer = (p, jours) => ecrire(
+    () => apiUpdate(p.id, { "Relance": isoPlus(p.relance && p.relance > aujourdhui() ? p.relance : aujourdhui(), jours) }),
+    "Relance replanifiée"
+  );
 
   const champsContrat = (d) => ({
     "Client": d.nom,
@@ -808,7 +847,7 @@ function Cockpit() {
 
       <div style={{ padding: "20px 18px 0", maxWidth: 1120, margin: "0 auto" }}>
         {vue === "pilotage" && <Pilotage {...{ caSigne, moisSigne, moisContratsActifs, moisNouveaux, cumulSigne, pipePondere, setVue, objectif, contratsReste, renouvellements, mrrEnJeu, parSource }} />}
-        {vue === "crm" && <CRM {...{ prospects, setFProspect, bougerEtape, marquerPerdu, pipePondere, pipeBrut }} />}
+        {vue === "crm" && <CRM {...{ prospects, setFProspect, bougerEtape, marquerPerdu, relancer, pipePondere, pipeBrut }} />}
         {vue === "tunnel" && <Tunnel {...{ tunnels, setFLevier, saveLevier, basculerLevier, tunSaveEtat }} />}
         {vue === "contrats" && <Contrats {...{ clients, moisSigne, setFClient, setASupprimer, caSigne }} />}
         {vue === "bni" && <VueBNI {...{ membres, bniProspects, bniConf, majBniConf, majMembre, clients, membrePerfs, setFMembre, setFBniProspect, setFPerf, bougerEtapeBni, abandonnerBniProspect, setBniConfirm, setASupprimer, bniSaveEtat }} />}
@@ -1152,9 +1191,117 @@ function Pilotage({ caSigne, moisSigne, moisContratsActifs, moisNouveaux, cumulS
 }
 
 /* ================= VUE CRM ================= */
-function CRM({ prospects, setFProspect, bougerEtape, marquerPerdu, pipePondere, pipeBrut }) {
+/* ---- rappels sur le téléphone : Service Worker + abonnement push (VAPID) ---- */
+const b64ToU8 = (b64) => {
+  const p = (b64 + "=".repeat((4 - (b64.length % 4)) % 4)).replace(/-/g, "+").replace(/_/g, "/");
+  return Uint8Array.from(atob(p), (c) => c.charCodeAt(0));
+};
+
+function useRappels() {
+  const supporte = typeof navigator !== "undefined" && "serviceWorker" in navigator && "PushManager" in window && Boolean(VAPID_PUBLIC_KEY);
+  const [etat, setEtat] = useState(supporte ? "inconnu" : "non-supporte");
+  const [erreur, setErreur] = useState("");
+
+  useEffect(() => {
+    if (!supporte) return;
+    if (Notification.permission === "denied") { setEtat("refuse"); return; }
+    navigator.serviceWorker.getRegistration()
+      .then((reg) => (reg ? reg.pushManager.getSubscription() : null))
+      .then((sub) => setEtat(sub ? "on" : "off"))
+      .catch(() => setEtat("off"));
+  }, [supporte]);
+
+  const activer = async () => {
+    setErreur(""); setEtat("occupe");
+    try {
+      const permission = await Notification.requestPermission();
+      if (permission !== "granted") { setEtat(permission === "denied" ? "refuse" : "off"); return; }
+      const reg = await navigator.serviceWorker.register("sw.js");
+      await navigator.serviceWorker.ready;
+      const sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: b64ToU8(VAPID_PUBLIC_KEY) });
+      const r = await fetch(`${WORKER_URL}/push/subscribe`, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ endpoint: sub.endpoint }),
+      });
+      if (!r.ok) throw new Error("worker-" + r.status);
+      setEtat("on");
+    } catch (e) { setErreur(String(e.message || e)); setEtat("off"); }
+  };
+
+  const couper = async () => {
+    setEtat("occupe");
+    try {
+      const reg = await navigator.serviceWorker.getRegistration();
+      const sub = reg && await reg.pushManager.getSubscription();
+      if (sub) {
+        await fetch(`${WORKER_URL}/push/subscribe`, {
+          method: "DELETE", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ endpoint: sub.endpoint }),
+        }).catch(() => {});
+        await sub.unsubscribe();
+      }
+      setEtat("off");
+    } catch (e) { setErreur(String(e.message || e)); setEtat("off"); }
+  };
+
+  return { etat, erreur, activer, couper };
+}
+
+/* Ce qu'il y a à relancer aujourd'hui, en tête du CRM. */
+function BandeauRelances({ dues, sansDate, filtre, setFiltre }) {
+  const { etat, erreur, activer, couper } = useRappels();
+  const rien = dues.length === 0;
+  const retards = dues.filter((p) => etatRelance(p.relance).cle === "retard").length;
+
+  const pastille = (txt, col, fond) => (
+    <span style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: "0.04em", textTransform: "uppercase", color: col, background: fond, padding: "3px 9px", borderRadius: 11 }}>{txt}</span>
+  );
+
+  return (
+    <div style={{ background: S.paper, border: `1px solid ${S.line}`, borderLeft: `3px solid ${rien ? S.line : "#B08D57"}`, borderRadius: 12, padding: "12px 14px", marginTop: 14, display: "flex", flexWrap: "wrap", alignItems: "center", gap: 10 }}>
+      <div style={{ flex: "1 1 240px", minWidth: 0 }}>
+        <div style={{ ...serif, fontSize: 16, fontWeight: 600, color: S.ink }}>
+          {rien ? "Rien à relancer aujourd'hui" : `${dues.length} relance${dues.length > 1 ? "s" : ""} à faire`}
+        </div>
+        <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 6 }}>
+          {retards > 0 && pastille(`${retards} en retard`, "#A9683F", "#F6E7DE")}
+          {sansDate.length > 0 && pastille(`${sansDate.length} sans date de relance`, S.soft, S.cream)}
+          {rien && sansDate.length === 0 && pastille("pipeline à jour", "#5B7A5B", "#E7EFE7")}
+        </div>
+      </div>
+
+      <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+        {dues.length > 0 && (
+          <button onClick={() => setFiltre(!filtre)}
+            style={{ border: `1px solid ${filtre ? S.deep : S.line}`, background: filtre ? S.deep : "#fff", color: filtre ? S.cream : S.deep, borderRadius: 9, padding: "7px 12px", cursor: "pointer", fontSize: 11.5, fontWeight: 600, display: "flex", alignItems: "center", gap: 5 }}>
+            <Clock size={13} /> {filtre ? "Tout le pipeline" : "À relancer seulement"}
+          </button>
+        )}
+        {etat !== "non-supporte" && (
+          <button onClick={etat === "on" ? couper : activer} disabled={etat === "occupe" || etat === "refuse"}
+            title={etat === "refuse" ? "Notifications bloquées dans les réglages du navigateur" : "Rappel du matin sur ce téléphone"}
+            style={{ border: `1px solid ${S.line}`, background: etat === "on" ? "#E7EFE7" : "#fff", color: etat === "on" ? "#5B7A5B" : S.soft, borderRadius: 9, padding: "7px 12px", cursor: etat === "occupe" || etat === "refuse" ? "default" : "pointer", fontSize: 11.5, fontWeight: 600, display: "flex", alignItems: "center", gap: 5, opacity: etat === "refuse" ? 0.55 : 1 }}>
+            {etat === "on" ? <><Bell size={13} /> Rappels actifs</> : etat === "refuse" ? <><BellOff size={13} /> Notifications bloquées</> : <><Bell size={13} /> {etat === "occupe" ? "…" : "Activer les rappels"}</>}
+          </button>
+        )}
+      </div>
+
+      {erreur && <div style={{ flexBasis: "100%", fontSize: 11, color: S.rust }}>Rappels : {erreur}</div>}
+    </div>
+  );
+}
+
+function CRM({ prospects, setFProspect, bougerEtape, marquerPerdu, relancer, pipePondere, pipeBrut }) {
   const colonnes = ETAPES.filter((e) => e.id !== "perdu");
   const perdus = prospects.filter((p) => p.etape === "perdu");
+  const today = aujourdhui();
+  const [filtre, setFiltre] = useState(false);   /* n'afficher que ce qui est à relancer */
+
+  const actifs = prospects.filter((p) => !["signe", "perdu"].includes(p.etape));
+  const dues = actifs.filter((p) => etatRelance(p.relance, today).du);
+  const sansDate = actifs.filter((p) => !p.relance);
+  /* le plus en retard en premier ; sans date en fin de colonne */
+  const parUrgence = (a, b) => (a.relance || "9999").localeCompare(b.relance || "9999");
 
   return (
     <div>
@@ -1162,14 +1309,19 @@ function CRM({ prospects, setFProspect, bougerEtape, marquerPerdu, pipePondere, 
         <div style={{ fontSize: 12.5, color: S.soft }}>
           Pipeline pondéré <b style={{ color: S.ink }}>{court(pipePondere)} €</b> · brut {court(pipeBrut)} €
         </div>
-        <button onClick={() => setFProspect({ id: Date.now(), nom: "", societe: "", etape: "prospect", type: "prog", montant: "", offre: "Visible & Rentable", source: "", relance: "", note: "" })}
+        <button onClick={() => setFProspect({ id: Date.now(), nom: "", societe: "", etape: "prospect", type: "prog", montant: "", offre: "Visible & Rentable", source: "", relance: isoPlus(today, DELAI_RELANCE), note: "" })}
           style={{ ...btnAdd, width: "auto", padding: "9px 14px" }}><Plus size={15} /> Prospect</button>
       </div>
+
+      <BandeauRelances {...{ dues, sansDate, filtre, setFiltre }} />
 
       <div className="wrap" style={{ overflowX: "auto", marginTop: 16, paddingBottom: 6 }}>
         <div style={{ display: "flex", gap: 12, minWidth: 900 }}>
           {colonnes.map((col) => {
-            const items = prospects.filter((p) => p.etape === col.id);
+            const items = prospects
+              .filter((p) => p.etape === col.id)
+              .filter((p) => !filtre || col.id === "signe" || etatRelance(p.relance, today).du)
+              .sort(parUrgence);
             return (
               <div key={col.id} style={{ flex: "1 1 0", minWidth: 172, background: S.paper, border: `1px solid ${S.line}`, borderTop: `3px solid ${col.col}`, borderRadius: 12, padding: 10 }}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", padding: "2px 4px 8px" }}>
@@ -1185,12 +1337,24 @@ function CRM({ prospects, setFProspect, bougerEtape, marquerPerdu, pipePondere, 
                         <span style={{ fontSize: 12.5, fontWeight: 600, color: S.deep }}>{p.montant ? eur(p.montant) : "—"}</span>
                         {p.source && <span style={{ fontSize: 9.5, fontWeight: 700, color: S.soft, background: S.cream, padding: "1px 6px", borderRadius: 10 }}>{p.source}</span>}
                       </div>
+                      {col.id !== "signe" && (() => {
+                        const r = etatRelance(p.relance, today);
+                        return (
+                          <div style={{ display: "inline-flex", alignItems: "center", gap: 4, marginTop: 5, fontSize: 9.5, fontWeight: 700, letterSpacing: "0.02em", textTransform: "uppercase", color: r.col, background: r.fond, padding: "2px 7px", borderRadius: 10 }}>
+                            <Clock size={9} /> {r.txt}
+                          </div>
+                        );
+                      })()}
                     </div>
                     {col.id !== "signe" && (
                       <div style={{ display: "flex", gap: 4, marginTop: 7 }}>
                         <button onClick={() => bougerEtape(p, 1)} title="Étape suivante"
                           style={{ flex: 1, border: "none", background: col.col, color: "#fff", borderRadius: 7, padding: "5px", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 3, fontSize: 11, fontWeight: 600 }}>
                           {col.id === "propale" ? <>Signer <Check size={12} /></> : <>Avancer <ArrowRight size={12} /></>}
+                        </button>
+                        <button onClick={() => relancer(p, DELAI_RELANCE)} title={`Relancé — prochaine relance dans ${DELAI_RELANCE} jours`}
+                          style={{ border: `1px solid ${S.line}`, background: "#fff", color: S.deep, borderRadius: 7, padding: "5px 7px", cursor: "pointer", fontSize: 10.5, fontWeight: 700, display: "flex", alignItems: "center", gap: 2 }}>
+                          <Check size={11} />{DELAI_RELANCE}j
                         </button>
                         <button onClick={() => marquerPerdu(p)} title="Perdu"
                           style={{ border: `1px solid ${S.line}`, background: "#fff", color: S.rust, borderRadius: 7, padding: "5px 7px", cursor: "pointer" }}><X size={12} /></button>
