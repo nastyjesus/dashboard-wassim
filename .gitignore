@@ -29,3 +29,6 @@ Thumbs.db
 # Clés VAPID du push web (privée dedans)
 .vapid.local.json
 **/.vapid.local.json
+
+# Secret du webhook Telegram
+**/.telegram.local.json
