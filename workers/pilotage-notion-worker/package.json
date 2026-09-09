@@ -1,15 +1,20 @@
 {
   "name": "pilotage-notion-worker",
-  "version": "1.0.0",
-  "description": "Cloudflare Worker — proxy lecture Notion (base Pilotage 26/27) pour pilotage-live.html, token côté serveur",
+  "version": "1.1.0",
+  "description": "Cloudflare Worker — proxy lecture/écriture Notion (base Pilotage 26/27) + digest de relances Telegram et push web",
   "private": true,
   "type": "module",
   "scripts": {
     "dev": "wrangler dev",
     "deploy": "wrangler deploy",
-    "tail": "wrangler tail"
+    "tail": "wrangler tail",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "vapid": "node scripts/gen-vapid.mjs",
+    "telegram": "node scripts/setup-telegram.mjs"
   },
   "devDependencies": {
+    "vitest": "^1.6.0",
     "wrangler": "^3.78.0"
   }
 }
