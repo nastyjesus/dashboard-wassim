@@ -21,9 +21,9 @@ export const VILLES = [
 
 export const AGES = [1, 2, 3, 4, 5, 6, 7, 8];
 
-/** Lien ajouté aux partages — mettre le lien Play Store dès la beta en ligne
- *  (ou une page de destination). null = pas de lien dans le message. */
-export const LIEN_APP = null;
+/** Lien ajouté aux partages : l'URL publique de l'app web (PWA installable).
+ *  À remplacer par le lien Play Store quand la beta Android sera en ligne. */
+export const LIEN_APP = 'https://papa-parfait-web.loumiwassim.workers.dev';
 
 /** Piliers actifs. Couple/Moi/Tribu sont en teaser (vote « Ça m'intéresse »)
  *  tant que les Sorties n'ont pas fait leurs preuves — passer un pilier à

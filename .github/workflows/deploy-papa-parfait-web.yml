@@ -1,0 +1,64 @@
+name: Deploy papa-parfait-web (PWA)
+
+on:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: "Branch/ref to deploy from"
+        type: string
+        default: main
+  # Déploiement automatique quand l'app ou le worker web change sur la branche
+  # de travail (la session distante n'a pas le droit de dispatch manuel).
+  push:
+    branches: [claude/side-hustle-brainstorm-ykikf8]
+    paths:
+      - 'apps/on-sort/**'
+      - 'workers/papa-parfait-web/**'
+      - '.github/workflows/deploy-papa-parfait-web.yml'
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: apps/on-sort/package-lock.json
+
+      # 1. Construire l'app web + PWA (export Expo puis post-build manifest/SW).
+      - name: Build web app (Expo export + PWA)
+        working-directory: apps/on-sort
+        run: |
+          npm ci
+          npx expo export --platform web
+          node scripts/pwa-postbuild.mjs
+
+      # 2. Placer le build dans le worker et déployer les assets.
+      - name: Deploy worker with static assets
+        working-directory: workers/papa-parfait-web
+        run: |
+          rm -rf dist
+          cp -r ../../apps/on-sort/dist ./dist
+          npm ci
+          npx wrangler deploy
+
+      - name: Smoke test
+        run: |
+          base="https://papa-parfait-web.loumiwassim.workers.dev"
+          for i in 1 2 3 4 5 6; do
+            sleep 4
+            code=$(curl -s -o /dev/null -w '%{http_code}' "$base/manifest.webmanifest" || true)
+            echo "attempt $i → $code"
+            [ "$code" = "200" ] && curl -fsS "$base/manifest.webmanifest" | head -c 200 && echo && exit 0
+          done
+          echo "Site did not become available in time" >&2
+          exit 1
+        continue-on-error: true
