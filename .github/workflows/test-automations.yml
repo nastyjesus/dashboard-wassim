@@ -111,10 +111,15 @@ jobs:
             console.log('client:', d.client.id, '| mock:', d.mock);
             for (const k of ['m1','m3','m6']) {
               const p = d.periods[k];
-              console.log(k, ':', p.range.label, 'vs', p.previousRange.label,
-                '| clics', p.totals.clicks, '(', p.deltas.clicks, '% ) | KW:', p.queries.length,
-                '| gagnants:', p.movers.queries.up.length, '| perdants:', p.movers.queries.down.length,
-                '| opportunités:', p.opportunities.length);
+              console.log(k, ':', p.range.startDate, '->', p.range.endDate, '(', p.range.label, ')');
+              console.log('   courant  : clics', p.totals.clicks, '| impr', p.totals.impressions,
+                '| ctr', (p.totals.ctr*100).toFixed(2)+'%', '| pos', p.totals.position.toFixed(1));
+              console.log('   précédent:', p.previousRange.startDate, '->', p.previousRange.endDate,
+                '| clics', p.previousTotals.clicks, '| impr', p.previousTotals.impressions,
+                '| ctr', (p.previousTotals.ctr*100).toFixed(2)+'%', '| pos', p.previousTotals.position.toFixed(1));
+              console.log('   deltas   : clics', p.deltas.clicks + '%', '| impr', p.deltas.impressions + '%',
+                '| KW:', p.queries.length, '| gagnants:', p.movers.queries.up.length,
+                '| perdants:', p.movers.queries.down.length, '| opportunités:', p.opportunities.length);
             }
           "
 
