@@ -1,5 +1,6 @@
 {
-  "target": "run-gsc",
-  "requestedAt": "2026-08-21T12:54:00Z",
-  "note": "Run complet apres fan-out SELF — audit pour les 8 clients"
+  "target": "deep-export",
+  "geo-client": "myefarm",
+  "requestedAt": "2026-09-12T07:44:30Z",
+  "note": "Verif reelle du deep-export 1/3/6 mois"
 }
