@@ -361,6 +361,7 @@ async function loadGscLatest() {
       <td class="num">${dd(r, 'm6')}</td>
       <td><a class="rep" href="${esc(r.url)}" target="_blank" rel="noopener">Ouvrir ↗</a></td>
       <td style="white-space:nowrap"><button class="small secondary" onclick="toggleDetail('${esc(r.clientId)}')" id="btn-det-${esc(r.clientId)}">🔍 Mots-clés</button>
+        <button class="small secondary" onclick="exportClient('${esc(r.clientId)}', 'gsc-out')" title="Extraction JSON de ce client seul (léger, pour analyse Claude)">⬇</button>
         <button class="small secondary" onclick="runGsc('${esc(r.clientId)}')" title="Re-générer">↻</button></td>
     </tr>
     <tr class="detail" id="det-${esc(r.clientId)}" style="display:none"><td colspan="9"></td></tr>`).join('');
@@ -467,6 +468,32 @@ async function exportJson() {
   busy('btn-export', false);
 }
 
+/* Extraction d'UN client (GSC + GEO) — fichier 5 à 10× plus léger que l'audit
+   complet : c'est celui à donner à Claude pour l'analyse d'un seul client. */
+async function exportClient(clientId, outId) {
+  if (!ensureToken()) return;
+  try {
+    const period = document.getElementById('gsc-period').value || '';
+    const q = '?client=' + encodeURIComponent(clientId);
+    const [gsc, geo] = await Promise.all([
+      api(GSC_URL, '/export' + q + (period ? '&period=' + period : '')).catch((e) => ({ error: e.message, clients: [] })),
+      api(GEO_URL, '/export' + q).catch((e) => ({ error: e.message, clients: [] })),
+    ]);
+    if (!(gsc.clients || []).length && !(geo.clients || []).length) {
+      msg(outId, 'info', `Aucune donnée stockée pour « ${esc(clientId)} ».`);
+      return;
+    }
+    const data = { exportedAt: new Date().toISOString(), client: clientId, period: period || 'dernier-mois', gsc, geo };
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `audit-${clientId}-${period || 'dernier-mois'}.json`;
+    a.click();
+    URL.revokeObjectURL(a.href);
+    msg(outId, 'ok', `⬇️ Extraction « ${esc(clientId)} » téléchargée (SEO + GEO, fichier léger). À glisser dans Claude avec ton skill pour l'analyse de ce client.`);
+  } catch (e) { msg(outId, 'err', esc(e.message)); }
+}
+
 /* ---------- tracker GEO ---------- */
 function setGeoProgress(pct) {
   const bar = document.getElementById('geo-progress');
@@ -531,7 +558,8 @@ async function loadGeoLatest() {
         <td class="num"><b>${String(r.summary.citationRate).replace('.', ',')}%</b></td>
         <td class="num">${String(r.summary.mentionRate).replace('.', ',')}%</td>
         <td>${esc(engines)}</td>
-        <td><button class="small secondary" onclick="runGeo('${esc(r.clientId)}')">↻</button></td>
+        <td style="white-space:nowrap"><button class="small secondary" onclick="exportClient('${esc(r.clientId)}', 'geo-out')" title="Extraction JSON de ce client seul (léger, pour analyse Claude)">⬇</button>
+          <button class="small secondary" onclick="runGeo('${esc(r.clientId)}')">↻</button></td>
       </tr>`;
     }).join('');
   } catch {}
