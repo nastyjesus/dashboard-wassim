@@ -12,13 +12,17 @@
 //   POST /run             — auth  (run manuel : {client?, period? "YYYY-MM", notion? bool})
 //   GET  /reports         — auth  (index des rapports générés, filtre ?client=)
 //   GET  /latest          — auth  (dernier rapport par client — pour le dashboard)
+//   GET  /deep-export     — auth  (?client= requis — extraction profonde à la
+//                                  demande : 1/3/6 derniers mois complets,
+//                                  chacun comparé à la période précédente ;
+//                                  KPIs, mots-clés, pages, movers, opportunités)
 //   GET  /export          — auth  (data complète des rapports — mots-clés, pages,
 //                                  apparences, KPIs détaillés — pour analyse par
 //                                  un skill Claude ; filtres ?client= et ?period=)
 
 import { GscClient } from './gsc-client.js';
 import { checkKeyFormat } from './google-auth.js';
-import { resolveMonths, buildReport } from './report.js';
+import { resolveMonths, buildReport, windowBounds, deltaPct, buildMovers, findOpportunities } from './report.js';
 import { renderReport } from './render.js';
 import { logReportToNotion, notionConfigured } from './notion-log.js';
 import { jsonResponse, preflightResponse } from './cors.js';
@@ -114,6 +118,16 @@ export default {
         return jsonResponse({ latest: byClient }, 200, request, env);
       }
 
+      if (path === '/deep-export' && request.method === 'GET') {
+        const clientId = url.searchParams.get('client');
+        if (!clientId) return jsonResponse({ error: 'bad_request', message: 'client param required' }, 400, request, env);
+        const clients = await getClients(env);
+        const client = clients.find((c) => c.id === clientId);
+        if (!client) return jsonResponse({ error: 'not_found', message: `unknown client: ${clientId}` }, 404, request, env);
+        const result = await deepExport(env, client);
+        return jsonResponse(result, 200, request, env);
+      }
+
       if (path === '/export' && request.method === 'GET') {
         if (!env.REPORTS) return jsonResponse({ error: 'kv_not_bound' }, 503, request, env);
         const clientFilter = url.searchParams.get('client');
@@ -194,6 +208,54 @@ async function fanOutRun(env, origin, opts = {}) {
 
 function isMock(env) {
   return (env.MOCK_MODE || '').toLowerCase() === 'true';
+}
+
+/**
+ * Extraction profonde d'un client : les 1, 3 et 6 derniers mois calendaires
+ * complets, chacun comparé à la période équivalente qui le précède — totaux
+ * KPI, top 250 requêtes et top 100 pages par fenêtre, gagnants/perdants et
+ * opportunités. Data fraîche tirée de GSC à la demande (rien d'estimé),
+ * ~19 sous-requêtes par appel (token OAuth mis en cache).
+ */
+async function deepExport(env, client) {
+  const gsc = new GscClient(env);
+  const now = new Date();
+  const periods = {};
+  for (const span of [1, 3, 6]) {
+    const w = windowBounds(now, span);
+    const [cur, prev] = await Promise.all([
+      gsc.fetchWindow(client.property, w.current),
+      gsc.fetchWindow(client.property, w.previous),
+    ]);
+    periods[`m${span}`] = {
+      months: span,
+      range: w.current,
+      previousRange: w.previous,
+      totals: cur.totals,
+      previousTotals: prev.totals,
+      deltas: {
+        clicks: deltaPct(cur.totals.clicks, prev.totals.clicks),
+        impressions: deltaPct(cur.totals.impressions, prev.totals.impressions),
+        ctr: deltaPct(cur.totals.ctr, prev.totals.ctr),
+        // Position : une baisse du chiffre = une amélioration du classement.
+        position: deltaPct(cur.totals.position, prev.totals.position),
+      },
+      queries: cur.queries.slice(0, 250),
+      pages: cur.pages.slice(0, 100),
+      movers: {
+        queries: buildMovers(cur.queries, prev.queries),
+        pages: buildMovers(cur.pages, prev.pages),
+      },
+      opportunities: findOpportunities(cur.queries),
+    };
+  }
+  return {
+    client: { id: client.id, name: client.name, property: client.property },
+    generatedAt: new Date().toISOString(),
+    mock: gsc.mock,
+    note: 'Chaque période (1, 3, 6 derniers mois complets) est comparée à la période équivalente qui la précède. delta = (courant − précédent) ÷ précédent, en %. Position : une baisse du chiffre = une amélioration.',
+    periods,
+  };
 }
 
 async function getClients(env) {
