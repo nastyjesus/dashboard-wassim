@@ -468,29 +468,32 @@ async function exportJson() {
   busy('btn-export', false);
 }
 
-/* Extraction d'UN client (GSC + GEO) — fichier 5 à 10× plus léger que l'audit
-   complet : c'est celui à donner à Claude pour l'analyse d'un seul client. */
+/* Extraction profonde d'UN client : le worker interroge GSC en direct sur les
+   1, 3 et 6 derniers mois complets, chacun comparé à la période équivalente
+   précédente (KPIs, top 250 mots-clés, pages, gagnants/perdants, opportunités
+   par période) + la data GEO (prompts, détail par moteur, historique).
+   Fichier léger, pensé pour être glissé dans Claude avec un skill d'analyse. */
 async function exportClient(clientId, outId) {
   if (!ensureToken()) return;
+  msg(outId, 'info', `<span class="spin"></span>Extraction profonde « ${esc(clientId)} » — mois, 3 mois, 6 mois + comparaisons (quelques secondes)…`);
   try {
-    const period = document.getElementById('gsc-period').value || '';
     const q = '?client=' + encodeURIComponent(clientId);
     const [gsc, geo] = await Promise.all([
-      api(GSC_URL, '/export' + q + (period ? '&period=' + period : '')).catch((e) => ({ error: e.message, clients: [] })),
+      api(GSC_URL, '/deep-export' + q).catch((e) => ({ error: e.message })),
       api(GEO_URL, '/export' + q).catch((e) => ({ error: e.message, clients: [] })),
     ]);
-    if (!(gsc.clients || []).length && !(geo.clients || []).length) {
-      msg(outId, 'info', `Aucune donnée stockée pour « ${esc(clientId)} ».`);
+    if (gsc.error && !(geo.clients || []).length) {
+      msg(outId, 'err', `⛔ ${esc(clientId)} : ${esc(gsc.error)}`);
       return;
     }
-    const data = { exportedAt: new Date().toISOString(), client: clientId, period: period || 'dernier-mois', gsc, geo };
+    const data = { exportedAt: new Date().toISOString(), client: clientId, gsc, geo };
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
-    a.download = `audit-${clientId}-${period || 'dernier-mois'}.json`;
+    a.download = `audit-${clientId}-1-3-6-mois.json`;
     a.click();
     URL.revokeObjectURL(a.href);
-    msg(outId, 'ok', `⬇️ Extraction « ${esc(clientId)} » téléchargée (SEO + GEO, fichier léger). À glisser dans Claude avec ton skill pour l'analyse de ce client.`);
+    msg(outId, 'ok', `⬇️ Extraction « ${esc(clientId)} » téléchargée : périodes 1/3/6 mois comparées à la période précédente (KPIs, mots-clés gagnants/perdants, opportunités)${gsc.error ? ' — ⚠ partie GSC en erreur : ' + esc(gsc.error) : ''} + data GEO. À glisser dans Claude Cowork avec ton skill d'analyse.`);
   } catch (e) { msg(outId, 'err', esc(e.message)); }
 }
 

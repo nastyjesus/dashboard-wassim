@@ -150,6 +150,33 @@ describe('génération de rapports', () => {
     expect(selfCalls).toBe(0);
   });
 
+  it('GET /deep-export : 1/3/6 mois, chacun comparé à la période précédente', async () => {
+    const env = mockEnv();
+    const res = await run(env, '/deep-export?client=demo-wassim');
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.client.id).toBe('demo-wassim');
+    for (const key of ['m1', 'm3', 'm6']) {
+      const p = body.periods[key];
+      // La fenêtre précédente se termine juste avant le début de la fenêtre courante.
+      expect(p.previousRange.endDate < p.range.startDate).toBe(true);
+      expect(p.totals.clicks).toBeGreaterThan(0);
+      expect(p.previousTotals.clicks).toBeGreaterThan(0);
+      // delta = (courant − précédent) / précédent — sens vérifié numériquement.
+      const expected = Math.round(((p.totals.clicks - p.previousTotals.clicks) / p.previousTotals.clicks) * 1000) / 10;
+      expect(p.deltas.clicks).toBe(expected);
+      expect(p.queries.length).toBeGreaterThan(0);
+      expect(p.movers.queries).toHaveProperty('up');
+      expect(p.movers.queries).toHaveProperty('lost');
+      expect(Array.isArray(p.opportunities)).toBe(true);
+    }
+    // m3 couvre 3 mois : sa fenêtre est plus longue que celle de m1.
+    expect(body.periods.m3.range.startDate < body.periods.m1.range.startDate).toBe(true);
+
+    expect((await run(env, '/deep-export')).status).toBe(400);
+    expect((await run(env, '/deep-export?client=nope')).status).toBe(404);
+  });
+
   it('GET /export renvoie la data complète (mots-clés, pages, apparences) pour analyse', async () => {
     const env = mockEnv();
     await run(env, '/run', { method: 'POST', body: JSON.stringify({ period: '2026-06' }) });

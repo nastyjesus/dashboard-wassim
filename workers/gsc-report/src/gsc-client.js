@@ -86,6 +86,35 @@ export class GscClient {
     };
   }
 
+  /**
+   * Pull d'une fenêtre arbitraire pour l'extraction profonde : totaux
+   * (agrégés par Google, position pondérée incluse), top requêtes et top
+   * pages sur l'intervalle. 3 appels API.
+   * @param {string} property
+   * @param {{startDate:string, endDate:string}} bounds
+   * @returns {Promise<{totals: object, queries: array, pages: array}>}
+   */
+  async fetchWindow(property, bounds) {
+    if (this.mock) {
+      const daily = mockDailySeries(`${property}|${bounds.startDate}`, bounds.startDate, bounds.endDate);
+      const { totals } = aggregateMonth(daily, bounds);
+      const { queries, pages } = mockTopTables(`${property}|${bounds.startDate}`, totals);
+      return { totals, queries, pages };
+    }
+    const base = { startDate: bounds.startDate, endDate: bounds.endDate };
+    const [totalsRes, queriesRes, pagesRes] = await Promise.all([
+      this.query(property, { ...base, dimensions: [] }), // une seule ligne : les totaux de la fenêtre
+      this.query(property, { ...base, dimensions: ['query'], rowLimit: 250 }),
+      this.query(property, { ...base, dimensions: ['page'], rowLimit: 100 }),
+    ]);
+    const t = (totalsRes.rows || [])[0] || {};
+    return {
+      totals: { clicks: t.clicks || 0, impressions: t.impressions || 0, ctr: t.ctr || 0, position: t.position || 0 },
+      queries: queriesRes.rows || [],
+      pages: pagesRes.rows || [],
+    };
+  }
+
   /** Appel brut searchanalytics.query. */
   async query(property, body) {
     const token = await getAccessToken(this.env);

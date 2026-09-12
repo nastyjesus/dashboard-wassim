@@ -54,6 +54,25 @@ export function resolveMonths(now, periodKey) {
   return { months, current: months[months.length - 1] };
 }
 
+/**
+ * Fenêtres de l'extraction profonde : les `span` derniers mois calendaires
+ * complets, et la fenêtre équivalente qui les précède immédiatement.
+ * Ex. span=3 en septembre → juin-août vs mars-mai.
+ * @param {Date} now
+ * @param {number} span 1, 3 ou 6 mois
+ */
+export function windowBounds(now, span) {
+  const first = monthBounds(now, span);
+  const last = monthBounds(now, 1);
+  const prevFirst = monthBounds(now, span * 2);
+  const prevLast = monthBounds(now, span + 1);
+  const label = (a, b) => (a.key === b.key ? a.label : `${a.label} → ${b.label}`);
+  return {
+    current: { startDate: first.startDate, endDate: last.endDate, label: label(first, last) },
+    previous: { startDate: prevFirst.startDate, endDate: prevLast.endDate, label: label(prevFirst, prevLast) },
+  };
+}
+
 /** Delta % signé, arrondi à une décimale. `null` si base à zéro. */
 export function deltaPct(cur, prev) {
   if (!prev) return null;
