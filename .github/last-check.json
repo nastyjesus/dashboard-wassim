@@ -1,13 +1,13 @@
 {
-  "checkedAt": "2026-09-12T07:44:08Z",
-  "target": "deep-export",
+  "checkedAt": "2026-09-15T08:06:01Z",
+  "target": "health",
   "gscHealth": {
     "ok": true,
     "mock": false,
     "googleKey": {
       "ok": true
     },
-    "ts": "2026-09-12T07:44:07.767Z"
+    "ts": "2026-09-15T08:06:01.015Z"
   },
   "geoHealth": {
     "ok": true,
@@ -17,7 +17,7 @@
       "openai",
       "gemini"
     ],
-    "ts": "2026-09-12T07:44:07.941Z"
+    "ts": "2026-09-15T08:06:01.085Z"
   },
   "gsc": {
     "latest": {
@@ -25,42 +25,42 @@
         "clientId": "crezabeille",
         "clientName": "Crezabeille",
         "property": "https://crezabeille.fr/",
-        "period": "2026-08",
-        "periodLabel": "août 2026",
-        "generatedAt": "2026-09-03T06:00:26.842Z",
+        "period": "2026-09",
+        "periodLabel": "septembre 2026",
+        "generatedAt": "2026-09-15T06:54:46.192Z",
         "mock": false,
-        "url": "https://gsc-report-wassim.loumiwassim.workers.dev/r/95ebd1b9e2b15697b206bd26d2d9bd67",
+        "url": "https://gsc-report-wassim.loumiwassim.workers.dev/r/55f803076608ff1f89ffaadd2370bbc9",
         "kpis": {
           "clicks": {
-            "value": 23,
+            "value": 10,
             "deltas": {
-              "m1": -28.1,
-              "m3": 9.5,
-              "m6": 9.5
+              "m1": -56.5,
+              "m3": -37.5,
+              "m6": -61.5
             }
           },
           "impressions": {
-            "value": 1540,
+            "value": 758,
             "deltas": {
-              "m1": 110.7,
-              "m3": 83.1,
-              "m6": 255.7
+              "m1": -50.8,
+              "m3": 15.4,
+              "m6": -30.6
             }
           },
           "ctr": {
-            "value": 0.014935064935064935,
+            "value": 0.013192612137203167,
             "deltas": {
-              "m1": -65.9,
-              "m3": -40.2,
-              "m6": -69.2
+              "m1": -11.7,
+              "m3": -45.8,
+              "m6": -44.5
             }
           },
           "position": {
-            "value": 20.54090909090909,
+            "value": 24.187335092348285,
             "deltas": {
-              "m1": 74.8,
-              "m3": 49.6,
-              "m6": 13
+              "m1": 17.8,
+              "m3": 80.6,
+              "m6": 49.1
             }
           }
         }
@@ -69,42 +69,42 @@
         "clientId": "david-di2a",
         "clientName": "David DI2A",
         "property": "https://www.alarme-videosurveillance-rennes.fr/",
-        "period": "2026-08",
-        "periodLabel": "août 2026",
-        "generatedAt": "2026-09-03T06:00:28.621Z",
+        "period": "2026-09",
+        "periodLabel": "septembre 2026",
+        "generatedAt": "2026-09-15T06:54:47.283Z",
         "mock": false,
-        "url": "https://gsc-report-wassim.loumiwassim.workers.dev/r/55593491da9b0f45edbd7ce14856b1f6",
+        "url": "https://gsc-report-wassim.loumiwassim.workers.dev/r/a9d595cd241e23a17ce1cac28da5f950",
         "kpis": {
           "clicks": {
-            "value": 39,
+            "value": 17,
             "deltas": {
-              "m1": -43.5,
-              "m3": -40.9,
-              "m6": -23.5
+              "m1": -56.4,
+              "m3": -76.7,
+              "m6": -65.3
             }
           },
           "impressions": {
-            "value": 3153,
+            "value": 1661,
             "deltas": {
-              "m1": -8.1,
-              "m3": -22.6,
-              "m6": -30.5
+              "m1": -47.3,
+              "m3": -53.9,
+              "m6": -54.4
             }
           },
           "ctr": {
-            "value": 0.012369172216936251,
+            "value": 0.010234798314268514,
             "deltas": {
-              "m1": -38.5,
-              "m3": -23.7,
-              "m6": 10
+              "m1": -17.3,
+              "m3": -49.5,
+              "m6": -24
             }
           },
           "position": {
-            "value": 15.865524896923565,
+            "value": 14.223961468994581,
             "deltas": {
-              "m1": 2.5,
-              "m3": 15.8,
-              "m6": -30.3
+              "m1": -10.3,
+              "m3": 4.6,
+              "m6": -32.7
             }
           }
         }
@@ -113,42 +113,42 @@
         "clientId": "delphine",
         "clientName": "Delphine (Courtier sur mesure)",
         "property": "https://courtiersurmesure.fr/",
-        "period": "2026-08",
-        "periodLabel": "août 2026",
-        "generatedAt": "2026-09-03T06:00:29.905Z",
+        "period": "2026-09",
+        "periodLabel": "septembre 2026",
+        "generatedAt": "2026-09-15T06:54:50.324Z",
         "mock": false,
-        "url": "https://gsc-report-wassim.loumiwassim.workers.dev/r/bad894c010e3148d39dbc6fec3020fd3",
+        "url": "https://gsc-report-wassim.loumiwassim.workers.dev/r/8c9ae1b3ab2ba77612f6759c0b025beb",
         "kpis": {
           "clicks": {
-            "value": 147,
+            "value": 79,
             "deltas": {
-              "m1": -9.8,
-              "m3": 6.5,
-              "m6": -13.5
+              "m1": -46.3,
+              "m3": -55.9,
+              "m6": -54.3
             }
           },
           "impressions": {
-            "value": 9409,
+            "value": 4287,
             "deltas": {
-              "m1": 0.2,
-              "m3": 0.6,
-              "m6": -13.2
+              "m1": -54.4,
+              "m3": -57.7,
+              "m6": -63.9
             }
           },
           "ctr": {
-            "value": 0.015623339355935807,
+            "value": 0.018427804991835783,
             "deltas": {
-              "m1": -10,
-              "m3": 5.9,
-              "m6": -0.4
+              "m1": 18,
+              "m3": 4.3,
+              "m6": 26.5
             }
           },
           "position": {
-            "value": 17.29291104261877,
+            "value": 14.170515512013063,
             "deltas": {
-              "m1": 28.8,
-              "m3": 34.5,
-              "m6": 30.1
+              "m1": -18.1,
+              "m3": 18.4,
+              "m6": 6.5
             }
           }
         }
@@ -157,42 +157,42 @@
         "clientId": "julien-mcr",
         "clientName": "Julien MCR",
         "property": "https://www.serrurerie-porte-blindee-rennes.fr/",
-        "period": "2026-08",
-        "periodLabel": "août 2026",
-        "generatedAt": "2026-09-03T06:00:31.392Z",
+        "period": "2026-09",
+        "periodLabel": "septembre 2026",
+        "generatedAt": "2026-09-15T06:54:51.065Z",
         "mock": false,
-        "url": "https://gsc-report-wassim.loumiwassim.workers.dev/r/b16cf06237065b1fe282ab1a723a448f",
+        "url": "https://gsc-report-wassim.loumiwassim.workers.dev/r/39dbaf487ebd970e64cf9dcb0c6b23b3",
         "kpis": {
           "clicks": {
-            "value": 52,
+            "value": 34,
             "deltas": {
-              "m1": -36.6,
-              "m3": -45.8,
-              "m6": -50.5
+              "m1": -34.6,
+              "m3": -68.2,
+              "m6": -74.6
             }
           },
           "impressions": {
-            "value": 8577,
+            "value": 4007,
             "deltas": {
-              "m1": -1.1,
-              "m3": -17.3,
-              "m6": -30.9
+              "m1": -53.3,
+              "m3": -63.8,
+              "m6": -68.4
             }
           },
           "ctr": {
-            "value": 0.0060627258948350235,
+            "value": 0.008485150985774894,
             "deltas": {
-              "m1": -35.9,
-              "m3": -34.5,
-              "m6": -28.3
+              "m1": 40,
+              "m3": -12.3,
+              "m6": -19.7
             }
           },
           "position": {
-            "value": 23.238428354902645,
+            "value": 20.081607187422012,
             "deltas": {
-              "m1": 22.1,
-              "m3": 30.2,
-              "m6": 5.7
+              "m1": -13.6,
+              "m3": 24.8,
+              "m6": 9.1
             }
           }
         }
@@ -201,42 +201,42 @@
         "clientId": "myefarm",
         "clientName": "MyeFarm",
         "property": "https://www.myefarm.net/",
-        "period": "2026-08",
-        "periodLabel": "août 2026",
-        "generatedAt": "2026-09-03T06:00:25.831Z",
+        "period": "2026-09",
+        "periodLabel": "septembre 2026",
+        "generatedAt": "2026-09-15T06:54:45.422Z",
         "mock": false,
-        "url": "https://gsc-report-wassim.loumiwassim.workers.dev/r/d3d71aed4096a14d1a0b811e4e841c7a",
+        "url": "https://gsc-report-wassim.loumiwassim.workers.dev/r/73e9e5726b976717472d2fc974066d5a",
         "kpis": {
           "clicks": {
-            "value": 23,
+            "value": 4,
             "deltas": {
-              "m1": -58.2,
-              "m3": 187.5,
-              "m6": 360
+              "m1": -82.6,
+              "m3": -86.7,
+              "m6": 100
             }
           },
           "impressions": {
-            "value": 1034,
+            "value": 570,
             "deltas": {
-              "m1": 60.6,
-              "m3": 341.9,
-              "m6": 170.7
+              "m1": -44.9,
+              "m3": 75.4,
+              "m6": 83.9
             }
           },
           "ctr": {
-            "value": 0.022243713733075435,
+            "value": 0.007017543859649123,
             "deltas": {
-              "m1": -74,
-              "m3": -34.9,
-              "m6": 69.9
+              "m1": -68.5,
+              "m3": -92.4,
+              "m6": 8.8
             }
           },
           "position": {
-            "value": 27.59477756286267,
+            "value": 33.10175438596491,
             "deltas": {
-              "m1": 205.3,
-              "m3": 140.8,
-              "m6": 34.8
+              "m1": 20,
+              "m3": 195.6,
+              "m6": 126.2
             }
           }
         }
@@ -245,42 +245,42 @@
         "clientId": "optel",
         "clientName": "SEO EVA (Optel)",
         "property": "https://optel-services.fr/",
-        "period": "2026-08",
-        "periodLabel": "août 2026",
-        "generatedAt": "2026-09-03T06:00:33.652Z",
+        "period": "2026-09",
+        "periodLabel": "septembre 2026",
+        "generatedAt": "2026-09-15T06:54:51.899Z",
         "mock": false,
-        "url": "https://gsc-report-wassim.loumiwassim.workers.dev/r/8caf1387f2ab542520db822ee7161c2e",
+        "url": "https://gsc-report-wassim.loumiwassim.workers.dev/r/b023af7c3133bc2e8cea349c8888ce02",
         "kpis": {
           "clicks": {
-            "value": 13,
+            "value": 6,
             "deltas": {
-              "m1": 18.2,
+              "m1": -53.8,
               "m3": -50,
-              "m6": -31.6
+              "m6": -76.9
             }
           },
           "impressions": {
-            "value": 4373,
+            "value": 1250,
             "deltas": {
-              "m1": 118.7,
-              "m3": 84.4,
-              "m6": 141.1
+              "m1": -71.4,
+              "m3": -60.1,
+              "m6": -43.3
             }
           },
           "ctr": {
-            "value": 0.0029727875600274413,
+            "value": 0.0048,
             "deltas": {
-              "m1": -45.9,
-              "m3": -72.9,
-              "m6": -71.6
+              "m1": 61.5,
+              "m3": 25.4,
+              "m6": -59.3
             }
           },
           "position": {
-            "value": 33.40658586782529,
+            "value": 33.5224,
             "deltas": {
-              "m1": 7.7,
-              "m3": 36.1,
-              "m6": -23.8
+              "m1": 0.3,
+              "m3": -11.4,
+              "m6": -28.2
             }
           }
         }
@@ -289,42 +289,42 @@
         "clientId": "wassim",
         "clientName": "Wassim Loumi",
         "property": "https://www.wassimloumicorporate.fr/",
-        "period": "2026-08",
-        "periodLabel": "août 2026",
-        "generatedAt": "2026-09-03T06:00:35.147Z",
+        "period": "2026-09",
+        "periodLabel": "septembre 2026",
+        "generatedAt": "2026-09-15T06:54:52.653Z",
         "mock": false,
-        "url": "https://gsc-report-wassim.loumiwassim.workers.dev/r/67c4b64c21b78fef42ca36faf24d5856",
+        "url": "https://gsc-report-wassim.loumiwassim.workers.dev/r/66b92605b9fe70247e10acf67fd30fe7",
         "kpis": {
           "clicks": {
             "value": 10,
             "deltas": {
-              "m1": -33.3,
+              "m1": 0,
               "m3": -28.6,
               "m6": 900
             }
           },
           "impressions": {
-            "value": 3136,
+            "value": 1233,
             "deltas": {
-              "m1": 30.1,
-              "m3": 45.5,
-              "m6": 1257.6
+              "m1": -60.7,
+              "m3": -6.7,
+              "m6": 399.2
             }
           },
           "ctr": {
-            "value": 0.0031887755102040817,
+            "value": 0.008110300081103,
             "deltas": {
-              "m1": -48.8,
-              "m3": -50.9,
-              "m6": -26.3
+              "m1": 154.3,
+              "m3": -23.5,
+              "m6": 100.3
             }
           },
           "position": {
-            "value": 19.023278061224488,
+            "value": 15.62368207623682,
             "deltas": {
-              "m1": -8.6,
-              "m3": 16.9,
-              "m6": 37.2
+              "m1": -17.9,
+              "m3": -12.3,
+              "m6": -29.4
             }
           }
         }
@@ -337,20 +337,18 @@
         "clientId": "simco",
         "clientName": "Agence Simco",
         "domain": "agence-simco.com",
-        "date": "2026-09-01",
+        "date": "2026-09-15",
         "mock": false,
         "summary": {
-          "answers": 10,
-          "citationRate": 10,
-          "mentionRate": 10,
-          "cited": 1,
-          "mentioned": 1,
+          "answers": 0,
+          "citationRate": 0,
+          "mentionRate": 0,
+          "cited": 0,
+          "mentioned": 0,
           "perEngine": {
             "anthropic": {
-              "ok": true,
-              "total": 10,
-              "cited": 1,
-              "mentioned": 1
+              "ok": false,
+              "error": "anthropic 400: {\"type\":\"error\",\"error\":{\"type\":\"invalid_request_error\",\"message\":\"Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits.\"},\"request_i"
             },
             "openai": {
               "ok": false,
@@ -361,68 +359,25 @@
               "error": "gemini 429: {\n  \"error\": {\n    \"code\": 429,\n    \"message\": \"You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-a"
             }
           },
-          "topCompetitors": [
-            {
-              "domain": "sortlist.fr",
-              "count": 6
-            },
-            {
-              "domain": "pagesjaunes.fr",
-              "count": 5
-            },
-            {
-              "domain": "blogduwebdesign.com",
-              "count": 3
-            },
-            {
-              "domain": "voyelle.fr",
-              "count": 3
-            },
-            {
-              "domain": "yumens.fr",
-              "count": 3
-            },
-            {
-              "domain": "boostyourweb.fr",
-              "count": 3
-            },
-            {
-              "domain": "retines.fr",
-              "count": 2
-            },
-            {
-              "domain": "agence-braise.fr",
-              "count": 2
-            },
-            {
-              "domain": "webmarketing-conseil.fr",
-              "count": 2
-            },
-            {
-              "domain": "rivacom.fr",
-              "count": 2
-            }
-          ]
+          "topCompetitors": []
         }
       },
       "david-di2a": {
         "clientId": "david-di2a",
         "clientName": "David DI2A",
         "domain": "alarme-videosurveillance-rennes.fr",
-        "date": "2026-09-01",
+        "date": "2026-09-15",
         "mock": false,
         "summary": {
-          "answers": 5,
-          "citationRate": 40,
-          "mentionRate": 40,
-          "cited": 2,
-          "mentioned": 2,
+          "answers": 0,
+          "citationRate": 0,
+          "mentionRate": 0,
+          "cited": 0,
+          "mentioned": 0,
           "perEngine": {
             "anthropic": {
-              "ok": true,
-              "total": 5,
-              "cited": 2,
-              "mentioned": 2
+              "ok": false,
+              "error": "anthropic 400: {\"type\":\"error\",\"error\":{\"type\":\"invalid_request_error\",\"message\":\"Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits.\"},\"request_i"
             },
             "openai": {
               "ok": false,
@@ -433,68 +388,25 @@
               "error": "gemini 429: {\n  \"error\": {\n    \"code\": 429,\n    \"message\": \"You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-a"
             }
           },
-          "topCompetitors": [
-            {
-              "domain": "groupe-epiwest.fr",
-              "count": 3
-            },
-            {
-              "domain": "easyhomesecurity.fr",
-              "count": 2
-            },
-            {
-              "domain": "e-expert.fr",
-              "count": 2
-            },
-            {
-              "domain": "alarmerennes.fr",
-              "count": 2
-            },
-            {
-              "domain": "dkprotection.fr",
-              "count": 2
-            },
-            {
-              "domain": "ouest-digit.fr",
-              "count": 2
-            },
-            {
-              "domain": "pagesjaunes.fr",
-              "count": 2
-            },
-            {
-              "domain": "allo-installation-alarme.fr",
-              "count": 1
-            },
-            {
-              "domain": "entreprise-hattais.fr",
-              "count": 1
-            },
-            {
-              "domain": "degrouptest.com",
-              "count": 1
-            }
-          ]
+          "topCompetitors": []
         }
       },
       "delphine": {
         "clientId": "delphine",
         "clientName": "Delphine (Courtier sur mesure)",
         "domain": "courtiersurmesure.fr",
-        "date": "2026-09-01",
+        "date": "2026-09-15",
         "mock": false,
         "summary": {
-          "answers": 5,
+          "answers": 0,
           "citationRate": 0,
           "mentionRate": 0,
           "cited": 0,
           "mentioned": 0,
           "perEngine": {
             "anthropic": {
-              "ok": true,
-              "total": 5,
-              "cited": 0,
-              "mentioned": 0
+              "ok": false,
+              "error": "anthropic 400: {\"type\":\"error\",\"error\":{\"type\":\"invalid_request_error\",\"message\":\"Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits.\"},\"request_i"
             },
             "openai": {
               "ok": false,
@@ -505,67 +417,24 @@
               "error": "gemini 429: {\n  \"error\": {\n    \"code\": 429,\n    \"message\": \"You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-a"
             }
           },
-          "topCompetitors": [
-            {
-              "domain": "particuliers.financeconseil.fr",
-              "count": 3
-            },
-            {
-              "domain": "rennes.immofinances.net",
-              "count": 3
-            },
-            {
-              "domain": "lemeilleurcourtier.com",
-              "count": 3
-            },
-            {
-              "domain": "pagesjaunes.fr",
-              "count": 3
-            },
-            {
-              "domain": "investissement-locatif.com",
-              "count": 2
-            },
-            {
-              "domain": "hellopret.fr",
-              "count": 2
-            },
-            {
-              "domain": "ns-courtage.fr",
-              "count": 2
-            },
-            {
-              "domain": "lacentraledefinancement.fr",
-              "count": 2
-            },
-            {
-              "domain": "prelys-courtage.com",
-              "count": 2
-            },
-            {
-              "domain": "cfp-courtage.fr",
-              "count": 2
-            }
-          ]
+          "topCompetitors": []
         }
       },
       "nicolas-fournials": {
         "clientId": "nicolas-fournials",
         "clientName": "Nicolas Fournials (Ostéopathe)",
-        "date": "2026-09-01",
+        "date": "2026-09-15",
         "mock": false,
         "summary": {
-          "answers": 7,
+          "answers": 0,
           "citationRate": 0,
-          "mentionRate": 42.9,
+          "mentionRate": 0,
           "cited": 0,
-          "mentioned": 3,
+          "mentioned": 0,
           "perEngine": {
             "anthropic": {
-              "ok": true,
-              "total": 7,
-              "cited": 0,
-              "mentioned": 3
+              "ok": false,
+              "error": "anthropic 400: {\"type\":\"error\",\"error\":{\"type\":\"invalid_request_error\",\"message\":\"Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits.\"},\"request_i"
             },
             "openai": {
               "ok": false,
@@ -576,284 +445,25 @@
               "error": "gemini 429: {\n  \"error\": {\n    \"code\": 429,\n    \"message\": \"You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-a"
             }
           },
-          "topCompetitors": [
-            {
-              "domain": "pagesjaunes.fr",
-              "count": 6
-            },
-            {
-              "domain": "doctolib.fr",
-              "count": 5
-            },
-            {
-              "domain": "oosteo.com",
-              "count": 4
-            },
-            {
-              "domain": "en.wikipedia.org",
-              "count": 3
-            },
-            {
-              "domain": "osteopathe.afosteo.org",
-              "count": 3
-            },
-            {
-              "domain": "osteopathe-rennes-moinard.fr",
-              "count": 3
-            },
-            {
-              "domain": "osteopathe.do",
-              "count": 3
-            },
-            {
-              "domain": "annuaire-osteopathe-france.fr",
-              "count": 2
-            },
-            {
-              "domain": "parizet-osteopathe-rennes.com",
-              "count": 2
-            },
-            {
-              "domain": "st-jacques.fr",
-              "count": 2
-            }
-          ]
+          "topCompetitors": []
         }
       },
       "crezabeille": {
         "clientId": "crezabeille",
         "clientName": "Crezabeille",
         "domain": "crezabeille.fr",
-        "date": "2026-09-01",
+        "date": "2026-09-15",
         "mock": false,
         "summary": {
-          "answers": 4,
-          "citationRate": 25,
-          "mentionRate": 25,
-          "cited": 1,
-          "mentioned": 1,
-          "perEngine": {
-            "anthropic": {
-              "ok": true,
-              "total": 4,
-              "cited": 1,
-              "mentioned": 1
-            },
-            "openai": {
-              "ok": false,
-              "error": "openai 429: {\n  \"error\": {\n    \"message\": \"You have no credits remaining. Add credits to continue using the API at https://platform.openai.com/settings/organization/billing/.\",\n    \"type\": \"insufficient_quota\",\n "
-            },
-            "gemini": {
-              "ok": false,
-              "error": "gemini 429: {\n  \"error\": {\n    \"code\": 429,\n    \"message\": \"You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-a"
-            }
-          },
-          "topCompetitors": [
-            {
-              "domain": "fait-maison.com",
-              "count": 2
-            },
-            {
-              "domain": "lestriconautes.com",
-              "count": 1
-            },
-            {
-              "domain": "youtube.com",
-              "count": 1
-            },
-            {
-              "domain": "crochet-emoi.fr",
-              "count": 1
-            },
-            {
-              "domain": "loisir-creatif-fr.buttinette.com",
-              "count": 1
-            },
-            {
-              "domain": "laboutiquedemelimelo.com",
-              "count": 1
-            },
-            {
-              "domain": "neva-editions.com",
-              "count": 1
-            },
-            {
-              "domain": "doomyflocrochet.com",
-              "count": 1
-            },
-            {
-              "domain": "belovesnature.com",
-              "count": 1
-            },
-            {
-              "domain": "atelierdes1000talents.fr",
-              "count": 1
-            }
-          ]
-        }
-      },
-      "julien-mcr": {
-        "clientId": "julien-mcr",
-        "clientName": "Julien MCR",
-        "domain": "serrurerie-porte-blindee-rennes.fr",
-        "date": "2026-09-01",
-        "mock": false,
-        "summary": {
-          "answers": 5,
-          "citationRate": 20,
-          "mentionRate": 20,
-          "cited": 1,
-          "mentioned": 1,
-          "perEngine": {
-            "anthropic": {
-              "ok": true,
-              "total": 5,
-              "cited": 1,
-              "mentioned": 1
-            },
-            "openai": {
-              "ok": false,
-              "error": "openai 429: {\n  \"error\": {\n    \"message\": \"You have no credits remaining. Add credits to continue using the API at https://platform.openai.com/settings/organization/billing/.\",\n    \"type\": \"insufficient_quota\",\n "
-            },
-            "gemini": {
-              "ok": false,
-              "error": "gemini 429: {\n  \"error\": {\n    \"code\": 429,\n    \"message\": \"You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-a"
-            }
-          },
-          "topCompetitors": [
-            {
-              "domain": "fairfair.com",
-              "count": 3
-            },
-            {
-              "domain": "ou-serrurier.fr",
-              "count": 3
-            },
-            {
-              "domain": "travaux.com",
-              "count": 2
-            },
-            {
-              "domain": "securitedomicile.fr",
-              "count": 2
-            },
-            {
-              "domain": "etienne-services.fr",
-              "count": 2
-            },
-            {
-              "domain": "serrurier-depannage-rennes.fr",
-              "count": 2
-            },
-            {
-              "domain": "chronoserve.fr",
-              "count": 2
-            },
-            {
-              "domain": "allovoisins.com",
-              "count": 1
-            },
-            {
-              "domain": "ringtwice.fr",
-              "count": 1
-            },
-            {
-              "domain": "petitfute.co.uk",
-              "count": 1
-            }
-          ]
-        }
-      },
-      "wassim": {
-        "clientId": "wassim",
-        "clientName": "Wassim Loumi",
-        "domain": "wassimloumicorporate.fr",
-        "date": "2026-09-01",
-        "mock": false,
-        "summary": {
-          "answers": 6,
-          "citationRate": 16.7,
-          "mentionRate": 16.7,
-          "cited": 1,
-          "mentioned": 1,
-          "perEngine": {
-            "anthropic": {
-              "ok": true,
-              "total": 6,
-              "cited": 1,
-              "mentioned": 1
-            },
-            "openai": {
-              "ok": false,
-              "error": "openai 429: {\n  \"error\": {\n    \"message\": \"You have no credits remaining. Add credits to continue using the API at https://platform.openai.com/settings/organization/billing/.\",\n    \"type\": \"insufficient_quota\",\n "
-            },
-            "gemini": {
-              "ok": false,
-              "error": "gemini 429: {\n  \"error\": {\n    \"code\": 429,\n    \"message\": \"You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-a"
-            }
-          },
-          "topCompetitors": [
-            {
-              "domain": "collective.work",
-              "count": 3
-            },
-            {
-              "domain": "mama-seo.fr",
-              "count": 3
-            },
-            {
-              "domain": "ebullition-communication.fr",
-              "count": 2
-            },
-            {
-              "domain": "stephanedelgado.fr",
-              "count": 2
-            },
-            {
-              "domain": "yumens.fr",
-              "count": 1
-            },
-            {
-              "domain": "jean-seo.com",
-              "count": 1
-            },
-            {
-              "domain": "bulldozer-collective.com",
-              "count": 1
-            },
-            {
-              "domain": "consultant-seo-rennes.net.fr",
-              "count": 1
-            },
-            {
-              "domain": "soledis.com",
-              "count": 1
-            },
-            {
-              "domain": "sortlist.fr",
-              "count": 1
-            }
-          ]
-        }
-      },
-      "optel": {
-        "clientId": "optel",
-        "clientName": "SEO EVA (Optel)",
-        "domain": "optel-services.fr",
-        "date": "2026-09-01",
-        "mock": false,
-        "summary": {
-          "answers": 6,
+          "answers": 0,
           "citationRate": 0,
           "mentionRate": 0,
           "cited": 0,
           "mentioned": 0,
           "perEngine": {
             "anthropic": {
-              "ok": true,
-              "total": 6,
-              "cited": 0,
-              "mentioned": 0
+              "ok": false,
+              "error": "anthropic 400: {\"type\":\"error\",\"error\":{\"type\":\"invalid_request_error\",\"message\":\"Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits.\"},\"request_i"
             },
             "openai": {
               "ok": false,
@@ -864,48 +474,94 @@
               "error": "gemini 429: {\n  \"error\": {\n    \"code\": 429,\n    \"message\": \"You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-a"
             }
           },
-          "topCompetitors": [
-            {
-              "domain": "clicfone.com",
-              "count": 3
+          "topCompetitors": []
+        }
+      },
+      "julien-mcr": {
+        "clientId": "julien-mcr",
+        "clientName": "Julien MCR",
+        "domain": "serrurerie-porte-blindee-rennes.fr",
+        "date": "2026-09-15",
+        "mock": false,
+        "summary": {
+          "answers": 0,
+          "citationRate": 0,
+          "mentionRate": 0,
+          "cited": 0,
+          "mentioned": 0,
+          "perEngine": {
+            "anthropic": {
+              "ok": false,
+              "error": "anthropic 400: {\"type\":\"error\",\"error\":{\"type\":\"invalid_request_error\",\"message\":\"Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits.\"},\"request_i"
             },
-            {
-              "domain": "contaxium.fr",
-              "count": 3
+            "openai": {
+              "ok": false,
+              "error": "openai 429: {\n  \"error\": {\n    \"message\": \"You have no credits remaining. Add credits to continue using the API at https://platform.openai.com/settings/organization/billing/.\",\n    \"type\": \"insufficient_quota\",\n "
             },
-            {
-              "domain": "officeopro.com",
-              "count": 3
-            },
-            {
-              "domain": "a3com.fr",
-              "count": 3
-            },
-            {
-              "domain": "metier-outsourcer.com",
-              "count": 2
-            },
-            {
-              "domain": "rouge-hexagone.com",
-              "count": 2
-            },
-            {
-              "domain": "gedopermanence.fr",
-              "count": 2
-            },
-            {
-              "domain": "thelem.fr",
-              "count": 2
-            },
-            {
-              "domain": "medi-services.fr",
-              "count": 1
-            },
-            {
-              "domain": "telesecretariat-medical.com",
-              "count": 1
+            "gemini": {
+              "ok": false,
+              "error": "gemini 429: {\n  \"error\": {\n    \"code\": 429,\n    \"message\": \"You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-a"
             }
-          ]
+          },
+          "topCompetitors": []
+        }
+      },
+      "wassim": {
+        "clientId": "wassim",
+        "clientName": "Wassim Loumi",
+        "domain": "wassimloumicorporate.fr",
+        "date": "2026-09-15",
+        "mock": false,
+        "summary": {
+          "answers": 0,
+          "citationRate": 0,
+          "mentionRate": 0,
+          "cited": 0,
+          "mentioned": 0,
+          "perEngine": {
+            "anthropic": {
+              "ok": false,
+              "error": "anthropic 400: {\"type\":\"error\",\"error\":{\"type\":\"invalid_request_error\",\"message\":\"Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits.\"},\"request_i"
+            },
+            "openai": {
+              "ok": false,
+              "error": "openai 429: {\n  \"error\": {\n    \"message\": \"You have no credits remaining. Add credits to continue using the API at https://platform.openai.com/settings/organization/billing/.\",\n    \"type\": \"insufficient_quota\",\n "
+            },
+            "gemini": {
+              "ok": false,
+              "error": "gemini 429: {\n  \"error\": {\n    \"code\": 429,\n    \"message\": \"You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-a"
+            }
+          },
+          "topCompetitors": []
+        }
+      },
+      "optel": {
+        "clientId": "optel",
+        "clientName": "SEO EVA (Optel)",
+        "domain": "optel-services.fr",
+        "date": "2026-09-15",
+        "mock": false,
+        "summary": {
+          "answers": 0,
+          "citationRate": 0,
+          "mentionRate": 0,
+          "cited": 0,
+          "mentioned": 0,
+          "perEngine": {
+            "anthropic": {
+              "ok": false,
+              "error": "anthropic 400: {\"type\":\"error\",\"error\":{\"type\":\"invalid_request_error\",\"message\":\"Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits.\"},\"request_i"
+            },
+            "openai": {
+              "ok": false,
+              "error": "openai 429: {\n  \"error\": {\n    \"message\": \"You have no credits remaining. Add credits to continue using the API at https://platform.openai.com/settings/organization/billing/.\",\n    \"type\": \"insufficient_quota\",\n "
+            },
+            "gemini": {
+              "ok": false,
+              "error": "gemini 429: {\n  \"error\": {\n    \"code\": 429,\n    \"message\": \"You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-a"
+            }
+          },
+          "topCompetitors": []
         }
       }
     }
