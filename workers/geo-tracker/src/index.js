@@ -92,7 +92,7 @@ export default {
         const latest = {};
         for (const client of clients) {
           const runs = await listRuns(env, client.id);
-          if (runs.length) latest[client.id] = runSummary(runs[runs.length - 1]);
+          if (runs.length) latest[client.id] = runSummary(lastMeaningfulRun(runs));
         }
         return jsonResponse({ latest }, 200, request, env);
       }
@@ -112,7 +112,7 @@ export default {
             },
             // Dernier relevé complet : détail par moteur et par prompt
             // (cité/mentionné, sources, extrait de réponse).
-            latest: runs.length ? runs[runs.length - 1] : null,
+            latest: runs.length ? lastMeaningfulRun(runs) : null,
             history: runs.map(runSummary),
           });
         }
@@ -291,6 +291,18 @@ async function runTracking(env, opts = {}) {
   }
 
   return { tracked, errors, mock: isMock(env), engines };
+}
+
+/**
+ * Dernier relevé qui contient des réponses. Un relevé à zéro réponse (tous les
+ * moteurs en échec — crédits, quotas) reste stocké pour la traçabilité, mais ne
+ * doit pas devenir le « dernier relevé » affiché : il masquerait les vrais taux
+ * du relevé précédent derrière des 0 % trompeurs. Repli : le tout dernier run
+ * (aucun relevé exploitable — les erreurs moteurs restent alors visibles).
+ * @param {Array<{summary?: {answers: number}}>} runs triés par date croissante
+ */
+function lastMeaningfulRun(runs) {
+  return [...runs].reverse().find((r) => r.summary && r.summary.answers > 0) || runs[runs.length - 1];
 }
 
 /** Historique complet d'un client, trié par date croissante. */

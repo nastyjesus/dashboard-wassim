@@ -160,6 +160,35 @@ describe('tracking', () => {
     expect(selfCalls).toBe(0);
   });
 
+  it('un relevé vide (moteurs en panne) ne devient pas le « dernier relevé » de /latest ni /export', async () => {
+    const env = mockEnv();
+    const good = {
+      clientId: 'demo-wassim', clientName: 'Démo', date: '2026-09-01', mock: true,
+      engines: {}, summary: { answers: 10, citationRate: 30, mentionRate: 40, cited: 3, mentioned: 4, perEngine: {}, topCompetitors: [] },
+    };
+    const empty = {
+      clientId: 'demo-wassim', clientName: 'Démo', date: '2026-09-15', mock: true,
+      engines: {}, summary: { answers: 0, citationRate: 0, mentionRate: 0, cited: 0, mentioned: 0, perEngine: { anthropic: { ok: false, error: 'credit balance too low' } }, topCompetitors: [] },
+    };
+    await env.RUNS.put('run:demo-wassim:2026-09-01', JSON.stringify(good));
+    await env.RUNS.put('run:demo-wassim:2026-09-15', JSON.stringify(empty));
+
+    const latest = (await (await run(env, '/latest')).json()).latest;
+    expect(latest['demo-wassim'].date).toBe('2026-09-01'); // le bon relevé, pas le vide
+    expect(latest['demo-wassim'].summary.citationRate).toBe(30);
+
+    const exp = await (await run(env, '/export')).json();
+    expect(exp.clients[0].latest.date).toBe('2026-09-01');
+    // L'historique garde la trace du relevé vide (diagnostic).
+    expect(exp.clients[0].history.map((r) => r.date)).toEqual(['2026-09-01', '2026-09-15']);
+
+    // Sans aucun relevé exploitable : repli sur le dernier (erreurs visibles).
+    const env2 = mockEnv();
+    await env2.RUNS.put('run:demo-wassim:2026-09-15', JSON.stringify(empty));
+    const latest2 = (await (await run(env2, '/latest')).json()).latest;
+    expect(latest2['demo-wassim'].date).toBe('2026-09-15');
+  });
+
   it('GET /export renvoie config, dernier relevé détaillé et historique par client', async () => {
     const env = mockEnv();
     await run(env, '/run', { method: 'POST', body: '{}' });
