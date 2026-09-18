@@ -118,6 +118,68 @@ describe('dedoublonner', () => {
   });
 });
 
+describe('scorer — distance et heure (cas réel du 18 septembre 2026)', () => {
+  // Depuis Bruz (48.024, -1.745), un vendredi. Le GO était parti à
+  // La Guerche-de-Bretagne (39,3 km, 09h30) devant Rennes (10,4 km).
+  const BRUZ = { lat: 48.024, lon: -1.745, age: 3, rayonKm: 40, meteo: null };
+  const VENDREDI = '2026-09-18';
+
+  const toutPetitTuLis = {
+    source: 'openagenda', id: 'tptl',
+    titre: 'Tout Petit Tu Lis ! : « Au feu, les pompiers ! » (0-3 ans)',
+    description: 'Lecture pour les tout-petits de 0 à 3 ans.',
+    dateDebut: '2026-09-18', dateFin: '2026-09-18',
+    horaires: 'Vendredi 18 septembre, 09h30, 10h15',
+    creneaux: [
+      { debut: '2026-09-18T09:30:00+02:00', fin: '2026-09-18T10:15:00+02:00' },
+      { debut: '2026-09-18T10:15:00+02:00', fin: '2026-09-18T11:00:00+02:00' },
+    ],
+    lat: 47.94, lon: -1.23, // La Guerche-de-Bretagne, ~39 km
+  };
+  const spationaute = {
+    source: 'openagenda', id: 'spatio',
+    titre: 'Le petit spationaute',
+    description: 'Parcours pour les enfants de 0 à 3 ans.',
+    dateDebut: '2026-09-01', dateFin: '2026-10-31',
+    horaires: 'Du mardi au dimanche, 10h - 18h',
+    lat: 48.11, lon: -1.68, // Rennes, ~10 km
+  };
+
+  it('le proche gagne : 10 km bat 39 km même face à un ponctuel', () => {
+    const loin = scorer(toutPetitTuLis, { ...BRUZ, dateISO: VENDREDI });
+    const pres = scorer(spationaute, { ...BRUZ, dateISO: VENDREDI });
+    expect(loin).not.toBeNull(); // toujours proposé, mais plus en GO
+    expect(pres.score).toBeGreaterThan(loin.score);
+    expect(pres.raisons).toContain('Tout près');
+  });
+
+  it('un vendredi matin en journée de garde coûte 3 points ; le samedi non', () => {
+    const vendredi = scorer(toutPetitTuLis, { ...BRUZ, dateISO: VENDREDI });
+    const samedi = scorer({
+      ...toutPetitTuLis,
+      dateDebut: '2026-09-19', dateFin: '2026-09-19',
+      horaires: 'Samedi 19 septembre, 09h30, 10h15',
+      creneaux: toutPetitTuLis.creneaux.map((c) => ({ debut: c.debut.replace('-18T', '-19T'), fin: c.fin.replace('-18T', '-19T') })),
+    }, { ...BRUZ, dateISO: '2026-09-19' });
+    expect(samedi.score - vendredi.score).toBeCloseTo(3, 5);
+  });
+
+  it('un créneau après l’école en semaine gagne « Après l’école »', () => {
+    const s = scorer(atelier({
+      dateDebut: '2026-09-18', dateFin: '2026-09-18',
+      creneaux: [{ debut: '2026-09-18T17:00:00+02:00', fin: '2026-09-18T18:00:00+02:00' }],
+    }), { ...CTX, dateISO: VENDREDI });
+    expect(s.raisons).toContain('Après l’école');
+  });
+
+  it('les horaires ressortent lisibles, le texte brut en secours', () => {
+    const s = scorer(toutPetitTuLis, { ...BRUZ, dateISO: VENDREDI });
+    expect(s.horaires).toBe('09h30 et 10h15');
+    const brut = scorer(atelier({ horaires: 'Toute la journée' }), { ...CTX, dateISO: '2026-09-19' });
+    expect(brut.horaires).toBe('Toute la journée');
+  });
+});
+
 describe('top', () => {
   it('jamais plus de 2 animations permanentes dans le top 5', () => {
     // 5 expos jeune public permanentes très bien scorées + 3 ponctuels.

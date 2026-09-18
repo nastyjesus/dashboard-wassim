@@ -67,6 +67,22 @@ function texteBrut(html) {
     .trim();
 }
 
+/**
+ * `timings` : la liste exacte des créneaux, livrée en chaîne JSON
+ * ('[{"begin":"2026-09-18T09:30:00+02:00","end":"…"}]'). Tolérant : chaîne
+ * ou tableau, entrée absente ou mal formée → [].
+ */
+function creneaux(timings) {
+  let liste = timings;
+  if (typeof liste === 'string') {
+    try { liste = JSON.parse(liste); } catch { return []; }
+  }
+  if (!Array.isArray(liste)) return [];
+  return liste
+    .filter((t) => t && typeof t.begin === 'string')
+    .map((t) => ({ debut: t.begin, fin: typeof t.end === 'string' ? t.end : null }));
+}
+
 /** Passe un enregistrement ODS au format interne commun aux sources. */
 function normaliser(r) {
   if (!r || !(r.title_fr || r.title)) return null;
@@ -80,6 +96,7 @@ function normaliser(r) {
     dateDebut: (r.firstdate_begin || '').slice(0, 10) || null,
     dateFin: (r.lastdate_end || '').slice(0, 10) || null,
     horaires: r.daterange_fr || null,
+    creneaux: creneaux(r.timings),
     lieuNom: r.location_name || null,
     adresse: [r.location_address, r.location_postalcode, r.location_city].filter(Boolean).join(', ') || null,
     ville: r.location_city || null,

@@ -88,6 +88,27 @@ comptes et les votes sont à zéro ; c'est ce zéro qu'il faut casser.
 4. **Commiter le chantier.** C'est le tout premier geste : 933 lignes non
    sauvegardées ailleurs que sur un disque.
 
+### Lot 1 bis — Le GO doit être jouable (fait le 19 septembre 2026)
+
+Constaté en testant la version Cockpit sur les vraies données : depuis Bruz,
+un vendredi, le GO partait à **La Guerche-de-Bretagne (39,3 km) à 9h30**,
+devant un équivalent à 10,4 km. Inapplicable pour un papa qui travaille.
+Trois correctifs dans le worker, tous testés (72 tests au vert) :
+
+- **Distance par paliers** : ≤ 12 km +3 et raison « Tout près », ≤ 20 km +2,
+  ≤ 30 km +0,5, au-delà −1,5. L'ancienne pente (2 points étalés sur 40 km)
+  pesait moins que le bonus « ponctuel ».
+- **Heure en semaine** (lundi, mardi, jeudi, vendredi) : un créneau qui finit
+  avant 16h30 coûte −3 ; un créneau qui commence à 16h30 ou après gagne +1
+  et la raison « Après l'école ». Mercredi et week-end sans contrainte. Les
+  créneaux viennent du champ `timings` d'OpenAgenda (nouveau module
+  `src/horaires.js`), le texte en secours.
+- **Horaires lisibles** : « 09h30 et 10h15 », « 14h30 – 17h », « dès 09h30
+  (5 créneaux) » au lieu de la liste brute à virgules.
+
+Vérifié en local sur les données réelles : le GO de vendredi passe au
+spationaute à 10,4 km, le GO de samedi reste cohérent.
+
 ### Lot 2 — Brancher Supabase au déploiement
 
 5. ✅ **Fait** : le workflow `deploy-papa-parfait-web.yml` injecte désormais

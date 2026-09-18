@@ -5,8 +5,23 @@
 
 import { scoreFamille, trancheAge, lieuType } from './famille.js';
 import { jourCompatible, dureeJours } from './jours.js';
+import { verdictHoraire, libelleHoraires } from './horaires.js';
 
 const RAYON_DEFAUT_KM = 40;
+
+/**
+ * Distance : paliers francs plutôt qu'une pente douce. Sur données réelles,
+ * un atelier à 39 km gagnait le GO devant un équivalent à 10 km parce que la
+ * pente (2 points étalés sur 40 km) pesait moins que le bonus « ponctuel ».
+ * Au-delà de 30 km, c'est un malus : c'est encore proposé, mais ça ne
+ * décide plus pour le papa.
+ */
+function bonusDistance(km) {
+  if (km <= 12) return { points: 3, raison: 'Tout près' }; // ~10 min de voiture
+  if (km <= 20) return { points: 2, raison: null };
+  if (km <= 30) return { points: 0.5, raison: null };
+  return { points: -1.5, raison: null };
+}
 
 /** Distance haversine en km. */
 export function distanceKm(lat1, lon1, lat2, lon2) {
@@ -62,15 +77,24 @@ export function scorer(ev, ctx) {
     raisons.push(age.max !== null ? `${age.min}-${age.max} ans` : `Dès ${age.min} ans`);
   }
 
-  // Distance : exclusion au-delà du rayon, plus c'est proche mieux c'est.
+  // Distance : exclusion au-delà du rayon, paliers francs en deçà.
   let km = null;
   const rayon = ctx.rayonKm || RAYON_DEFAUT_KM;
   if (Number.isFinite(ev.lat) && Number.isFinite(ev.lon)) {
     km = distanceKm(ctx.lat, ctx.lon, ev.lat, ev.lon);
     if (km > rayon) return null;
-    score += 2 * (1 - km / rayon);
+    const d = bonusDistance(km);
+    score += d.points;
+    if (d.raison) raisons.push(d.raison);
     raisons.push(`À ${km} km`);
   }
+
+  // Heure : en semaine (lun/mar/jeu/ven), l'enfant est gardé et le papa au
+  // travail. Un créneau en pleine journée reste proposé mais ne gagne plus le
+  // GO ; un créneau après 16h30 est au contraire ce qu'on cherche.
+  const horaire = verdictHoraire(ev, ctx.dateISO);
+  if (horaire === 'journee') score -= 3;
+  if (horaire === 'soir') { score += 1; raisons.push('Après l’école'); }
 
   // Météo : s'il pleut, on privilégie l'intérieur ; s'il fait beau, le dehors.
   const type = lieuType(ev);
@@ -91,6 +115,8 @@ export function scorer(ev, ctx) {
 
   return {
     ...ev,
+    // Horaires lisibles du jour (« 09h30 et 10h15 ») ; texte brut en secours.
+    horaires: libelleHoraires(ev, ctx.dateISO) || ev.horaires || null,
     score: Math.round(score * 100) / 100,
     distanceKm: km,
     lieuType: type,
