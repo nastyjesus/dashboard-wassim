@@ -1,8 +1,9 @@
-// Carte d'une sortie. Deux variantes : « préférée » (mise en avant) et
-// standard. Les raisons viennent du worker, déjà en français.
+// Carte d'une sortie — charte « Cockpit clair ».
+// Préférée = panneau GO ambre (relief plein). Les autres = panneaux blancs
+// numérotés (le rang du classement). Raisons = pastilles cadrées à l'encre.
 
 import { Pressable, Text, View, StyleSheet } from 'react-native';
-import { couleurs, espace, rayon, ombre } from '../theme.js';
+import { couleurs, espace, rayon, police, typo, cadre, ombre } from '../theme.js';
 import { Pastille } from './ui.js';
 
 function sousTitre(ev) {
@@ -12,55 +13,81 @@ function sousTitre(ev) {
   return morceaux.join(' · ');
 }
 
-export function CarteSortie({ ev, preferee, onPress }) {
-  return (
-    <Pressable
-      onPress={onPress}
-      style={[styles.carte, preferee && styles.cartePreferee]}
-      accessibilityRole="button"
-    >
-      {preferee && (
-        <View style={styles.badge}>
-          <Text style={styles.badgeTexte}>⭐ Notre préférée</Text>
+export function CarteSortie({ ev, rang, preferee, onPress }) {
+  if (preferee) {
+    return (
+      <Pressable onPress={onPress} style={styles.go} accessibilityRole="button">
+        <View style={styles.goEntete}>
+          <Text style={styles.goStatut}>STATUT : ON SORT</Text>
+          <Text style={styles.goChevron}>›</Text>
         </View>
-      )}
-      <Text style={[styles.titre, preferee && styles.titrePreferee]} numberOfLines={2}>
-        {ev.titre}
-      </Text>
-      {!!sousTitre(ev) && <Text style={styles.sousTitre}>{sousTitre(ev)}</Text>}
-      {!!ev.horaires && <Text style={styles.horaires} numberOfLines={1}>🕐 {ev.horaires}</Text>}
-      <View style={styles.raisons}>
-        {(ev.raisons || []).slice(0, 4).map((r) => (
-          <Pastille key={r} label={r} tonique={preferee} />
-        ))}
+        <Text style={styles.goTitre} numberOfLines={3}>{ev.titre}</Text>
+        {!!sousTitre(ev) && <Text style={styles.goSous}>{sousTitre(ev)}</Text>}
+        {!!ev.horaires && <Text style={styles.goSous} numberOfLines={1}>🕐 {ev.horaires}</Text>}
+        <View style={styles.raisons}>
+          {(ev.raisons || []).slice(0, 4).map((r) => <Pastille key={r} label={r} />)}
+        </View>
+      </Pressable>
+    );
+  }
+
+  return (
+    <Pressable onPress={onPress} style={styles.carte} accessibilityRole="button">
+      <View style={styles.rangBoite}>
+        <Text style={styles.rangTexte}>{String(rang).padStart(2, '0')}</Text>
       </View>
+      <View style={styles.corps}>
+        <Text style={styles.titre} numberOfLines={2}>{ev.titre}</Text>
+        {!!sousTitre(ev) && <Text style={styles.sousTitre}>{sousTitre(ev)}</Text>}
+        <View style={styles.raisons}>
+          {(ev.raisons || []).slice(0, 3).map((r) => <Pastille key={r} label={r} />)}
+        </View>
+      </View>
+      <Text style={styles.chevron}>›</Text>
     </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
-  carte: {
-    backgroundColor: couleurs.carte,
-    borderRadius: rayon.l,
+  // Panneau GO (préférée)
+  go: {
+    backgroundColor: couleurs.accent,
+    borderRadius: rayon.m,
     padding: espace.xl,
     marginBottom: espace.l,
-    borderWidth: 1,
-    borderColor: couleurs.ligne,
-    ...ombre.carte,
+    ...cadre,
+    ...ombre.relief,
   },
-  cartePreferee: { borderColor: couleurs.accent, borderWidth: 1.5 },
-  badge: {
-    alignSelf: 'flex-start',
-    backgroundColor: couleurs.accentDoux,
-    borderRadius: rayon.pill,
-    paddingHorizontal: espace.m,
-    paddingVertical: espace.xs,
+  goEntete: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  goStatut: { ...typo.instrument, color: couleurs.encre, fontFamily: police.corpsFort, textTransform: 'uppercase' },
+  goChevron: { fontSize: 26, color: couleurs.encre, lineHeight: 26 },
+  goTitre: { ...typo.displayL, color: couleurs.encre, fontFamily: police.display, marginTop: espace.s },
+  goSous: { color: couleurs.encre, fontSize: 14, marginTop: espace.xs, fontFamily: police.corps },
+
+  // Panneau standard numéroté
+  carte: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: couleurs.panneau,
+    borderRadius: rayon.m,
+    padding: espace.l,
     marginBottom: espace.m,
+    ...cadre,
   },
-  badgeTexte: { color: couleurs.accent, fontWeight: '700', fontSize: 12.5 },
-  titre: { color: couleurs.encre, fontSize: 17, fontWeight: '700', lineHeight: 23 },
-  titrePreferee: { fontSize: 20, lineHeight: 27 },
-  sousTitre: { color: couleurs.discret, fontSize: 14, marginTop: espace.xs },
-  horaires: { color: couleurs.texte, fontSize: 13.5, marginTop: espace.s },
+  rangBoite: {
+    width: 40,
+    height: 40,
+    borderRadius: rayon.s,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: espace.l,
+    ...cadre,
+  },
+  rangTexte: { ...typo.displayL, fontSize: 20, lineHeight: 22, color: couleurs.encre, fontFamily: police.display },
+  corps: { flex: 1 },
+  titre: { color: couleurs.encre, fontSize: 16, lineHeight: 21, fontFamily: police.corpsFort },
+  sousTitre: { color: couleurs.discret, fontSize: 13, marginTop: 2, fontFamily: police.corps },
+  chevron: { fontSize: 24, color: couleurs.encre, marginLeft: espace.s },
+
   raisons: { flexDirection: 'row', flexWrap: 'wrap', marginTop: espace.m },
 });

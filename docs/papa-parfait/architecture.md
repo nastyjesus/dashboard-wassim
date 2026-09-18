@@ -1,8 +1,8 @@
 # 🏗️ Architecture technique
 
-Papa Parfait = **1 app** + **3 petits serveurs** (workers Cloudflare). Tout est
-gratuit ou quasi (Cloudflare gère des millions de requêtes sans frais sur le
-plan de base).
+Papa Parfait = **1 app** + **3 petits serveurs** (workers Cloudflare) + **1 base
+managée** (Supabase, depuis septembre 2026). Côté Cloudflare tout est gratuit ou
+quasi (des millions de requêtes sans frais sur le plan de base).
 
 ## Vue d'ensemble
 
@@ -13,16 +13,16 @@ plan de base).
    │                          │   → et en web (PWA) via le worker web
    └───────────┬──────────────┘
                │ appels HTTPS
-       ┌───────┼───────────────┬─────────────────────┐
-       ▼       ▼               ▼                     ▼
- ┌──────────┐ ┌──────────┐ ┌──────────────┐   (l'app web est servie
- │ on-sort  │ │papa-tribu│ │ (open data)  │    par papa-parfait-web)
- │ SORTIES  │ │ TRIBU    │ │ OpenAgenda   │
- │ + votes  │ │ + D1     │ │ Open-Meteo   │
- └──────────┘ └──────────┘ └──────────────┘
+   ┌───────┬───┴───────────┬─────────────────┬──────────────┐
+   ▼       ▼               ▼                 ▼              ▼
+┌──────────┐ ┌──────────┐ ┌──────────────┐ ┌────────────┐  (l'app web est
+│ on-sort  │ │papa-tribu│ │ (open data)  │ │  Supabase  │   servie par
+│ SORTIES  │ │ TRIBU    │ │ OpenAgenda   │ │ COMPTES    │   papa-parfait-web)
+│ + votes  │ │ + D1     │ │ Open-Meteo   │ │ PostgreSQL │
+└──────────┘ └──────────┘ └──────────────┘ └────────────┘
 ```
 
-## Les 4 composants
+## Les 5 composants
 
 ### 1. `apps/on-sort/` — l'application
 - **Techno** : Expo (React Native) + export web pour la PWA.
@@ -69,6 +69,21 @@ plan de base).
   (`apps/on-sort/scripts/pwa-postbuild.mjs` : manifest, service worker, icônes),
   puis le worker sert ces fichiers en statique.
 
+### 5. Supabase — comptes et back-office (depuis septembre 2026)
+- **Rôle** : l'authentification (email + mot de passe, Google) et la base
+  PostgreSQL des comptes.
+- **Tables** : `profils` (prénom, âge de l'enfant, ville, département, lié à
+  `auth.users`) et `demandes_ville` (les villes réclamées par les papas hors
+  zone), plus la vue `demandes_ville_frequence`. Schéma :
+  `apps/on-sort/supabase/schema.sql`, avec RLS — chaque papa ne voit que son
+  propre profil.
+- **Côté app** : `src/supabase.js` (client) et `src/compte-api.js` (création de
+  compte, Google, demande de ville).
+- **Configuration** : deux variables `EXPO_PUBLIC_SUPABASE_URL` et
+  `EXPO_PUBLIC_SUPABASE_ANON_KEY`, lues au démarrage. Tant qu'elles sont
+  absentes, l'app retombe en mode démo local et **ne crée aucun compte réel**.
+  Mode d'emploi : `apps/on-sort/docs/backend-supabase.md`.
+
 ## Déploiement (automatique)
 
 Chaque worker a un workflow dans `.github/workflows/deploy-*.yml`. Un `git push`
@@ -80,11 +95,18 @@ créés par les workflows).
 `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`. Le token doit avoir la
 permission **D1 Edit** pour activer la Tribu (c'est le point en attente).
 
+⚠️ **Les variables Supabase sont lues au moment du build.** Le workflow
+`deploy-papa-parfait-web.yml` ne les passe pas encore : tant qu'elles n'y sont
+pas ajoutées (en secrets GitHub puis en variables d'environnement du build), la
+PWA déployée tourne en mode démo, même si le code est branché.
+
 ## Ce qui est stocké où
 
 | Donnée | Où | Remarque |
 |---|---|---|
-| Profil (ville, âge) | téléphone de l'utilisateur | jamais envoyé au serveur |
+| Compte (email, mot de passe) | Supabase Auth | mot de passe haché côté serveur, jamais stocké par l'app |
+| Profil (prénom, âge enfant, ville) | table `profils` (Supabase) **et** copie locale | la copie locale fait tourner l'app hors ligne |
+| Demandes de ville | table `demandes_ville` (Supabase) | sert à décider des prochaines villes |
 | Check-ins bien-être | téléphone | 100 % local |
 | Votes des piliers | KV du worker on-sort | 1 par appareil |
 | Posts / commentaires Tribu | base D1 du worker papa-tribu | pseudo, pas d'identité civile |

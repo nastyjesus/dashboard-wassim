@@ -39,3 +39,6 @@ yarn-error.*
 # generated native folders
 /ios
 /android
+
+# variables Supabase (clé anon = publique, mais on garde .env hors du repo)
+.env

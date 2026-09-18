@@ -1,11 +1,12 @@
-// L'écran cœur : je choisis un jour → top 5 scoré, préférée en avant.
+// L'écran cœur — charte « Cockpit clair ». Bandeau instrument (QG, météo,
+// enfant), hero « ON SORT ? », puis le panneau GO (préférée) et le top numéroté.
 
 import { useCallback, useEffect, useState } from 'react';
 import {
-  ActivityIndicator, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View,
+  ActivityIndicator, RefreshControl, ScrollView, StyleSheet, Text, View,
 } from 'react-native';
-import { couleurs, espace } from '../theme.js';
-import { Chip } from '../components/ui.js';
+import { couleurs, espace, police, typo } from '../theme.js';
+import { Chip, Section, Strip, Bouton } from '../components/ui.js';
 import { CarteSortie } from '../components/CarteSortie.js';
 import { chargerTop } from '../api.js';
 import { optionsDates, libelleLong } from '../dates.js';
@@ -16,6 +17,8 @@ function emojiMeteo(meteo) {
   if (meteo.pluie) return '🌧️';
   return meteo.code <= 1 ? '☀️' : meteo.code <= 3 ? '⛅' : '🌫️';
 }
+
+const labelAge = (a) => (a === 0 ? '< 1 an' : `${a} an${a > 1 ? 's' : ''}`);
 
 export function Accueil({ profil, onOuvrirDetail, onModifierProfil }) {
   const dates = optionsDates();
@@ -52,11 +55,16 @@ export function Accueil({ profil, onOuvrirDetail, onModifierProfil }) {
       contentContainerStyle={styles.contenu}
       refreshControl={<RefreshControl refreshing={false} onRefresh={() => charger(dateISO)} />}
     >
-      <Text style={styles.surTitre}>{ville.nom} · {profil.age} an{profil.age > 1 ? 's' : ''}</Text>
-      <Text style={styles.titre}>{libelleLong(dateISO)}</Text>
-      {!!meteo && (
-        <Text style={styles.meteo}>{emojiMeteo(meteo)} {meteo.resume}</Text>
-      )}
+      <Strip style={styles.strip}>
+        <View style={styles.stripRangee}>
+          <Text style={styles.stripQg}>QG · {ville.nom.toUpperCase()}</Text>
+          {!!meteo && <Text style={styles.stripMeteo}>{emojiMeteo(meteo)} {meteo.resume}</Text>}
+        </View>
+        <Text style={styles.stripEnfant}>ENFANT · {labelAge(profil.age).toUpperCase()}</Text>
+      </Strip>
+
+      <Text style={styles.hero}>ON SORT ?</Text>
+      <Text style={styles.heroSous}>{libelleLong(dateISO)}</Text>
 
       <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.datesRangee}>
         {dates.map((d) => (
@@ -73,47 +81,57 @@ export function Accueil({ profil, onOuvrirDetail, onModifierProfil }) {
 
       {!chargement && erreur && (
         <View style={styles.etat}>
-          <Text style={styles.etatTitre}>Oups.</Text>
+          <Text style={styles.etatTitre}>Pas de liaison.</Text>
           <Text style={styles.etatTexte}>{erreur}</Text>
-          <Pressable onPress={() => charger(dateISO)} accessibilityRole="button">
-            <Text style={styles.lien}>Réessayer</Text>
-          </Pressable>
+          <View style={styles.etatBouton}>
+            <Bouton label="Réessayer" onPress={() => charger(dateISO)} />
+          </View>
         </View>
       )}
 
       {!chargement && !erreur && top.length === 0 && (
         <View style={styles.etat}>
-          <Text style={styles.etatTitre}>Rien trouvé ce jour-là 🤷</Text>
-          <Text style={styles.etatTexte}>Essayez un autre jour ou élargissez la zone.</Text>
+          <Text style={styles.etatTitre}>Rien ce jour-là.</Text>
+          <Text style={styles.etatTexte}>Essaie un autre jour depuis les puces au-dessus.</Text>
         </View>
       )}
 
-      {!chargement && !erreur && top.map((ev, i) => (
-        <CarteSortie
-          key={ev.id || ev.titre}
-          ev={ev}
-          preferee={i === 0}
-          onPress={() => onOuvrirDetail(ev)}
-        />
-      ))}
+      {!chargement && !erreur && top.length > 0 && (
+        <>
+          <CarteSortie ev={top[0]} preferee rang={1} onPress={() => onOuvrirDetail(top[0])} />
+          {top.length > 1 && <Section>Le reste du top</Section>}
+          {top.slice(1).map((ev, i) => (
+            <CarteSortie key={ev.id || ev.titre} ev={ev} rang={i + 2} onPress={() => onOuvrirDetail(ev)} />
+          ))}
+        </>
+      )}
 
-      <Pressable onPress={onModifierProfil} accessibilityRole="button" style={styles.pied}>
-        <Text style={styles.lien}>Changer de ville ou d'âge</Text>
-      </Pressable>
+      <View style={styles.pied}>
+        <Bouton variante="secondaire" label="Changer de ville ou d'âge" onPress={onModifierProfil} />
+      </View>
     </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
   ecran: { flex: 1, backgroundColor: couleurs.fond },
-  contenu: { padding: espace.xl, paddingTop: 64, paddingBottom: espace.xxl },
-  surTitre: { color: couleurs.discret, fontSize: 14, fontWeight: '600' },
-  titre: { color: couleurs.encre, fontSize: 30, fontWeight: '800', marginTop: espace.xs },
-  meteo: { color: couleurs.texte, fontSize: 15, marginTop: espace.s },
-  datesRangee: { marginTop: espace.l, marginBottom: espace.xl, flexGrow: 0 },
-  etat: { alignItems: 'center', paddingVertical: espace.xxl * 2 },
-  etatTitre: { color: couleurs.encre, fontSize: 18, fontWeight: '700', marginBottom: espace.s },
-  etatTexte: { color: couleurs.discret, fontSize: 15, textAlign: 'center', marginTop: espace.m },
-  lien: { color: couleurs.accent, fontWeight: '700', fontSize: 15, marginTop: espace.l },
-  pied: { alignItems: 'center', marginTop: espace.l },
+  contenu: { padding: espace.xl, paddingTop: 56, paddingBottom: espace.xxl },
+
+  strip: { marginBottom: espace.l },
+  stripRangee: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  stripQg: { color: couleurs.stripTexte, fontSize: 15, letterSpacing: 0.5, fontFamily: police.corpsFort },
+  stripMeteo: { color: couleurs.stripTexte, fontSize: 14, fontFamily: police.corps },
+  stripEnfant: { ...typo.instrument, color: couleurs.accent, fontFamily: police.corpsFort, marginTop: espace.xs, textTransform: 'uppercase' },
+
+  hero: { ...typo.displayXL, color: couleurs.encre, fontFamily: police.display },
+  heroSous: { color: couleurs.texte, fontSize: 15, marginTop: espace.xs, fontFamily: police.corps },
+
+  datesRangee: { marginTop: espace.l, marginBottom: espace.l, flexGrow: 0 },
+
+  etat: { alignItems: 'center', paddingVertical: espace.xxxl },
+  etatTitre: { ...typo.displayL, fontSize: 22, color: couleurs.encre, fontFamily: police.display, marginBottom: espace.s },
+  etatTexte: { color: couleurs.discret, fontSize: 15, textAlign: 'center', marginTop: espace.s, fontFamily: police.corps },
+  etatBouton: { marginTop: espace.l },
+
+  pied: { marginTop: espace.xl },
 });

@@ -23,6 +23,18 @@ const EXCLUSIONS = [
   'interdit aux moins', 'public adulte', 'réservé aux adultes', 'reserve aux adultes',
   'soirée dansante', 'soiree dansante', 'dégustation de vin', 'degustation de vin',
   'afterwork', 'speed dating', 'conférence', 'conference', 'colloque', 'séminaire', 'seminaire',
+  // Emploi / recrutement / pro — jamais une sortie avec un enfant. Variantes
+  // accentuées ET non accentuées : les titres open data sont souvent en CAPS.
+  'emploi', 'emplois', 'recrutement', 'recrute', 'recrutent',
+  'intérim', 'interim', 'intérimaire', 'interimaire',
+  'job dating', 'job', 'jobs', 'forum des métiers', 'forum emploi', "forum de l'emploi",
+  'pôle emploi', 'pole emploi', 'france travail', "entretien d'embauche", 'embauche',
+  'candidature', 'alternance', 'apprenti', 'apprentie',
+  'réserviste', 'réservistes', 'reserviste', 'reservistes', 'marine nationale',
+  'insertion professionnelle', "création d'entreprise", 'creation d entreprise', 'cv',
+  // Bien-être / développement perso / orientation-reconversion — public adulte.
+  'reconversion', 'reconvertir', 'orientation professionnelle',
+  'santé mentale', 'sante mentale', 'développement personnel', 'developpement personnel',
 ];
 
 const INTERIEUR = [

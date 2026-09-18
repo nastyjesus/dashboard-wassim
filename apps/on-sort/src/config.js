@@ -19,7 +19,19 @@ export const VILLES = [
   { id: 'quimper', nom: 'Quimper', lat: 47.996, lon: -4.102, dept: 'Finistère', code: '29' },
 ];
 
-export const AGES = [1, 2, 3, 4, 5, 6, 7, 8];
+/** Âges enfant proposés à la création de compte : 0 à 5 ans.
+ *  C'est cette valeur qui part au worker (`/top?age=`) : le scoring écarte les
+ *  événements dont l'âge minimum dépasse celui de l'enfant. */
+export const AGES_ENFANT = [0, 1, 2, 3, 4, 5];
+
+/** Départements de la zone de lancement, dérivés de VILLES (ordre stable). */
+export const DEPARTEMENTS = VILLES.reduce((acc, v) => {
+  if (!acc.some((d) => d.code === v.code)) acc.push({ code: v.code, nom: v.dept });
+  return acc;
+}, []);
+
+/** Villes d'un département (par code INSEE : '35', '22', '56', '29'). */
+export const villesParDept = (code) => VILLES.filter((v) => v.code === code);
 
 /** Lien ajouté aux partages : l'URL publique de l'app web (PWA installable).
  *  À remplacer par le lien Play Store quand la beta Android sera en ligne. */

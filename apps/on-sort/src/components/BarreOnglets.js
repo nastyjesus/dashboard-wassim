@@ -1,7 +1,8 @@
-// Barre d'onglets maison (4 onglets, pas besoin d'une lib de navigation).
+// Barre d'onglets maison — charte « Cockpit clair » : cadre encre en haut,
+// libellés condensés en capitales, onglet actif souligné d'ambre.
 
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { couleurs, espace } from '../theme.js';
+import { couleurs, espace, police } from '../theme.js';
 
 export const ONGLETS = [
   { id: 'sorties', emoji: '🎈', label: 'Sorties' },
@@ -13,18 +14,22 @@ export const ONGLETS = [
 export function BarreOnglets({ actif, onChange }) {
   return (
     <View style={styles.barre}>
-      {ONGLETS.map((o) => (
-        <Pressable
-          key={o.id}
-          onPress={() => onChange(o.id)}
-          style={styles.onglet}
-          accessibilityRole="button"
-          accessibilityState={{ selected: actif === o.id }}
-        >
-          <Text style={[styles.emoji, actif !== o.id && styles.emojiInactif]}>{o.emoji}</Text>
-          <Text style={[styles.label, actif === o.id && styles.labelActif]}>{o.label}</Text>
-        </Pressable>
-      ))}
+      {ONGLETS.map((o) => {
+        const on = actif === o.id;
+        return (
+          <Pressable
+            key={o.id}
+            onPress={() => onChange(o.id)}
+            style={styles.onglet}
+            accessibilityRole="button"
+            accessibilityState={{ selected: on }}
+          >
+            <View style={[styles.trait, on && styles.traitActif]} />
+            <Text style={[styles.emoji, !on && styles.emojiInactif]}>{o.emoji}</Text>
+            <Text style={[styles.label, on && styles.labelActif]}>{o.label.toUpperCase()}</Text>
+          </Pressable>
+        );
+      })}
     </View>
   );
 }
@@ -32,15 +37,22 @@ export function BarreOnglets({ actif, onChange }) {
 const styles = StyleSheet.create({
   barre: {
     flexDirection: 'row',
-    backgroundColor: couleurs.carte,
-    borderTopWidth: 1,
-    borderTopColor: couleurs.ligne,
-    paddingTop: espace.s,
-    paddingBottom: espace.xl, // marge pour la zone geste iPhone
+    backgroundColor: couleurs.panneau,
+    borderTopWidth: 2,
+    borderTopColor: couleurs.encre,
+    paddingBottom: espace.xl, // marge geste iPhone
   },
   onglet: { flex: 1, alignItems: 'center' },
-  emoji: { fontSize: 22 },
-  emojiInactif: { opacity: 0.45 },
-  label: { fontSize: 11, fontWeight: '600', color: couleurs.discret, marginTop: 2 },
-  labelActif: { color: couleurs.accent, fontWeight: '700' },
+  trait: { height: 3, width: 28, backgroundColor: 'transparent', marginBottom: espace.s },
+  traitActif: { backgroundColor: couleurs.accent },
+  emoji: { fontSize: 21 },
+  emojiInactif: { opacity: 0.4 },
+  label: {
+    fontSize: 11,
+    letterSpacing: 0.5,
+    color: couleurs.discret,
+    fontFamily: police.corpsFort,
+    marginTop: 3,
+  },
+  labelActif: { color: couleurs.encre },
 });

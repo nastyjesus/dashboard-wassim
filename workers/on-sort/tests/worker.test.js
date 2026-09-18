@@ -202,6 +202,47 @@ describe('/votes (piliers en teaser)', () => {
   });
 });
 
+describe('/ville-demande (filet si Supabase est KO)', () => {
+  function kvSimule() {
+    const entrees = new Map();
+    return {
+      put: async (cle, valeur) => { entrees.set(cle, valeur); },
+      list: async ({ prefix }) => ({
+        keys: [...entrees.keys()].filter((c) => c.startsWith(prefix)).map((name) => ({ name })),
+      }),
+    };
+  }
+
+  const demander = (env, corps) => worker.fetch(new Request('https://on-sort-poc.test/ville-demande', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(corps),
+  }), env, CTX);
+
+  it('enregistre une demande et compte les villes par fréquence', async () => {
+    const env = envMock({ VOTES: kvSimule() });
+    await demander(env, { ville: 'Saint-Brieuc', email: 'Papa@Example.com', code: '22' });
+    await demander(env, { ville: 'saint brieuc' }); // même ville écrite autrement
+    await demander(env, { ville: 'Nantes' });
+
+    const res = await worker.fetch(new Request('https://on-sort-poc.test/ville-demande'), env, CTX);
+    const { demandes } = await res.json();
+    expect(demandes[0]).toEqual({ ville: 'saint-brieuc', total: 2 });
+    expect(demandes).toContainEqual({ ville: 'nantes', total: 1 });
+  });
+
+  it('refuse une ville vide ou trop courte', async () => {
+    const env = envMock({ VOTES: kvSimule() });
+    const res = await demander(env, { ville: 'X' });
+    expect(res.status).toBe(400);
+  });
+
+  it('503 explicite si le KV n’est pas branché', async () => {
+    const res = await demander(envMock(), { ville: 'Nantes' });
+    expect(res.status).toBe(503);
+  });
+});
+
 describe('routes inconnues', () => {
   it('404 JSON', async () => {
     const { res, body } = await appel('/nimporte', envMock());

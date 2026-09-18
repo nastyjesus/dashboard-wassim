@@ -41,7 +41,7 @@ ALLOWED_ORIGINS = "*"
 # préfixe. Le workflow crée le namespace et injecte l'id ci-dessous.
 [[kv_namespaces]]
 binding = "VOTES"
-id = "REPLACE_WITH_KV_NAMESPACE_ID"
+id = "53f9f68cbc5b43f2a2d2072216565d3e"
 
 [observability]
 enabled = true

@@ -27,6 +27,17 @@ export function scorer(ev, ctx) {
   // Récurrent un autre jour (« les dimanches » un samedi) : hors-jeu.
   if (!jourCompatible(ev, ctx.dateISO)) return null;
 
+  // Exiger un vrai signal « sortie enfant » : au moins un mot-clé famille
+  // (faible ou fort) OU une tranche d'âge enfant détectée. Sans ça, des
+  // événements neutres/pro (job dating, recrutement, réunions) squattaient le
+  // top uniquement par proximité — constaté sur données réelles.
+  // Bar : un mot-clé fort, OU deux mots faibles (famille >= 1), OU une tranche
+  // d'âge enfant. Un seul mot faible (ex. « atelier » d'un atelier bien-être
+  // adulte) ne suffit pas — trop de faux positifs pro/adultes sinon.
+  const age = trancheAge(ev);
+  const signalEnfant = famille >= 1 || (age && age.min <= 12);
+  if (!signalEnfant) return null;
+
   const raisons = [];
   let score = famille * 2;
   if (famille >= 2) raisons.push('Pensé pour les enfants');
@@ -44,7 +55,6 @@ export function scorer(ev, ctx) {
   }
 
   // Âge : exclusion si l'enfant est trop jeune, bonus si la tranche colle.
-  const age = trancheAge(ev);
   if (age) {
     if (ctx.age < age.min) return null;
     if (age.max !== null && ctx.age > age.max) return null;

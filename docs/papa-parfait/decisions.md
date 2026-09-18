@@ -14,9 +14,13 @@ d'avis, on met à jour ce fichier.
 - **Zone de lancement** : la **Bretagne** (Ille-et-Vilaine, Côtes-d'Armor,
   Morbihan, Finistère), 9 villes. Choisie pour : densité de données validée,
   réseau de Wassim sur place, storytelling « app bretonne ».
-- **Charte** : crème (#FAF6EF) + encre (#26221B) + accent terracotta (#D95B43).
-  Icône : monogramme « PP » blanc sur terracotta (placeholder, remplaçable par un
-  vrai logo).
+- **Charte** : « **Cockpit clair** » — sable `#ECE6DA` + encre `#1B1815` + un seul
+  accent, l'ambre `#FF8A00` (GO, sortie préférée, action primaire). Panneaux
+  cadrés à l'encre 2px, Saira Condensed (titres) + IBM Plex Sans (corps). La
+  source de vérité est `apps/on-sort/docs/charte-graphique.md`, les jetons vivent
+  dans `apps/on-sort/src/theme.js`.
+  **Abandonné le 18 septembre 2026** : l'ancien thème crème `#FAF6EF` + terracotta
+  `#D95B43` et les cartes molles à ombre grise. On n'y revient pas.
 - **Identifiant d'app** : `com.papaparfait.app` (définitif une fois publié).
 
 ## Le produit : 4 piliers, mais UN seul actif au lancement
@@ -47,25 +51,44 @@ excellente sur 1. Les votes nous diront quel pilier construire en priorité.
 - **Partage viral** : chaque fiche a un bouton « Partager » qui envoie la sortie
   + le lien de l'app. Chaque partage entre parents = acquisition gratuite.
 
-## Monétisation — LE but du projet (⚠️ à finaliser)
+## Comptes & identité (décidé le 18 septembre 2026)
+
+- **Le compte est obligatoire** dès les premiers testeurs : prénom, email, mot de
+  passe, âge de l'enfant (0-5), département et ville. Connexion Google proposée
+  en plus.
+- **Backend : Supabase** (PostgreSQL + Auth), projet créé, tables `profils` et
+  `demandes_ville` en place avec RLS, confirmation par email désactivée pour
+  réduire la friction. Détail : `apps/on-sort/docs/backend-supabase.md`.
+- **Risque assumé** : un écran de mot de passe sur une PWA envoyée par lien fait
+  décrocher une partie des visiteurs. Si les comptes ne se créent pas, c'est le
+  premier suspect à remettre en question.
+- Les villes demandées par les papas hors zone atterrissent dans
+  `demandes_ville` : c'est ce qui décidera des prochaines villes ouvertes.
+
+## Monétisation — LE but du projet
 
 Objectif : une app **monétisable** (référence de départ : le jeu myefarm de
 Wassim rapporte 100-150 €/mois).
 
-**Question ouverte à trancher avec Wassim** : *comment myefarm est-il monétisé
-exactement ?* (pub / achats intégrés / abonnement / autre — et sur quel store).
-On réutilisera de préférence le canal qu'il maîtrise déjà. **Ne rien supposer.**
+**Décidé le 18 septembre 2026** (réponse de Wassim sur myefarm) :
 
-Leviers possibles (à valider, aucun chiffre inventé) :
-1. **Pub** dans l'app (régie à confirmer selon ce qu'utilise myefarm).
-2. **Abonnement freemium** : gratuit avec pub + Premium payant (sans pub, fonctions
-   en plus).
-3. **Commissions / partenariats** locaux (restos, activités famille).
-4. **B2B / sponsoring** (mairies, comités d'entreprise, marques famille).
+- Le canal est l'**achat intégré**, pas la publicité.
+- Deux produits proposés : **abonnement mensuel** *et* **achat unique à vie**.
+- **Ce qui devient payant n'est pas encore tranché** — le découpage gratuit /
+  payant sera décidé avec les données des testeurs, pas avant. La roadmap pose le
+  socle technique sans figer l'offre.
+- **Compte développeur Google Play : créé et vérifié.** Plus d'attente
+  administrative.
 
-**Point clé** : la pub mobile et les abonnements in-app se monétisent **sur les
-stores**, pas sur la version web. La PWA web sert à **tester gratuitement** ;
-la monétisation réelle passe par la publication sur le Play Store.
+**Contrainte technique vérifiée dans les docs Expo v57** : le SDK ne fournit
+**aucun** paquet d'achat in-app (ni `expo-in-app-purchases`, ni `expo-iap`, ni
+StoreKit, ni Google Play Billing ; seul Stripe est listé et ne remplace pas la
+facturation du store). Il faudra donc une librairie tierce et un **development
+build** — l'app ne tournera plus dans Expo Go.
+
+**Point clé** : les achats in-app se monétisent **sur les stores**, jamais sur la
+version web. La PWA sert à **tester gratuitement** ; les revenus passent par le
+Play Store.
 
 ## Communauté (Tribu)
 
@@ -77,6 +100,11 @@ la monétisation réelle passe par la publication sur le Play Store.
   (masquer, bannir). À compléter avant une sortie publique : bouton « bloquer un
   utilisateur » (exigé par Google pour le contenu communautaire).
 - Badge **Fondateur** pour les 100 premiers inscrits.
+- ⚠️ **À réconcilier avant d'activer la Tribu** : l'app a désormais de vrais
+  comptes (Supabase, email + mot de passe) alors que la Tribu a été conçue avec
+  une identité séparée (pseudo + jeton local). Il faudra choisir : soit la Tribu
+  s'appuie sur le compte Supabase, soit les deux identités cohabitent. Sans
+  objet tant que la Tribu reste en teaser.
 
 ## Ce qu'on NE fait PAS (pour rester focus)
 

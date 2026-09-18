@@ -10,7 +10,9 @@ export async function lireProfil() {
     const brut = await AsyncStorage.getItem(CLE);
     if (!brut) return null;
     const p = JSON.parse(brut);
-    return p && p.villeId && p.age ? p : null;
+    // Attention : l'âge 0 est valide (bébé) et falsy — tester la présence, pas
+    // la vérité, sinon un papa de nourrisson reboucle sur l'onboarding.
+    return p && p.villeId && p.age != null ? p : null;
   } catch {
     return null;
   }

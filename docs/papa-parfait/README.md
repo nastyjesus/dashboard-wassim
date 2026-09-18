@@ -24,11 +24,16 @@ d'autres outils de Wassim). Les morceaux de Papa Parfait :
 
 ```
 apps/on-sort/              → l'app mobile (Expo / React Native), les 4 onglets
+apps/on-sort/supabase/     → schéma PostgreSQL des comptes (Supabase)
 workers/on-sort/           → backend « sorties » : top 5, météo, votes
 workers/papa-tribu/        → backend communautaire (la Tribu) : posts, fil, modération
 workers/papa-parfait-web/  → héberge la version web (PWA) de l'app
 docs/papa-parfait/         → CE dossier : les connaissances du projet
 ```
+
+Deux documents de référence vivent à côté du code, dans `apps/on-sort/docs/` :
+la **charte graphique** (`charte-graphique.md`, concept « Cockpit clair ») et le
+**mode d'emploi Supabase** (`backend-supabase.md`).
 
 > Le dossier de l'app s'appelle encore `on-sort` (le nom du POC de départeur,
 > « On sort ? ») — c'est devenu Papa Parfait en cours de route, mais on n'a pas

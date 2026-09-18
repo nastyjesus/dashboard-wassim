@@ -6,6 +6,16 @@
 import { useEffect, useState } from 'react';
 import { View, StyleSheet } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
+import * as SplashScreen from 'expo-splash-screen';
+import { useFonts } from 'expo-font';
+import {
+  SairaCondensed_700Bold,
+  SairaCondensed_800ExtraBold,
+} from '@expo-google-fonts/saira-condensed';
+import {
+  IBMPlexSans_400Regular,
+  IBMPlexSans_600SemiBold,
+} from '@expo-google-fonts/ibm-plex-sans';
 import { couleurs } from './src/theme.js';
 import { lireProfil, ecrireProfil } from './src/storage.js';
 import { Onboarding } from './src/screens/Onboarding.js';
@@ -17,25 +27,39 @@ import { Teaser } from './src/screens/Teaser.js';
 import { BarreOnglets } from './src/components/BarreOnglets.js';
 import { PILIERS_ACTIFS } from './src/config.js';
 
+SplashScreen.preventAutoHideAsync().catch(() => {});
+
 export default function App() {
   const [pret, setPret] = useState(false);
   const [profil, setProfil] = useState(null);
   const [edition, setEdition] = useState(false); // onboarding rouvert depuis Sorties
   const [onglet, setOnglet] = useState('sorties');
 
+  const [policesPretes] = useFonts({
+    SairaCondensed_700Bold,
+    SairaCondensed_800ExtraBold,
+    IBMPlexSans_400Regular,
+    IBMPlexSans_600SemiBold,
+  });
+
   useEffect(() => {
     lireProfil().then((p) => { setProfil(p); setPret(true); });
   }, []);
+
+  useEffect(() => {
+    if (pret && policesPretes) SplashScreen.hideAsync().catch(() => {});
+  }, [pret, policesPretes]);
+
+  // Tenir le rendu tant que profil ET polices ne sont pas prêts.
+  if (!pret || !policesPretes) {
+    return <View style={styles.racine}><StatusBar style="dark" /></View>;
+  }
 
   const validerProfil = (p) => {
     setProfil(p);
     setEdition(false);
     ecrireProfil(p);
   };
-
-  if (!pret) {
-    return <View style={styles.racine}><StatusBar style="dark" /></View>;
-  }
 
   if (!profil || edition) {
     return (

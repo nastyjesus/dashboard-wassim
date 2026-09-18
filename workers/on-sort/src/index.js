@@ -13,6 +13,10 @@
 //                      &dept=&code=     (défaut : Ille-et-Vilaine / 35)
 //   GET /diagnostic  — le go/no-go du POC : comptages réels par source,
 //                      part d'événements « famille », échantillons, verdict.
+//   POST /votes      — vote « Ça m'intéresse » d'un pilier en teaser
+//   GET  /votes      — les totaux par pilier
+//   POST /ville-demande — demande d'ajout d'une ville (filet si Supabase KO)
+//   GET  /ville-demande — les villes demandées, triées par fréquence
 
 import { jsonResponse, preflightResponse } from './cors.js';
 import { evenementsOpenAgenda } from './sources/openagenda.js';
@@ -28,6 +32,9 @@ const DEFAUTS = {
   departement: 'Ille-et-Vilaine', codeDepartement: '35',
 };
 const CACHE_TTL = 6 * 3600; // les agendas bougent peu en journée
+// Version de clé de cache : bump à chaque changement de scoring pour invalider
+// d'un coup les tops déjà en cache (un redéploiement seul ne purge pas le cache).
+const CACHE_VERSION = 'scoring-2026-09-14';
 /** Piliers en teaser dont on compte les « Ça m'intéresse ». */
 const PILIERS = ['couple', 'moi', 'tribu'];
 
@@ -72,6 +79,33 @@ export default {
         }
         return jsonResponse({ votes: totaux }, 200, request, env);
       }
+      // Demandes de ville : filet de secours quand Supabase n'est pas joignable
+      // (l'app écrit normalement dans la table `demandes_ville`). Une clé KV par
+      // demande, préfixée par la ville normalisée pour pouvoir compter.
+      if (path === '/ville-demande' && request.method === 'POST') {
+        if (!env.VOTES) return jsonResponse({ error: 'kv_not_bound' }, 503, request, env);
+        const corps = (await request.json().catch(() => null)) || {};
+        const ville = String(corps.ville || '').trim().slice(0, 80);
+        const email = corps.email ? String(corps.email).trim().toLowerCase().slice(0, 120) : null;
+        const code = corps.code ? String(corps.code).trim().slice(0, 3) : null;
+        if (ville.length < 2) return jsonResponse({ error: 'bad_request' }, 400, request, env);
+        const cle = `ville:${normaliserVille(ville)}:${Date.now()}-${crypto.randomUUID().slice(0, 8)}`;
+        await env.VOTES.put(cle, JSON.stringify({ ville, email, code, le: new Date().toISOString() }));
+        return jsonResponse({ ok: true, ville }, 201, request, env);
+      }
+      if (path === '/ville-demande' && request.method === 'GET') {
+        if (!env.VOTES) return jsonResponse({ error: 'kv_not_bound' }, 503, request, env);
+        const { keys } = await env.VOTES.list({ prefix: 'ville:', limit: 1000 });
+        const parVille = new Map();
+        for (const { name } of keys) {
+          const ville = name.split(':')[1] || '';
+          parVille.set(ville, (parVille.get(ville) || 0) + 1);
+        }
+        const demandes = [...parVille.entries()]
+          .map(([ville, total]) => ({ ville, total }))
+          .sort((a, b) => b.total - a.total || a.ville.localeCompare(b.ville));
+        return jsonResponse({ demandes }, 200, request, env);
+      }
     } catch (e) {
       return jsonResponse({ error: 'internal', message: String(e.message || e) }, 500, request, env);
     }
@@ -79,6 +113,16 @@ export default {
     return jsonResponse({ error: 'not_found' }, 404, request, env);
   },
 };
+
+/** Ville normalisée pour servir de préfixe de clé KV : « Saint-Brieuc » → « saint-brieuc ». */
+function normaliserVille(ville) {
+  return ville
+    .normalize('NFD').replace(/[̀-ͯ]/g, '') // accents
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 40) || 'inconnue';
+}
 
 /** Paramètres de la requête avec défauts Rennes/3 ans. */
 function lireParams(url) {
@@ -207,7 +251,12 @@ async function diagnostic(url, env) {
 async function repondreAvecCache(request, env, ctx, calcul) {
   const fresh = new URL(request.url).searchParams.get('fresh') === '1';
   const utilisable = !fresh && !isMock(env) && typeof caches !== 'undefined' && caches.default;
-  const cle = new Request(request.url, { method: 'GET' });
+  // Clé versionnée : les entrées d'une version de scoring antérieure ne sont
+  // jamais servies (invalidation immédiate au déploiement d'un nouveau scoring).
+  const urlCle = new URL(request.url);
+  urlCle.searchParams.delete('fresh');
+  urlCle.searchParams.set('cv', CACHE_VERSION);
+  const cle = new Request(urlCle.toString(), { method: 'GET' });
   if (utilisable) {
     const enCache = await caches.default.match(cle);
     if (enCache) return enCache;

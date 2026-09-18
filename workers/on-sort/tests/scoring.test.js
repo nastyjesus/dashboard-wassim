@@ -47,6 +47,25 @@ describe('scorer', () => {
     expect(s).toBeNull();
   });
 
+  it('exclut les événements emploi/pro même proches (cas réels remontés)', () => {
+    const pro = (titre) => scorer({
+      source: 'test', id: 'x', titre, description: '',
+      lat: 48.11, lon: -1.68, dateDebut: '2026-08-22', dateFin: '2026-08-22',
+    }, CTX);
+    expect(pro('Rencontrez ACTUAL intérim !')).toBeNull();
+    expect(pro('EMPLOIS RESERVISTES: cuisiner sur les bateaux de la Marine Nationale')).toBeNull();
+    expect(pro('Emploi et Handicap : on vous accompagne')).toBeNull();
+    expect(pro('Conseils pour bien se présenter, matinale des métiers du soin')).toBeNull();
+  });
+
+  it('exclut un événement neutre sans aucun signal enfant', () => {
+    const s = scorer({
+      source: 'test', id: 'n', titre: 'Réunion publique de quartier', description: 'ordre du jour',
+      lat: 48.11, lon: -1.68, dateDebut: '2026-08-22', dateFin: '2026-08-22',
+    }, CTX);
+    expect(s).toBeNull();
+  });
+
   it('sous la pluie, l’intérieur gagne sur l’extérieur', () => {
     const pluie = { ...CTX, meteo: { pluie: true } };
     const dedans = scorer(atelier(), pluie);
