@@ -90,11 +90,16 @@ comptes et les votes sont à zéro ; c'est ce zéro qu'il faut casser.
 
 ### Lot 2 — Brancher Supabase au déploiement
 
-5. Ajouter `EXPO_PUBLIC_SUPABASE_URL` et `EXPO_PUBLIC_SUPABASE_ANON_KEY` en
-   secrets du dépôt GitHub (action de Wassim, 2 minutes).
-6. Les injecter dans `.github/workflows/deploy-papa-parfait-web.yml`. **Sans
-   cette étape, la PWA déployée ignore Supabase** et tourne en mode démo : les
-   comptes ne fonctionneraient que sur le PC de Wassim.
+5. ✅ **Fait** : le workflow `deploy-papa-parfait-web.yml` injecte désormais
+   `EXPO_PUBLIC_SUPABASE_URL` et `EXPO_PUBLIC_SUPABASE_ANON_KEY` dans l'étape de
+   build (les variables `EXPO_PUBLIC_*` sont lues à la construction, pas au
+   déploiement). Deux garde-fous : le job échoue si les secrets sont absents, et
+   il échoue aussi si le bundle construit ne contient pas la configuration
+   Supabase. Mieux vaut un déploiement rouge qu'une PWA qui affiche un écran
+   d'inscription sans créer de compte.
+6. **Reste à faire par Wassim** : poser ces deux secrets dans le dépôt GitHub
+   (Settings → Secrets and variables → Actions). Tant qu'ils manquent, le
+   déploiement de la PWA échouera volontairement.
 
 ### Lot 3 — Déployer, vérifier, partager
 

@@ -33,13 +33,39 @@ jobs:
           cache: npm
           cache-dependency-path: apps/on-sort/package-lock.json
 
+      # 0. Sans les clés Supabase, l'app se construit en « mode démo » : elle
+      #    afficherait un écran d'inscription qui ne crée aucun compte réel.
+      #    On préfère échouer ici plutôt que de mettre ça en ligne.
+      - name: Vérifier les clés Supabase
+        env:
+          EXPO_PUBLIC_SUPABASE_URL: ${{ secrets.EXPO_PUBLIC_SUPABASE_URL }}
+          EXPO_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.EXPO_PUBLIC_SUPABASE_ANON_KEY }}
+        run: |
+          if [ -z "$EXPO_PUBLIC_SUPABASE_URL" ] || [ -z "$EXPO_PUBLIC_SUPABASE_ANON_KEY" ]; then
+            echo "::error::Secrets EXPO_PUBLIC_SUPABASE_URL / EXPO_PUBLIC_SUPABASE_ANON_KEY absents." \
+                 "Les poser dans Settings → Secrets and variables → Actions, sinon la PWA déployée" \
+                 "ne créerait aucun compte réel."
+            exit 1
+          fi
+
       # 1. Construire l'app web + PWA (export Expo puis post-build manifest/SW).
+      #    Les variables EXPO_PUBLIC_* sont lues AU MOMENT DU BUILD : elles
+      #    doivent être présentes ici, pas au déploiement du worker.
       - name: Build web app (Expo export + PWA)
         working-directory: apps/on-sort
+        env:
+          EXPO_PUBLIC_SUPABASE_URL: ${{ secrets.EXPO_PUBLIC_SUPABASE_URL }}
+          EXPO_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.EXPO_PUBLIC_SUPABASE_ANON_KEY }}
         run: |
           npm ci
           npx expo export --platform web
           node scripts/pwa-postbuild.mjs
+          # Garde-fou : la clé Supabase doit être présente dans le bundle servi,
+          # sinon l'app tourne en mode démo et aucun compte n'est créé.
+          if ! grep -rq "supabase.co" dist/_expo/static/js/web; then
+            echo "::error::Le bundle construit ne contient pas la configuration Supabase."
+            exit 1
+          fi
 
       # 2. Placer le build dans le worker et déployer les assets.
       - name: Deploy worker with static assets
