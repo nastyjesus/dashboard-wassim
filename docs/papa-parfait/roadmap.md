@@ -122,6 +122,33 @@ Non traité, noté : le filtre famille étiquette « Pensé pour les enfants » 
 que le texte contient « enfants » — y compris « accessible aux enfants et
 parents » sur un spectacle tout public. Sur-promesse, pas erreur de matching.
 
+### Lot 1 ter — Ouvrir les zones où la donnée existe (fait le 19 septembre 2026)
+
+Mesure OpenAgenda par département (sorties famille un samedi) : Nord 90,
+Loire-Atlantique 57, Gironde 44, Paris 43, Ille-et-Vilaine 26, Calvados 21 ;
+tout le reste sous 17, y compris Lyon, Marseille, Strasbourg, Montpellier,
+Angers, Le Mans — et, en Bretagne même, Morbihan 7, Finistère 3,
+Côtes-d'Armor 1.
+
+- **Quatre zones ouvertes** dans `config.js` : Loire-Atlantique (Nantes,
+  Saint-Nazaire), Paris, Nord (Lille, Valenciennes, Dunkerque), Gironde
+  (Bordeaux, Libourne, Arcachon). Coordonnées par géocodage Open-Meteo. Aucun
+  changement worker : `dept` et lat/lon sont déjà génériques.
+- **Calvados testé puis écarté** : 21 au diagnostic brut, mais 0 à 3 sorties
+  retenues sur cinq dates une fois les créneaux du jour et l'âge appliqués.
+  Leçon : la règle d'ouverture se vérifie sur le top réel, pas sur le
+  diagnostic brut.
+- Vérifié sur le top réel du samedi 26 septembre : Nantes 20 retenues (GO à
+  1,6 km, 16h30), Lille 41 (GO à 11 km), Bordeaux 25 (GO à 0,5 km), Paris 19
+  (GO « Le Palais des enfants » à 3 km).
+- **Positionnement acté** : app nationale, née en Bretagne (voir
+  `decisions.md`).
+- **États vides honnêtes** dans `Accueil.js` : « Peu de sorties référencées
+  par ici pour l'instant » au lieu de « Rien ce jour-là », et une ligne
+  discrète quand le top compte moins de trois sorties.
+- **Écartés pour l'instant** : Toulouse (17), la petite couronne parisienne
+  (7 à 14 par département), tout département sous 20.
+
 ### Lot 2 — Brancher Supabase au déploiement
 
 5. ✅ **Fait** : le workflow `deploy-papa-parfait-web.yml` injecte désormais

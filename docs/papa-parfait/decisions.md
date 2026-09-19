@@ -11,9 +11,25 @@ d'avis, on met à jour ce fichier.
   Ni donneur de leçons, ni « performance ». Bienveillant, direct.
 - **Cible** : les papas (public 18+, ce n'est PAS une app pour enfants — important
   pour les règles des stores).
-- **Zone de lancement** : la **Bretagne** (Ille-et-Vilaine, Côtes-d'Armor,
-  Morbihan, Finistère), 9 villes. Choisie pour : densité de données validée,
-  réseau de Wassim sur place, storytelling « app bretonne ».
+- **Zones ouvertes** (décidé le 19 septembre 2026) : Papa Parfait est une
+  app **nationale, née en Bretagne**. La Bretagne reste l'origine et le
+  premier bassin de testeurs (réseau de Wassim), pas la frontière.
+  - Bretagne : Ille-et-Vilaine, Côtes-d'Armor, Morbihan, Finistère (9 villes).
+  - Loire-Atlantique (Nantes, Saint-Nazaire), Nord (Lille, Valenciennes,
+    Dunkerque), Gironde (Bordeaux, Libourne, Arcachon), Paris.
+  - Calvados testé puis écarté le même jour : 21 sorties « famille » au
+    diagnostic brut, mais 0 à 3 retenues sur cinq dates une fois les créneaux
+    du jour et l'âge appliqués. Le diagnostic brut ne suffit pas : la règle
+    d'ouverture se vérifie sur le top réel.
+  - **Règle d'ouverture** : on ouvre là où OpenAgenda a de la matière, mesurée
+    (`/diagnostic?dept=`), pas là où la carte a un trou. Mesure du 19 septembre
+    2026, sorties famille un samedi : Nord 90, Loire-Atlantique 57, Gironde 44,
+    Paris 43, Ille-et-Vilaine 26, Calvados 21 — puis Toulouse 17, et Lyon,
+    Marseille, Strasbourg, Montpellier, Angers, Le Mans sous 8.
+  - **Correction d'une croyance** : la « densité validée » de la Bretagne ne
+    vaut que pour l'Ille-et-Vilaine. Côtes-d'Armor (1), Finistère (3) et
+    Morbihan (7) sont minces. On les garde, et l'app le dit honnêtement quand
+    le top est vide, au lieu d'un « Rien ce jour-là » qui sonne comme une panne.
 - **Charte** : « **Cockpit clair** » — sable `#ECE6DA` + encre `#1B1815` + un seul
   accent, l'ambre `#FF8A00` (GO, sortie préférée, action primaire). Panneaux
   cadrés à l'encre 2px, Saira Condensed (titres) + IBM Plex Sans (corps). La

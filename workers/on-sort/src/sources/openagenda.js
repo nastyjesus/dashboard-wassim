@@ -90,7 +90,7 @@ function normaliser(r) {
   return {
     source: 'openagenda',
     id: r.uid ? String(r.uid) : null,
-    titre: r.title_fr || r.title,
+    titre: texteBrut(r.title_fr || r.title), // certains titres contiennent des sauts de ligne
     description: texteBrut([r.description_fr, r.longdescription_fr].filter(Boolean).join(' ')).slice(0, 1200),
     motsCles: Array.isArray(r.keywords_fr) ? r.keywords_fr : [],
     dateDebut: (r.firstdate_begin || '').slice(0, 10) || null,

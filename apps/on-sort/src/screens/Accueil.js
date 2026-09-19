@@ -89,10 +89,15 @@ export function Accueil({ profil, onOuvrirDetail, onModifierProfil }) {
         </View>
       )}
 
+      {/* Vide : pas une panne, un manque de matière. Hors Ille-et-Vilaine et
+          grandes métropoles, OpenAgenda est mince — on le dit tel quel. */}
       {!chargement && !erreur && top.length === 0 && (
         <View style={styles.etat}>
-          <Text style={styles.etatTitre}>Rien ce jour-là.</Text>
-          <Text style={styles.etatTexte}>Essaie un autre jour depuis les puces au-dessus.</Text>
+          <Text style={styles.etatTitre}>Peu de sorties référencées par ici pour l'instant.</Text>
+          <Text style={styles.etatTexte}>
+            Essaie un autre jour, ou une ville voisine. On élargit les zones au fur et à
+            mesure des demandes.
+          </Text>
         </View>
       )}
 
@@ -103,6 +108,11 @@ export function Accueil({ profil, onOuvrirDetail, onModifierProfil }) {
           {top.slice(1).map((ev, i) => (
             <CarteSortie key={ev.id || ev.titre} ev={ev} rang={i + 2} onPress={() => onOuvrirDetail(ev)} />
           ))}
+          {top.length < 3 && (
+            <Text style={styles.mince}>
+              C'est tout pour ce jour-là par ici — la zone est encore peu couverte.
+            </Text>
+          )}
         </>
       )}
 
@@ -132,6 +142,8 @@ const styles = StyleSheet.create({
   etatTitre: { ...typo.displayL, fontSize: 22, color: couleurs.encre, fontFamily: police.display, marginBottom: espace.s },
   etatTexte: { color: couleurs.discret, fontSize: 15, textAlign: 'center', marginTop: espace.s, fontFamily: police.corps },
   etatBouton: { marginTop: espace.l },
+
+  mince: { color: couleurs.discret, fontSize: 13, lineHeight: 19, marginTop: espace.s, fontFamily: police.corps },
 
   pied: { marginTop: espace.xl },
 });
