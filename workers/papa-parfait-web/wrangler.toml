@@ -1,0 +1,19 @@
+## Worker Cloudflare — papa-parfait-web
+## Sert l'app web Papa Parfait (export Expo web + PWA) en assets statiques.
+## URL publique stable, installable sur l'écran d'accueil, branchée sur les
+## workers de données (on-sort-poc, papa-tribu) via leurs URLs workers.dev.
+##
+## Le dossier ./dist est construit par le workflow (expo export + postbuild
+## PWA) puis déployé ici — il n'est pas versionné (voir .gitignore).
+
+name = "papa-parfait-web"
+compatibility_date = "2025-01-15"
+
+# Assets statiques uniquement (pas de code worker) : Cloudflare sert les
+# fichiers du dossier et renvoie index.html pour les routes inconnues (SPA).
+[assets]
+directory = "./dist"
+not_found_handling = "single-page-application"
+
+[observability]
+enabled = true

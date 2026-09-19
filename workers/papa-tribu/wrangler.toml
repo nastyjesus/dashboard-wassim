@@ -1,0 +1,32 @@
+## Worker Cloudflare — papa-tribu
+## Backend communautaire de Papa Parfait (v1) : inscriptions pseudo-only,
+## fil par département, posts Sortie/Entraide, pouces, commentaires,
+## signalements (masquage auto à 3), admin protégée par X-Wassim-Auth.
+## Stockage : D1 (schema.sql, appliqué par le workflow de déploiement).
+
+name = "papa-tribu"
+main = "src/index.js"
+compatibility_date = "2025-01-15"
+compatibility_flags = ["nodejs_compat"]
+
+[vars]
+# CORS ouvert : l'app mobile n'a pas d'origine, l'app web peut tourner
+# partout ; l'écriture est protégée par jeton, l'admin par secret.
+ALLOWED_ORIGINS = "*"
+# Nombre de signalements distincts qui masquent automatiquement un contenu
+# en attendant l'arbitrage admin.
+SEUIL_SIGNALEMENTS = "3"
+# Anti-spam : posts max par papa par heure.
+MAX_POSTS_PAR_HEURE = "5"
+
+# Base D1 : créée/injectée par le workflow (wrangler d1 create papa-tribu).
+[[d1_databases]]
+binding = "DB"
+database_name = "papa-tribu"
+database_id = "REPLACE_WITH_D1_ID"
+
+# Secret à provisionner via `wrangler secret put` :
+#   WASSIM_AUTH_TOKEN  (header X-Wassim-Auth des endpoints /admin/*)
+
+[observability]
+enabled = true

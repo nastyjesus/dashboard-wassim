@@ -1,0 +1,13 @@
+{
+  "name": "papa-parfait-web",
+  "version": "0.1.0",
+  "description": "Cloudflare Worker — hébergement de l'app web Papa Parfait (PWA installable)",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "deploy": "wrangler deploy"
+  },
+  "devDependencies": {
+    "wrangler": "^3.90.0"
+  }
+}

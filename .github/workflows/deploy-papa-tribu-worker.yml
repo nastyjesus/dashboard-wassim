@@ -1,0 +1,102 @@
+name: Deploy papa-tribu worker
+
+on:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: "Branch/ref to deploy from"
+        type: string
+        default: main
+  # Déploiement automatique quand le code du worker change sur la branche de
+  # travail (la session distante n'a pas le droit de dispatch manuel).
+  push:
+    branches: [claude/side-hustle-brainstorm-ykikf8]
+    paths: ['workers/papa-tribu/**', '.github/workflows/deploy-papa-tribu-worker.yml']
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: workers/papa-tribu
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: workers/papa-tribu/package-lock.json
+
+      - run: npm ci
+
+      - run: npm test
+
+      # Crée la base D1 si besoin et injecte son id dans wrangler.toml.
+      - name: Ensure D1 database and inject id
+        run: |
+          get_id() {
+            npx wrangler d1 list --json 2>/dev/null \
+              | node -e "let d='';process.stdin.on('data',c=>d+=c).on('end',()=>{const a=d.indexOf('[');const b=d.lastIndexOf(']');let l=[];try{l=JSON.parse(d.slice(a,b+1))}catch{};const n=l.find(x=>x.name==='papa-tribu');process.stdout.write(n?(n.uuid||n.id||''):'')})"
+          }
+          id=$(get_id)
+          if [ -z "$id" ]; then
+            npx wrangler d1 create papa-tribu
+            id=$(get_id)
+          fi
+          if [ -z "$id" ]; then echo "Could not resolve D1 id for papa-tribu" >&2; exit 1; fi
+          sed -i "s/^database_id = \".*\"/database_id = \"$id\"/" wrangler.toml
+          grep '^database_id' wrangler.toml
+
+      # Schéma idempotent (CREATE TABLE IF NOT EXISTS) rejoué à chaque deploy.
+      - name: Apply schema
+        run: npx wrangler d1 execute papa-tribu --remote --file=schema.sql
+
+      - name: Provision admin secret
+        env:
+          WASSIM_AUTH_TOKEN: ${{ secrets.WASSIM_AUTH_TOKEN }}
+        run: |
+          if [ -n "$WASSIM_AUTH_TOKEN" ]; then
+            printf '%s' "$WASSIM_AUTH_TOKEN" | npx wrangler secret put WASSIM_AUTH_TOKEN
+          else
+            echo "WASSIM_AUTH_TOKEN not set; /admin/* stays disabled" >&2
+          fi
+
+      - run: npx wrangler deploy
+
+      # Parcours complet sur la vraie base : inscription → post → fil →
+      # pouce → commentaire → signalement. Le compte de test est créé une
+      # fois par run (pseudo horodaté) — volume négligeable.
+      - name: Smoke test end-to-end
+        run: |
+          base="https://papa-tribu.loumiwassim.workers.dev"
+          for i in 1 2 3 4 5; do
+            sleep 3
+            curl -fsS "$base/health" | grep -q '"ok":true' && break
+            [ "$i" = 5 ] && { echo "Worker not healthy" >&2; exit 1; }
+          done
+
+          insc=$(curl -fsS -X POST "$base/inscription" -H 'Content-Type: application/json' \
+            -d "{\"pseudo\":\"CI $(date -u +%H%M%S)\",\"ville\":\"Rennes\",\"dept\":\"Ille-et-Vilaine\"}")
+          echo "$insc"
+          jeton=$(echo "$insc" | node -e "let d='';process.stdin.on('data',c=>d+=c).on('end',()=>process.stdout.write(JSON.parse(d).jeton||''))")
+          [ -n "$jeton" ] || { echo "No jeton" >&2; exit 1; }
+
+          post=$(curl -fsS -X POST "$base/posts" -H "Authorization: Bearer $jeton" -H 'Content-Type: application/json' \
+            -d '{"type":"sortie","texte":"[CI] Post de test automatique — parcours de smoke test."}')
+          echo "$post"
+          pid=$(echo "$post" | node -e "let d='';process.stdin.on('data',c=>d+=c).on('end',()=>process.stdout.write(JSON.parse(d).id||''))")
+          [ -n "$pid" ] || { echo "No post id" >&2; exit 1; }
+
+          curl -fsS "$base/fil?dept=Ille-et-Vilaine" -H "Authorization: Bearer $jeton" | grep -q "$pid" || { echo "Post absent du fil" >&2; exit 1; }
+          curl -fsS -X POST "$base/posts/$pid/reaction" -H "Authorization: Bearer $jeton" | grep -q '"aime":true' || exit 1
+          curl -fsS -X POST "$base/posts/$pid/commentaires" -H "Authorization: Bearer $jeton" -H 'Content-Type: application/json' \
+            -d '{"texte":"[CI] commentaire de test"}' | grep -q '"ok":true' || exit 1
+          curl -fsS -X POST "$base/signalements" -H "Authorization: Bearer $jeton" -H 'Content-Type: application/json' \
+            -d "{\"cibleType\":\"post\",\"cibleId\":\"$pid\",\"raison\":\"[CI] test\"}" | grep -q '"ok":true' || exit 1
+          echo "E2E OK — inscription, post, fil, pouce, commentaire, signalement"

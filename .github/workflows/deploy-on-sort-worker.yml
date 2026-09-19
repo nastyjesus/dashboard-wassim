@@ -1,0 +1,109 @@
+name: Deploy on-sort worker (POC side hustle)
+
+on:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: "Branch/ref to deploy from"
+        type: string
+        default: main
+      mock-mode:
+        description: "Deploy with MOCK_MODE (demo data)"
+        type: boolean
+        default: false
+  # Déploiement automatique quand le code du worker change sur la branche de
+  # travail (la session distante n'a pas le droit de dispatch manuel).
+  push:
+    branches: [claude/side-hustle-brainstorm-ykikf8]
+    paths: ['workers/on-sort/**', '.github/workflows/deploy-on-sort-worker.yml']
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: workers/on-sort
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: workers/on-sort/package-lock.json
+
+      - run: npm ci
+
+      - run: npm test
+
+      # Crée le namespace KV des votes s'il n'existe pas et injecte son id
+      # dans wrangler.toml (même mécanique que geo-tracker).
+      - name: Ensure KV namespace and inject id
+        run: |
+          title="on-sort-poc-VOTES"
+          get_id() {
+            npx wrangler kv namespace list 2>/dev/null \
+              | node -e "let d='';process.stdin.on('data',c=>d+=c).on('end',()=>{const a=d.indexOf('[');const b=d.lastIndexOf(']');let l=[];try{l=JSON.parse(d.slice(a,b+1))}catch{};const n=l.find(x=>x.title===process.argv[1]);process.stdout.write(n?n.id:'')})" "$title"
+          }
+          id=$(get_id)
+          if [ -z "$id" ]; then
+            npx wrangler kv namespace create VOTES
+            id=$(get_id)
+          fi
+          if [ -z "$id" ]; then echo "Could not resolve KV namespace id for $title" >&2; exit 1; fi
+          sed -i "s/^id = \"REPLACE_WITH_KV_NAMESPACE_ID\"/id = \"$id\"/" wrangler.toml
+          grep -A1 'binding = "VOTES"' wrangler.toml
+
+      - name: Set MOCK_MODE
+        env:
+          MODE: ${{ inputs.mock-mode || 'false' }}
+        run: |
+          sed -i "s/^MOCK_MODE = \".*\"/MOCK_MODE = \"$MODE\"/" wrangler.toml
+          grep '^MOCK_MODE' wrangler.toml
+
+      - run: npx wrangler deploy
+
+      - name: Smoke test /health
+        run: |
+          for i in 1 2 3 4 5; do
+            sleep 3
+            out=$(curl -fsS "https://on-sort-poc.loumiwassim.workers.dev/health" || true)
+            echo "$out"
+            echo "$out" | grep -q '"ok":true' && exit 0
+          done
+          echo "Worker did not become healthy in time" >&2
+          exit 1
+        continue-on-error: true
+
+      # Le verdict du week-end 1, directement dans le log du run : comptages
+      # réels d'événements famille en Ille-et-Vilaine + état de la sonde
+      # DATAtourisme.
+      - name: Diagnostic go/no-go (données réelles)
+        run: |
+          curl -fsS "https://on-sort-poc.loumiwassim.workers.dev/diagnostic" | node -e "
+            let d='';process.stdin.on('data',c=>d+=c).on('end',()=>{
+              try{console.log(JSON.stringify(JSON.parse(d),null,2))}catch{console.log(d)}
+            })"
+        continue-on-error: true
+
+      # Aperçu lisible du produit : le top 5 réel du prochain samedi, avec
+      # horaires et raisons — pour juger la pertinence sans ouvrir le JSON.
+      - name: Aperçu du top 5 réel
+        run: |
+          curl -fsS "https://on-sort-poc.loumiwassim.workers.dev/top?fresh=1" | node -e "
+            let d='';process.stdin.on('data',c=>d+=c).on('end',()=>{
+              const r=JSON.parse(d);
+              console.log('Date:', r.date, '—', r.meteo ? r.meteo.resume : 'météo indisponible');
+              console.log('Stats:', JSON.stringify(r.stats));
+              for (const e of r.top) {
+                console.log('---');
+                console.log('•', e.titre, '(score', e.score + ')');
+                console.log('  ', e.horaires || 'horaires n/c', '|', e.ville || '?', '|', e.raisons.join(', '));
+              }
+            })"
+        continue-on-error: true
