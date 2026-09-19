@@ -1,5 +1,16 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import worker from '../src/index.js';
+import { adresseLisible } from '../src/sources/openagenda.js';
+
+describe('adresseLisible', () => {
+  it('ne répète pas la ville déjà présente dans l’adresse, colle le code postal à la ville', () => {
+    expect(adresseLisible('Rue des Boires, Nantes', '44200', 'Nantes')).toBe('Rue des Boires, 44200 Nantes');
+    expect(adresseLisible('2 rue du Théâtre', '35170', 'Bruz')).toBe('2 rue du Théâtre, 35170 Bruz');
+    expect(adresseLisible(null, '35000', 'Rennes')).toBe('35000 Rennes');
+    expect(adresseLisible('Parc du Thabor', null, null)).toBe('Parc du Thabor');
+    expect(adresseLisible(null, null, null)).toBeNull();
+  });
+});
 
 const CTX = { waitUntil() {} };
 

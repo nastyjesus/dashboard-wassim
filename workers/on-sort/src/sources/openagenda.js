@@ -83,6 +83,23 @@ function creneaux(timings) {
     .map((t) => ({ debut: t.begin, fin: typeof t.end === 'string' ? t.end : null }));
 }
 
+/**
+ * « Rue des Boires, Nantes » + « 44200 » + « Nantes » → « Rue des Boires, 44200 Nantes ».
+ * Les contributeurs mettent souvent déjà la ville dans l'adresse : on ne la
+ * répète pas, et le code postal se colle à la ville comme sur une enveloppe.
+ */
+export function adresseLisible(adresse, codePostal, ville) {
+  let rue = (adresse || '').trim().replace(/[,\s]+$/, '');
+  const v = (ville || '').trim();
+  const cp = (codePostal || '').trim();
+  if (v) {
+    const villeEnFin = new RegExp(`[,\\s]*${v.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i');
+    rue = rue.replace(villeEnFin, '');
+  }
+  const localite = [cp, v].filter(Boolean).join(' ');
+  return [rue, localite].filter(Boolean).join(', ') || null;
+}
+
 /** Passe un enregistrement ODS au format interne commun aux sources. */
 function normaliser(r) {
   if (!r || !(r.title_fr || r.title)) return null;
@@ -98,7 +115,7 @@ function normaliser(r) {
     horaires: r.daterange_fr || null,
     creneaux: creneaux(r.timings),
     lieuNom: r.location_name || null,
-    adresse: [r.location_address, r.location_postalcode, r.location_city].filter(Boolean).join(', ') || null,
+    adresse: adresseLisible(r.location_address, r.location_postalcode, r.location_city),
     ville: r.location_city || null,
     lat: typeof coords.lat === 'number' ? coords.lat : null,
     lon: typeof coords.lon === 'number' ? coords.lon : null,

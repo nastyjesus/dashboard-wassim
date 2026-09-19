@@ -9,7 +9,9 @@
 // 44, Paris 43. Calvados, Angers, Le Mans, Lyon, Marseille, Toulouse
 // attendent une autre source ou des demandes de ville.
 
-export const WORKER_URL = 'https://on-sort-poc.loumiwassim.workers.dev';
+/** Backend Sorties. Surchargeable en dev (`EXPO_PUBLIC_WORKER_URL=http://127.0.0.1:8787`)
+ *  pour tester un worker local (`npx wrangler dev`) avant de le déployer. */
+export const WORKER_URL = process.env.EXPO_PUBLIC_WORKER_URL || 'https://on-sort-poc.loumiwassim.workers.dev';
 
 export const RAYON_KM = 40;
 
