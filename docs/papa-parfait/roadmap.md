@@ -106,8 +106,21 @@ Trois correctifs dans le worker, tous testés (72 tests au vert) :
 - **Horaires lisibles** : « 09h30 et 10h15 », « 14h30 – 17h », « dès 09h30
   (5 créneaux) » au lieu de la liste brute à virgules.
 
-Vérifié en local sur les données réelles : le GO de vendredi passe au
-spationaute à 10,4 km, le GO de samedi reste cohérent.
+- **Les créneaux font foi pour le jour** : OpenAgenda donne les dates jouées
+  exactes (`timings`) pour 100 % des événements. Or **environ 44 %** des
+  événements « actifs » sur une date (leur plage la couvre) **n'ont pas lieu
+  ce jour-là** — mesuré sur trois dates réelles : 91 sur 208, 94 sur 300, 78
+  sur 172. Le top en servait (un solo de danse « 7 - 26 septembre » joué les
+  7, 8, 9 et 26, proposé le 18). Désormais : des créneaux mais aucun ce
+  jour-là → exclu.
+
+Vérifié en local sur les données réelles après les quatre correctifs : les GO
+de vendredi, samedi et mercredi sont tous à moins de 11 km, avec un horaire
+réel du jour affiché.
+
+Non traité, noté : le filtre famille étiquette « Pensé pour les enfants » dès
+que le texte contient « enfants » — y compris « accessible aux enfants et
+parents » sur un spectacle tout public. Sur-promesse, pas erreur de matching.
 
 ### Lot 2 — Brancher Supabase au déploiement
 

@@ -39,6 +39,33 @@ describe('jourCompatible — les cas réels du premier /top', () => {
   it('sans dateISO (tests du scoring seul) : pas de contrainte', () => {
     expect(jourCompatible({ horaires: 'les dimanches' }, undefined)).toBe(true);
   });
+
+  it('avec des créneaux structurés, seuls les jours joués passent (bug Solo de danse)', () => {
+    // Plage « 7 - 26 septembre », mais joué les 7, 8, 9 et 26 seulement.
+    const ev = {
+      horaires: '7 - 26 septembre',
+      creneaux: [
+        { debut: '2026-09-07T05:30:00+02:00', fin: '2026-09-07T09:00:00+02:00' },
+        { debut: '2026-09-08T05:30:00+02:00', fin: '2026-09-08T09:00:00+02:00' },
+        { debut: '2026-09-26T12:00:00+02:00', fin: '2026-09-26T12:20:00+02:00' },
+      ],
+    };
+    expect(jourCompatible(ev, '2026-09-18')).toBe(false);
+    expect(jourCompatible(ev, '2026-09-26')).toBe(true);
+  });
+
+  it('les créneaux priment sur le texte des jours', () => {
+    // Le texte dit « les dimanches », mais un créneau existe bien ce samedi.
+    const ev = {
+      horaires: 'les dimanches',
+      creneaux: [{ debut: '2026-08-22T15:00:00+02:00', fin: '2026-08-22T17:00:00+02:00' }],
+    };
+    expect(jourCompatible(ev, SAMEDI)).toBe(true);
+  });
+
+  it('une liste de créneaux vide ne contraint rien', () => {
+    expect(jourCompatible({ horaires: '17 février - 28 août', creneaux: [] }, SAMEDI)).toBe(true);
+  });
 });
 
 describe('joursMentionnes', () => {

@@ -40,6 +40,15 @@ export function joursMentionnes(texte) {
  */
 export function jourCompatible(ev, dateISO) {
   if (!dateISO) return true;
+
+  // Créneaux structurés (champ `timings` d'OpenAgenda) : la vérité terrain.
+  // Un événement à dates éparses (« 7 - 26 septembre » mais joué les 7, 8, 9
+  // et 26) couvrait le 18 par sa plage sans y avoir lieu — constaté sur
+  // données réelles. S'il y a des créneaux et aucun ce jour-là : exclu.
+  if (Array.isArray(ev.creneaux) && ev.creneaux.length > 0) {
+    return ev.creneaux.some((c) => (c.debut || '').slice(0, 10) === dateISO);
+  }
+
   const jour = new Date(`${dateISO}T12:00:00Z`).getUTCDay();
 
   // Les horaires sont la source la plus fiable ; la description en secours
