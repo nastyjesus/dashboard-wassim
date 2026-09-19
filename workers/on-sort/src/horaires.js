@@ -11,6 +11,7 @@
 
 const JOURS_SEMAINE_CONTRAINTS = new Set([1, 2, 4, 5]); // lun, mar, jeu, ven
 const FIN_JOURNEE_GARDE = 16.5; // 16h30 : sortie d'école / de crèche
+const DEBUT_SOIREE = 19.5; // 19h30 : au-delà, ce n'est plus une sortie avec un petit
 
 /** Heure décimale locale d'un ISO avec fuseau (« 2026-09-18T09:30:00+02:00 » → 9.5). */
 function heureLocale(iso) {
@@ -70,14 +71,17 @@ export function jourDeGarde(dateISO) {
 
 /**
  * Verdict horaire pour le scoring :
+ *  - 'tard'     : tous les créneaux commencent à 19h30 ou après (quel que soit
+ *                 le jour) — trop tard pour un petit ;
  *  - 'journee'  : jour de garde et tous les créneaux finissent avant 16h30 ;
  *  - 'soir'     : jour de garde et au moins un créneau commence à 16h30 ou après ;
  *  - null       : pas de contrainte (week-end, mercredi, ou horaires inconnus).
  */
 export function verdictHoraire(ev, dateISO) {
-  if (!jourDeGarde(dateISO)) return null;
   const creneaux = creneauxDuJour(ev, dateISO);
   if (!creneaux.length) return null;
+  if (creneaux.every((c) => c.debut >= DEBUT_SOIREE)) return 'tard';
+  if (!jourDeGarde(dateISO)) return null;
   if (creneaux.some((c) => c.debut >= FIN_JOURNEE_GARDE)) return 'soir';
   if (creneaux.every((c) => (c.fin ?? c.debut) <= FIN_JOURNEE_GARDE)) return 'journee';
   return null;

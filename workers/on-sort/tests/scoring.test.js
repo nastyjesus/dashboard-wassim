@@ -172,6 +172,30 @@ describe('scorer — distance et heure (cas réel du 18 septembre 2026)', () => 
     expect(s.raisons).toContain('Après l’école');
   });
 
+  it('l’étiquette dit ce qu’on sait : « Pensé pour » vs « Ouvert aux enfants »', () => {
+    const pense = scorer(atelier(), CTX); // marionnettes + tranche d'âge
+    expect(pense.raisons).toContain('Pensé pour les enfants');
+    const ouvert = scorer({
+      source: 'test', id: 's', titre: 'Solo de danse afro-contemporaine',
+      description: 'Accessible à toutes et tous, enfants et parents.',
+      lat: 48.11, lon: -1.68, dateDebut: '2026-09-26', dateFin: '2026-09-26',
+    }, { ...CTX, dateISO: '2026-09-26' });
+    expect(ouvert.raisons).toContain('Ouvert aux enfants');
+    expect(ouvert.raisons).not.toContain('Pensé pour les enfants');
+  });
+
+  it('tout commence après 19h30 : −3, même un samedi', () => {
+    const jour = scorer(atelier({
+      dateDebut: '2026-09-19', dateFin: '2026-09-19',
+      creneaux: [{ debut: '2026-09-19T15:00:00+02:00', fin: '2026-09-19T16:00:00+02:00' }],
+    }), { ...CTX, dateISO: '2026-09-19' });
+    const tard = scorer(atelier({
+      dateDebut: '2026-09-19', dateFin: '2026-09-19',
+      creneaux: [{ debut: '2026-09-19T20:00:00+02:00', fin: '2026-09-19T21:30:00+02:00' }],
+    }), { ...CTX, dateISO: '2026-09-19' });
+    expect(jour.score - tard.score).toBeCloseTo(3, 5);
+  });
+
   it('les horaires ressortent lisibles, le texte brut en secours', () => {
     const s = scorer(toutPetitTuLis, { ...BRUZ, dateISO: VENDREDI });
     expect(s.horaires).toBe('09h30 et 10h15');
@@ -190,7 +214,7 @@ describe('top', () => {
     }));
     const ponctuels = Array.from({ length: 3 }, (_, i) => atelier({
       id: `ponc-${i}`, titre: `Atelier enfants du jour n°${i}`,
-      description: 'atelier',
+      description: 'atelier pour les enfants',
       dateDebut: '2026-08-29', dateFin: '2026-08-29',
     }));
     const r = top([...permanents, ...ponctuels], CTX);
@@ -204,7 +228,7 @@ describe('top', () => {
     const evenements = Array.from({ length: 8 }, (_, i) => atelier({
       id: String(i),
       titre: `Atelier enfants n°${i}`,
-      description: i % 2 ? 'Pour les enfants. Gratuit.' : 'atelier',
+      description: i % 2 ? 'Pour les enfants. Gratuit.' : 'atelier dès 3 ans',
     }));
     const r = top(evenements, CTX);
     expect(r.top).toHaveLength(5);

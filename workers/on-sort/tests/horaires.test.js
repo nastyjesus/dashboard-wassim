@@ -78,6 +78,16 @@ describe('verdictHoraire', () => {
   it('horaires inconnus : pas de contrainte', () => {
     expect(verdictHoraire({ horaires: null }, VENDREDI)).toBeNull();
   });
+
+  it('tout commence à 19h30 ou après : « tard », même le week-end', () => {
+    const chorale = { creneaux: [{ debut: '2026-09-19T20:00:00+02:00', fin: '2026-09-19T22:00:00+02:00' }] };
+    expect(verdictHoraire(chorale, SAMEDI)).toBe('tard');
+    const cours = { horaires: 'Mercredi 19h30 - 20h15' };
+    expect(verdictHoraire(cours, MERCREDI)).toBe('tard');
+    // Un créneau à 18h30 reste une sortie possible.
+    const tot = { creneaux: [{ debut: '2026-09-19T18:30:00+02:00', fin: '2026-09-19T19:30:00+02:00' }] };
+    expect(verdictHoraire(tot, SAMEDI)).toBeNull();
+  });
 });
 
 describe('libelleHoraires', () => {

@@ -118,9 +118,52 @@ Vérifié en local sur les données réelles après les quatre correctifs : les 
 de vendredi, samedi et mercredi sont tous à moins de 11 km, avec un horaire
 réel du jour affiché.
 
-Non traité, noté : le filtre famille étiquette « Pensé pour les enfants » dès
-que le texte contient « enfants » — y compris « accessible aux enfants et
-parents » sur un spectacle tout public. Sur-promesse, pas erreur de matching.
+### Lot 1 quater — Chasse aux faux positifs du filtre famille (fait le 19 septembre 2026)
+
+Méthode : corpus réel de **248 événements retenus** par le scoring (5
+départements × 3 dates), lus un par un, règles dérivées des motifs observés,
+puis rejoués hors ligne sur le corpus brut (3 801 événements) pour mesurer.
+
+Quatre sources de faux positifs, quatre réponses (`src/famille.js`) :
+
+1. **« Enfant(s) » comme sujet, pas comme public** — pièces sur la filiation,
+   expos sur l'enfance, « 2 enfants » dans un synopsis, « chorégraphie d'un
+   essaim d'enfants ». → Les mots génériques (enfant, famille, familial) ne
+   comptent que si le texte **nomme un public** (« pour les enfants », « en
+   famille », « parents et enfants », un âge, le tutoiement des médiathèques).
+   Sinon c'est un thème : 0,5, plus jamais dans le top.
+2. **Réservé aux adultes ou aux parents seuls** — « pour adultes »,
+   consultations notariales, formations, cours annuels, baby-sitting dating,
+   discussions/débats, humoristes. → Exclusions, dont six sur le titre seul
+   (`COMPLET`, `annulé`, `Inscription :`, `Cours de`).
+3. **Expressions piégées** — « à tout petit prix », « les sens en éveil ».
+   → Nettoyées avant matching.
+4. **Âges non lus** — « entre 5 et 8 ans », « 6 mois - 3 ans », « de la
+   naissance à 4 ans », « ados », « collège ». → Nouveaux motifs ; un événement
+   ados/collège vaut 11 ans et plus, donc exclu pour un petit.
+
+Et deux vrais bugs trouvés en route : « enfant » **et** « enfants » étaient
+tous deux dans la liste alors que le matching gère le pluriel — chaque mention
+comptait double ; les apostrophes typographiques (’) faisaient rater
+« séance d'essai » et « p'tit ».
+
+**Mesure sur le corpus** : 248 retenus → 156. 98 tombés (relus : braderies,
+matchs, consultations, comédies pour adultes, expos photo, ateliers bricolage,
+cours du soir…), 6 entrés (fête foraine de Nantes, atelier grimage, atelier
+6 mois-3 ans). Récupérés de justesse : Barbedouce (« marionnettique »), la
+Foire aux manèges de Lille, la Kermesse, les ateliers en tutoiement.
+
+**Étiquette honnête** : « Pensé pour les enfants » seulement si un mot
+spécifique (jeune public, marionnettes, bébé, comptines…) ou un âge le prouve ;
+sinon « Ouvert aux enfants ». Le solo de danse « accessible aux enfants et
+parents » porte désormais la bonne étiquette.
+
+**Soirée** : tout ce qui commence à 19h30 ou après perd 3 points, quel que soit
+le jour (chorale à 20h, cours à 19h30 vus dans le corpus).
+
+Reste connu, assumé : des expos d'art avec « en famille » dans le texte
+passent encore (score bas, rarement en GO) ; « Kermesse » comme nom de
+spectacle déclenche le mot.
 
 ### Lot 1 ter — Ouvrir les zones où la donnée existe (fait le 19 septembre 2026)
 

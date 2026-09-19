@@ -3,7 +3,7 @@
 // incompatible, signal anti-famille), sinon un objet {score, raisons[]} —
 // les raisons alimentent directement l'UI (« À l'abri s'il pleut », « À 12 km »).
 
-import { scoreFamille, trancheAge, lieuType } from './famille.js';
+import { analyseFamille, trancheAge, lieuType } from './famille.js';
 import { jourCompatible, dureeJours } from './jours.js';
 import { verdictHoraire, libelleHoraires } from './horaires.js';
 
@@ -36,7 +36,7 @@ export function distanceKm(lat1, lon1, lat2, lon2) {
  * @param {{lat: number, lon: number, age: number, rayonKm?: number, meteo?: object|null}} ctx
  */
 export function scorer(ev, ctx) {
-  const famille = scoreFamille(ev);
+  const { score: famille, specifique } = analyseFamille(ev);
   if (famille < 0) return null; // signal explicitement anti-famille
 
   // Récurrent un autre jour (« les dimanches » un samedi) : hors-jeu.
@@ -55,7 +55,10 @@ export function scorer(ev, ctx) {
 
   const raisons = [];
   let score = famille * 2;
-  if (famille >= 2) raisons.push('Pensé pour les enfants');
+  // L'étiquette dit ce qu'on sait vraiment : « pensé pour » quand un mot
+  // spécifique (jeune public, marionnettes, bébé…) ou un âge le prouve ;
+  // « ouvert aux enfants » quand le texte nomme seulement un public familial.
+  if (famille >= 2) raisons.push(specifique || age ? 'Pensé pour les enfants' : 'Ouvert aux enfants');
 
   // Les vrais événements du jour passent devant les expos/animations
   // permanentes qui « couvrent » toutes les dates. Une animation au long
@@ -95,6 +98,9 @@ export function scorer(ev, ctx) {
   const horaire = verdictHoraire(ev, ctx.dateISO);
   if (horaire === 'journee') score -= 3;
   if (horaire === 'soir') { score += 1; raisons.push('Après l’école'); }
+  // Tout commence à 19h30 ou plus tard : c'est l'heure du bain, pas d'une
+  // sortie avec un petit (chorales à 20h, cours à 19h30 vus dans le corpus).
+  if (horaire === 'tard') score -= 3;
 
   // Météo : s'il pleut, on privilégie l'intérieur ; s'il fait beau, le dehors.
   const type = lieuType(ev);
