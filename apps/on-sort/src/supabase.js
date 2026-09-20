@@ -4,6 +4,7 @@
 // null et l'app retombe sur le mode local (l'onboarding reste jouable).
 
 import 'react-native-url-polyfill/auto';
+import { Platform } from 'react-native';
 import { createClient } from '@supabase/supabase-js';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
@@ -18,7 +19,10 @@ export const supabase = supabaseConfigure
         storage: AsyncStorage,
         autoRefreshToken: true,
         persistSession: true,
-        detectSessionInUrl: false, // pas de flux de redirection sur mobile
+        // Sur web, Google renvoie le papa sur l'app avec les jetons dans
+        // l'URL : c'est Supabase qui doit les lire. Sur mobile, le retour
+        // passe par WebBrowser, pas par l'URL de la page.
+        detectSessionInUrl: Platform.OS === 'web',
       },
     })
   : null;

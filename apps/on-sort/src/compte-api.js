@@ -1,4 +1,4 @@
-// Création de compte + demande de ville.
+// Création de compte, connexion Google, demande de ville.
 //
 // Backend : Supabase (PostgreSQL + Auth). Actif dès que EXPO_PUBLIC_SUPABASE_URL
 // et EXPO_PUBLIC_SUPABASE_ANON_KEY sont posées (voir docs/backend-supabase.md).
@@ -7,19 +7,83 @@
 //
 // Le mot de passe n'est jamais stocké côté app : Supabase le hash côté serveur.
 
+import { Platform } from 'react-native';
 import * as WebBrowser from 'expo-web-browser';
 import * as Linking from 'expo-linking';
 import { supabase, supabaseConfigure } from './supabase.js';
 import { WORKER_URL } from './config.js';
 
+/** Profil applicatif à partir d'une ligne `profils` et du compte Auth. */
+function profilDepuis(ligne, user) {
+  return {
+    prenom: ligne.prenom,
+    email: user?.email || '',
+    age: ligne.age,
+    villeId: ligne.ville_id,
+    code: ligne.dept_code || undefined,
+  };
+}
+
+/** Supabase signale un e-mail déjà pris de plusieurs façons selon la version. */
+function estDejaInscrit(error) {
+  const code = error?.code || '';
+  const message = (error?.message || '').toLowerCase();
+  return code === 'user_already_exists'
+    || code === 'email_exists'
+    || message.includes('already registered')
+    || message.includes('already exists');
+}
+
+/** Prénom proposé à partir de ce que Google nous donne. */
+function prenomGoogle(user) {
+  const m = user?.user_metadata || {};
+  const complet = m.name || m.full_name || m.given_name || '';
+  return String(complet).trim().split(/\s+/)[0] || '';
+}
+
+/**
+ * État du compte au démarrage de l'app.
+ * @returns {Promise<null | {email: string, prenomSuggere: string, profil: object|null}>}
+ *  - null : pas de compte connecté (ou Supabase non configuré) ;
+ *  - `profil` rempli : le papa a déjà tout renseigné, on entre directement ;
+ *  - `profil` à null : connecté (Google) mais profil incomplet → onboarding
+ *    allégé, sans e-mail ni mot de passe à ressaisir.
+ */
+export async function sessionCourante() {
+  if (!supabaseConfigure) return null;
+  try {
+    const { data } = await supabase.auth.getSession();
+    const user = data?.session?.user;
+    if (!user) return null;
+
+    const { data: lignes, error } = await supabase
+      .from('profils')
+      .select('prenom, age, ville_id, dept_code')
+      .eq('id', user.id)
+      .limit(1);
+    if (error) return { email: user.email || '', prenomSuggere: prenomGoogle(user), profil: null };
+
+    const ligne = lignes && lignes[0];
+    return {
+      email: user.email || '',
+      prenomSuggere: prenomGoogle(user),
+      profil: ligne ? profilDepuis(ligne, user) : null,
+    };
+  } catch {
+    return null; // réseau coupé au lancement : l'app reste utilisable
+  }
+}
+
 /**
  * Crée le compte du papa (Auth) puis enregistre son profil.
+ * Si une session existe déjà (retour de Google), on ne recrée pas de compte :
+ * on complète seulement le profil.
  * @returns {Promise<{prenom:string,email:string,age:number,villeId:string,code?:string}>}
  */
 export async function creerCompte({ prenom, email, password, age, villeId, code }) {
   const compte = {
     prenom: prenom.trim(),
-    email: email.trim().toLowerCase(),
+    email: (email || '').trim().toLowerCase(),
     age,
     villeId,
     code,
@@ -27,15 +91,39 @@ export async function creerCompte({ prenom, email, password, age, villeId, code 
 
   if (!supabaseConfigure) return compte; // démo locale
 
-  const { data, error } = await supabase.auth.signUp({
-    email: compte.email,
-    password,
-  });
-  if (error) throw new Error(error.message);
+  const { data: existante } = await supabase.auth.getSession();
+  let user = existante?.session?.user || null;
+  let sessionActive = Boolean(existante?.session);
 
-  const user = data.user;
-  if (user && data.session) {
-    // Session active (confirmation email désactivée) : on écrit le profil.
+  if (!user) {
+    const { data, error } = await supabase.auth.signUp({
+      email: compte.email,
+      password,
+    });
+    if (error) {
+      // Compte déjà créé (papa qui revient après avoir vidé son téléphone, ou
+      // réinstallé la PWA) : le même formulaire sert alors de connexion.
+      if (!estDejaInscrit(error)) throw new Error(error.message);
+      const reconnexion = await supabase.auth.signInWithPassword({
+        email: compte.email,
+        password,
+      });
+      if (reconnexion.error) {
+        throw new Error('Un compte existe déjà avec cet e-mail. Vérifie ton mot de passe.');
+      }
+      user = reconnexion.data.user;
+      sessionActive = Boolean(reconnexion.data.session);
+    } else {
+      user = data.user;
+      sessionActive = Boolean(data.session);
+    }
+  } else {
+    compte.email = user.email || compte.email;
+  }
+
+  if (user && sessionActive) {
+    // Session active (confirmation email désactivée, ou retour Google) :
+    // on écrit le profil.
     const { error: e2 } = await supabase.from('profils').upsert({
       id: user.id,
       prenom: compte.prenom,
@@ -54,9 +142,28 @@ export async function creerCompte({ prenom, email, password, age, villeId, code 
  * Connexion / inscription via Google (OAuth Supabase).
  * Nécessite le provider Google activé dans Supabase + l'URL de redirection
  * autorisée (voir docs/backend-supabase.md).
+ *
+ * Deux chemins, parce que les plateformes ne reviennent pas de la même façon :
+ *  - **web** : redirection pleine page. Google renvoie sur l'app avec les
+ *    jetons dans l'URL, que le client Supabase lit (`detectSessionInUrl`).
+ *    La fonction ne rend jamais la main : la page est quittée.
+ *    (Le popup a été essayé puis abandonné : la politique COOP du navigateur
+ *    bloque `window.closed`, l'app ne détecte jamais le retour.)
+ *  - **mobile** : session d'authentification système, jetons récupérés dans
+ *    l'URL de retour.
+ * @returns {Promise<'redirection' | 'connecte'>}
  */
 export async function connexionGoogle() {
   if (!supabaseConfigure) throw new Error('Connexion Google : Supabase non configuré.');
+
+  if (Platform.OS === 'web') {
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: { redirectTo: window.location.origin },
+    });
+    if (error) throw new Error(error.message);
+    return 'redirection';
+  }
 
   const redirectTo = Linking.createURL('/');
   const { data, error } = await supabase.auth.signInWithOAuth({
@@ -73,11 +180,11 @@ export async function connexionGoogle() {
   const params = new URLSearchParams(url.hash ? url.hash.slice(1) : url.search);
   const access_token = params.get('access_token');
   const refresh_token = params.get('refresh_token');
-  if (access_token && refresh_token) {
-    const { error: e2 } = await supabase.auth.setSession({ access_token, refresh_token });
-    if (e2) throw new Error(e2.message);
-  }
-  return true;
+  if (!access_token || !refresh_token) throw new Error('Connexion Google incomplète.');
+
+  const { error: e2 } = await supabase.auth.setSession({ access_token, refresh_token });
+  if (e2) throw new Error(e2.message);
+  return 'connecte';
 }
 
 /**

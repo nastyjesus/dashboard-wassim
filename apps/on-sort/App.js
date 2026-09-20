@@ -17,6 +17,7 @@ import { IBMPlexSans_400Regular } from '@expo-google-fonts/ibm-plex-sans/400Regu
 import { IBMPlexSans_600SemiBold } from '@expo-google-fonts/ibm-plex-sans/600SemiBold';
 import { couleurs } from './src/theme.js';
 import { lireProfil, ecrireProfil } from './src/storage.js';
+import { sessionCourante } from './src/compte-api.js';
 import { Onboarding } from './src/screens/Onboarding.js';
 import { Sorties } from './src/screens/Sorties.js';
 import { Couple } from './src/screens/Couple.js';
@@ -31,6 +32,7 @@ SplashScreen.preventAutoHideAsync().catch(() => {});
 export default function App() {
   const [pret, setPret] = useState(false);
   const [profil, setProfil] = useState(null);
+  const [session, setSession] = useState(null); // compte connecté sans profil complet
   const [edition, setEdition] = useState(false); // onboarding rouvert depuis Sorties
   const [onglet, setOnglet] = useState('sorties');
 
@@ -41,8 +43,30 @@ export default function App() {
     IBMPlexSans_600SemiBold,
   });
 
+  // Au lancement : le profil local d'abord (instantané, marche hors ligne).
+  // Sans profil local, on regarde s'il existe un compte connecté — c'est le
+  // cas au retour de Google, ou après réinstallation de la PWA. Si son profil
+  // est déjà en base, on entre directement ; sinon l'onboarding se rouvre,
+  // allégé de l'e-mail et du mot de passe.
   useEffect(() => {
-    lireProfil().then((p) => { setProfil(p); setPret(true); });
+    let vivant = true;
+    (async () => {
+      const local = await lireProfil();
+      if (local) {
+        if (vivant) { setProfil(local); setPret(true); }
+        return;
+      }
+      const s = await sessionCourante();
+      if (!vivant) return;
+      if (s?.profil) {
+        setProfil(s.profil);
+        ecrireProfil(s.profil);
+      } else if (s) {
+        setSession(s);
+      }
+      setPret(true);
+    })();
+    return () => { vivant = false; };
   }, []);
 
   useEffect(() => {
@@ -64,7 +88,7 @@ export default function App() {
     return (
       <View style={styles.racine}>
         <StatusBar style="dark" />
-        <Onboarding profilInitial={profil} onValider={validerProfil} />
+        <Onboarding profilInitial={profil} session={session} onValider={validerProfil} />
       </View>
     );
   }
