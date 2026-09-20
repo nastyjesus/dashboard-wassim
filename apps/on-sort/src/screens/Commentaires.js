@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, View,
 } from 'react-native';
-import { couleurs, espace, rayon } from '../theme.js';
+import { couleurs, espace, rayon, police, cadre } from '../theme.js';
 import { chargerCommentaires, commenter, tempsRelatif } from '../tribu-api.js';
 
 export function Commentaires({ post, identite, onRetour }) {
@@ -42,7 +42,7 @@ export function Commentaires({ post, identite, onRetour }) {
   return (
     <ScrollView style={styles.ecran} contentContainerStyle={styles.contenu}>
       <Pressable onPress={onRetour} accessibilityRole="button" style={styles.retour}>
-        <Text style={styles.retourTexte}>← Retour au fil</Text>
+        <Text style={styles.retourTexte}>‹ RETOUR AU FIL</Text>
       </Pressable>
 
       <View style={styles.postOrigine}>
@@ -95,51 +95,54 @@ export function Commentaires({ post, identite, onRetour }) {
 
 const styles = StyleSheet.create({
   ecran: { flex: 1, backgroundColor: couleurs.fond },
-  contenu: { padding: espace.xl, paddingTop: 64, paddingBottom: 120 },
+  contenu: { padding: espace.xl, paddingTop: 56, paddingBottom: 120 },
   retour: { marginBottom: espace.l },
-  retourTexte: { color: couleurs.accent, fontSize: 16, fontWeight: '700' },
+  retourTexte: { color: couleurs.encre, fontSize: 14, letterSpacing: 0.5, fontFamily: police.corpsFort },
+
+  // Le post d'origine : panneau à liseré ambre, c'est le sujet de l'écran.
   postOrigine: {
-    backgroundColor: couleurs.carte,
-    borderRadius: rayon.l,
-    borderWidth: 1,
-    borderColor: couleurs.accent,
+    backgroundColor: couleurs.panneau,
+    borderRadius: rayon.m,
     padding: espace.l,
     marginBottom: espace.l,
+    ...cadre,
+    borderLeftWidth: 6,
+    borderLeftColor: couleurs.accent,
   },
   commentaire: {
-    backgroundColor: couleurs.carte,
+    backgroundColor: couleurs.panneau,
     borderRadius: rayon.m,
-    borderWidth: 1,
-    borderColor: couleurs.ligne,
     padding: espace.l,
     marginBottom: espace.m,
     marginLeft: espace.xl,
+    ...cadre,
   },
-  auteur: { color: couleurs.encre, fontWeight: '700', fontSize: 14 },
-  temps: { color: couleurs.discret, fontSize: 12, fontWeight: '400' },
-  texte: { color: couleurs.texte, fontSize: 15, lineHeight: 21, marginTop: espace.s },
-  vide: { color: couleurs.discret, fontSize: 14.5, textAlign: 'center', marginVertical: espace.xl },
-  erreur: { color: couleurs.accent, fontSize: 13.5, textAlign: 'center', marginVertical: espace.m },
+  auteur: { color: couleurs.encre, fontSize: 14, fontFamily: police.corpsFort },
+  temps: { color: couleurs.discret, fontSize: 12, fontFamily: police.corps },
+  texte: { color: couleurs.texte, fontSize: 15, lineHeight: 21, marginTop: espace.s, fontFamily: police.corps },
+  vide: { color: couleurs.discret, fontSize: 14.5, textAlign: 'center', marginVertical: espace.xl, fontFamily: police.corps },
+  erreur: { color: couleurs.alerte, fontSize: 13.5, textAlign: 'center', marginVertical: espace.m, fontFamily: police.corpsFort },
   reponse: { marginTop: espace.l },
   champ: {
-    backgroundColor: couleurs.carte,
+    backgroundColor: couleurs.panneau,
     borderRadius: rayon.m,
-    borderWidth: 1,
-    borderColor: couleurs.ligne,
     paddingHorizontal: espace.l,
     paddingVertical: espace.m,
     fontSize: 15,
     color: couleurs.encre,
+    fontFamily: police.corps,
     minHeight: 60,
     textAlignVertical: 'top',
+    ...cadre,
   },
   cta: {
     marginTop: espace.m,
     backgroundColor: couleurs.accent,
-    borderRadius: rayon.m,
+    borderRadius: rayon.pill,
     paddingVertical: espace.m,
     alignItems: 'center',
+    ...cadre,
   },
-  ctaInactif: { opacity: 0.4 },
-  ctaTexte: { color: '#FFFFFF', fontSize: 15, fontWeight: '700' },
+  ctaInactif: { opacity: 0.45 },
+  ctaTexte: { color: couleurs.encre, fontSize: 16, fontFamily: police.corpsFort },
 });

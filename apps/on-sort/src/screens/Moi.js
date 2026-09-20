@@ -5,7 +5,8 @@
 import { useEffect, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { couleurs, espace, rayon, ombre } from '../theme.js';
+import { couleurs, espace, rayon, police, typo, cadre } from '../theme.js';
+import { Strip, Section } from '../components/ui.js';
 
 const CLE_CHECKINS = 'pp:checkins';
 const NIVEAUX = [
@@ -66,11 +67,17 @@ export function Moi() {
 
   return (
     <ScrollView style={styles.ecran} contentContainerStyle={styles.contenu}>
-      <Text style={styles.surTitre}>Moi</Text>
+      <Strip style={styles.strip}>
+        <Text style={styles.stripCode}>MODULE · MOI</Text>
+        <Text style={styles.stripStatut}>
+          {checkins[aujourdhui] ? `BATTERIE · ${NIVEAUX[checkins[aujourdhui] - 1].label.toUpperCase()}` : 'BATTERIE · À RELEVER'}
+        </Text>
+      </Strip>
+
       <Text style={styles.titre}>Et toi, ça va ?</Text>
 
-      <View style={[styles.carte, ombre.carte]}>
-        <Text style={styles.carteTitre}>🔋 Ta batterie papa aujourd'hui</Text>
+      <View style={styles.panneau}>
+        <Text style={styles.instrument}>TA BATTERIE PAPA AUJOURD'HUI</Text>
         <View style={styles.niveaux}>
           {NIVEAUX.map((n) => (
             <Pressable
@@ -91,7 +98,8 @@ export function Moi() {
             const v = checkins[j];
             return (
               <View key={j} style={styles.jour}>
-                <View style={[styles.jauge, v ? { height: 6 + v * 6, backgroundColor: couleurs.accent } : null]} />
+                {/* L'ambre reste sur le cran du jour : l'historique se lit à l'encre. */}
+                <View style={[styles.jauge, v ? { height: 6 + v * 6, backgroundColor: couleurs.encre } : null]} />
               </View>
             );
           })}
@@ -99,13 +107,13 @@ export function Moi() {
         <Text style={styles.historiqueLegende}>Tes 7 derniers jours — juste pour toi, ça reste sur ton téléphone.</Text>
       </View>
 
-      <View style={styles.carteDefi}>
-        <Text style={styles.defiBadge}>🎯 Le défi de la semaine</Text>
+      <Section>Le défi de la semaine</Section>
+      <View style={styles.panneauDefi}>
         <Text style={styles.defiTexte}>{DEFIS[semaine % DEFIS.length]}</Text>
       </View>
 
-      <View style={styles.carte}>
-        <Text style={styles.carteTitre}>💡 À méditer</Text>
+      <Section>À méditer</Section>
+      <View style={styles.panneau}>
         <Text style={styles.conseil}>{CONSEILS[semaine % CONSEILS.length]}</Text>
       </View>
     </ScrollView>
@@ -114,48 +122,59 @@ export function Moi() {
 
 const styles = StyleSheet.create({
   ecran: { flex: 1, backgroundColor: couleurs.fond },
-  contenu: { padding: espace.xl, paddingTop: 64, paddingBottom: 120 },
-  surTitre: { color: couleurs.discret, fontSize: 14, fontWeight: '600' },
-  titre: { color: couleurs.encre, fontSize: 30, fontWeight: '800', marginTop: espace.xs, marginBottom: espace.xl },
-  carte: {
-    backgroundColor: couleurs.carte,
-    borderRadius: rayon.l,
-    padding: espace.xl,
-    marginBottom: espace.l,
-    borderWidth: 1,
-    borderColor: couleurs.ligne,
+  contenu: { padding: espace.xl, paddingTop: 56, paddingBottom: 120 },
+
+  strip: { marginBottom: espace.l },
+  stripCode: { color: couleurs.stripTexte, fontSize: 15, letterSpacing: 0.5, fontFamily: police.corpsFort },
+  stripStatut: { ...typo.instrument, color: couleurs.accent, fontFamily: police.corpsFort, marginTop: espace.xs, textTransform: 'uppercase' },
+
+  titre: { ...typo.displayL, color: couleurs.encre, fontFamily: police.display, marginBottom: espace.l },
+
+  panneau: {
+    backgroundColor: couleurs.panneau,
+    borderRadius: rayon.m,
+    padding: espace.l,
+    ...cadre,
   },
-  carteTitre: { color: couleurs.encre, fontSize: 17, fontWeight: '700' },
-  niveaux: { flexDirection: 'row', justifyContent: 'space-between', marginTop: espace.l },
+  instrument: { ...typo.instrument, color: couleurs.discret, fontFamily: police.corpsFort, textTransform: 'uppercase' },
+
+  // Cadran de batterie : les cinq crans, l'ambre marque celui du jour.
+  niveaux: { flexDirection: 'row', marginTop: espace.l },
   niveau: {
     alignItems: 'center',
     paddingVertical: espace.s,
     paddingHorizontal: espace.xs,
-    borderRadius: rayon.m,
+    borderRadius: rayon.s,
     flex: 1,
+    ...cadre,
+    marginRight: espace.xs,
   },
-  niveauActif: { backgroundColor: couleurs.accentDoux },
-  niveauEmoji: { fontSize: 26 },
-  niveauLabel: { fontSize: 10.5, color: couleurs.discret, marginTop: espace.xs, fontWeight: '600' },
-  niveauLabelActif: { color: couleurs.accent },
+  niveauActif: { backgroundColor: couleurs.accent },
+  niveauEmoji: { fontSize: 24 },
+  niveauLabel: { fontSize: 10.5, color: couleurs.texte, marginTop: espace.xs, fontFamily: police.corpsFort },
+  niveauLabelActif: { color: couleurs.encre },
+
   historique: {
     flexDirection: 'row',
     alignItems: 'flex-end',
     justifyContent: 'space-between',
-    height: 44,
+    height: 48,
     marginTop: espace.xl,
-    paddingHorizontal: espace.s,
+    paddingTop: espace.s,
+    borderTopWidth: 1,
+    borderTopColor: couleurs.ligne,
   },
   jour: { flex: 1, alignItems: 'center', justifyContent: 'flex-end' },
-  jauge: { width: 14, height: 4, borderRadius: 3, backgroundColor: couleurs.ligne },
-  historiqueLegende: { color: couleurs.discret, fontSize: 12, marginTop: espace.m },
-  carteDefi: {
+  jauge: { width: 14, height: 4, backgroundColor: couleurs.ligne },
+  historiqueLegende: { color: couleurs.discret, fontSize: 12, lineHeight: 17, marginTop: espace.m, fontFamily: police.corps },
+
+  panneauDefi: {
     backgroundColor: couleurs.reussiteDoux,
-    borderRadius: rayon.l,
-    padding: espace.xl,
-    marginBottom: espace.l,
+    borderRadius: rayon.m,
+    padding: espace.l,
+    borderWidth: 2,
+    borderColor: couleurs.reussite,
   },
-  defiBadge: { color: couleurs.reussite, fontWeight: '700', fontSize: 13 },
-  defiTexte: { color: couleurs.encre, fontSize: 17, fontWeight: '700', lineHeight: 24, marginTop: espace.s },
-  conseil: { color: couleurs.texte, fontSize: 15, lineHeight: 23, marginTop: espace.s, fontStyle: 'italic' },
+  defiTexte: { color: couleurs.encre, fontSize: 17, lineHeight: 24, fontFamily: police.corpsFort },
+  conseil: { color: couleurs.texte, fontSize: 15, lineHeight: 23, fontFamily: police.corps },
 });

@@ -4,7 +4,8 @@
 // arrivera avec les partenariats.
 
 import { ScrollView, Text, View, StyleSheet } from 'react-native';
-import { couleurs, espace, rayon, ombre } from '../theme.js';
+import { couleurs, espace, rayon, police, typo, cadre, ombre } from '../theme.js';
+import { Strip, Section, Pastille } from '../components/ui.js';
 
 /** Missions courtes, rotation hebdomadaire — du concret, pas des grands mots. */
 const MISSIONS = [
@@ -24,35 +25,43 @@ function numeroSemaine(d = new Date()) {
 }
 
 export function Couple() {
-  const mission = MISSIONS[numeroSemaine() % MISSIONS.length];
+  const semaine = numeroSemaine();
+  const mission = MISSIONS[semaine % MISSIONS.length];
 
   return (
     <ScrollView style={styles.ecran} contentContainerStyle={styles.contenu}>
-      <Text style={styles.surTitre}>Couple</Text>
+      <Strip style={styles.strip}>
+        <Text style={styles.stripCode}>MODULE · COUPLE</Text>
+        <Text style={styles.stripStatut}>MISSION DE LA SEMAINE</Text>
+      </Strip>
+
       <Text style={styles.titre}>Elle aussi, elle compte.</Text>
 
-      <View style={styles.carteMission}>
-        <Text style={styles.missionBadge}>💌 La mission de la semaine</Text>
+      {/* L'unique panneau ambre de l'écran : c'est l'action de la semaine. */}
+      <View style={styles.mission}>
+        <Text style={styles.missionLabel}>MISSION · SEMAINE {semaine}</Text>
         <Text style={styles.missionTitre}>{mission.titre}</Text>
         <Text style={styles.missionTexte}>{mission.texte}</Text>
       </View>
 
-      <View style={styles.carte}>
-        <Text style={styles.carteTitre}>🍷 Radar date night</Text>
-        <Text style={styles.carteTexte}>
+      <Section>En construction</Section>
+
+      <View style={styles.panneau}>
+        <Text style={styles.panneauTitre}>Radar date night</Text>
+        <Text style={styles.panneauTexte}>
           Bientôt : les restos et les solutions de garde du même soir, près de
-          chez toi. On négocie les premiers bons plans bretons avec la tribu.
+          chez toi. On négocie les premiers bons plans avec la tribu.
         </Text>
-        <View style={styles.tag}><Text style={styles.tagTexte}>Bientôt en Bretagne</Text></View>
+        <View style={styles.pastilles}><Pastille label="Bientôt" /></View>
       </View>
 
-      <View style={styles.carte}>
-        <Text style={styles.carteTitre}>📅 Les dates qui comptent</Text>
-        <Text style={styles.carteTexte}>
+      <View style={styles.panneau}>
+        <Text style={styles.panneauTitre}>Les dates qui comptent</Text>
+        <Text style={styles.panneauTexte}>
           Anniversaire de rencontre, premier rendez-vous… Papa Parfait s'en
           souviendra pour toi. Rappels discrets, quelques jours avant.
         </Text>
-        <View style={styles.tag}><Text style={styles.tagTexte}>Bientôt</Text></View>
+        <View style={styles.pastilles}><Pastille label="Bientôt" /></View>
       </View>
     </ScrollView>
   );
@@ -60,36 +69,33 @@ export function Couple() {
 
 const styles = StyleSheet.create({
   ecran: { flex: 1, backgroundColor: couleurs.fond },
-  contenu: { padding: espace.xl, paddingTop: 64, paddingBottom: 120 },
-  surTitre: { color: couleurs.discret, fontSize: 14, fontWeight: '600' },
-  titre: { color: couleurs.encre, fontSize: 30, fontWeight: '800', marginTop: espace.xs, marginBottom: espace.xl },
-  carteMission: {
-    backgroundColor: couleurs.encre,
-    borderRadius: rayon.l,
+  contenu: { padding: espace.xl, paddingTop: 56, paddingBottom: 120 },
+
+  strip: { marginBottom: espace.l },
+  stripCode: { color: couleurs.stripTexte, fontSize: 15, letterSpacing: 0.5, fontFamily: police.corpsFort },
+  stripStatut: { ...typo.instrument, color: couleurs.accent, fontFamily: police.corpsFort, marginTop: espace.xs, textTransform: 'uppercase' },
+
+  titre: { ...typo.displayL, color: couleurs.encre, fontFamily: police.display, marginBottom: espace.l },
+
+  mission: {
+    backgroundColor: couleurs.accent,
+    borderRadius: rayon.m,
     padding: espace.xl,
-    marginBottom: espace.l,
-    ...ombre.carte,
+    ...cadre,
+    ...ombre.relief,
   },
-  missionBadge: { color: couleurs.accentDoux, fontWeight: '700', fontSize: 13 },
-  missionTitre: { color: '#FFFFFF', fontSize: 22, fontWeight: '800', marginTop: espace.m },
-  missionTexte: { color: '#E8E4DC', fontSize: 15.5, lineHeight: 23, marginTop: espace.s },
-  carte: {
-    backgroundColor: couleurs.carte,
-    borderRadius: rayon.l,
-    padding: espace.xl,
-    marginBottom: espace.l,
-    borderWidth: 1,
-    borderColor: couleurs.ligne,
+  missionLabel: { ...typo.instrument, color: couleurs.encre, fontFamily: police.corpsFort, textTransform: 'uppercase' },
+  missionTitre: { ...typo.displayL, fontSize: 26, lineHeight: 28, color: couleurs.encre, fontFamily: police.display, marginTop: espace.s },
+  missionTexte: { color: couleurs.encre, fontSize: 15.5, lineHeight: 23, marginTop: espace.s, fontFamily: police.corps },
+
+  panneau: {
+    backgroundColor: couleurs.panneau,
+    borderRadius: rayon.m,
+    padding: espace.l,
+    marginBottom: espace.m,
+    ...cadre,
   },
-  carteTitre: { color: couleurs.encre, fontSize: 17, fontWeight: '700' },
-  carteTexte: { color: couleurs.texte, fontSize: 14.5, lineHeight: 21, marginTop: espace.s },
-  tag: {
-    alignSelf: 'flex-start',
-    backgroundColor: couleurs.accentDoux,
-    borderRadius: rayon.pill,
-    paddingHorizontal: espace.m,
-    paddingVertical: espace.xs,
-    marginTop: espace.m,
-  },
-  tagTexte: { color: couleurs.accent, fontWeight: '700', fontSize: 12 },
+  panneauTitre: { color: couleurs.encre, fontSize: 17, lineHeight: 22, fontFamily: police.corpsFort },
+  panneauTexte: { color: couleurs.texte, fontSize: 14.5, lineHeight: 21, marginTop: espace.xs, fontFamily: police.corps },
+  pastilles: { flexDirection: 'row', marginTop: espace.m },
 });

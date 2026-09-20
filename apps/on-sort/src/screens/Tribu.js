@@ -6,8 +6,8 @@ import { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator, Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, View,
 } from 'react-native';
-import { couleurs, espace, rayon } from '../theme.js';
-import { Chip } from '../components/ui.js';
+import { couleurs, espace, rayon, police, typo, cadre, ombre } from '../theme.js';
+import { Chip, Strip } from '../components/ui.js';
 import { VILLES } from '../config.js';
 import {
   lireIdentite, inscrire, chargerFil, publierPost, basculerPouce, signalerPost, tempsRelatif,
@@ -86,7 +86,11 @@ export function Tribu({ profil }) {
       contentContainerStyle={styles.contenu}
       refreshControl={<RefreshControl refreshing={false} onRefresh={() => charger(identite?.jeton)} />}
     >
-      <Text style={styles.surTitre}>Tribu · {ville.dept}</Text>
+      <Strip style={styles.strip}>
+        <Text style={styles.stripCode}>MODULE · TRIBU</Text>
+        <Text style={styles.stripStatut}>{ville.dept.toUpperCase()}</Text>
+      </Strip>
+
       <Text style={styles.titre}>Entre papas, on se comprend.</Text>
 
       {!identite && <Inscription ville={ville} onInscrit={(id) => { setIdentite(id); charger(id.jeton); }} />}
@@ -110,7 +114,7 @@ export function Tribu({ profil }) {
       )}
       {!chargement && !erreur && posts.length === 0 && (
         <View style={styles.etat}>
-          <Text style={styles.etatTitre}>Le fil est tout neuf 🌱</Text>
+          <Text style={styles.etatTitre}>Le fil est tout neuf.</Text>
           <Text style={styles.etatTexte}>Sois le premier papa du {ville.dept} à poster !</Text>
         </View>
       )}
@@ -173,7 +177,7 @@ function Inscription({ ville, onInscrit }) {
 
   return (
     <View style={styles.carteInscription}>
-      <Text style={styles.inscriptionTitre}>🔥 Rejoins la tribu</Text>
+      <Text style={styles.inscriptionTitre}>Rejoins la tribu</Text>
       <Text style={styles.inscriptionTexte}>
         Un pseudo suffit — pas d'e-mail, pas de mot de passe. Les 100 premiers
         papas ont le badge Fondateur 🏅.
@@ -188,12 +192,13 @@ function Inscription({ ville, onInscrit }) {
         autoCapitalize="words"
       />
       {!!erreur && <Text style={styles.inscriptionErreur}>{erreur}</Text>}
+      {/* Panneau déjà ambre : le bouton se détache à l'encre, pas en ambre sur ambre. */}
       <Pressable
-        style={[styles.cta, (envoi || pseudo.trim().length < 2) && styles.ctaInactif]}
+        style={[styles.cta, styles.ctaEncre, (envoi || pseudo.trim().length < 2) && styles.ctaInactif]}
         onPress={valider}
         disabled={envoi || pseudo.trim().length < 2}
       >
-        <Text style={styles.ctaTexte}>{envoi ? '…' : 'Je rejoins'}</Text>
+        <Text style={[styles.ctaTexte, styles.ctaTexteEncre]}>{envoi ? '…' : 'Je rejoins'}</Text>
       </Pressable>
     </View>
   );
@@ -249,93 +254,107 @@ function Composer({ jeton, onPublie }) {
 
 const styles = StyleSheet.create({
   ecran: { flex: 1, backgroundColor: couleurs.fond },
-  contenu: { padding: espace.xl, paddingTop: 64, paddingBottom: 120 },
-  surTitre: { color: couleurs.discret, fontSize: 14, fontWeight: '600' },
-  titre: { color: couleurs.encre, fontSize: 30, fontWeight: '800', marginTop: espace.xs, marginBottom: espace.xl },
+  contenu: { padding: espace.xl, paddingTop: 56, paddingBottom: 120 },
 
+  strip: { marginBottom: espace.l },
+  stripCode: { color: couleurs.stripTexte, fontSize: 15, letterSpacing: 0.5, fontFamily: police.corpsFort },
+  stripStatut: { ...typo.instrument, color: couleurs.accent, fontFamily: police.corpsFort, marginTop: espace.xs, textTransform: 'uppercase' },
+
+  titre: { ...typo.displayL, color: couleurs.encre, fontFamily: police.display, marginBottom: espace.l },
+
+  // Inscription : l'action d'entrée de l'écran, donc le panneau ambre.
   carteInscription: {
-    backgroundColor: couleurs.accentDoux,
-    borderRadius: rayon.l,
+    backgroundColor: couleurs.accent,
+    borderRadius: rayon.m,
     padding: espace.xl,
     marginBottom: espace.xl,
+    ...cadre,
+    ...ombre.relief,
   },
-  inscriptionTitre: { color: couleurs.accent, fontWeight: '800', fontSize: 18 },
-  inscriptionTexte: { color: couleurs.encre, fontSize: 14, lineHeight: 20, marginTop: espace.s, marginBottom: espace.l },
-  inscriptionErreur: { color: couleurs.accent, fontSize: 13, marginTop: espace.s },
+  inscriptionTitre: { ...typo.displayL, fontSize: 24, lineHeight: 26, color: couleurs.encre, fontFamily: police.display },
+  inscriptionTexte: { color: couleurs.encre, fontSize: 14.5, lineHeight: 21, marginTop: espace.s, marginBottom: espace.l, fontFamily: police.corps },
+  inscriptionErreur: { color: couleurs.alerte, fontSize: 13, marginTop: espace.s, fontFamily: police.corpsFort },
 
   composer: {
-    backgroundColor: couleurs.carte,
-    borderRadius: rayon.l,
+    backgroundColor: couleurs.panneau,
+    borderRadius: rayon.m,
     padding: espace.l,
     marginBottom: espace.xl,
-    borderWidth: 1,
-    borderColor: couleurs.ligne,
+    ...cadre,
   },
   composerTypes: { flexDirection: 'row', marginBottom: espace.s },
 
   champ: {
-    backgroundColor: couleurs.fond,
+    backgroundColor: couleurs.panneau,
     borderRadius: rayon.m,
-    borderWidth: 1,
-    borderColor: couleurs.ligne,
     paddingHorizontal: espace.l,
     paddingVertical: espace.m,
     fontSize: 15,
     color: couleurs.encre,
+    fontFamily: police.corps,
+    ...cadre,
   },
   champMultiligne: { minHeight: 80, textAlignVertical: 'top' },
   cta: {
     marginTop: espace.m,
     backgroundColor: couleurs.accent,
-    borderRadius: rayon.m,
+    borderRadius: rayon.pill,
     paddingVertical: espace.m,
     alignItems: 'center',
+    ...cadre,
   },
-  ctaInactif: { opacity: 0.4 },
-  ctaTexte: { color: '#FFFFFF', fontSize: 15, fontWeight: '700' },
+  ctaInactif: { opacity: 0.45 },
+  ctaTexte: { color: couleurs.encre, fontSize: 16, fontFamily: police.corpsFort },
+  ctaEncre: { backgroundColor: couleurs.encre },
+  ctaTexteEncre: { color: couleurs.stripTexte },
 
   etat: { alignItems: 'center', paddingVertical: espace.xxl },
-  etatTitre: { color: couleurs.encre, fontSize: 18, fontWeight: '700' },
-  etatTexte: { color: couleurs.discret, fontSize: 15, textAlign: 'center', marginTop: espace.s },
-  lien: { color: couleurs.accent, fontWeight: '700', fontSize: 15, marginTop: espace.m },
+  etatTitre: { ...typo.displayL, fontSize: 22, color: couleurs.encre, fontFamily: police.display },
+  etatTexte: { color: couleurs.discret, fontSize: 15, textAlign: 'center', marginTop: espace.s, fontFamily: police.corps },
+  lien: { color: couleurs.accentEncre, fontSize: 15, marginTop: espace.m, fontFamily: police.corpsFort },
 
   post: {
-    backgroundColor: couleurs.carte,
-    borderRadius: rayon.l,
+    backgroundColor: couleurs.panneau,
+    borderRadius: rayon.m,
     padding: espace.l,
-    marginBottom: espace.l,
-    borderWidth: 1,
-    borderColor: couleurs.ligne,
+    marginBottom: espace.m,
+    ...cadre,
   },
   postEntete: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   enteteDroite: { flexDirection: 'row', alignItems: 'center', gap: espace.m },
-  auteur: { color: couleurs.encre, fontWeight: '700', fontSize: 14.5, flexShrink: 1 },
-  temps: { color: couleurs.discret, fontSize: 12.5 },
-  menu: { color: couleurs.discret, fontSize: 18, fontWeight: '700' },
+  auteur: { color: couleurs.encre, fontSize: 14.5, flexShrink: 1, fontFamily: police.corpsFort },
+  temps: { color: couleurs.discret, fontSize: 12.5, fontFamily: police.corps },
+  menu: { color: couleurs.discret, fontSize: 18, fontFamily: police.corpsFort },
   menuSignaler: {
     alignSelf: 'flex-end',
     backgroundColor: couleurs.fond,
-    borderWidth: 1,
-    borderColor: couleurs.ligne,
-    borderRadius: rayon.m,
+    borderRadius: rayon.s,
     paddingHorizontal: espace.m,
     paddingVertical: espace.s,
     marginTop: espace.s,
+    ...cadre,
   },
-  menuSignalerTexte: { color: couleurs.accent, fontSize: 13, fontWeight: '600' },
+  menuSignalerTexte: { color: couleurs.alerte, fontSize: 13, fontFamily: police.corpsFort },
   type: {
     alignSelf: 'flex-start',
-    borderWidth: 1,
+    borderWidth: 1.5,
     borderRadius: rayon.pill,
-    paddingHorizontal: espace.s + 2,
+    paddingHorizontal: espace.m,
     paddingVertical: 2,
     marginTop: espace.s,
   },
-  typeSortie: { borderColor: couleurs.reussite },
-  typeEntraide: { borderColor: couleurs.accent },
-  typeTexte: { fontSize: 11.5, fontWeight: '700' },
-  texte: { color: couleurs.texte, fontSize: 15, lineHeight: 22, marginTop: espace.m },
-  actions: { flexDirection: 'row', gap: espace.xl, marginTop: espace.m },
-  action: { color: couleurs.discret, fontSize: 14, fontWeight: '700' },
-  actionActive: { color: couleurs.accent },
+  typeSortie: { borderColor: couleurs.reussite, backgroundColor: couleurs.reussiteDoux },
+  typeEntraide: { borderColor: couleurs.encre },
+  typeTexte: { fontSize: 11.5, letterSpacing: 0.4, fontFamily: police.corpsFort, textTransform: 'uppercase' },
+  texte: { color: couleurs.texte, fontSize: 15, lineHeight: 22, marginTop: espace.m, fontFamily: police.corps },
+  actions: {
+    flexDirection: 'row',
+    gap: espace.xl,
+    marginTop: espace.m,
+    paddingTop: espace.m,
+    borderTopWidth: 1,
+    borderTopColor: couleurs.ligne,
+  },
+  action: { color: couleurs.texte, fontSize: 14, fontFamily: police.corpsFort },
+  actionActive: { color: couleurs.accentEncre },
 });

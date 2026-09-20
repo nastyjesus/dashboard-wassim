@@ -10,15 +10,22 @@ async function requete(chemin, { methode = 'GET', corps, jeton } = {}) {
   const controleur = new AbortController();
   const minuteur = setTimeout(() => controleur.abort(), 15000);
   try {
-    const res = await fetch(`${TRIBU_URL}${chemin}`, {
-      method: methode,
-      signal: controleur.signal,
-      headers: {
-        'Content-Type': 'application/json',
-        ...(jeton ? { Authorization: `Bearer ${jeton}` } : {}),
-      },
-      body: corps ? JSON.stringify(corps) : undefined,
-    });
+    let res;
+    try {
+      res = await fetch(`${TRIBU_URL}${chemin}`, {
+        method: methode,
+        signal: controleur.signal,
+        headers: {
+          'Content-Type': 'application/json',
+          ...(jeton ? { Authorization: `Bearer ${jeton}` } : {}),
+        },
+        body: corps ? JSON.stringify(corps) : undefined,
+      });
+    } catch {
+      // Réseau coupé, DNS, service non déployé : « Failed to fetch » n'a aucun
+      // sens pour un papa. On dit ce qui se passe, en français.
+      throw new Error('La tribu est injoignable pour le moment. Réessaie dans un instant.');
+    }
     const data = await res.json().catch(() => ({}));
     if (!res.ok) throw new Error(data.message || `Le service a répondu ${res.status}`);
     return data;
