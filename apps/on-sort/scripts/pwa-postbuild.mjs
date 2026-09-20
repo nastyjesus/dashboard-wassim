@@ -110,9 +110,14 @@ writeFileSync(indexPath, html);
 //    qu'il n'existe qu'une seule version du texte (docs/politique-confidentialite.md).
 //    L'app étant une SPA, la page vit dans son propre dossier pour ne pas être
 //    avalée par le routage « tout vers index.html ».
+//    Écrite à deux endroits : `confidentialite.html` répond à l'URL sans
+//    barre oblique (celle qu'on donne à Google Play), `confidentialite/index.html`
+//    à celle avec. Sans les deux, le routage SPA renvoie l'app à la place.
 const md = readFileSync(join(racine, 'docs', 'politique-confidentialite.md'), 'utf8');
+const pageHtml = pageConfidentialite(md);
 mkdirSync(join(dist, 'confidentialite'), { recursive: true });
-writeFileSync(join(dist, 'confidentialite', 'index.html'), pageConfidentialite(md));
+writeFileSync(join(dist, 'confidentialite', 'index.html'), pageHtml);
+writeFileSync(join(dist, 'confidentialite.html'), pageHtml);
 
 console.log('PWA post-build : manifest, sw.js, icônes, meta et /confidentialite écrits.');
 
