@@ -160,6 +160,10 @@ function pageConfidentialite(markdown) {
     } else if (ligne.startsWith('- ')) {
       viderParagraphe();
       liste.push(ligne.slice(2));
+    } else if (liste.length && !paragraphe.length) {
+      // Suite d'une puce repliée sur plusieurs lignes : elle appartient au
+      // dernier point, pas à un nouveau paragraphe.
+      liste[liste.length - 1] += ` ${ligne}`;
     } else {
       viderListe();
       paragraphe.push(ligne);
