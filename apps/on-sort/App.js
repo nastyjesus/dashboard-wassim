@@ -8,14 +8,13 @@ import { View, StyleSheet } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import * as SplashScreen from 'expo-splash-screen';
 import { useFonts } from 'expo-font';
-import {
-  SairaCondensed_700Bold,
-  SairaCondensed_800ExtraBold,
-} from '@expo-google-fonts/saira-condensed';
-import {
-  IBMPlexSans_400Regular,
-  IBMPlexSans_600SemiBold,
-} from '@expo-google-fonts/ibm-plex-sans';
+// Import par sous-chemin, pas depuis la racine du paquet : l'index racine
+// `require()` les 9 graisses de chaque famille, et Metro les embarque toutes
+// (23 fichiers .ttf pour 4 utilisés, mesuré le 19 septembre 2026).
+import { SairaCondensed_700Bold } from '@expo-google-fonts/saira-condensed/700Bold';
+import { SairaCondensed_800ExtraBold } from '@expo-google-fonts/saira-condensed/800ExtraBold';
+import { IBMPlexSans_400Regular } from '@expo-google-fonts/ibm-plex-sans/400Regular';
+import { IBMPlexSans_600SemiBold } from '@expo-google-fonts/ibm-plex-sans/600SemiBold';
 import { couleurs } from './src/theme.js';
 import { lireProfil, ecrireProfil } from './src/storage.js';
 import { Onboarding } from './src/screens/Onboarding.js';

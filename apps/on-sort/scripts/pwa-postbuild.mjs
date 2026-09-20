@@ -105,4 +105,124 @@ html = html.replace('</body>', `${enregistrementSW}  </body>`);
 
 writeFileSync(indexPath, html);
 
-console.log('PWA post-build : manifest, sw.js, icônes et meta injectés.');
+// 5. Politique de confidentialité en page statique.
+//    Google Play exige une URL publique ; on la génère depuis le Markdown pour
+//    qu'il n'existe qu'une seule version du texte (docs/politique-confidentialite.md).
+//    L'app étant une SPA, la page vit dans son propre dossier pour ne pas être
+//    avalée par le routage « tout vers index.html ».
+const md = readFileSync(join(racine, 'docs', 'politique-confidentialite.md'), 'utf8');
+mkdirSync(join(dist, 'confidentialite'), { recursive: true });
+writeFileSync(join(dist, 'confidentialite', 'index.html'), pageConfidentialite(md));
+
+console.log('PWA post-build : manifest, sw.js, icônes, meta et /confidentialite écrits.');
+
+/** Échappe le HTML : le Markdown est à nous, mais on ne prend pas le risque. */
+function echapper(s) {
+  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+/** Gras, italique, liens nus, e-mails — le strict nécessaire de ce document. */
+function enLigne(s) {
+  return echapper(s)
+    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+    .replace(/(^|[\s(])\*(?!\s)(.+?)\*/g, '$1<em>$2</em>')
+    .replace(/\b([\w.+-]+@[\w-]+\.[\w.]+)\b/g, '<a href="mailto:$1">$1</a>')
+    .replace(/\b(www\.[\w.-]+)\b/g, '<a href="https://$1" rel="noopener">$1</a>');
+}
+
+/** Markdown minimal → HTML, charte « Cockpit clair ». */
+function pageConfidentialite(markdown) {
+  const corps = [];
+  let paragraphe = [];
+  let liste = [];
+  const viderParagraphe = () => {
+    if (paragraphe.length) corps.push(`<p>${enLigne(paragraphe.join(' '))}</p>`);
+    paragraphe = [];
+  };
+  const viderListe = () => {
+    if (liste.length) corps.push(`<ul>${liste.map((li) => `<li>${enLigne(li)}</li>`).join('')}</ul>`);
+    liste = [];
+  };
+  for (const brute of markdown.split(/\r?\n/)) {
+    const ligne = brute.trim();
+    if (!ligne) { viderParagraphe(); viderListe(); continue; }
+    if (ligne.startsWith('## ')) {
+      viderParagraphe(); viderListe();
+      corps.push(`<h2>${enLigne(ligne.slice(3))}</h2>`);
+    } else if (ligne.startsWith('# ')) {
+      viderParagraphe(); viderListe();
+      corps.push(`<h1>${enLigne(ligne.slice(2))}</h1>`);
+    } else if (ligne.startsWith('- ')) {
+      viderParagraphe();
+      liste.push(ligne.slice(2));
+    } else {
+      viderListe();
+      paragraphe.push(ligne);
+    }
+  }
+  viderParagraphe();
+  viderListe();
+
+  return `<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Politique de confidentialité — ${NOM}</title>
+<meta name="theme-color" content="${THEME}" />
+<meta name="robots" content="index, follow" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Saira+Condensed:wght@700;800&family=IBM+Plex+Sans:wght@400;600&display=swap" />
+<style>
+  :root { color-scheme: light; }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: ${FOND}; color: #1B1815;
+    font-family: "IBM Plex Sans", system-ui, sans-serif;
+    font-size: 16px; line-height: 1.6;
+  }
+  .page { max-width: 720px; margin: 0 auto; padding-inline: 20px; padding-block: 0 64px; }
+  header {
+    background: #1B1815; color: #F4EFE6;
+    margin-inline: -20px; padding: 22px 20px;
+  }
+  header .marque {
+    font-family: "Saira Condensed", "Arial Narrow", sans-serif; font-weight: 800;
+    font-size: 30px; line-height: 1; text-transform: uppercase; letter-spacing: -0.3px;
+  }
+  header .sous {
+    font-size: 11px; font-weight: 600; letter-spacing: 0.8px; text-transform: uppercase;
+    color: #FF8A00; margin-top: 4px;
+  }
+  h1 {
+    font-family: "Saira Condensed", "Arial Narrow", sans-serif; font-weight: 800;
+    font-size: 34px; line-height: 1.05; margin: 28px 0 4px; text-wrap: balance;
+  }
+  h2 {
+    font-family: "Saira Condensed", "Arial Narrow", sans-serif; font-weight: 700;
+    font-size: 15px; letter-spacing: 0.5px; text-transform: uppercase;
+    margin: 32px 0 8px; padding-bottom: 6px; border-bottom: 2px solid #1B1815;
+  }
+  p, li { color: #5C554B; }
+  p em { color: #8B8375; font-style: normal; font-size: 14px; }
+  strong { color: #1B1815; font-weight: 600; }
+  ul { padding-left: 20px; display: flex; flex-direction: column; gap: 6px; }
+  a { color: #A85400; }
+  a:focus-visible { outline: 2px solid #FF8A00; outline-offset: 2px; }
+  footer {
+    margin-top: 40px; padding-top: 14px; border-top: 1px solid #D7CFC0;
+    font-size: 13px; color: #8B8375;
+  }
+</style>
+</head>
+<body>
+<header><div class="marque">${NOM}</div><div class="sous">Le QG des papas</div></header>
+<main class="page">
+${corps.join('\n')}
+<footer><a href="/">Retour à l'application</a></footer>
+</main>
+</body>
+</html>
+`;
+}
