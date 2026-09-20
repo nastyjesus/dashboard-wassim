@@ -7,7 +7,7 @@ import { useState } from 'react';
 import { ScrollView, Text, View, StyleSheet, Alert } from 'react-native';
 import { couleurs, espace, police, typo, cadre } from '../theme.js';
 import { Chip, Bouton, Champ } from '../components/ui.js';
-import { AGES_ENFANT, DEPARTEMENTS, villesParDept } from '../config.js';
+import { AGES_ENFANT, DEPARTEMENTS, villesParDept, GOOGLE_ACTIF } from '../config.js';
 import { creerCompte, connexionGoogle, demanderVille } from '../compte-api.js';
 
 const labelAge = (a) => (a === 0 ? '< 1 an' : a === 1 ? '1 an' : `${a} ans`);
@@ -47,6 +47,9 @@ export function Onboarding({ profilInitial, onValider }) {
     }
   };
 
+  // Branché sur le bouton Google quand GOOGLE_ACTIF repassera à true. En
+  // l'état, l'authentification réussit mais ne produit ni profil ni
+  // navigation : le retour de session reste à écrire (voir config.js).
   const google = async () => {
     try {
       await connexionGoogle();
@@ -110,7 +113,9 @@ export function Onboarding({ profilInitial, onValider }) {
         autoCapitalize="none"
       />
 
-      <Bouton variante="google" icone="G" label="Continuer avec Google" onPress={google} pleineLargeur />
+      {GOOGLE_ACTIF && (
+        <Bouton variante="google" icone="G" label="Continuer avec Google" onPress={google} pleineLargeur />
+      )}
 
       {/* Enfant */}
       <Text style={styles.section}>L'ÂGE DE TON ENFANT</Text>

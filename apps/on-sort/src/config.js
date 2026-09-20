@@ -63,6 +63,14 @@ export const villesParDept = (code) => VILLES.filter((v) => v.code === code);
  *  À remplacer par le lien Play Store quand la beta Android sera en ligne. */
 export const LIEN_APP = 'https://papa-parfait-web.loumiwassim.workers.dev';
 
+/** Bouton « Continuer avec Google ».
+ *  Désactivé le 20 septembre 2026 : le flux authentifie bien côté Google, mais
+ *  ne mène nulle part — aucun profil n'est écrit et l'onboarding se réaffiche.
+ *  Sur web s'ajoute un blocage COOP (`window.closed`) qui empêche l'app de
+ *  détecter le retour du popup. À rouvrir quand le retour de session sera
+ *  traité (lire la session, charger ou compléter le profil). */
+export const GOOGLE_ACTIF = false;
+
 /** Piliers actifs. Couple/Moi/Tribu sont en teaser (vote « Ça m'intéresse »)
  *  tant que les Sorties n'ont pas fait leurs preuves — passer un pilier à
  *  true réactive l'écran complet correspondant, déjà codé. */

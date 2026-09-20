@@ -16,8 +16,11 @@ const dist = join(racine, 'dist');
 const assets = join(racine, 'assets');
 
 const NOM = 'Papa Parfait';
-const THEME = '#D95B43';
-const FOND = '#FAF6EF';
+// Charte « Cockpit clair » (docs/charte-graphique.md) : la barre du navigateur
+// prend l'encre du bandeau instrument, l'écran de démarrage le sable du fond.
+// L'ambre reste réservé au GO dans l'app — il ne décore pas le chrome.
+const THEME = '#1B1815';
+const FOND = '#ECE6DA';
 
 // 1. Icônes.
 mkdirSync(join(dist, 'icons'), { recursive: true });
