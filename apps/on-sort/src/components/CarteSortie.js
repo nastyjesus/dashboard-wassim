@@ -13,13 +13,34 @@ function sousTitre(ev) {
   return morceaux.join(' · ');
 }
 
-export function CarteSortie({ ev, rang, preferee, onPress }) {
+// Bouton « garder » — étoile cadrée à l'encre, jamais ambre (l'ambre reste au
+// GO). Pleine = gardée. Le geste marche sans compte.
+function Etoile({ gardee, onPress }) {
+  if (!onPress) return null;
+  return (
+    <Pressable
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={gardee ? 'Retirer des sorties gardées' : 'Garder cette sortie'}
+      accessibilityState={{ selected: !!gardee }}
+      hitSlop={8}
+      style={[styles.etoile, gardee && styles.etoilePleine]}
+    >
+      <Text style={styles.etoileTexte}>{gardee ? '★' : '☆'}</Text>
+    </Pressable>
+  );
+}
+
+export function CarteSortie({ ev, rang, preferee, onPress, gardee, onGarder }) {
   if (preferee) {
     return (
       <Pressable onPress={onPress} style={styles.go} accessibilityRole="button">
         <View style={styles.goEntete}>
           <Text style={styles.goStatut}>STATUT : ON SORT</Text>
-          <Text style={styles.goChevron}>›</Text>
+          <View style={styles.goActions}>
+            <Etoile gardee={gardee} onPress={onGarder} />
+            <Text style={styles.goChevron}>›</Text>
+          </View>
         </View>
         <Text style={styles.goTitre} numberOfLines={3}>{ev.titre}</Text>
         {!!sousTitre(ev) && <Text style={styles.goSous}>{sousTitre(ev)}</Text>}
@@ -43,6 +64,7 @@ export function CarteSortie({ ev, rang, preferee, onPress }) {
           {(ev.raisons || []).slice(0, 3).map((r) => <Pastille key={r} label={r} />)}
         </View>
       </View>
+      <Etoile gardee={gardee} onPress={onGarder} />
       <Text style={styles.chevron}>›</Text>
     </Pressable>
   );
@@ -59,6 +81,7 @@ const styles = StyleSheet.create({
     ...ombre.relief,
   },
   goEntete: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  goActions: { flexDirection: 'row', alignItems: 'center', gap: espace.m },
   goStatut: { ...typo.instrument, color: couleurs.encre, fontFamily: police.corpsFort, textTransform: 'uppercase' },
   goChevron: { fontSize: 26, color: couleurs.encre, lineHeight: 26 },
   goTitre: { ...typo.displayL, color: couleurs.encre, fontFamily: police.display, marginTop: espace.s },
@@ -90,4 +113,18 @@ const styles = StyleSheet.create({
   chevron: { fontSize: 24, color: couleurs.encre, marginLeft: espace.s },
 
   raisons: { flexDirection: 'row', flexWrap: 'wrap', marginTop: espace.m },
+
+  // Étoile « garder » — pastille cadrée, pleine quand la sortie est gardée.
+  etoile: {
+    width: 34,
+    height: 34,
+    borderRadius: rayon.pill,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1.5,
+    borderColor: couleurs.encre,
+    marginLeft: espace.s,
+  },
+  etoilePleine: { backgroundColor: couleurs.reussiteDoux, borderColor: couleurs.reussite },
+  etoileTexte: { fontSize: 16, lineHeight: 20, color: couleurs.encre },
 });

@@ -48,7 +48,8 @@ apps/on-sort/
 │   ├── config.js             → réglages : villes, âges, URL de l'app, piliers actifs
 │   ├── theme.js              → couleurs, polices, espacements (le style)
 │   ├── screens/              → un fichier par écran
-│   │   ├── Onboarding.js      →   l'accueil (ville + âge)
+│   │   ├── Demarrage.js       →   la mise en route (ville + âge, sans compte)
+│   │   ├── Compte.js          →   création de compte, proposée plus tard
 │   │   ├── Sorties.js / Accueil.js / Detail.js  → le top 5 et la fiche
 │   │   ├── Couple.js / Moi.js / Tribu.js          → les piliers complets (codés)
 │   │   ├── Teaser.js          →   l'écran « Bientôt » + vote

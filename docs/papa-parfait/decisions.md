@@ -67,17 +67,37 @@ excellente sur 1. Les votes nous diront quel pilier construire en priorité.
 - **Partage viral** : chaque fiche a un bouton « Partager » qui envoie la sortie
   + le lien de l'app. Chaque partage entre parents = acquisition gratuite.
 
-## Comptes & identité (décidé le 18 septembre 2026)
+## Comptes & identité (décidé le 18 septembre 2026, révisé le 23 septembre 2026)
 
-- **Le compte est obligatoire** dès les premiers testeurs : prénom, email, mot de
-  passe, âge de l'enfant (0-5), département et ville. Connexion Google proposée
-  en plus.
+- **Le compte n'est plus un préalable** (révision du 23 septembre 2026). L'app
+  s'ouvre sur deux réglages — âge de l'enfant, ville — et sort le top tout de
+  suite. Rien d'autre n'est demandé pour voir des sorties.
+  - **Pourquoi** : l'usage visé est « vendredi soir, dernière minute ». Le site
+    promet « ta sortie en quelques secondes », l'app imposait un email et un mot
+    de passe avant la moindre valeur. Le risque était déjà écrit ci-dessous ; on
+    ne l'assume plus, on le supprime.
+  - **Où le compte apparaît** : au premier « garder une sortie » (invitation
+    montrée une fois, refusable), et dans le pied de l'accueil. Nulle part
+    ailleurs.
+  - **Ce qu'il apporte vraiment** : retrouver ses sorties gardées sur un autre
+    appareil (table `favoris`, fusion local ↔ compte à la connexion). Il ne
+    déverrouille aucune sortie — les piliers Couple/Moi/Tribu sont en teaser, ils
+    ne peuvent pas servir de carotte.
+  - **Arrivée par lien** : le site peut envoyer droit au résultat avec
+    `?ville=rennes&age=3`. L'app applique le lien, nettoie l'URL et affiche le
+    top sans écran intermédiaire.
+- **Décision initiale (18 septembre 2026, dépassée)** : le compte était
+  obligatoire dès les premiers testeurs — prénom, email, mot de passe, âge,
+  département, ville, avec Google en option.
 - **Backend : Supabase** (PostgreSQL + Auth), projet créé, tables `profils` et
   `demandes_ville` en place avec RLS, confirmation par email désactivée pour
   réduire la friction. Détail : `apps/on-sort/docs/backend-supabase.md`.
-- **Risque assumé** : un écran de mot de passe sur une PWA envoyée par lien fait
-  décrocher une partie des visiteurs. Si les comptes ne se créent pas, c'est le
-  premier suspect à remettre en question.
+- **Risque qui s'est confirmé** : un écran de mot de passe sur une PWA envoyée
+  par lien fait décrocher une partie des visiteurs. Constaté en live le
+  23 septembre 2026 sur le parcours site → app, corrigé le jour même.
+- **Ce qui manque encore pour trancher par la mesure** : aucun compteur
+  d'usage (ouverture, top affiché, sortie gardée, compte créé). Sans lui, le
+  gain de l'entrée sans compte restera une conviction, pas un chiffre.
 - Les villes demandées par les papas hors zone atterrissent dans
   `demandes_ville` : c'est ce qui décidera des prochaines villes ouvertes.
 

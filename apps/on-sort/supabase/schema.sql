@@ -51,3 +51,37 @@ create or replace view public.demandes_ville_frequence as
   from public.demandes_ville
   group by lower(trim(ville))
   order by demandes desc, derniere desc;
+
+-- 3) Sorties gardées. Elles existent d'abord en local (l'app marche sans
+--    compte) ; cette table sert à les retrouver sur un autre appareil, ce qui
+--    est la seule raison donnée au papa de créer un compte.
+create table if not exists public.favoris (
+  id          bigint generated always as identity primary key,
+  papa        uuid not null references auth.users(id) on delete cascade,
+  cle         text not null,          -- id de la source, sinon titre|date
+  sortie      jsonb not null,         -- la fiche allégée, pour réafficher sans recharger
+  date_sortie date,
+  cree_le     timestamptz not null default now(),
+  unique (papa, cle)
+);
+
+create index if not exists favoris_papa_idx on public.favoris (papa, cree_le desc);
+
+alter table public.favoris enable row level security;
+
+-- Chaque papa ne voit et ne modifie que ses propres sorties gardées.
+drop policy if exists "favori_lecture_soi" on public.favoris;
+create policy "favori_lecture_soi" on public.favoris
+  for select using (auth.uid() = papa);
+
+drop policy if exists "favori_insert_soi" on public.favoris;
+create policy "favori_insert_soi" on public.favoris
+  for insert with check (auth.uid() = papa);
+
+drop policy if exists "favori_maj_soi" on public.favoris;
+create policy "favori_maj_soi" on public.favoris
+  for update using (auth.uid() = papa) with check (auth.uid() = papa);
+
+drop policy if exists "favori_suppr_soi" on public.favoris;
+create policy "favori_suppr_soi" on public.favoris
+  for delete using (auth.uid() = papa);

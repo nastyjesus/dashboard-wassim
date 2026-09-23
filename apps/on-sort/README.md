@@ -18,7 +18,10 @@ worker `workers/on-sort` — l'app affiche.
 4. **🔥 Tribu** — maquette du fil communautaire (posts d'exemple marqués) ;
    le backend social (comptes, posts, modération) est le prochain chantier.
 
-L'onboarding (ville bretonne + âge de l'enfant) est mémorisé en local.
+La mise en route (ville + âge de l'enfant) est mémorisée en local : **aucun
+compte n'est demandé pour voir des sorties**. Le compte n'arrive qu'au premier
+« garder une sortie », pour la retrouver sur un autre appareil. Un lien du type
+`?ville=rennes&age=3` ouvre l'app directement sur le top.
 Navigation volontairement sans dépendance (état local + barre d'onglets
 maison).
 
@@ -36,12 +39,14 @@ donc l'app fonctionne immédiatement, y compris sur téléphone via Expo Go.
 
 ## Structure
 
-- `App.js` — racine : profil chargé ? onboarding : accueil/fiche
-- `src/config.js` — URL du worker, villes proposées, âges
+- `App.js` — racine : lien d'arrivée ? profil local ? compte : mise en route
+- `src/config.js` — URL du worker, villes proposées, âges, villes voisines
 - `src/api.js` — client `/top` (timeout 15 s)
+- `src/lien.js` — arrivée par lien (`?ville=&age=`), web
 - `src/dates.js` — chips de dates dédoublonnées
-- `src/storage.js` — profil en AsyncStorage (tolérant aux échecs)
-- `src/theme.js` — design tokens (crème + encre + terracotta)
+- `src/storage.js` — profil, sorties gardées et drapeaux en AsyncStorage
+- `src/favoris.js` — sorties gardées : local d'abord, fusion avec le compte
+- `src/theme.js` — design tokens « Cockpit clair » (sable + encre + ambre)
 - `src/screens/` et `src/components/`
 
 ## Reste à faire (week-end 3 — monétisation & polish)

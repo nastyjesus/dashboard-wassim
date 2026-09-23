@@ -40,7 +40,7 @@ function Ligne({ icone, texte }) {
   );
 }
 
-export function Detail({ ev, onRetour }) {
+export function Detail({ ev, onRetour, gardee, onGarder }) {
   const plan = urlPlan(ev);
   const age = ev.age ? (ev.age.max !== null ? `${ev.age.min}-${ev.age.max} ans` : `dès ${ev.age.min} ans`) : null;
 
@@ -72,6 +72,13 @@ export function Detail({ ev, onRetour }) {
 
       <View style={styles.actions}>
         {!!ev.url && <Bouton label="Voir l'événement" onPress={() => Linking.openURL(ev.url)} />}
+        {!!onGarder && (
+          <Bouton
+            variante="secondaire"
+            label={gardee ? 'Gardée ★' : 'Garder ☆'}
+            onPress={onGarder}
+          />
+        )}
         {!!plan && <Bouton variante="secondaire" label="Y aller 🗺️" onPress={() => Linking.openURL(plan)} />}
         <Bouton variante="secondaire" label="Partager 📤" onPress={() => partager(ev)} />
       </View>

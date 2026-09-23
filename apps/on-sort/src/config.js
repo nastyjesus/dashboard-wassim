@@ -59,6 +59,34 @@ export const DEPARTEMENTS = VILLES.reduce((acc, v) => {
 /** Villes d'un département (par code INSEE : '35', '22', '56', '29'). */
 export const villesParDept = (code) => VILLES.filter((v) => v.code === code);
 
+/** Ville par identifiant, avec repli sur la première (Rennes) si inconnue. */
+export const villeParId = (id) => VILLES.find((v) => v.id === id) || VILLES[0];
+
+/** Distance à vol d'oiseau entre deux points, en km (formule de haversine). */
+function distanceKm(a, b) {
+  const rad = Math.PI / 180;
+  const dLat = (b.lat - a.lat) * rad;
+  const dLon = (b.lon - a.lon) * rad;
+  const h = Math.sin(dLat / 2) ** 2
+    + Math.cos(a.lat * rad) * Math.cos(b.lat * rad) * Math.sin(dLon / 2) ** 2;
+  return 2 * 6371 * Math.asin(Math.sqrt(h));
+}
+
+/**
+ * Les villes ouvertes les plus proches d'une ville donnée. Sert le repli de
+ * l'accueil quand une zone ne rend rien : plutôt qu'une page vide, on propose
+ * d'aller voir à côté.
+ */
+export const villesProches = (id, combien = 3) => {
+  const depart = VILLES.find((v) => v.id === id);
+  if (!depart) return [];
+  return VILLES
+    .filter((v) => v.id !== id)
+    .map((v) => ({ ville: v, km: Math.round(distanceKm(depart, v)) }))
+    .sort((a, b) => a.km - b.km)
+    .slice(0, combien);
+};
+
 /** Lien ajouté aux partages : l'URL publique de l'app web (PWA installable).
  *  À remplacer par le lien Play Store quand la beta Android sera en ligne. */
 export const LIEN_APP = 'https://papa-parfait-web.loumiwassim.workers.dev';

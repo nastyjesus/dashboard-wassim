@@ -1,6 +1,6 @@
 # Politique de confidentialité — Papa Parfait
 
-*Dernière mise à jour : 20 septembre 2026*
+*Dernière mise à jour : 23 septembre 2026*
 
 Papa Parfait (« l'application ») est éditée par Wassim Loumi. Cette page décrit
 les données traitées par l'application, pourquoi elles le sont, et vos droits.
@@ -8,11 +8,20 @@ les données traitées par l'application, pourquoi elles le sont, et vos droits.
 L'application s'adresse aux parents, donc à un public majeur. Elle n'est pas
 destinée aux enfants et ne leur demande jamais de créer un compte.
 
-## Le compte
+## Utiliser l'application sans compte
 
-Créer un compte demande quatre informations : un **prénom**, une **adresse
-e-mail**, un **mot de passe**, et l'**âge de votre enfant** (0 à 5 ans). Vous
-choisissez aussi une **ville de référence** et son département.
+L'application s'utilise **sans créer de compte**. Au démarrage, elle demande
+seulement une **ville de référence** et l'**âge de votre enfant** (0 à 5 ans),
+qui restent sur votre appareil. Ces deux réglages partent à notre serveur au
+moment d'une recherche, sous la forme d'une ville et d'une date, sans aucune
+donnée vous identifiant.
+
+## Le compte (facultatif)
+
+Le compte sert à retrouver vos sorties gardées sur un autre appareil. Le créer
+demande quatre informations : un **prénom**, une **adresse e-mail**, un **mot de
+passe**, et l'**âge de votre enfant** (0 à 5 ans). Vous choisissez aussi une
+**ville de référence** et son département.
 
 - Le prénom, l'âge de l'enfant, la ville et le département sont enregistrés
   dans notre base pour personnaliser les sorties proposées.
@@ -29,9 +38,19 @@ informations.
 ## Ce qui reste sur votre téléphone
 
 Certaines informations ne quittent jamais votre appareil : la copie locale de
-votre profil (pour que l'application fonctionne hors connexion), les check-ins
-bien-être (« batterie papa »), l'identifiant aléatoire utilisé pour les votes,
-et le jeton d'accès à la tribu. Désinstaller l'application les supprime.
+votre profil (pour que l'application fonctionne hors connexion et sans compte),
+les sorties gardées tant que vous n'avez pas de compte, les check-ins bien-être
+(« batterie papa »), l'identifiant aléatoire utilisé pour les votes, et le jeton
+d'accès à la tribu. Désinstaller l'application les supprime.
+
+## Les sorties gardées
+
+Mettre une sortie de côté fonctionne sans compte : elle est enregistrée sur
+votre appareil, et nulle part ailleurs. Si vous créez un compte, ces sorties
+sont copiées dans votre espace chez Supabase afin de les retrouver sur vos
+autres appareils. Elles ne contiennent que des informations publiques sur
+l'événement (titre, lieu, horaires, lien) et ne sont visibles que par vous.
+Supprimer une sortie gardée la retire aussi de votre compte.
 
 ## Les demandes de ville
 

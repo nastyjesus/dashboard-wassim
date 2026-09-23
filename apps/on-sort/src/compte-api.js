@@ -139,6 +139,29 @@ export async function creerCompte({ prenom, email, password, age, villeId, code 
 }
 
 /**
+ * Enregistre le profil d'un papa déjà connecté (retour de Google, ou réglages
+ * changés après création du compte). Sans compte, il n'y a rien à faire : le
+ * profil vit en local et c'est suffisant pour sortir un top.
+ * @returns {Promise<boolean>} true si le profil est écrit côté compte
+ */
+export async function enregistrerProfil({ prenom, age, villeId, code }) {
+  if (!supabaseConfigure) return false;
+  const { data } = await supabase.auth.getSession();
+  const user = data?.session?.user;
+  if (!user) return false;
+
+  const { error } = await supabase.from('profils').upsert({
+    id: user.id,
+    prenom: (prenom || '').trim() || 'Papa',
+    age,
+    ville_id: villeId,
+    dept_code: code,
+  });
+  if (error) throw new Error(error.message);
+  return true;
+}
+
+/**
  * Connexion / inscription via Google (OAuth Supabase).
  * Nécessite le provider Google activé dans Supabase + l'URL de redirection
  * autorisée (voir docs/backend-supabase.md).

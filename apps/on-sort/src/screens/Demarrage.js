@@ -1,6 +1,6 @@
-// Création de compte — le poste d'embarquement du QG.
-// Prénom + email + mot de passe (ou Google), l'âge de l'enfant (0-5), et le
-// coin (département → ville, avec demande si la ville manque).
+// Démarrage — deux réglages, rien d'autre : le coin et l'âge de l'enfant.
+// C'est tout ce dont le moteur a besoin pour sortir un top. Pas de compte ici :
+// on montre la valeur d'abord (voir docs/papa-parfait/decisions.md).
 // Charte « Cockpit clair » (voir docs/charte-graphique.md).
 
 import { useState } from 'react';
@@ -10,19 +10,17 @@ import { useState } from 'react';
 import { ScrollView, Text, View, StyleSheet } from 'react-native';
 import { couleurs, espace, police, typo, cadre, rayon } from '../theme.js';
 import { Chip, Bouton, Champ } from '../components/ui.js';
-import { AGES_ENFANT, DEPARTEMENTS, villesParDept, GOOGLE_ACTIF } from '../config.js';
-import { creerCompte, connexionGoogle, demanderVille } from '../compte-api.js';
+import { AGES_ENFANT, DEPARTEMENTS, villesParDept } from '../config.js';
+import { demanderVille } from '../compte-api.js';
 
 const labelAge = (a) => (a === 0 ? '< 1 an' : a === 1 ? '1 an' : `${a} ans`);
 
-export function Onboarding({ profilInitial, session, onValider }) {
-  // `session` : compte déjà connecté (retour de Google, ou PWA réinstallée)
-  // dont le profil n'est pas complet. Dans ce cas l'identité est acquise :
-  // on ne redemande ni e-mail ni mot de passe, juste l'enfant et le coin.
+export function Demarrage({ profilInitial, session, onValider }) {
+  // `session` : compte connecté (retour de Google) dont le profil n'est pas
+  // encore en base. L'identité est acquise, on complète juste le pilotage —
+  // le prénom sert à personnaliser et part avec le profil.
   const connecte = Boolean(session);
   const [prenom, setPrenom] = useState(profilInitial?.prenom || session?.prenomSuggere || '');
-  const [email, setEmail] = useState(profilInitial?.email || session?.email || '');
-  const [motDePasse, setMotDePasse] = useState('');
   const [age, setAge] = useState(profilInitial?.age ?? 3);
   const [deptCode, setDeptCode] = useState(profilInitial?.code || '');
   const [villeId, setVilleId] = useState(profilInitial?.villeId || '');
@@ -32,11 +30,10 @@ export function Onboarding({ profilInitial, session, onValider }) {
   const [demandeEnvoyee, setDemandeEnvoyee] = useState(false);
   const [envoi, setEnvoi] = useState(false);
   const [erreur, setErreur] = useState(null);
+  const [envoiProfil, setEnvoiProfil] = useState(false);
 
   const villes = deptCode ? villesParDept(deptCode) : [];
-  const emailOk = /\S+@\S+\.\S+/.test(email);
-  const identiteOk = connecte ? true : emailOk && motDePasse.length >= 6;
-  const valide = Boolean(prenom.trim() && identiteOk && villeId);
+  const valide = Boolean(villeId) && (!connecte || prenom.trim());
 
   const choisirDept = (code) => {
     setDeptCode(code);
@@ -47,39 +44,29 @@ export function Onboarding({ profilInitial, session, onValider }) {
   const envoyerDemande = async () => {
     if (!villeLibre.trim()) return;
     setEnvoi(true);
-    await demanderVille({ nom: villeLibre, email, code: deptCode });
+    await demanderVille({ nom: villeLibre, email: session?.email || '', code: deptCode });
     setEnvoi(false);
     // Même si l'enregistrement a échoué, on ne bloque pas le papa : la demande
     // est un bonus, pas une étape.
     setDemandeEnvoyee(true);
   };
 
-  // Branché sur le bouton Google quand GOOGLE_ACTIF repassera à true. En
-  // l'état, l'authentification réussit mais ne produit ni profil ni
-  // navigation : le retour de session reste à écrire (voir config.js).
-  // Sur web, la page part vers Google : la suite se joue au retour, dans App.
-  const google = async () => {
-    setErreur(null);
-    try {
-      await connexionGoogle();
-    } catch (e) {
-      setErreur(e.message || 'La connexion Google n’a pas abouti. Réessaie.');
-    }
-  };
-
-  const [creation, setCreation] = useState(false);
-
   const soumettre = async () => {
-    if (!valide || creation) return;
-    setCreation(true);
+    if (!valide || envoiProfil) return;
+    setEnvoiProfil(true);
     setErreur(null);
     try {
-      const compte = await creerCompte({ prenom, email, password: motDePasse, age, villeId, code: deptCode });
-      onValider(compte);
+      await onValider({
+        prenom: prenom.trim() || undefined,
+        email: session?.email || undefined,
+        age,
+        villeId,
+        code: deptCode || undefined,
+      });
     } catch (e) {
-      setErreur(e.message || 'Compte non créé. Réessaie dans un instant.');
+      setErreur(e.message || 'Enregistrement impossible. Réessaie dans un instant.');
     } finally {
-      setCreation(false);
+      setEnvoiProfil(false);
     }
   };
 
@@ -88,51 +75,28 @@ export function Onboarding({ profilInitial, session, onValider }) {
       {/* Bandeau instrument */}
       <View style={styles.strip}>
         <Text style={styles.stripTitre}>PAPA PARFAIT</Text>
-        <Text style={styles.stripSous}>LE QG DES PAPAS · CRÉATION DE COMPTE</Text>
+        <Text style={styles.stripSous}>LE QG DES PAPAS · MISE EN ROUTE</Text>
       </View>
 
       <Text style={styles.intro}>
         {connecte
-          ? 'Ton compte est reconnu. Il reste deux choses à préciser pour te proposer les bonnes sorties.'
-          : 'Ton poste de pilotage pour les sorties des enfants, le couple et tes temps de pause. On crée ton QG en une minute.'}
+          ? 'Ton compte est reconnu. Deux réglages et on décolle.'
+          : 'Deux réglages et tu as ton top du jour. Aucun compte à créer pour voir les sorties.'}
       </Text>
 
-      {/* Identité */}
-      <Text style={styles.section}>TON IDENTITÉ</Text>
-      <Champ
-        label="Prénom"
-        valeur={prenom}
-        onChangeText={setPrenom}
-        placeholder="Ton prénom"
-        autoCapitalize="words"
-      />
-
       {connecte ? (
-        <Text style={styles.compte}>Connecté avec {email}</Text>
-      ) : (
         <>
+          <Text style={styles.section}>TON PRÉNOM</Text>
           <Champ
-            label="Email"
-            valeur={email}
-            onChangeText={setEmail}
-            placeholder="papa@exemple.fr"
-            autoCapitalize="none"
-            keyboardType="email-address"
-            autoComplete="email"
+            label="Prénom"
+            valeur={prenom}
+            onChangeText={setPrenom}
+            placeholder="Ton prénom"
+            autoCapitalize="words"
           />
-          <Champ
-            label="Mot de passe"
-            valeur={motDePasse}
-            onChangeText={setMotDePasse}
-            placeholder="6 caractères minimum"
-            secureTextEntry
-            autoCapitalize="none"
-          />
-          {GOOGLE_ACTIF && (
-            <Bouton variante="google" icone="G" label="Continuer avec Google" onPress={google} pleineLargeur />
-          )}
+          <Text style={styles.compte}>Connecté avec {session.email}</Text>
         </>
-      )}
+      ) : null}
 
       {/* Enfant */}
       <Text style={styles.section}>L'ÂGE DE TON ENFANT</Text>
@@ -189,12 +153,14 @@ export function Onboarding({ profilInitial, session, onValider }) {
       {/* Validation */}
       <View style={styles.pied}>
         {erreur ? <Text style={styles.erreur}>{erreur}</Text> : null}
-        <Bouton label={creation ? 'Création…' : 'Créer mon QG'} onPress={soumettre} disabled={!valide || creation} />
+        <Bouton
+          label={envoiProfil ? 'Un instant…' : 'Trouver une sortie'}
+          onPress={soumettre}
+          disabled={!valide || envoiProfil}
+        />
         {!valide ? (
           <Text style={styles.aide}>
-            {connecte
-              ? 'Ton prénom et ta ville pour décoller.'
-              : 'Prénom, email valide, mot de passe (6+) et ta ville pour décoller.'}
+            {connecte ? 'Ton prénom et ta ville pour décoller.' : 'Choisis ta ville pour décoller.'}
           </Text>
         ) : null}
       </View>
