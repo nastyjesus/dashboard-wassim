@@ -17,6 +17,8 @@
 //   GET  /votes      — les totaux par pilier
 //   POST /ville-demande — demande d'ajout d'une ville (filet si Supabase KO)
 //   GET  /ville-demande — les villes demandées, triées par fréquence
+//   POST /mesure     — incrémente un compteur d'usage (aucun identifiant)
+//   GET  /mesures    — les compteurs par jour (?jours=14)
 
 import { jsonResponse, preflightResponse } from './cors.js';
 import { evenementsOpenAgenda } from './sources/openagenda.js';
@@ -37,6 +39,17 @@ const CACHE_TTL = 6 * 3600; // les agendas bougent peu en journée
 const CACHE_VERSION = 'scoring-2026-09-19';
 /** Piliers en teaser dont on compte les « Ça m'intéresse ». */
 const PILIERS = ['couple', 'moi', 'tribu'];
+
+/** Étapes d'usage comptées. Des compteurs, pas un traçage : aucun identifiant
+ *  d'appareil, aucun profil, rien qui permette de suivre une personne.
+ *  - ouverture     : l'app démarre
+ *  - arrivee-lien  : elle démarre avec ville/âge dans l'URL (venu du site)
+ *  - top / top-vide: un top a été affiché, avec ou sans résultat
+ *  - garde         : une sortie a été mise de côté
+ *  - compte        : un compte a été créé
+ *  Ces cinq étapes suffisent à lire l'entonnoir site → sortie → compte. */
+const MESURES = ['ouverture', 'arrivee-lien', 'top', 'top-vide', 'garde', 'compte'];
+const MESURES_JOURS_MAX = 90;
 
 export default {
   async fetch(request, env, ctx) {
@@ -106,6 +119,28 @@ export default {
           .sort((a, b) => b.total - a.total || a.ville.localeCompare(b.ville));
         return jsonResponse({ demandes }, 200, request, env);
       }
+      // Compteurs d'usage. Une clé par jour et par étape, incrémentée en
+      // lecture-écriture : KV n'a pas d'incrément atomique, deux écritures
+      // simultanées peuvent donc en perdre une. Assumé — on cherche une
+      // tendance (l'entrée sans compte a-t-elle fait bouger l'usage ?), pas
+      // une comptabilité. Si le volume rend l'écart gênant, passer sur
+      // Analytics Engine.
+      if (path === '/mesure' && request.method === 'POST') {
+        if (!env.VOTES) return jsonResponse({ error: 'kv_not_bound' }, 503, request, env);
+        const corps = (await request.json().catch(() => null)) || {};
+        const evt = String(corps.evt || '');
+        if (!MESURES.includes(evt)) return jsonResponse({ error: 'bad_request' }, 400, request, env);
+        const cle = `cpt:${jourISO()}:${evt}`;
+        const actuel = Number.parseInt((await env.VOTES.get(cle)) || '0', 10) || 0;
+        await env.VOTES.put(cle, String(actuel + 1));
+        return jsonResponse({ ok: true }, 202, request, env);
+      }
+      if (path === '/mesures' && request.method === 'GET') {
+        if (!env.VOTES) return jsonResponse({ error: 'kv_not_bound' }, 503, request, env);
+        const demandes = Number.parseInt(url.searchParams.get('jours') || '14', 10);
+        const jours = Math.min(Math.max(Number.isFinite(demandes) ? demandes : 14, 1), MESURES_JOURS_MAX);
+        return jsonResponse(await mesures(env, jours), 200, request, env);
+      }
     } catch (e) {
       return jsonResponse({ error: 'internal', message: String(e.message || e) }, 500, request, env);
     }
@@ -113,6 +148,50 @@ export default {
     return jsonResponse({ error: 'not_found' }, 404, request, env);
   },
 };
+
+/** Jour courant en UTC (YYYY-MM-DD) : la clé de compteur du jour. */
+function jourISO(d = new Date()) {
+  return d.toISOString().slice(0, 10);
+}
+
+/**
+ * Les compteurs des N derniers jours, du plus ancien au plus récent, plus les
+ * totaux et les deux taux qui comptent : combien de tops affichés finissent en
+ * sortie gardée, et combien de gardes finissent en compte.
+ */
+async function mesures(env, jours) {
+  const aujourdhui = new Date();
+  const lignes = [];
+  const totaux = Object.fromEntries(MESURES.map((e) => [e, 0]));
+
+  for (let i = jours - 1; i >= 0; i -= 1) {
+    const d = new Date(aujourdhui);
+    d.setUTCDate(d.getUTCDate() - i);
+    const jour = jourISO(d);
+    const ligne = { jour };
+    for (const evt of MESURES) {
+      const n = Number.parseInt((await env.VOTES.get(`cpt:${jour}:${evt}`)) || '0', 10) || 0;
+      ligne[evt] = n;
+      totaux[evt] += n;
+    }
+    lignes.push(ligne);
+  }
+
+  const pourcent = (a, b) => (b > 0 ? Math.round((a / b) * 1000) / 10 : null);
+  return {
+    jours,
+    lignes,
+    totaux,
+    taux: {
+      // Un top affiché sur combien débouche sur une sortie gardée ?
+      gardeParTop: pourcent(totaux.garde, totaux.top + totaux['top-vide']),
+      // Et parmi ceux qui gardent, combien créent un compte ?
+      compteParGarde: pourcent(totaux.compte, totaux.garde),
+      // Part des tops qui n'ont rien trouvé : la santé des zones ouvertes.
+      topVide: pourcent(totaux['top-vide'], totaux.top + totaux['top-vide']),
+    },
+  };
+}
 
 /** Ville normalisée pour servir de préfixe de clé KV : « Saint-Brieuc » → « saint-brieuc ». */
 function normaliserVille(ville) {

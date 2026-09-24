@@ -24,6 +24,7 @@ import { lireProfil, ecrireProfil } from './src/storage.js';
 import { sessionCourante, enregistrerProfil } from './src/compte-api.js';
 import { synchroniserFavoris } from './src/favoris.js';
 import { profilDepuisLien, nettoyerLien } from './src/lien.js';
+import { mesurer } from './src/mesure.js';
 import { Demarrage } from './src/screens/Demarrage.js';
 import { Compte } from './src/screens/Compte.js';
 import { Sorties } from './src/screens/Sorties.js';
@@ -61,8 +62,11 @@ export default function App() {
   useEffect(() => {
     let vivant = true;
     (async () => {
+      mesurer('ouverture');
+
       const lien = profilDepuisLien();
       if (lien) {
+        mesurer('arrivee-lien'); // le site a envoyé droit au résultat
         nettoyerLien();
         await ecrireProfil(lien);
         if (vivant) { setProfil(lien); setPret(true); }
@@ -112,6 +116,7 @@ export default function App() {
   };
 
   const compteCree = (compte) => {
+    mesurer('compte');
     const fusion = { ...profil, ...compte };
     setProfil(fusion);
     ecrireProfil(fusion);

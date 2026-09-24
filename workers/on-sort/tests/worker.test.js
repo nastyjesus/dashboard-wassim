@@ -261,3 +261,60 @@ describe('routes inconnues', () => {
     expect(body.error).toBe('not_found');
   });
 });
+
+describe('compteurs d’usage', () => {
+  function kvSimule() {
+    const entrees = new Map();
+    return {
+      get: async (cle) => (entrees.has(cle) ? entrees.get(cle) : null),
+      put: async (cle, valeur) => { entrees.set(cle, String(valeur)); },
+      list: async ({ prefix }) => ({
+        keys: [...entrees.keys()].filter((c) => c.startsWith(prefix)).map((name) => ({ name })),
+      }),
+    };
+  }
+
+  const mesurer = (env, corps) => worker.fetch(new Request('https://on-sort-poc.test/mesure', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(corps),
+  }), env, CTX);
+
+  it('incrémente le compteur du jour et rend les totaux et les taux', async () => {
+    const env = envMock({ VOTES: kvSimule() });
+    await mesurer(env, { evt: 'ouverture' });
+    await mesurer(env, { evt: 'top' });
+    await mesurer(env, { evt: 'top' });
+    await mesurer(env, { evt: 'top-vide' });
+    await mesurer(env, { evt: 'garde' });
+
+    const res = await worker.fetch(new Request('https://on-sort-poc.test/mesures?jours=3'), env, CTX);
+    const body = await res.json();
+    expect(body.jours).toBe(3);
+    expect(body.lignes).toHaveLength(3);
+    expect(body.totaux).toMatchObject({ ouverture: 1, top: 2, 'top-vide': 1, garde: 1, compte: 0 });
+    // 1 garde pour 3 tops affichés (2 pleins + 1 vide) = 33,3 %
+    expect(body.taux.gardeParTop).toBe(33.3);
+    // Aucun compte créé alors qu'une sortie est gardée.
+    expect(body.taux.compteParGarde).toBe(0);
+    // Un top sur trois n'a rien trouvé.
+    expect(body.taux.topVide).toBe(33.3);
+  });
+
+  it('refuse un événement hors liste', async () => {
+    const env = envMock({ VOTES: kvSimule() });
+    const res = await mesurer(env, { evt: 'achat' });
+    expect(res.status).toBe(400);
+  });
+
+  it('plafonne la fenêtre demandée', async () => {
+    const env = envMock({ VOTES: kvSimule() });
+    const res = await worker.fetch(new Request('https://on-sort-poc.test/mesures?jours=9000'), env, CTX);
+    expect((await res.json()).jours).toBe(90);
+  });
+
+  it('503 explicite si le KV n’est pas branché', async () => {
+    const res = await mesurer(envMock(), { evt: 'ouverture' });
+    expect(res.status).toBe(503);
+  });
+});

@@ -8,6 +8,7 @@ import { Accueil } from './Accueil.js';
 import { Detail } from './Detail.js';
 import { lireFavoris, basculerFavori, estGardee } from '../favoris.js';
 import { lireDrapeau, ecrireDrapeau } from '../storage.js';
+import { mesurer } from '../mesure.js';
 
 const DRAPEAU_INVITE = 'inviteCompteVue';
 
@@ -21,6 +22,7 @@ export function Sorties({ profil, aCompte, onModifierProfil, onDemanderCompte })
   const garder = async (ev, dateISO) => {
     const { liste, gardee } = await basculerFavori(ev, dateISO);
     setFavoris(liste);
+    if (gardee) mesurer('garde');
     // L'invitation au compte ne s'ouvre qu'après un vrai geste de conservation,
     // une seule fois, et sans bloquer quoi que ce soit.
     if (gardee && !aCompte && !(await lireDrapeau(DRAPEAU_INVITE))) setInvite(true);

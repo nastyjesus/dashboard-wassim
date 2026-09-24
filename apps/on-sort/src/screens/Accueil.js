@@ -15,6 +15,7 @@ import { chargerTop } from '../api.js';
 import { optionsDates, libelleLong } from '../dates.js';
 import { villeParId, villesProches } from '../config.js';
 import { cleFavori } from '../favoris.js';
+import { mesurer } from '../mesure.js';
 
 function emojiMeteo(meteo) {
   if (!meteo) return '';
@@ -47,10 +48,14 @@ export function Accueil({
     setChargement(true);
     setErreur(null);
     try {
-      setData(await chargerTop({
+      const reponse = await chargerTop({
         dateISO: date, lat: ville.lat, lon: ville.lon, age: profil.age,
         dept: ville.dept, code: ville.code,
-      }));
+      });
+      setData(reponse);
+      // Un top vide n'est pas la même information qu'un top rempli : c'est la
+      // santé des zones ouvertes qui se lit là.
+      mesurer(reponse?.top?.length ? 'top' : 'top-vide');
     } catch (e) {
       setErreur(e.message || 'Impossible de charger les sorties.');
     } finally {

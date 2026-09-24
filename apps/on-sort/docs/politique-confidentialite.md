@@ -1,6 +1,6 @@
 # Politique de confidentialité — Papa Parfait
 
-*Dernière mise à jour : 23 septembre 2026*
+*Dernière mise à jour : 24 septembre 2026*
 
 Papa Parfait (« l'application ») est éditée par Wassim Loumi. Cette page décrit
 les données traitées par l'application, pourquoi elles le sont, et vos droits.
@@ -80,6 +80,21 @@ Les événements proviennent de données publiques (OpenAgenda, DATAtourisme) et
 les prévisions de services météo. Ces requêtes portent sur une ville et une
 date : elles ne contiennent ni votre nom, ni votre e-mail, ni votre position
 réelle.
+
+## La mesure d'usage
+
+Pour savoir si l'application sert vraiment, nous comptons quelques étapes :
+l'ouverture de l'application, l'arrivée depuis un lien du site, l'affichage
+d'une liste de sorties (et si elle était vide), la mise de côté d'une sortie, la
+création d'un compte.
+
+Ce sont des **compteurs par jour**, rien d'autre. Aucun identifiant d'appareil,
+aucun cookie, aucun profil, aucun lien avec votre compte : le serveur reçoit un
+nom d'étape et ajoute 1 à un total quotidien. Il est impossible, à partir de ces
+chiffres, de reconstituer le parcours d'une personne.
+
+Nous n'utilisons **aucun outil de mesure tiers** (ni Google Analytics, ni
+équivalent) et ces données ne sont partagées avec personne.
 
 ## Données techniques
 
