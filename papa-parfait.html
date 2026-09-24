@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<!--
+  PAPA PARFAIT — USAGE RÉEL
+  Lit les compteurs du worker on-sort-poc (GET /mesures, /ville-demande, /votes).
+  Aucun chiffre en dur : si le worker ne répond pas, la page le dit et n'invente rien.
+
+  Ce qu'on regarde : l'entonnoir site → sortie → compte. Depuis le 24 septembre 2026,
+  l'app n'exige plus de compte pour afficher un top ; ces courbes disent si ça sert.
+
+  Compteurs agrégés : un nom d'étape, une clé par jour, aucun identifiant d'appareil.
+  Impossible de reconstituer un parcours individuel — c'est voulu.
+-->
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Papa Parfait — usage réel</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=EB+Garamond:wght@400;500;600&family=Raleway:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --cream:#F4EFE6;--paper:#FBF8F2;--ink:#26231F;--soft:#514B42;--muted:#7A7166;
+    --gold:#B08D57;--deep:#8C6D3F;--line:#E3D9C7;--panel:#282420;--green:#5B7A5B;
+    --rust:#A9683F;--grid:#EAE1D0;
+    /* Une seule couleur de marque pour les données : les trois tons du cockpit
+       (or, vert, rouille) sont trop proches pour être distingués côte à côte —
+       vérifié au validateur (ΔE normal 7.7, sous le plancher de 15). Chaque
+       graphe porte donc une seule série, identifiée par son titre. */
+    --mark:#8C6D3F;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--cream);color:var(--ink);font-family:'Raleway',system-ui,-apple-system,sans-serif;line-height:1.55;padding:0 0 60px}
+  .wrap{max-width:760px;margin:0 auto;padding:20px 14px 0}
+  h1{font-family:'EB Garamond',Georgia,serif;font-weight:600;font-size:28px;line-height:1.1;margin:5px 0 3px}
+  h2{font-family:'EB Garamond',Georgia,serif;font-weight:600;font-size:19px;margin:0 0 2px}
+  .eyebrow{font-size:10px;letter-spacing:.2em;text-transform:uppercase;color:var(--deep);font-weight:600}
+  .sub{font-size:13px;color:var(--soft)}
+  .topbar-nav{position:sticky;top:0;z-index:40;background:#282420;display:flex;gap:6px;padding:8px 12px;overflow-x:auto;border-bottom:1px solid #8C6D3F}
+  .topbar-nav a{flex:none;color:#C9BFAE;text-decoration:none;font-size:12.5px;font-weight:600;padding:7px 13px;border-radius:9px}
+  .topbar-nav a.on{color:#F4EFE6;background:#8C6D3F}
+  .head{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;flex-wrap:wrap}
+  .controls{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+  .btn{border:1px solid var(--line);background:var(--paper);color:var(--deep);font-weight:600;font-size:12px;border-radius:10px;padding:8px 12px;cursor:pointer;font-family:inherit;white-space:nowrap}
+  .btn.on{background:var(--deep);color:var(--cream);border-color:var(--deep)}
+  .btn:active{transform:scale(.98)}
+  .status{display:flex;align-items:center;gap:7px;font-size:12px;margin-top:12px;padding:8px 12px;border-radius:10px;border:1px solid var(--line);background:var(--paper);color:var(--soft)}
+  .dot{width:8px;height:8px;border-radius:50%;flex:none;background:var(--muted)}
+  .dot.live{background:var(--green)}.dot.ko{background:var(--rust)}
+
+  .card{background:var(--paper);border:1px solid var(--line);border-radius:14px;padding:16px 16px 14px;margin-top:12px}
+  .card .note{font-size:12px;color:var(--muted);margin-top:10px}
+
+  /* Entonnoir : une barre par étape, longueur = part de l'étape la plus large.
+     Valeur en chiffres à droite — on ne fait jamais lire une longueur seule. */
+  .etape{display:grid;grid-template-columns:132px 1fr 52px;gap:10px;align-items:center;margin-top:9px}
+  .etape .lab{font-size:12.5px;color:var(--soft)}
+  .etape .val{font-size:14px;font-weight:700;text-align:right;font-variant-numeric:tabular-nums}
+  .piste{height:14px;background:var(--grid);border-radius:4px;overflow:hidden}
+  .barre{height:100%;background:var(--mark);border-radius:4px;transition:width .3s}
+  .taux{font-size:11.5px;color:var(--muted);grid-column:2/4;margin-top:-4px}
+
+  .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-top:12px}
+  .kpi{background:var(--panel);color:var(--cream);border-radius:14px;padding:14px 15px}
+  .kpi .lab{font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:var(--gold);font-weight:600}
+  .kpi .big{font-family:'EB Garamond',Georgia,serif;font-size:34px;font-weight:600;line-height:1;margin-top:5px;font-variant-numeric:tabular-nums}
+  .kpi .big span{font-size:14px;color:var(--gold);margin-left:4px}
+  .kpi .note{font-size:11.5px;color:#C9BFAE;margin-top:5px}
+
+  svg{display:block;width:100%;height:auto;overflow:visible}
+  .axe{font-size:9.5px;fill:var(--muted);font-family:inherit}
+  .jour-bar{fill:var(--mark)}
+  .jour-bar:hover{fill:var(--deep);opacity:.82}
+  .zero{font-size:11.5px;fill:var(--muted)}
+
+  .liste{margin-top:8px}
+  .liste div{display:flex;justify-content:space-between;gap:10px;padding:6px 0;border-bottom:1px solid var(--grid);font-size:13px}
+  .liste div:last-child{border-bottom:none}
+  .liste b{font-variant-numeric:tabular-nums}
+  .vide{font-size:12.5px;color:var(--muted);padding:6px 0}
+
+  #bulle{position:fixed;pointer-events:none;opacity:0;transition:opacity .12s;background:var(--panel);color:var(--cream);font-size:12px;padding:6px 9px;border-radius:8px;z-index:60;white-space:nowrap}
+</style>
+</head>
+<body>
+<div class="topbar-nav">
+  <a href="index.html">Dashboard</a>
+  <a href="cockpit.html">Cockpit CA</a>
+  <a href="pilotage-live.html">Pilotage</a>
+  <a href="papa-parfait.html" class="on">Papa Parfait</a>
+</div>
+
+<div class="wrap">
+  <div class="head">
+    <div>
+      <div class="eyebrow">Papa Parfait · usage réel</div>
+      <h1>Du site à la sortie</h1>
+      <div class="sub">Compteurs agrégés du worker. Aucun identifiant, aucun profil.</div>
+    </div>
+    <div class="controls">
+      <button class="btn" data-jours="7">7 j</button>
+      <button class="btn on" data-jours="14">14 j</button>
+      <button class="btn" data-jours="30">30 j</button>
+    </div>
+  </div>
+
+  <div class="status"><span class="dot" id="pastille"></span><span id="statut">Chargement des compteurs…</span></div>
+
+  <div class="kpis" id="kpis"></div>
+
+  <div class="card">
+    <h2>L'entonnoir</h2>
+    <div class="sub">Sur la période. Chaque étape est un compteur, pas une estimation.</div>
+    <div id="entonnoir"></div>
+    <div class="note" id="lecture"></div>
+  </div>
+
+  <div class="card">
+    <h2>Ouvertures par jour</h2>
+    <div class="sub">L'app démarre — depuis le site ou depuis l'écran d'accueil.</div>
+    <div id="g-ouverture"></div>
+  </div>
+
+  <div class="card">
+    <h2>Sorties gardées par jour</h2>
+    <div class="sub">Le geste qui compte : une sortie mise de côté.</div>
+    <div id="g-garde"></div>
+  </div>
+
+  <div class="card">
+    <h2>Villes réclamées</h2>
+    <div class="sub">Les demandes des papas hors zone. C'est ce qui décide des prochaines ouvertures.</div>
+    <div class="liste" id="villes"><div class="vide">Chargement…</div></div>
+  </div>
+
+  <div class="card">
+    <h2>Les piliers qui intéressent</h2>
+    <div class="sub">Votes « Ça m'intéresse » sur les écrans Couple, Moi et Tribu.</div>
+    <div class="liste" id="votes"><div class="vide">Chargement…</div></div>
+  </div>
+
+  <div class="card">
+    <div class="note">
+      Les compteurs démarrent le 24 septembre 2026. Un jour à zéro avant cette date
+      veut dire « pas encore mesuré », pas « personne ».
+      Le stockage KV n'a pas d'incrément atomique : deux actions dans la même
+      milliseconde peuvent n'en compter qu'une. On lit une tendance, pas une comptabilité.
+    </div>
+  </div>
+</div>
+
+<div id="bulle"></div>
+
+<script>
+const WORKER = 'https://on-sort-poc.loumiwassim.workers.dev';
+
+const ETAPES = [
+  ['ouverture',    'Ouvertures',        'l’app démarre'],
+  ['arrivee-lien', 'Venus du site',     'arrivés avec ville + âge dans le lien'],
+  ['top',          'Tops affichés',     'une liste avec au moins une sortie'],
+  ['top-vide',     'Tops vides',        'rien trouvé ce jour-là, à cet endroit'],
+  ['garde',        'Sorties gardées',   'mises de côté'],
+  ['compte',       'Comptes créés',     ''],
+];
+
+const bulle = document.getElementById('bulle');
+const nb = (n) => new Intl.NumberFormat('fr-FR').format(n);
+const jourCourt = (iso) => {
+  const d = new Date(`${iso}T12:00:00`);
+  return `${d.getDate()}/${d.getMonth() + 1}`;
+};
+
+function statut(texte, etat) {
+  document.getElementById('statut').textContent = texte;
+  document.getElementById('pastille').className = `dot ${etat || ''}`;
+}
+
+function survol(el, texte) {
+  el.addEventListener('mousemove', (e) => {
+    bulle.textContent = texte;
+    bulle.style.opacity = 1;
+    bulle.style.left = `${Math.min(e.clientX + 12, window.innerWidth - 160)}px`;
+    bulle.style.top = `${e.clientY - 34}px`;
+  });
+  el.addEventListener('mouseleave', () => { bulle.style.opacity = 0; });
+}
+
+/** Barres verticales, une par jour. Une seule série : le titre de la carte
+ *  dit laquelle, donc pas de légende. Sommet arrondi 4px, 2px d'écart entre
+ *  les barres, axe discret, valeurs au survol. */
+function grapheJours(cible, lignes, champ) {
+  const el = document.getElementById(cible);
+  const max = Math.max(1, ...lignes.map((l) => l[champ] || 0));
+  const n = lignes.length;
+  const L = 640, H = 150, bas = 20, hautMax = H - bas - 6;
+  const pas = L / n;
+  const largeur = Math.max(4, pas - 2); // 2px d'écart entre deux jours
+
+  const barres = lignes.map((l, i) => {
+    const v = l[champ] || 0;
+    const h = v === 0 ? 0 : Math.max(3, (v / max) * hautMax);
+    const x = i * pas + (pas - largeur) / 2;
+    const y = H - bas - h;
+    // Une étiquette tous les n/7 jours : lisible sans se chevaucher.
+    const etiquette = (i % Math.ceil(n / 7) === 0 || i === n - 1)
+      ? `<text class="axe" x="${x + largeur / 2}" y="${H - 6}" text-anchor="middle">${jourCourt(l.jour)}</text>`
+      : '';
+    return `${h > 0 ? `<rect class="jour-bar" x="${x}" y="${y}" width="${largeur}" height="${h}" rx="4" data-info="${jourCourt(l.jour)} · ${nb(v)}"/>` : ''}${etiquette}`;
+  }).join('');
+
+  const total = lignes.reduce((s, l) => s + (l[champ] || 0), 0);
+  el.innerHTML = total === 0
+    ? `<svg viewBox="0 0 ${L} ${H}" role="img" aria-label="Aucune donnée sur la période">
+         <line x1="0" y1="${H - bas}" x2="${L}" y2="${H - bas}" stroke="var(--line)" stroke-width="2"/>
+         <text class="zero" x="${L / 2}" y="${(H - bas) / 2}" text-anchor="middle">Rien de compté sur la période.</text>
+       </svg>`
+    : `<svg viewBox="0 0 ${L} ${H}" role="img" aria-label="Barres par jour, maximum ${nb(max)}">
+         <text class="axe" x="0" y="10">max ${nb(max)}</text>
+         <line x1="0" y1="${H - bas}" x2="${L}" y2="${H - bas}" stroke="var(--line)" stroke-width="2"/>
+         ${barres}
+       </svg>`;
+
+  el.querySelectorAll('rect[data-info]').forEach((r) => survol(r, r.dataset.info));
+}
+
+function entonnoir(totaux, taux) {
+  const max = Math.max(1, ...ETAPES.map(([cle]) => totaux[cle] || 0));
+  document.getElementById('entonnoir').innerHTML = ETAPES.map(([cle, label, aide]) => {
+    const v = totaux[cle] || 0;
+    return `<div class="etape">
+        <div class="lab">${label}${aide ? `<br><span style="font-size:11px;color:var(--muted)">${aide}</span>` : ''}</div>
+        <div class="piste"><div class="barre" style="width:${(v / max) * 100}%"></div></div>
+        <div class="val">${nb(v)}</div>
+      </div>`;
+  }).join('');
+
+  const pct = (t) => (t === null || t === undefined ? '—' : `${String(t).replace('.', ',')} %`);
+  const topsAffiches = (totaux.top || 0) + (totaux['top-vide'] || 0);
+  document.getElementById('lecture').innerHTML = topsAffiches === 0
+    ? 'Aucun top affiché sur la période : rien à interpréter pour l’instant.'
+    : `Sur ${nb(topsAffiches)} liste${topsAffiches > 1 ? 's' : ''} affichée${topsAffiches > 1 ? 's' : ''},
+       ${pct(taux.gardeParTop)} ${topsAffiches > 1 ? 'finissent' : 'finit'} par une sortie gardée.
+       Parmi les gardes, ${pct(taux.compteParGarde)} débouchent sur un compte.
+       ${pct(taux.topVide)} des listes n’ont rien trouvé — c’est la santé des zones ouvertes.`;
+}
+
+function kpis(totaux, taux, jours) {
+  const cartes = [
+    ['Venus du site', nb(totaux['arrivee-lien'] || 0), `sur ${jours} jours`],
+    ['Sorties gardées', nb(totaux.garde || 0), 'le geste qui compte'],
+    ['Comptes créés', nb(totaux.compte || 0), 'après une garde'],
+    ['Listes vides', taux.topVide === null ? '—' : `${String(taux.topVide).replace('.', ',')}<span>%</span>`, 'des tops affichés'],
+  ];
+  document.getElementById('kpis').innerHTML = cartes.map(([lab, big, note]) =>
+    `<div class="kpi"><div class="lab">${lab}</div><div class="big">${big}</div><div class="note">${note}</div></div>`).join('');
+}
+
+async function villes() {
+  const el = document.getElementById('villes');
+  try {
+    const r = await fetch(`${WORKER}/ville-demande`);
+    const { demandes } = await r.json();
+    el.innerHTML = demandes && demandes.length
+      ? demandes.slice(0, 8).map((d) => `<div><span>${d.ville}</span><b>${nb(d.total)}</b></div>`).join('')
+      : '<div class="vide">Aucune demande pour l’instant.</div>';
+  } catch {
+    el.innerHTML = '<div class="vide">Demandes non récupérées.</div>';
+  }
+}
+
+async function votes() {
+  const el = document.getElementById('votes');
+  const noms = { couple: 'Couple', moi: 'Moi', tribu: 'Tribu' };
+  try {
+    const r = await fetch(`${WORKER}/votes`);
+    const data = await r.json();
+    const lignes = Object.entries(data.votes || {}).sort((a, b) => b[1] - a[1]);
+    el.innerHTML = lignes.length
+      ? lignes.map(([k, v]) => `<div><span>${noms[k] || k}</span><b>${nb(v)}</b></div>`).join('')
+      : '<div class="vide">Aucun vote pour l’instant.</div>';
+  } catch {
+    el.innerHTML = '<div class="vide">Votes non récupérés.</div>';
+  }
+}
+
+async function charger(jours) {
+  statut('Chargement des compteurs…');
+  try {
+    const r = await fetch(`${WORKER}/mesures?jours=${jours}`);
+    if (!r.ok) throw new Error(`le worker a répondu ${r.status}`);
+    const d = await r.json();
+    kpis(d.totaux, d.taux, d.jours);
+    entonnoir(d.totaux, d.taux);
+    grapheJours('g-ouverture', d.lignes, 'ouverture');
+    grapheJours('g-garde', d.lignes, 'garde');
+    statut(`À jour · ${d.jours} derniers jours · lu à ${new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}`, 'live');
+  } catch (e) {
+    statut(`Compteurs non lus : ${e.message}. Rien n’est affiché plutôt qu’un chiffre inventé.`, 'ko');
+    document.getElementById('kpis').innerHTML = '';
+    document.getElementById('entonnoir').innerHTML = '';
+    document.getElementById('lecture').textContent = '';
+    document.getElementById('g-ouverture').innerHTML = '';
+    document.getElementById('g-garde').innerHTML = '';
+  }
+}
+
+document.querySelectorAll('.btn[data-jours]').forEach((b) => {
+  b.addEventListener('click', () => {
+    document.querySelectorAll('.btn[data-jours]').forEach((x) => x.classList.remove('on'));
+    b.classList.add('on');
+    charger(Number(b.dataset.jours));
+  });
+});
+
+charger(14);
+villes();
+votes();
+</script>
+</body>
+</html>
