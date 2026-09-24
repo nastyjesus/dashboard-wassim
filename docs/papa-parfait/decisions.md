@@ -95,9 +95,12 @@ excellente sur 1. Les votes nous diront quel pilier construire en priorité.
 - **Risque qui s'est confirmé** : un écran de mot de passe sur une PWA envoyée
   par lien fait décrocher une partie des visiteurs. Constaté en live le
   23 septembre 2026 sur le parcours site → app, corrigé le jour même.
-- **Ce qui manque encore pour trancher par la mesure** : aucun compteur
-  d'usage (ouverture, top affiché, sortie gardée, compte créé). Sans lui, le
-  gain de l'entrée sans compte restera une conviction, pas un chiffre.
+- **Mesuré depuis le 24 septembre 2026** : le worker compte six étapes
+  (ouverture, arrivée par lien, top affiché, top vide, sortie gardée, compte
+  créé) et rend l'entonnoir sur `GET /mesures?jours=14`. Des compteurs agrégés
+  par jour, sans identifiant ni profil — la politique de confidentialité le
+  décrit. Le gain de l'entrée sans compte se lira sur ces courbes, pas sur une
+  conviction.
 - Les villes demandées par les papas hors zone atterrissent dans
   `demandes_ville` : c'est ce qui décidera des prochaines villes ouvertes.
 

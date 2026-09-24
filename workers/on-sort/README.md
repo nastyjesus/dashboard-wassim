@@ -28,6 +28,34 @@ d'événements famille exploitables en open data autour de Rennes ?**
 | `GET /health` | état du worker |
 | `GET /top?date=YYYY-MM-DD&lat=&lon=&age=&rayon=&dept=&code=` | le produit : top 5 scoré (défauts : samedi prochain, Rennes, 3 ans, 40 km, Ille-et-Vilaine) |
 | `GET /diagnostic?date=...` | **le go/no-go** : comptages réels par source, part « famille », échantillons, verdict |
+| `POST /votes` · `GET /votes` | « Ça m'intéresse » des piliers en teaser |
+| `POST /ville-demande` · `GET /ville-demande` | villes réclamées hors zone (filet si Supabase KO) |
+| `POST /mesure` `{evt}` | +1 sur un compteur d'usage du jour |
+| `GET /mesures?jours=14` | les compteurs par jour, les totaux et les taux |
+
+## Lire les compteurs d'usage
+
+`GET /mesures?jours=14` → l'entonnoir, jour par jour :
+
+| Étape | Ce qu'elle dit |
+|---|---|
+| `ouverture` | l'app a démarré |
+| `arrivee-lien` | elle a démarré avec ville/âge dans l'URL — **c'est le trafic venu du site** |
+| `top` / `top-vide` | une liste a été affichée, avec ou sans résultat |
+| `garde` | une sortie a été mise de côté |
+| `compte` | un compte a été créé |
+
+Et trois taux calculés : `gardeParTop` (combien de listes affichées finissent en
+sortie gardée), `compteParGarde` (combien de gardes finissent en compte),
+`topVide` (part de listes sans résultat — la santé des zones ouvertes).
+
+Ce sont des **compteurs agrégés** : un nom d'étape, une clé KV par jour, aucun
+identifiant d'appareil, aucun profil. Impossible de reconstituer un parcours
+individuel — c'est voulu, et c'est ce que dit la politique de confidentialité.
+
+⚠️ KV n'a pas d'incrément atomique : le compteur est lu puis réécrit, donc deux
+écritures simultanées peuvent en perdre une. Assumé tant qu'on cherche une
+tendance. Si le volume rend l'écart gênant, passer sur Analytics Engine.
 
 ## Lire le go/no-go
 

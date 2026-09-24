@@ -200,9 +200,12 @@ qui dit *quoi* et *pourquoi*. Exemples :
 
 ## 7. Ce que Claude Code doit encore livrer (et qui te concerne)
 
-- **Un compteur d'usage de l'app** (ouvertures, top affiché, sortie gardée,
-  compte créé). Tant qu'il n'existe pas, personne ne peut relier le trafic du
-  site à un usage réel de l'app : ton reporting s'arrête à la porte de l'app.
+- ~~Un compteur d'usage de l'app~~ — **livré le 24 septembre 2026**. Le trafic
+  que le site envoie ne s'arrête plus à la porte de l'app : l'étape
+  `arrivee-lien` compte les visiteurs arrivés avec `?ville=&age=`, et la suite
+  (top affiché, sortie gardée, compte créé) dit ce qu'ils y font.
+  → Concrètement, tes CTA paramétrés deviennent mesurables. Les chiffres te sont
+  transmis par Wassim ou par Claude Code, jamais à aller chercher toi-même.
 - **Le passage sur `app.papaparfait.fr`** (§4.2) : il attend la bascule DNS de
   `papaparfait.fr` vers Cloudflare. Ensuite, config du worker, redirection depuis
   l'ancienne adresse, et signal à Cowork pour remplacer les CTA en une passe.
