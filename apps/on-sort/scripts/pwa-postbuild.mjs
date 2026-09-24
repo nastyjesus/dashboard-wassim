@@ -87,6 +87,14 @@ const tete = `
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     <meta name="apple-mobile-web-app-title" content="${NOM}" />
     <meta name="description" content="Les meilleures sorties pour tes enfants, autour de toi, météo comprise." />
+    <!-- L'app n'est pas la vitrine : c'est le site qui doit être indexé, sinon
+         les deux se font concurrence sur la même promesse et c'est une adresse
+         workers.dev qui capte la marque. Cette balise couvre aussi les URL
+         inconnues : le worker sert index.html pour tout chemin non trouvé
+         (routage SPA), donc chaque soft-404 hérite du noindex.
+         « follow » est conservé : les liens sortants gardent leur valeur.
+         Décidé le 24 septembre 2026, voir docs/papa-parfait/brief-cowork-seo.md. -->
+    <meta name="robots" content="noindex, follow" />
     <link rel="manifest" href="/manifest.webmanifest" />
     <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
 `;
@@ -119,7 +127,23 @@ mkdirSync(join(dist, 'confidentialite'), { recursive: true });
 writeFileSync(join(dist, 'confidentialite', 'index.html'), pageHtml);
 writeFileSync(join(dist, 'confidentialite.html'), pageHtml);
 
-console.log('PWA post-build : manifest, sw.js, icônes, meta et /confidentialite écrits.');
+// 6. robots.txt réel.
+//    Sans ce fichier, le routage SPA répond « 200 + page de l'app » à
+//    /robots.txt : un crawler reçoit du HTML là où il attend des directives.
+//    On autorise volontairement le parcours : c'est la balise `noindex` de
+//    index.html qui sort l'app de l'index, et un robot ne peut la lire que s'il
+//    a le droit de charger la page. Un `Disallow: /` ferait l'inverse de ce
+//    qu'on cherche — l'URL resterait indexée, sans même son titre.
+const robots = `User-agent: *
+Allow: /
+
+# L’application est volontairement hors index (meta robots noindex).
+# La vitrine, c’est le site. Seule /confidentialite reste indexable :
+# Google Play exige une URL publique accessible.
+`;
+writeFileSync(join(dist, 'robots.txt'), robots);
+
+console.log('PWA post-build : manifest, sw.js, icônes, meta, robots.txt et /confidentialite écrits.');
 
 /** Échappe le HTML : le Markdown est à nous, mais on ne prend pas le risque. */
 function echapper(s) {

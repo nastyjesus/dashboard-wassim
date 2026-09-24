@@ -101,6 +101,28 @@ excellente sur 1. Les votes nous diront quel pilier construire en priorité.
 - Les villes demandées par les papas hors zone atterrissent dans
   `demandes_ville` : c'est ce qui décidera des prochaines villes ouvertes.
 
+## Site, app et acquisition (décidé le 24 septembre 2026)
+
+Deux périmètres, deux exécutants, un arbitre (Wassim). Le détail opérationnel
+vit dans `docs/papa-parfait/brief-cowork-seo.md`, remis à Claude Cowork.
+
+- **Claude Code** : l'app, les workers, Supabase, les déploiements, et le
+  reporting SEO (skills `wassim-seo-program`, `wassim-gsc-report`).
+- **Claude Cowork** : le site WordPress — pages, contenu, balises, maillage,
+  blog, et l'application des recommandations SEO.
+- **Le site est la seule vitrine indexée.** L'app passe en `noindex, follow` et
+  sert un vrai `robots.txt` (le routage SPA renvoyait la page de l'app à
+  `/robots.txt`). `/confidentialite` reste indexable — Google Play l'exige.
+  Le `robots.txt` autorise le parcours : un `Disallow: /` empêcherait les robots
+  de lire le `noindex`, et l'URL resterait dans l'index.
+- **Un sous-domaine propre** (`app.<domaine>`) remplacera l'adresse
+  `workers.dev`, dès que le domaine du site est connu.
+- **Le menu « Blog » est retiré** tant qu'il n'y a pas trois articles et un
+  rythme tenu.
+- **Contrat entre les deux côtés** : le format de lien `?ville=&age=`, la liste
+  des villes ouvertes, et la page de confidentialité (source unique, générée par
+  le build de l'app). Aucun des deux ne modifie le périmètre de l'autre.
+
 ## Monétisation — LE but du projet
 
 Objectif : une app **monétisable** (référence de départ : le jeu myefarm de
