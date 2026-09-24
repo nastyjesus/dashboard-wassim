@@ -8,6 +8,10 @@
 // Usage :
 //   node scripts/dns-papaparfait.mjs              # résolveur Google (8.8.8.8)
 //   node scripts/dns-papaparfait.mjs 1.1.1.1      # un autre résolveur public
+//   node scripts/dns-papaparfait.mjs hadlee.ns.cloudflare.com
+//        ↑ interroge directement un serveur de noms, même avant la bascule :
+//          c'est le seul moyen de contrôler la zone Cloudflare pendant que le
+//          domaine répond encore chez o2switch.
 //
 // Aucune dépendance : le résolveur DNS de Node, interrogé en direct (on ne
 // passe pas par le cache du système, sinon on relit l'ancienne zone).
@@ -19,7 +23,16 @@ const IP = '109.234.164.216';
 const RACINE = 'papaparfait.fr';
 
 const resolveur = new Resolver({ timeout: 5000, tries: 2 });
-resolveur.setServers([SERVEUR]);
+
+/** Le résolveur veut une IP : on accepte quand même un nom de serveur DNS. */
+async function adresseDuServeur(nomOuIp) {
+  if (/^\d{1,3}(\.\d{1,3}){3}$/.test(nomOuIp)) return nomOuIp;
+  const { Resolver: R } = await import('node:dns/promises');
+  const r = new R();
+  r.setServers(['8.8.8.8']);
+  const [ip] = await r.resolve4(nomOuIp);
+  return ip;
+}
 
 /** Hôtes servis par o2switch, en A direct. Aucun ne doit passer par Cloudflare. */
 const HOTES_A = [
@@ -42,6 +55,13 @@ const ZONE = [
   { nom: `_caldav._tcp.${RACINE}`, type: 'SRV', attendu: '2079', role: 'agenda' },
   { nom: `_carddav._tcp.${RACINE}`, type: 'SRV', attendu: '2079', role: 'contacts' },
   { nom: `_autodiscover._tcp.${RACINE}`, type: 'SRV', attendu: 'cpanelemaildiscovery', role: 'config auto des clients mail' },
+  { nom: `ftp.${RACINE}`, type: 'A', attendu: IP, role: 'transfert de fichiers' },
+  // Les quatre TXT « path=/ » accompagnent les SRV caldav/carddav : sans eux,
+  // certains clients (iOS, macOS) ne trouvent pas le chemin de synchro.
+  { nom: `_carddavs._tcp.${RACINE}`, type: 'TXT', attendu: 'path=/', role: 'chemin contacts (TLS)' },
+  { nom: `_caldavs._tcp.${RACINE}`, type: 'TXT', attendu: 'path=/', role: 'chemin agenda (TLS)' },
+  { nom: `_carddav._tcp.${RACINE}`, type: 'TXT', attendu: 'path=/', role: 'chemin contacts' },
+  { nom: `_caldav._tcp.${RACINE}`, type: 'TXT', attendu: 'path=/', role: 'chemin agenda' },
 ];
 
 /** Empreinte DKIM : on compare le début et la fin de la clé publique. Une clé
@@ -68,7 +88,10 @@ async function interroger(nom, type) {
 const SYMBOLE = { ok: '  OK  ', ko: ' ÉCHEC', alerte: 'ALERTE' };
 
 async function main() {
-  console.log(`\nZone ${RACINE} — résolveur ${SERVEUR}\n${'─'.repeat(78)}`);
+  const ip = await adresseDuServeur(SERVEUR);
+  resolveur.setServers([ip]);
+  const cible = ip === SERVEUR ? SERVEUR : `${SERVEUR} (${ip})`;
+  console.log(`\nZone ${RACINE} — interrogée sur ${cible}\n${'─'.repeat(78)}`);
   let echecs = 0;
   let alertes = 0;
 

@@ -96,6 +96,19 @@ une recopie tronquée sera détectée.
 
 ## La checklist
 
+### Ce qu'on ne peut pas vérifier avant la bascule (constaté le 24/09/2026)
+
+Les deux serveurs de noms Cloudflare assignés (`hadlee.ns.cloudflare.com`,
+`justin.ns.cloudflare.com`) répondent **REFUSED** à toute requête sur
+`papaparfait.fr` tant que la délégation n'est pas faite : Cloudflare ne sert la
+zone qu'une fois le domaine effectivement délégué. La zone n'est donc
+vérifiable **qu'après** le changement de serveurs de noms.
+
+Ce qui rend la chose acceptable : la **TTL de délégation chez AFNIC est de
+1 heure** (mesurée sur `d.nic.fr`). Un retour arrière se propage donc en une
+heure au pire, pas en 48. D'où la règle : on bascule le matin, on vérifie dans
+la foulée, on garde la zone o2switch intacte.
+
 ### Avant de toucher à quoi que ce soit
 
 - [ ] Capture d'écran de la zone complète dans cPanel o2switch → *Zone Editor*.
@@ -116,17 +129,32 @@ une recopie tronquée sera détectée.
       orange par défaut : les repasser un par un.
 - [ ] Relire la clé DKIM : début `p=MIIBIjANBgkqhkiG…`, fin `…DKT1SqzCmQIDAQAB;`.
 
-### Basculer
+### Basculer (registrar : Scaleway)
 
-- [ ] Chez le registrar, remplacer `ns1.o2switch.net` et `ns2.o2switch.net` par
-      les deux serveurs Cloudflare (type `xxx.ns.cloudflare.com`).
-- [ ] Attendre que Cloudflare affiche **Active** (quelques minutes à 24 h).
+- [ ] Dans le dashboard Cloudflare, vérifier deux choses : le statut de la zone
+      est **Pending nameserver update** (pas « Moved » ni « Deleted »), et les
+      deux serveurs affichés sont bien ceux qu'on va saisir.
+- [ ] Choisir un **matin de semaine**. Pas un vendredi soir, pas la veille d'un
+      week-end : si quelque chose casse, il faut être là pour le voir.
+- [ ] [console.scaleway.com](https://console.scaleway.com) → **Domains & DNS**
+      → `papaparfait.fr` → onglet **Serveurs de noms** (Nameservers).
+- [ ] Passer sur **serveurs de noms externes** (Use external nameservers) et
+      saisir :
+      `hadlee.ns.cloudflare.com` et `justin.ns.cloudflare.com`.
+      Retirer `ns1.o2switch.net` et `ns2.o2switch.net`. Enregistrer.
+- [ ] **Ne rien supprimer chez o2switch** : la zone d'origine reste le filet de
+      sécurité tant que tout n'est pas vérifié.
+- [ ] Attendre — la délégation se propage en une heure au plus (TTL AFNIC
+      3600 s). Cloudflare passera la zone en **Active**.
 
 ### Vérifier, sérieusement
 
-- [ ] `node scripts/dns-papaparfait.mjs` → « Zone conforme » attendu.
-- [ ] `node scripts/dns-papaparfait.mjs 1.1.1.1` → même résultat depuis un autre
-      résolveur.
+- [ ] `node scripts/dns-papaparfait.mjs hadlee.ns.cloudflare.com` → la zone
+      Cloudflare elle-même, sans passer par un cache. **C'est le test le plus
+      important** : il dit si les 26 enregistrements ont bien été recréés.
+- [ ] `node scripts/dns-papaparfait.mjs` puis
+      `node scripts/dns-papaparfait.mjs 1.1.1.1` → ce que voient les autres,
+      une fois la propagation faite.
 - [ ] Ouvrir `https://papaparfait.fr` : le site répond.
 - [ ] **Envoyer un e-mail depuis une adresse externe (Gmail) vers ton adresse
       `@papaparfait.fr`** — et vérifier qu'il arrive. C'est le seul test qui
@@ -137,9 +165,11 @@ une recopie tronquée sera détectée.
 
 ### En cas de problème
 
-- [ ] Remettre `ns1/ns2.o2switch.net` chez le registrar. La zone d'origine est
-      toujours chez o2switch, elle reprend la main à la propagation suivante.
-      Aucune donnée perdue — seulement du temps.
+- [ ] Remettre `ns1.o2switch.net` et `ns2.o2switch.net` chez Scaleway. La zone
+      d'origine est intacte chez o2switch : elle reprend la main en une heure au
+      plus (TTL de délégation 3600 s). Aucune donnée perdue.
+- [ ] Ne pas improviser de correction dans Cloudflare pendant que le mail est
+      coupé : on revient d'abord à l'état qui marche, on corrige ensuite.
 
 ---
 
