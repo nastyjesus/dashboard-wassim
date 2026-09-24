@@ -113,7 +113,8 @@ la foulée, on garde la zone o2switch intacte.
 
 - [ ] Capture d'écran de la zone complète dans cPanel o2switch → *Zone Editor*.
 - [ ] Baseline enregistrée : `node scripts/dns-papaparfait.mjs` → doit afficher
-      « Zone conforme ». *(Fait le 24 septembre 2026 : 21/21 OK.)*
+      « Zone conforme ». *(Fait le 24 septembre 2026 : 25/25 OK, plus la clé
+      DKIM entière.)*
 - [ ] Noter où le domaine est **acheté** (le registrar) : c'est là que se
       changent les serveurs de noms, pas forcément chez l'hébergeur.
 
@@ -151,7 +152,8 @@ la foulée, on garde la zone o2switch intacte.
 
 - [ ] `node scripts/dns-papaparfait.mjs hadlee.ns.cloudflare.com` → la zone
       Cloudflare elle-même, sans passer par un cache. **C'est le test le plus
-      important** : il dit si les 26 enregistrements ont bien été recréés.
+      important** : il dit si les 25 enregistrements ont bien été recréés
+      (9 A, 3 CNAME, 1 MX, 7 TXT, 5 SRV), chacun contrôlé sur son vrai type.
 - [ ] `node scripts/dns-papaparfait.mjs` puis
       `node scripts/dns-papaparfait.mjs 1.1.1.1` → ce que voient les autres,
       une fois la propagation faite.

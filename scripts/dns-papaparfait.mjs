@@ -43,9 +43,9 @@ const HOTES_A = [
 /** La zone attendue. `attendu` est une sous-chaîne cherchée dans la réponse. */
 const ZONE = [
   { nom: RACINE, type: 'A', attendu: IP, role: 'le site' },
-  { nom: `www.${RACINE}`, type: 'A', attendu: IP, role: 'le site (www)' },
+  { nom: `www.${RACINE}`, type: 'CNAME', attendu: RACINE, role: 'le site (www)' },
   ...HOTES_A.map((h) => ({ nom: `${h}.${RACINE}`, type: 'A', attendu: IP, role: 'service cPanel' })),
-  { nom: `mail.${RACINE}`, type: 'A', attendu: IP, role: 'E-MAIL — doit rester sur o2switch' },
+  { nom: `mail.${RACINE}`, type: 'CNAME', attendu: RACINE, role: 'E-MAIL — doit rester sur o2switch' },
   { nom: RACINE, type: 'MX', attendu: RACINE, role: 'E-MAIL — la cible ne doit JAMAIS être proxifiée' },
   { nom: RACINE, type: 'TXT', attendu: 'v=spf1', role: 'E-MAIL — SPF' },
   { nom: `_dmarc.${RACINE}`, type: 'TXT', attendu: 'v=DMARC1', role: 'E-MAIL — DMARC' },
@@ -55,7 +55,7 @@ const ZONE = [
   { nom: `_caldav._tcp.${RACINE}`, type: 'SRV', attendu: '2079', role: 'agenda' },
   { nom: `_carddav._tcp.${RACINE}`, type: 'SRV', attendu: '2079', role: 'contacts' },
   { nom: `_autodiscover._tcp.${RACINE}`, type: 'SRV', attendu: 'cpanelemaildiscovery', role: 'config auto des clients mail' },
-  { nom: `ftp.${RACINE}`, type: 'A', attendu: IP, role: 'transfert de fichiers' },
+  { nom: `ftp.${RACINE}`, type: 'CNAME', attendu: RACINE, role: 'transfert de fichiers' },
   // Les quatre TXT « path=/ » accompagnent les SRV caldav/carddav : sans eux,
   // certains clients (iOS, macOS) ne trouvent pas le chemin de synchro.
   { nom: `_carddavs._tcp.${RACINE}`, type: 'TXT', attendu: 'path=/', role: 'chemin contacts (TLS)' },
@@ -78,6 +78,9 @@ const estCloudflare = (v) => PLAGES_CLOUDFLARE.some((p) => v.startsWith(p));
 async function interroger(nom, type) {
   switch (type) {
     case 'A': return resolveur.resolve4(nom);
+    // On vérifie le type réel, pas seulement l'adresse au bout : un CNAME
+    // remplacé par un A donnerait la même IP et passerait inaperçu.
+    case 'CNAME': return resolveur.resolveCname(nom);
     case 'MX': return (await resolveur.resolveMx(nom)).map((m) => `${m.exchange} (prio ${m.priority})`);
     case 'TXT': return (await resolveur.resolveTxt(nom)).map((morceaux) => morceaux.join(''));
     case 'SRV': return (await resolveur.resolveSrv(nom)).map((s) => `${s.name}:${s.port} (prio ${s.priority}, poids ${s.weight})`);
@@ -91,7 +94,10 @@ async function main() {
   const ip = await adresseDuServeur(SERVEUR);
   resolveur.setServers([ip]);
   const cible = ip === SERVEUR ? SERVEUR : `${SERVEUR} (${ip})`;
-  console.log(`\nZone ${RACINE} — interrogée sur ${cible}\n${'─'.repeat(78)}`);
+  console.log(`\nZone ${RACINE} — interrogée sur ${cible}`);
+  console.log(`${ZONE.length} enregistrements attendus (9 A, 3 CNAME, 1 MX, 7 TXT, 5 SRV),`);
+  console.log('plus un contrôle d’intégrité de la clé DKIM.');
+  console.log('─'.repeat(78));
   let echecs = 0;
   let alertes = 0;
 
@@ -105,15 +111,22 @@ async function main() {
     }
 
     const trouve = reponses.some((r) => String(r).includes(attendu));
+
     // Un enregistrement e-mail qui atterrit sur une IP Cloudflare = mail coupé.
-    const proxifie = role.startsWith('E-MAIL') && reponses.some((r) => estCloudflare(String(r)));
+    // Pour un CNAME ou un MX, l'IP est au bout de la cible : on la résout.
+    let adresses = reponses;
+    if (role.startsWith('E-MAIL') && (type === 'CNAME' || type === 'MX')) {
+      const cible = String(reponses[0] || '').split(' ')[0];
+      adresses = cible ? await resolveur.resolve4(cible).catch(() => []) : [];
+    }
+    const proxifie = role.startsWith('E-MAIL') && adresses.some((r) => estCloudflare(String(r)));
 
     const etat = proxifie ? 'alerte' : (trouve ? 'ok' : 'ko');
     if (etat === 'ko') echecs += 1;
     if (etat === 'alerte') alertes += 1;
 
     const valeur = erreur ? `pas de réponse (${erreur})` : (reponses.join(' | ') || '(aucune réponse)');
-    console.log(`[${SYMBOLE[etat]}] ${type.padEnd(3)} ${nom.padEnd(38)} ${role}`);
+    console.log(`[${SYMBOLE[etat]}] ${type.padEnd(5)} ${nom.padEnd(38)} ${role}`);
     console.log(`           ${valeur.slice(0, 120)}${valeur.length > 120 ? '…' : ''}`);
     if (proxifie) console.log('           ⚠ IP Cloudflare sur un enregistrement e-mail : repasser cet hôte en DNS only (nuage gris).');
   }
@@ -121,7 +134,7 @@ async function main() {
   const dkim = (await interroger(`default._domainkey.${RACINE}`, 'TXT').catch(() => [])).join('');
   const dkimOk = dkim.includes(DKIM_DEBUT) && dkim.includes(DKIM_FIN);
   if (!dkimOk) echecs += 1;
-  console.log(`[${SYMBOLE[dkimOk ? 'ok' : 'ko']}] TXT clé DKIM entière (début ET fin de la clé publique)`);
+  console.log(`[${SYMBOLE[dkimOk ? 'ok' : 'ko']}] ——  clé DKIM entière (contrôle d’intégrité, pas un 26e enregistrement)`);
   console.log(`           ${dkim ? `${dkim.length} caractères lus` : 'rien lu'}`);
 
   console.log('─'.repeat(78));
