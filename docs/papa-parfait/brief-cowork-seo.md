@@ -26,8 +26,9 @@ horaires compris. Public : les parents, pas les enfants.
 - **Les données** viennent d'agendas publics (OpenAgenda, DATAtourisme) + météo.
 - **Monétisation** : achat intégré plus tard, jamais de publicité, jamais de
   revente de données. Le découpage gratuit/payant n'est pas tranché.
-- **Le site WordPress** : `[À REMPLIR — URL du site]`. Il n'est pas dans le
-  dépôt : Claude Code ne le voit pas, ne peut ni le lire ni le modifier.
+- **Le site WordPress** : `https://papaparfait.fr/` (hébergé chez o2switch). Il
+  n'est pas dans le dépôt : Claude Code ne le voit pas, ne peut ni le lire ni le
+  modifier. Tout ce qui se passe sur ce domaine est ton périmètre.
 
 ---
 
@@ -133,11 +134,14 @@ sort du code ou des données réelles.
    pouvoir désindexer.
    → Conséquence pour toi : plus aucune concurrence entre le domaine de l'app et
    le site. Toute la visibilité organique doit passer par le site.
-2. **Un sous-domaine propre pour l'app** remplacera `papa-parfait-web.loumiwassim.workers.dev`
-   (type `app.<domaine-du-site>`). Mise en œuvre par Claude Code dès que le
-   domaine est connu. D'ici là, **ne pas diffuser massivement l'URL workers.dev**
-   dans des contenus durables : elle va changer. Les CTA du site pourront être
-   basculés en une fois.
+2. **L'app passera sur `https://app.papaparfait.fr`**, en remplacement de
+   `papa-parfait-web.loumiwassim.workers.dev`. Prérequis en cours : le DNS de
+   `papaparfait.fr` est chez o2switch et doit passer chez Cloudflare pour que le
+   sous-domaine pointe sur le worker (le site WordPress, lui, ne bouge pas :
+   il reste servi par o2switch).
+   → D'ici là, **ne pas diffuser l'URL `workers.dev`** dans des contenus
+   durables : elle va changer. Utilise-la dans les CTA (elle fonctionne), Claude
+   Code te signalera le jour de la bascule pour un remplacement en une passe.
 3. **Le lien « Blog » est retiré du menu** tant qu'il n'y a pas d'articles. On le
    remet le jour où trois articles sont en ligne et où un rythme est tenu.
 4. **Le reporting SEO reste chez Claude Code** (skills `wassim-seo-program` et
@@ -199,8 +203,9 @@ qui dit *quoi* et *pourquoi*. Exemples :
 - **Un compteur d'usage de l'app** (ouvertures, top affiché, sortie gardée,
   compte créé). Tant qu'il n'existe pas, personne ne peut relier le trafic du
   site à un usage réel de l'app : ton reporting s'arrête à la porte de l'app.
-- **Le passage au sous-domaine propre** (§4.2), dès que le domaine est connu :
-  bascule du worker, redirections, et signal à Cowork pour changer les CTA.
+- **Le passage sur `app.papaparfait.fr`** (§4.2) : il attend la bascule DNS de
+  `papaparfait.fr` vers Cloudflare. Ensuite, config du worker, redirection depuis
+  l'ancienne adresse, et signal à Cowork pour remplacer les CTA en une passe.
 - **La mise à jour de ce fichier** à chaque ouverture de zone.
 
 ---
