@@ -98,6 +98,14 @@ export const LIEN_APP = 'https://papa-parfait-web.loumiwassim.workers.dev';
  *  profil s'il existe, sinon rouvre un onboarding allégé. */
 export const GOOGLE_ACTIF = true;
 
+/** Alerte du week-end.
+ *  À passer à true une fois les secrets posés côté worker (SUPABASE_URL,
+ *  SUPABASE_SERVICE_KEY, RESEND_KEY) et le domaine d'envoi vérifié chez Resend.
+ *  Tant que c'est false, la case d'inscription reste cachée : on ne propose pas
+ *  un service qui ne partirait jamais. Le worker, lui, est déjà prêt et inerte
+ *  sans ses secrets. */
+export const ALERTE_ACTIVE = false;
+
 /** Piliers actifs. Couple/Moi/Tribu sont en teaser (vote « Ça m'intéresse »)
  *  tant que les Sorties n'ont pas fait leurs preuves — passer un pilier à
  *  true réactive l'écran complet correspondant, déjà codé. */

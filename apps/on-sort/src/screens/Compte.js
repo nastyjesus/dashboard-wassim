@@ -7,14 +7,15 @@
 import { useState } from 'react';
 import { ScrollView, Text, View, StyleSheet } from 'react-native';
 import { couleurs, espace, police, typo, cadre, rayon } from '../theme.js';
-import { Bouton, Champ } from '../components/ui.js';
-import { GOOGLE_ACTIF } from '../config.js';
+import { Bouton, Champ, Case } from '../components/ui.js';
+import { GOOGLE_ACTIF, ALERTE_ACTIVE } from '../config.js';
 import { creerCompte, connexionGoogle } from '../compte-api.js';
 import { synchroniserFavoris } from '../favoris.js';
 
 const ARGUMENTS = [
   'Tes sorties gardées te suivent sur tous tes appareils.',
   'Changement de téléphone, PWA réinstallée : tu retrouves ton QG.',
+  ...(ALERTE_ACTIVE ? ['Le vendredi, le top du samedi arrive dans ta boîte — si tu le demandes.'] : []),
   'Tu seras prévenu en premier quand Couple, Moi et Tribu ouvriront.',
 ];
 
@@ -22,6 +23,8 @@ export function Compte({ profil, motif, onFait, onFermer }) {
   const [prenom, setPrenom] = useState(profil?.prenom || '');
   const [email, setEmail] = useState(profil?.email || '');
   const [motDePasse, setMotDePasse] = useState('');
+  // Opt-in, décoché par défaut : on n'inscrit personne sans un geste clair.
+  const [alerte, setAlerte] = useState(false);
   const [erreur, setErreur] = useState(null);
   const [envoi, setEnvoi] = useState(false);
 
@@ -49,6 +52,7 @@ export function Compte({ profil, motif, onFait, onFermer }) {
         age: profil.age,
         villeId: profil.villeId,
         code: profil.code,
+        alerte,
       });
       // Les sorties gardées en invité montent maintenant sur le compte.
       await synchroniserFavoris();
@@ -115,6 +119,17 @@ export function Compte({ profil, motif, onFait, onFermer }) {
         secureTextEntry
         autoCapitalize="none"
       />
+
+      {ALERTE_ACTIVE && (
+      <View style={styles.alerte}>
+        <Case
+          label="Préviens-moi le vendredi"
+          aide="Un e-mail avec le top du samedi près de chez toi. Rien d'autre, et tu te désabonnes en un clic."
+          coche={alerte}
+          onChange={setAlerte}
+        />
+      </View>
+      )}
 
       <View style={styles.pied}>
         {erreur ? <Text style={styles.erreur}>{erreur}</Text> : null}
@@ -192,6 +207,7 @@ const styles = StyleSheet.create({
     marginBottom: espace.l,
   },
 
+  alerte: { marginTop: espace.s },
   pied: { marginTop: espace.l },
   aide: { ...typo.corps, fontSize: 13, color: couleurs.discret, fontFamily: police.corps, marginTop: espace.m },
   plusTard: { marginTop: espace.xl },

@@ -80,7 +80,7 @@ export async function sessionCourante() {
  * on complète seulement le profil.
  * @returns {Promise<{prenom:string,email:string,age:number,villeId:string,code?:string}>}
  */
-export async function creerCompte({ prenom, email, password, age, villeId, code }) {
+export async function creerCompte({ prenom, email, password, age, villeId, code, alerte = false }) {
   const compte = {
     prenom: prenom.trim(),
     email: (email || '').trim().toLowerCase(),
@@ -130,6 +130,9 @@ export async function creerCompte({ prenom, email, password, age, villeId, code 
       age,
       ville_id: villeId,
       dept_code: code,
+      // Opt-in explicite : false tant que la case n'est pas cochée. On
+      // n'inscrit personne à une alerte qu'il n'a pas demandée.
+      alerte_weekend: Boolean(alerte),
     });
     if (e2) throw new Error(e2.message);
   }

@@ -80,9 +80,17 @@ excellente sur 1. Les votes nous diront quel pilier construire en priorité.
     montrée une fois, refusable), et dans le pied de l'accueil. Nulle part
     ailleurs.
   - **Ce qu'il apporte vraiment** : retrouver ses sorties gardées sur un autre
-    appareil (table `favoris`, fusion local ↔ compte à la connexion). Il ne
-    déverrouille aucune sortie — les piliers Couple/Moi/Tribu sont en teaser, ils
-    ne peuvent pas servir de carotte.
+    appareil (table `favoris`, fusion local ↔ compte à la connexion), et depuis
+    le 24 septembre 2026 **l'alerte du week-end** — le vendredi, le top du
+    samedi par e-mail, sur opt-in explicite. Il ne déverrouille aucune sortie —
+    les piliers Couple/Moi/Tribu sont en teaser, ils ne peuvent pas servir de
+    carotte.
+  - **Alerte du week-end, règles arrêtées le 24 septembre 2026** : e-mail (et
+    non push — sur iPhone le push web exige une PWA installée, ce qui écarterait
+    une partie des papas sans qu'on le sache) ; case décochée par défaut ;
+    aucun envoi quand il n'y a rien à proposer ; désabonnement en un clic par
+    jeton, sans mot de passe. Envoi par Resend (serveurs européens), aucun pixel
+    de suivi ni lien tracké.
   - **Arrivée par lien** : le site peut envoyer droit au résultat avec
     `?ville=rennes&age=3`. L'app applique le lien, nettoie l'URL et affiche le
     top sans écran intermédiaire.

@@ -76,6 +76,29 @@ export function Chip({ label, actif, onPress }) {
   );
 }
 
+// Case à cocher — cadre encre 2px, coche à l'encre quand elle est active.
+// Pas d'ambre : la charte le réserve au GO et à l'action primaire. La zone
+// tapable couvre la case ET son libellé.
+export function Case({ label, aide, coche, onChange }) {
+  return (
+    <Pressable
+      onPress={() => onChange(!coche)}
+      accessibilityRole="checkbox"
+      accessibilityState={{ checked: !!coche }}
+      accessibilityLabel={label}
+      style={styles.caseBloc}
+    >
+      <View style={[styles.case, coche && styles.caseCochee]}>
+        {coche ? <Text style={styles.caseCoche}>✓</Text> : null}
+      </View>
+      <View style={styles.caseTextes}>
+        <Text style={styles.caseLabel}>{label}</Text>
+        {aide ? <Text style={styles.caseAide}>{aide}</Text> : null}
+      </View>
+    </Pressable>
+  );
+}
+
 export function Pastille({ label, tonique }) {
   return (
     <View style={[styles.pastille, tonique && styles.pastilleTonique]}>
@@ -156,6 +179,23 @@ const styles = StyleSheet.create({
   chipActif: { backgroundColor: couleurs.encre },
   chipTexte: { color: couleurs.encre, fontSize: 15, fontFamily: police.corpsFort },
   chipTexteActif: { color: couleurs.panneau },
+
+  // Case à cocher
+  caseBloc: { flexDirection: 'row', alignItems: 'flex-start', gap: espace.m, marginBottom: espace.l },
+  case: {
+    width: 26,
+    height: 26,
+    borderRadius: rayon.s,
+    backgroundColor: couleurs.panneau,
+    alignItems: 'center',
+    justifyContent: 'center',
+    ...cadre,
+  },
+  caseCochee: { backgroundColor: couleurs.encre },
+  caseCoche: { color: couleurs.panneau, fontSize: 15, lineHeight: 18, fontFamily: police.corpsFort },
+  caseTextes: { flex: 1 },
+  caseLabel: { color: couleurs.encre, fontSize: 15, lineHeight: 21, fontFamily: police.corpsFort },
+  caseAide: { color: couleurs.discret, fontSize: 13, lineHeight: 19, marginTop: 2, fontFamily: police.corps },
 
   // Pastille / tag
   pastille: {

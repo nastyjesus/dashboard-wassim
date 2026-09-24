@@ -19,6 +19,11 @@
 //   GET  /ville-demande — les villes demandées, triées par fréquence
 //   POST /mesure     — incrémente un compteur d'usage (aucun identifiant)
 //   GET  /mesures    — les compteurs par jour (?jours=14)
+//   GET  /desabonnement?jeton= — coupe l'alerte du week-end, sans mot de passe
+//
+// Et un travail programmé : le vendredi, l'alerte du week-end part par e-mail
+// aux papas qui l'ont demandée (voir src/alerte.js et [triggers] dans
+// wrangler.toml).
 
 import { jsonResponse, preflightResponse } from './cors.js';
 import { evenementsOpenAgenda } from './sources/openagenda.js';
@@ -26,6 +31,7 @@ import { evenementsDatatourisme } from './sources/datatourisme.js';
 import { previsionJour } from './meteo.js';
 import { top } from './scoring.js';
 import { scoreFamille } from './famille.js';
+import { envoyerAlertes, desabonner, pageDesabonnement } from './alerte.js';
 import { MOCK_EVENEMENTS, MOCK_METEO, isMock } from './mocks.js';
 
 const DEFAUTS = {
@@ -48,7 +54,7 @@ const PILIERS = ['couple', 'moi', 'tribu'];
  *  - garde         : une sortie a été mise de côté
  *  - compte        : un compte a été créé
  *  Ces cinq étapes suffisent à lire l'entonnoir site → sortie → compte. */
-const MESURES = ['ouverture', 'arrivee-lien', 'top', 'top-vide', 'garde', 'compte'];
+const MESURES = ['ouverture', 'arrivee-lien', 'top', 'top-vide', 'garde', 'compte', 'alerte-envoyee'];
 const MESURES_JOURS_MAX = 90;
 
 export default {
@@ -135,6 +141,15 @@ export default {
         await env.VOTES.put(cle, String(actuel + 1));
         return jsonResponse({ ok: true }, 202, request, env);
       }
+      // Désabonnement : un clic depuis un e-mail, sans compte ni mot de passe.
+      // Le jeton du lien identifie l'inscription et rien d'autre.
+      if (path === '/desabonnement' && request.method === 'GET') {
+        const resultat = await desabonner(env, url.searchParams.get('jeton'));
+        return new Response(pageDesabonnement(resultat), {
+          status: resultat.ok ? 200 : 404,
+          headers: { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' },
+        });
+      }
       if (path === '/mesures' && request.method === 'GET') {
         if (!env.VOTES) return jsonResponse({ error: 'kv_not_bound' }, 503, request, env);
         const demandes = Number.parseInt(url.searchParams.get('jours') || '14', 10);
@@ -146,6 +161,16 @@ export default {
     }
 
     return jsonResponse({ error: 'not_found' }, 404, request, env);
+  },
+
+  // Vendredi (voir [triggers] dans wrangler.toml) : l'alerte du week-end.
+  // Le résumé part dans les logs — `npx wrangler tail` pour le lire en direct.
+  async scheduled(event, env, ctx) {
+    ctx.waitUntil(
+      envoyerAlertes(env)
+        .then((resume) => console.log('alerte week-end :', JSON.stringify(resume)))
+        .catch((e) => console.error('alerte week-end, échec :', e.message || e)),
+    );
   },
 };
 

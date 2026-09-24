@@ -81,6 +81,28 @@ les prévisions de services météo. Ces requêtes portent sur une ville et une
 date : elles ne contiennent ni votre nom, ni votre e-mail, ni votre position
 réelle.
 
+## L'alerte du week-end
+
+Si vous cochez la case prévue à la création de votre compte — et seulement dans
+ce cas — nous vous envoyons **un e-mail le vendredi**, avec les sorties du
+samedi près de votre ville. Rien d'autre : ni promotion, ni partenaire, ni
+relance.
+
+- Nous enregistrons trois informations : que vous avez demandé l'alerte, un
+  **jeton de désabonnement** (un identifiant aléatoire, sans lien avec votre
+  compte, qui voyage dans le lien de chaque e-mail), et la **date du dernier
+  envoi**, pour ne pas vous écrire deux fois.
+- **Se désabonner prend un clic**, depuis n'importe quel e-mail reçu, sans mot
+  de passe et sans se connecter. Votre compte et vos sorties gardées ne sont pas
+  touchés.
+- S'il n'y a rien à proposer ce week-end-là près de chez vous, **nous
+  n'envoyons pas d'e-mail**.
+- L'envoi passe par **Resend**, notre prestataire d'e-mail, sur ses serveurs
+  européens. Il reçoit votre adresse et le contenu du message, pour notre compte
+  et pour ce seul usage.
+- Nous ne mesurons ni l'ouverture ni les clics dans ces e-mails : ils ne
+  contiennent ni pixel espion, ni lien de suivi.
+
 ## La mesure d'usage
 
 Pour savoir si l'application sert vraiment, nous comptons quelques étapes :
@@ -115,7 +137,8 @@ abusifs peuvent être suspendus.
 Nous ne vendons ni ne louons vos données. Nous ne les partageons avec personne
 à des fins commerciales. Elles ne sont transmises qu'à nos prestataires
 techniques (Supabase pour la base et l'authentification, Cloudflare pour
-l'hébergement), qui les traitent pour notre compte.
+l'hébergement, Resend pour l'envoi de l'alerte du week-end), qui les traitent
+pour notre compte.
 
 ## Durée de conservation
 

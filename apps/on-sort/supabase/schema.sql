@@ -85,3 +85,22 @@ create policy "favori_maj_soi" on public.favoris
 drop policy if exists "favori_suppr_soi" on public.favoris;
 create policy "favori_suppr_soi" on public.favoris
   for delete using (auth.uid() = papa);
+
+-- 4) Alerte du week-end. Le vendredi, le top du samedi part par e-mail aux
+--    papas qui l'ont demandé — c'est la deuxième raison de créer un compte.
+--    Opt-in explicite : la colonne vaut false tant que la case n'est pas cochée.
+alter table public.profils
+  add column if not exists alerte_weekend boolean not null default false;
+
+--    Jeton de désabonnement : il voyage dans le lien de chaque e-mail. Un jeton
+--    par papa, imprévisible, révocable — jamais l'identifiant du compte, qui ne
+--    doit pas circuler dans des liens.
+alter table public.profils
+  add column if not exists alerte_jeton uuid not null default gen_random_uuid();
+
+--    Dernier envoi : évite le double envoi si le cron est rejoué le même jour.
+alter table public.profils
+  add column if not exists alerte_envoyee_le date;
+
+create index if not exists profils_alerte_idx
+  on public.profils (alerte_weekend) where alerte_weekend;

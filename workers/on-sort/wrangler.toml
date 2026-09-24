@@ -43,5 +43,12 @@ ALLOWED_ORIGINS = "*"
 binding = "VOTES"
 id = "53f9f68cbc5b43f2a2d2072216565d3e"
 
+# Alerte du week-end : vendredi 15 h UTC, soit 17 h en heure d'été et 16 h en
+# heure d'hiver. On vise la fin d'après-midi du vendredi, le moment où un papa
+# se demande quoi faire demain. Le worker ne fait rien si les secrets
+# SUPABASE_URL / SUPABASE_SERVICE_KEY / RESEND_KEY ne sont pas posés.
+[triggers]
+crons = ["0 15 * * 5"]
+
 [observability]
 enabled = true

@@ -32,6 +32,36 @@ d'événements famille exploitables en open data autour de Rennes ?**
 | `POST /ville-demande` · `GET /ville-demande` | villes réclamées hors zone (filet si Supabase KO) |
 | `POST /mesure` `{evt}` | +1 sur un compteur d'usage du jour |
 | `GET /mesures?jours=14` | les compteurs par jour, les totaux et les taux |
+| `GET /desabonnement?jeton=` | coupe l'alerte du week-end, sans compte ni mot de passe |
+
+## L'alerte du week-end (cron du vendredi)
+
+`[triggers] crons = ["0 15 * * 5"]` — vendredi 15 h UTC, soit 17 h en heure
+d'été, 16 h en hiver. Le worker prend les papas qui ont coché l'alerte, demande
+son top du samedi à `/top` (un appel par couple ville + âge, pas par personne),
+et envoie l'e-mail via Resend.
+
+Trois règles tenues dans `src/alerte.js` :
+
+1. **opt-in strict** — la colonne `alerte_weekend` vaut `false` par défaut ;
+2. **silence si rien** — top vide, ville fermée, adresse introuvable : aucun
+   e-mail. Un message « rien près de chez toi » fait désabonner ;
+3. **désabonnement en un clic** — un jeton aléatoire par papa dans le lien, pas
+   l'identifiant du compte.
+
+Secrets à poser (Cloudflare → Worker → Settings → Variables, chiffrés) :
+`SUPABASE_URL`, `SUPABASE_SERVICE_KEY` (clé service_role), `RESEND_KEY`.
+**Sans eux, le cron ne fait rien et l'écrit dans les logs** — il n'échoue pas.
+Côté app, la case d'inscription reste cachée tant que `ALERTE_ACTIVE` vaut
+`false` dans `apps/on-sort/src/config.js` : on ne propose pas un service qui ne
+partirait pas.
+
+Vérifier un vendredi : `npx wrangler tail` puis lire la ligne
+`alerte week-end : {"destinataires":…,"envoyes":…,"silences":…}`.
+
+⚠️ `src/villes.js` duplique la liste de villes de l'app. Les deux doivent bouger
+ensemble à chaque ouverture de zone — un test compte les villes pour qu'un oubli
+se voie.
 
 ## Lire les compteurs d'usage
 
