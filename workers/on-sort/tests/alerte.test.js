@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import {
-  prochainSamedi, libelleDate, sujetAlerte, corpsAlerte, echapper, envoyerAlertes, desabonner,
+  prochainSamedi, libelleDate, sujetAlerte, corpsAlerte, echapper, envoyerAlertes,
+  desabonner, pageDesabonnement,
 } from '../src/alerte.js';
 import { VILLES, villeParId } from '../src/villes.js';
 
@@ -178,6 +179,27 @@ describe('désabonnement', () => {
       '11111111-2222-4333-8444-555555555555',
     );
     expect(r.ok).toBe(false);
+  });
+});
+
+describe('page de désabonnement', () => {
+  it('confirme clairement quand c’est fait', () => {
+    const page = pageDesabonnement({ ok: true });
+    expect(page).toContain('C’est fait.');
+    expect(page).toContain('ne recevras plus');
+  });
+
+  it('dit explicitement que le papa n’est PAS désabonné en cas de panne', () => {
+    // Le pire message possible serait « rien à désabonner » pendant une panne :
+    // le papa partirait rassuré et continuerait à recevoir des e-mails.
+    const page = pageDesabonnement({ ok: false, motif: 'panne' });
+    expect(page).toContain('n’a pas marché');
+    expect(page).toContain('PAS désabonné');
+  });
+
+  it('distingue un lien coupé d’un lien inconnu', () => {
+    expect(pageDesabonnement({ ok: false, motif: 'lien-invalide' })).toContain('incomplet');
+    expect(pageDesabonnement({ ok: false, motif: 'lien-inconnu' })).toContain('déjà désabonné');
   });
 });
 

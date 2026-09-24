@@ -265,8 +265,8 @@ export async function envoyerAlertes(env, maintenant = new Date()) {
  * Une page, pas un JSON — c'est un humain qui clique.
  */
 export async function desabonner(env, jeton) {
-  if (!/^[0-9a-f-]{36}$/i.test(jeton || '')) return { ok: false, motif: 'lien invalide' };
-  if (!env.SUPABASE_URL || !env.SUPABASE_SERVICE_KEY) return { ok: false, motif: 'service indisponible' };
+  if (!/^[0-9a-f-]{36}$/i.test(jeton || '')) return { ok: false, motif: 'lien-invalide' };
+  if (!env.SUPABASE_URL || !env.SUPABASE_SERVICE_KEY) return { ok: false, motif: 'panne' };
 
   const res = await fetch(`${env.SUPABASE_URL}/rest/v1/profils?alerte_jeton=eq.${jeton}`, {
     method: 'PATCH',
@@ -278,17 +278,26 @@ export async function desabonner(env, jeton) {
     },
     body: JSON.stringify({ alerte_weekend: false }),
   });
-  if (!res.ok) return { ok: false, motif: 'service indisponible' };
+  if (!res.ok) return { ok: false, motif: 'panne' };
   const lignes = await res.json();
-  return { ok: Array.isArray(lignes) && lignes.length > 0, motif: 'lien inconnu' };
+  return { ok: Array.isArray(lignes) && lignes.length > 0, motif: 'lien-inconnu' };
 }
 
-/** La page rendue après un clic sur « me désabonner ». Charte, sobre, sans compte. */
+/** La page rendue après un clic sur « me désabonner ». Charte, sobre, sans compte.
+ *  Trois cas bien distincts : une panne de notre côté n'est pas un lien mort, et
+ *  ne doit pas laisser croire au papa qu'il est désabonné alors qu'il ne l'est
+ *  pas. Se désabonner doit toujours finir par marcher. */
+const MESSAGES = {
+  'lien-invalide': 'Ce lien est incomplet — il a sans doute été coupé par ton logiciel de messagerie. Réessaie en cliquant directement dans l’e-mail, ou réponds-y : on te désabonne à la main.',
+  'lien-inconnu': 'Aucune inscription ne correspond à ce lien. Soit tu es déjà désabonné, soit le lien vient d’un très vieil e-mail. Si tu en reçois encore, réponds à l’un d’eux, on s’en occupe.',
+  panne: 'Notre service ne répond pas à cet instant — tu n’es donc PAS désabonné. Réessaie dans quelques minutes, ou réponds à l’e-mail que tu as reçu : on le fera à la main.',
+};
+
 export function pageDesabonnement({ ok, motif }) {
-  const titre = ok ? 'C’est fait.' : 'Rien à désabonner.';
+  const titre = ok ? 'C’est fait.' : (motif === 'panne' ? 'Ça n’a pas marché.' : 'Rien à désabonner.');
   const texte = ok
-    ? 'Tu ne recevras plus l’alerte du week-end. Tes sorties gardées et ton compte ne bougent pas — tu peux réactiver l’alerte quand tu veux depuis l’app.'
-    : `Ce lien ne correspond à aucune inscription (${motif}). Si tu reçois encore des e-mails, réponds à celui que tu as reçu, on s’en occupe à la main.`;
+    ? 'Tu ne recevras plus l’alerte du week-end. Tes sorties gardées et ton compte ne bougent pas — tu peux la réactiver quand tu veux depuis l’app.'
+    : (MESSAGES[motif] || MESSAGES['lien-inconnu']);
   return `<!doctype html><html lang="fr"><head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Alerte du week-end — Papa Parfait</title>

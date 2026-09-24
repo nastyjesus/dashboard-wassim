@@ -145,8 +145,9 @@ export default {
       // Le jeton du lien identifie l'inscription et rien d'autre.
       if (path === '/desabonnement' && request.method === 'GET') {
         const resultat = await desabonner(env, url.searchParams.get('jeton'));
+        const code = resultat.ok ? 200 : (resultat.motif === 'panne' ? 503 : 404);
         return new Response(pageDesabonnement(resultat), {
-          status: resultat.ok ? 200 : 404,
+          status: code,
           headers: { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' },
         });
       }
