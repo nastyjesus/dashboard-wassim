@@ -313,7 +313,8 @@ Toutes les routes exigent `X-Wassim-Auth`.
 
 1. **Exports réels** : un export Semrush Backlink Gap et un export Ahrefs Link
    Intersect sur un vrai client. Ils bloquent l'écriture des parsers.
-2. **Source d'autorité par défaut** dans le score : Semrush AS ou Ahrefs DR ?
+2. ~~Source d'autorité par défaut~~ — **tranché le 2026-10-01 : Semrush
+   Authority Score** (`authority_source = 'semrush'`), modifiable par client.
 3. **Marketplace (V4)** : quel service se cache derrière le connecteur de la
    session (`search_sites` / `create_order`), et a-t-il une API appelable
    depuis un worker ?
