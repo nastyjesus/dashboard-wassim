@@ -8,7 +8,10 @@ marketplace payante en option séparée.
 > vient d'un export Semrush / Ahrefs importé. Une donnée absente reste absente
 > (affichée « inconnue »), jamais estimée.
 
-Statut : **spec V1 — en attente d'exports réels** (voir § Questions ouvertes).
+Statut : **V1 codée et testée** (worker, base, score, pipeline, vérification
+des liens, page). **Il manque les parsers d'import**, en attente d'exports
+réels (voir § Questions ouvertes). D'ici là, tout CSV est refusé avec la liste
+de ses colonnes.
 
 ---
 
@@ -46,7 +49,7 @@ backlinks.html  (GitHub Pages, comme automations.html)
    ▼
 workers/backlink-radar/  (Cloudflare Worker "backlink-radar-wassim")
    ├─ D1 "backlink-radar"   clients, opportunités, pipeline, contrôles
-   └─ cron hebdo            vérification des liens obtenus
+   └─ cron quotidien        vérification des liens obtenus (par lots)
 ```
 
 - **Front** : page statique `backlinks.html` à la racine, même charte que
@@ -60,7 +63,9 @@ workers/backlink-radar/  (Cloudflare Worker "backlink-radar-wassim")
 - **Stockage : D1 plutôt que KV**, parce que le pipeline demande des requêtes
   (filtrer par statut, trier par score, relances dues). Le précédent existe
   déjà avec `workers/papa-tribu`.
-- **Tests** : vitest, comme les autres workers (`npm test`).
+- **Tests** : vitest, comme les autres workers (`npm test`). Le SQL réel est
+  testé sur SQLite en mémoire (`node:sqlite`, Node ≥ 22) via une fine couche
+  qui imite l'API D1.
 
 ## 4. Modèle de données (D1)
 
@@ -172,7 +177,7 @@ affiché au survol.
 
 | Composante | Calcul | Source |
 |---|---|---|
-| Autorité | Semrush AS ÷ 100 ou Ahrefs DR ÷ 100. Si les deux existent, affichés séparément ; le score utilise la source choisie dans les réglages | Export |
+| Autorité | Semrush AS ÷ 100 ou Ahrefs DR ÷ 100, selon la source choisie pour le client. Les deux sont toujours affichés. **Pas de repli** sur l'autre source : si la source choisie manque, la composante est inconnue | Export |
 | Facilité | `competitors_linked / competitors_total` : un domaine qui fait des liens vers plusieurs concurrents accepte probablement le secteur | Export |
 | Pertinence | V2 (API Claude) | — |
 
@@ -200,12 +205,15 @@ obtenu → perdu   (posé automatiquement par la vérification)
 - Passer en `obtenu` demande `link_url` et déclenche un contrôle immédiat.
 - Chaque transition écrit une ligne dans `events`.
 
-### Vérification (cron hebdomadaire + à la demande)
+### Vérification (cron quotidien par lots + à la demande)
 Pour chaque opportunité `obtenu` :
-1. `GET link_url`, redirections suivies (5 max), User-Agent identifiable
-   `BacklinkRadar (+contact)`.
-2. Lecture du HTML via **HTMLRewriter** (natif Workers) : tous les `<a href>`
-   dont le domaine normalisé = domaine du client.
+1. `GET link_url`, redirections suivies par le runtime, User-Agent identifiable
+   `BacklinkRadar/0.1 (+site de Wassim)`, délai max 15 s.
+2. Lecture du HTML par expressions régulières sur les balises `<a>` et `<meta>`.
+   Commentaires, `<script>` et `<style>` sont retirés avant. On garde tous les
+   `<a href>` dont le domaine est celui du client ou l'un de ses sous-domaines.
+   *Implémentation :* pas d'HTMLRewriter. On ne lit que des attributs, et ce
+   code reste testable hors du runtime Workers.
 3. Résultat :
 
 | `result` | Condition |
@@ -221,8 +229,14 @@ Pour chaque opportunité `obtenu` :
   et un lien retiré.
 - **Limite connue** : un lien injecté en JavaScript n'est pas visible sans
   navigateur headless. Il est classé `unverifiable`, jamais `missing`.
-- **Sous-requêtes** : le cron traite les liens par lots, avec une invocation
-  par lot. On reprend le patron du binding `SELF` de `geo-tracker`.
+- Un lien `perdu` qui réapparaît lors d'une vérification manuelle repasse
+  automatiquement en `obtenu`.
+- **Sous-requêtes** : un contrôle coûte une sous-requête, et la limite est de
+  50 par invocation. Le cron tourne chaque jour à 5 h UTC et traite au plus
+  `CHECK_BATCH` (40) liens, en commençant par les plus anciennement vérifiés.
+  Un lien n'est revérifié qu'après `CHECK_EVERY_DAYS` (7) jours. Cela donne un
+  contrôle hebdomadaire de chaque lien jusqu'à 280 liens obtenus. Au-delà, il
+  faudra le patron du binding `SELF` de `geo-tracker`.
 
 ## 8. API du worker
 
@@ -237,7 +251,8 @@ Toutes les routes exigent `X-Wassim-Auth`.
 | GET | `/clients/:id/opportunities?status=&method=&sort=score` | liste filtrée |
 | PATCH | `/opportunities/:id` | changer statut / note / relance / `link_url` |
 | POST | `/opportunities/:id/check` | vérification immédiate |
-| GET | `/followups` | relances dues aujourd'hui, tous clients |
+| GET | `/opportunities/:id` | détail + historique du pipeline + 20 derniers contrôles |
+| GET | `/followups` | relances dues aujourd'hui + liens perdus, tous clients |
 | GET | `/health` | état (sans auth) |
 
 ## 9. Front `backlinks.html` (V1)
@@ -246,19 +261,34 @@ Toutes les routes exigent `X-Wassim-Auth`.
 - Zone de dépôt CSV → rapport d'import.
 - Tableau des opportunités : domaine, AS / DR, concurrents liés, score (détail
   au survol), statut. Tri et filtres.
-- Vue pipeline (colonnes par statut) avec changement de statut en un clic.
+- Pipeline : filtres par statut avec compteurs, et changement de statut dans
+  la ligne (seules les transitions autorisées sont proposées). Plutôt qu'un
+  kanban : il reste lisible avec des centaines de lignes, et sur mobile.
+- Historique par opportunité : transitions et vérifications.
 - Bandeau « relances du jour » et « liens perdus ».
+- En local (`localhost`), la page parle à `wrangler dev` (port 8787). Ailleurs,
+  elle parle au worker de prod. L'URL d'API n'est jamais un paramètre, pour
+  que le token ne parte que vers ces deux hôtes.
 
 ## 10. Déploiement
 
 - Branche : `feat/backlink-radar`.
 - Workflow `.github/workflows/deploy-backlink-radar-worker.yml`, calqué sur
-  `deploy-geo-tracker-worker.yml` : `npm ci`, `npm test`, puis
-  `wrangler deploy` sur push touchant `workers/backlink-radar/**`.
-- **Une seule fois, à la main** (Wassim) : `wrangler d1 create backlink-radar`,
-  puis reporter l'id dans `wrangler.toml` et `wrangler secret put WASSIM_AUTH_TOKEN`.
-  Les migrations passent par `wrangler d1 migrations apply`, intégré au
-  workflow.
+  `deploy-papa-tribu-worker.yml`. Il se déclenche sur un push vers
+  `feat/backlink-radar` qui touche `workers/backlink-radar/**`. Étapes :
+  1. `npm ci` puis `npm test` ;
+  2. création de la base D1 si elle n'existe pas, et injection de son id ;
+  3. `schema.sql` rejoué (idempotent) ;
+  4. secret `WASSIM_AUTH_TOKEN` copié depuis les secrets GitHub ;
+  5. `wrangler deploy` ;
+  6. smoke test en lecture seule : santé, 401 sans token, `GET /clients` avec
+     token. Aucune donnée de test n'est écrite en prod.
+- Rien à faire à la main, à condition que les secrets GitHub
+  `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID` et `WASSIM_AUTH_TOKEN` soient
+  présents, comme pour les autres workers.
+- Dev local : `.dev.vars` (ignoré par git) avec `WASSIM_AUTH_TOKEN=…`, puis
+  `npx wrangler d1 execute backlink-radar --local --file=schema.sql` et
+  `npx wrangler dev --local`.
 
 ## 11. Conformité SEO
 

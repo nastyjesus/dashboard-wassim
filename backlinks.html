@@ -1,0 +1,507 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Backlink Radar</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&family=Raleway:wght@300;400;500;600&display=swap">
+<style>
+  :root {
+    --gold: #B8873A; --gold-light: #e8d9c0; --gold-pale: #faf4ec;
+    --dark: #1a1208; --mid: #5a4e3a; --muted: #8a7a65;
+    --off: #faf8f5; --cream: #f0ebe3; --white: #ffffff;
+    --border: rgba(184,135,58,0.18);
+    --pos: #3e7d55; --neg: #b5472f; --stable: #8a7a65;
+  }
+  * { box-sizing: border-box; }
+  html, body { overflow-x: hidden; }
+  body { margin: 0; background: var(--off); color: var(--dark); line-height: 1.6;
+    font-family: 'Raleway', -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    font-weight: 300; }
+  .wrap { max-width: 1100px; margin: 0 auto; padding: 40px 20px 72px; }
+  .section-label { display: flex; align-items: center; gap: 12px; margin-bottom: 10px; }
+  .section-label::before { content: ""; width: 24px; height: 1px; background: var(--gold); }
+  .section-label span { font-size: .68rem; text-transform: uppercase; letter-spacing: .2em;
+    color: var(--gold); font-weight: 500; }
+  header h1 { font-family: 'EB Garamond', Georgia, serif; font-weight: 500; font-size: 2rem; margin: 0; text-wrap: balance; }
+  header .sub { color: var(--mid); font-size: .92rem; margin-top: 6px; }
+  .statusbar { display: flex; gap: 10px; flex-wrap: wrap; margin: 22px 0 28px; align-items: center; }
+  .pill { font-size: .72rem; font-weight: 500; letter-spacing: .08em; text-transform: uppercase;
+    border-radius: 999px; padding: 5px 14px; background: var(--gold-pale); color: var(--gold);
+    border: 1px solid var(--border); }
+  .pill.bad { background: #f7e8e3; color: var(--neg); border-color: rgba(181,71,47,.25); }
+  .pill.warn { background: var(--cream); color: var(--mid); }
+  .card { background: var(--white); border: 1px solid var(--border); border-left: 2px solid var(--gold);
+    border-radius: 2px; padding: 26px 28px; margin-bottom: 22px; }
+  .card.alert { border-left-color: var(--neg); }
+  .card h2 { font-family: 'EB Garamond', Georgia, serif; font-weight: 500; font-size: 1.35rem; margin: 0 0 4px; }
+  .card .hint { color: var(--muted); font-size: .85rem; margin: 0 0 16px; }
+  .row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; margin-bottom: 14px; }
+  label.f { display: flex; flex-direction: column; gap: 4px; font-size: .7rem; text-transform: uppercase;
+    letter-spacing: .12em; color: var(--muted); font-weight: 500; }
+  label.check { flex-direction: row; align-items: center; gap: 8px; text-transform: none; letter-spacing: 0; font-size: .86rem; color: var(--mid); }
+  button { border: 1px solid var(--gold); border-radius: 2px; padding: 12px 20px; font-size: .78rem;
+    font-family: 'Raleway', sans-serif; font-weight: 600; letter-spacing: .12em; text-transform: uppercase;
+    cursor: pointer; background: var(--gold); color: var(--white); transition: transform .18s ease, background .18s ease; }
+  button:hover:not(:disabled) { transform: translateY(-2px); }
+  button.secondary { background: transparent; color: var(--gold); }
+  button.secondary:hover:not(:disabled) { background: var(--gold-pale); }
+  button.small { padding: 6px 12px; font-size: .68rem; letter-spacing: .08em; }
+  button:disabled { opacity: .4; cursor: default; }
+  input[type="text"], input[type="number"], input[type="date"], select, textarea {
+    border: 1px solid var(--border); border-radius: 2px; padding: 10px 12px; font-size: .88rem;
+    background: var(--white); color: var(--dark); font-family: 'Raleway', sans-serif; font-weight: 400; }
+  textarea { min-height: 70px; resize: vertical; }
+  input:focus, select:focus, textarea:focus { outline: 2px solid var(--gold-light); border-color: var(--gold); }
+  td select { padding: 5px 8px; font-size: .8rem; }
+  .drop { border: 1px dashed var(--gold); border-radius: 2px; padding: 26px; text-align: center; color: var(--mid);
+    background: var(--gold-pale); cursor: pointer; font-size: .9rem; }
+  .drop.over { background: var(--cream); }
+  .out { margin-top: 14px; font-size: .86rem; }
+  .msg { padding: 11px 16px; border-radius: 2px; margin-bottom: 8px; border-left: 2px solid transparent; font-weight: 400; }
+  .msg.ok { background: var(--gold-pale); border-left-color: var(--gold); }
+  .msg.err { background: #f7e8e3; color: #7c3120; border-left-color: var(--neg); }
+  .msg.info { background: var(--cream); color: var(--mid); border-left-color: var(--gold-light); }
+  .msg code { font-size: .8rem; background: var(--white); padding: 1px 5px; }
+  .chips { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
+  .chip { border: 1px solid var(--border); background: var(--white); color: var(--mid); border-radius: 999px;
+    padding: 5px 13px; font-size: .74rem; font-weight: 500; letter-spacing: .04em; text-transform: none; }
+  .chip.on { background: var(--gold); color: var(--white); border-color: var(--gold); }
+  .chip b { font-weight: 600; margin-left: 4px; }
+  table { border-collapse: collapse; width: 100%; font-size: .84rem; margin-top: 8px; }
+  th { text-align: left; color: var(--muted); font-weight: 500; font-size: .64rem; text-transform: uppercase;
+    letter-spacing: .14em; padding: 8px 10px 8px 0; border-bottom: 1px solid var(--gold-light); white-space: nowrap; }
+  td { padding: 9px 10px 9px 0; border-bottom: 1px solid var(--border); vertical-align: middle; color: var(--mid); font-weight: 400; }
+  td.dom { color: var(--dark); font-weight: 500; word-break: break-all; }
+  td.num { font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .na { color: var(--muted); font-style: italic; font-size: .78rem; }
+  .score { font-weight: 600; color: var(--dark); cursor: help; border-bottom: 1px dotted var(--gold); }
+  .res { font-size: .7rem; font-weight: 600; padding: 2px 8px; border-radius: 999px; white-space: nowrap; }
+  .res.live_dofollow { background: #e5f0e8; color: var(--pos); }
+  .res.live_nofollow, .res.unverifiable { background: var(--cream); color: var(--mid); }
+  .res.missing, .res.http_error { background: #f7e8e3; color: var(--neg); }
+  a.lk { color: var(--gold); text-decoration: none; border-bottom: 1px solid var(--gold-light); }
+  .tbl-scroll { overflow-x: auto; }
+  tr.detail > td { background: var(--gold-pale); padding: 14px 16px; }
+  .detail h4 { font-family: 'EB Garamond', Georgia, serif; font-weight: 500; color: var(--dark); font-size: 1rem; margin: 0 0 4px; }
+  .detail ul { margin: 0 0 12px; padding-left: 18px; font-size: .8rem; }
+  details summary { cursor: pointer; color: var(--gold); font-size: .8rem; font-weight: 500; letter-spacing: .06em; margin-top: 4px; }
+  footer { color: var(--muted); font-size: .76rem; text-align: center; margin-top: 34px; }
+  @media (prefers-reduced-motion: reduce) { button { transition: none; } }
+  @media (max-width: 640px) {
+    .wrap { padding: 28px 14px 56px; }
+    .card { padding: 20px 16px; }
+    header h1 { font-size: 1.6rem; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="section-label"><span>Netlinking</span></div>
+    <h1>Backlink Radar</h1>
+    <div class="sub">Opportunités de liens dofollow gratuits — qualification, suivi des contacts, vérification des liens obtenus</div>
+  </header>
+
+  <div class="statusbar">
+    <span class="pill" id="st-api">API : …</span>
+    <span class="pill warn" id="st-follow" hidden></span>
+    <span class="pill bad" id="st-lost" hidden></span>
+    <button class="small secondary" onclick="configure()">⚙️ Token</button>
+  </div>
+
+  <div class="card alert" id="alerts-card" hidden>
+    <div class="section-label"><span>À traiter</span></div>
+    <h2>Relances et liens perdus</h2>
+    <div id="alerts"></div>
+  </div>
+
+  <div class="card">
+    <div class="section-label"><span>Client</span></div>
+    <div class="row">
+      <select id="client-select" onchange="selectClient(this.value)" aria-label="Client"></select>
+      <button class="small secondary" onclick="toggle('new-client')">+ Nouveau client</button>
+      <button class="small secondary" id="btn-settings" onclick="toggle('settings')" disabled>Réglages du score</button>
+    </div>
+
+    <div id="new-client" hidden style="margin-top:18px">
+      <div class="grid">
+        <label class="f">Nom<input type="text" id="nc-name" placeholder="Cabinet Dupont"></label>
+        <label class="f">Domaine<input type="text" id="nc-domain" placeholder="client.fr"></label>
+        <label class="f">Secteur<input type="text" id="nc-sector" placeholder="avocat, plombier, e-commerce…"></label>
+      </div>
+      <label class="f" style="margin-bottom:10px">Concurrents (un domaine par ligne, 10 max)
+        <textarea id="nc-competitors" placeholder="concurrent-1.fr&#10;concurrent-2.fr"></textarea></label>
+      <div class="row">
+        <label class="f check"><input type="checkbox" id="nc-local"> Client local</label>
+        <button onclick="createClient()">Créer</button>
+      </div>
+    </div>
+
+    <div id="settings" hidden style="margin-top:18px">
+      <p class="hint">Le score combine les composantes connues, pondérées ci-dessous. Une donnée absente est exclue du calcul, jamais comptée comme zéro.</p>
+      <div class="grid">
+        <label class="f">Source d'autorité
+          <select id="set-source"><option value="semrush">Semrush — Authority Score</option><option value="ahrefs">Ahrefs — Domain Rating</option></select></label>
+        <label class="f">Poids autorité<input type="number" id="set-w-auth" min="0" step="0.5"></label>
+        <label class="f">Poids facilité<input type="number" id="set-w-ease" min="0" step="0.5"></label>
+      </div>
+      <label class="f" style="margin-bottom:10px">Concurrents (un domaine par ligne)
+        <textarea id="set-competitors"></textarea></label>
+      <button onclick="saveSettings()">Enregistrer et recalculer</button>
+    </div>
+    <div class="out" id="client-out"></div>
+  </div>
+
+  <div class="card" id="import-card" hidden>
+    <div class="section-label"><span>Import</span></div>
+    <h2>Importer un export CSV</h2>
+    <p class="hint">Backlink Gap (Semrush) ou Link Intersect (Ahrefs). Un réimport met à jour les chiffres sans toucher aux statuts ni aux notes.</p>
+    <label class="drop" id="drop">
+      Dépose le fichier ici ou clique pour le choisir
+      <input type="file" id="file" accept=".csv,text/csv" hidden onchange="uploadFile(this.files[0])">
+    </label>
+    <div class="out" id="import-out"></div>
+  </div>
+
+  <div class="card" id="opps-card" hidden>
+    <div class="section-label"><span>Pipeline</span></div>
+    <h2>Opportunités</h2>
+    <div class="chips" id="chips"></div>
+    <div class="row" style="margin-bottom:6px">
+      <label class="f">Tri
+        <select id="sort" onchange="loadOpps()">
+          <option value="score">Score</option><option value="followup">Date de relance</option>
+          <option value="updated">Dernière mise à jour</option><option value="domain">Domaine</option>
+        </select></label>
+    </div>
+    <div class="tbl-scroll"><table>
+      <thead><tr><th>Domaine</th><th>AS</th><th>DR</th><th>Concurrents</th><th>Score</th><th>Statut</th><th>Relance</th><th>Lien</th><th></th></tr></thead>
+      <tbody id="opps"></tbody>
+    </table></div>
+    <div class="out" id="opps-out"></div>
+  </div>
+
+  <footer>Données d'autorité issues des exports Semrush / Ahrefs uniquement — aucune valeur estimée.</footer>
+</div>
+
+<script>
+// En local (wrangler dev), la page parle au worker local ; sinon à la prod.
+// Pas d'URL d'API en paramètre : le token ne doit partir que vers ces deux hôtes.
+const API = ['localhost', '127.0.0.1'].includes(location.hostname)
+  ? 'http://localhost:8787'
+  : 'https://backlink-radar-wassim.loumiwassim.workers.dev';
+
+const STATUS_LABELS = {
+  a_contacter: 'À contacter', contacte: 'Contacté', relance: 'Relancé', obtenu: 'Obtenu',
+  refuse: 'Refusé', ignore: 'Ignoré', perdu: 'Perdu',
+};
+// Miroir de workers/backlink-radar/src/pipeline.js — le worker reste l'arbitre.
+const TRANSITIONS = {
+  a_contacter: ['contacte', 'obtenu', 'ignore'],
+  contacte: ['relance', 'obtenu', 'refuse', 'ignore'],
+  relance: ['relance', 'obtenu', 'refuse', 'ignore'],
+  obtenu: ['perdu', 'ignore'],
+  refuse: ['a_contacter', 'ignore'],
+  ignore: ['a_contacter'],
+  perdu: ['a_contacter', 'contacte', 'obtenu', 'ignore'],
+};
+const RESULT_LABELS = {
+  live_dofollow: 'dofollow ✓', live_nofollow: 'nofollow', missing: 'absent',
+  http_error: 'erreur HTTP', unverifiable: 'non vérifiable',
+};
+
+let clients = [];
+let current = null;
+let statusFilter = '';
+
+/* ---------- token (partagé avec les pages Automations / Finances) ---------- */
+(function bootstrapToken() {
+  const m = location.hash.match(/[#&]t=([A-Za-z0-9._-]{16,})/);
+  if (m) {
+    try { localStorage.setItem('wassim:automations:token', m[1]); } catch {}
+    history.replaceState(null, '', location.pathname);
+  }
+})();
+function getToken() {
+  try {
+    const own = localStorage.getItem('wassim:automations:token');
+    if (own) return own;
+    const fin = JSON.parse(localStorage.getItem('wassim:finances:config') || '{}');
+    if (fin.authToken) return fin.authToken;
+  } catch {}
+  return '';
+}
+function configure() {
+  const t = prompt('Token X-Wassim-Auth (le même que les pages Automations / Finances)', getToken());
+  if (t !== null) {
+    try { localStorage.setItem('wassim:automations:token', t.trim()); } catch {}
+    init();
+  }
+}
+
+/* ---------- helpers ---------- */
+async function api(path, opts = {}) {
+  const headers = { 'X-Wassim-Auth': getToken(), ...(opts.headers || {}) };
+  if (opts.body && !(opts.body instanceof FormData)) headers['Content-Type'] = 'application/json';
+  const res = await fetch(API + path, { ...opts, headers });
+  const body = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    const err = new Error(body.message || body.error || ('HTTP ' + res.status));
+    err.body = body;
+    throw err;
+  }
+  return body;
+}
+const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+function say(elId, kind, html) {
+  document.getElementById(elId).innerHTML = `<div class="msg ${kind}">${html}</div>`;
+}
+function toggle(id) { const el = document.getElementById(id); el.hidden = !el.hidden; }
+const lines = (s) => s.split(/[\n,]/).map((x) => x.trim()).filter(Boolean);
+const fmtDate = (iso) => iso ? new Date(iso).toLocaleDateString('fr-FR') : '';
+const num = (v) => (v === null || v === undefined) ? '<span class="na">inconnu</span>' : esc(v);
+
+/* ---------- chargement ---------- */
+async function init() {
+  const pill = document.getElementById('st-api');
+  try {
+    const h = await fetch(API + '/health').then((r) => r.json());
+    pill.textContent = h.db ? 'API : en ligne' : 'API : base absente';
+    pill.className = h.db ? 'pill' : 'pill bad';
+  } catch {
+    pill.textContent = 'API : injoignable';
+    pill.className = 'pill bad';
+    return;
+  }
+  if (!getToken()) { say('client-out', 'info', 'Renseigne le token (bouton ⚙️) pour accéder aux données.'); return; }
+  try {
+    await Promise.all([loadClients(), loadAlerts()]);
+  } catch (e) {
+    say('client-out', 'err', esc(e.message));
+  }
+}
+
+async function loadClients(selectId) {
+  ({ clients } = await api('/clients'));
+  const sel = document.getElementById('client-select');
+  const keep = selectId || current?.id || clients[0]?.id;
+  sel.innerHTML = clients.length
+    ? clients.map((c) => `<option value="${esc(c.id)}">${esc(c.name)} — ${esc(c.domain)}</option>`).join('')
+    : '<option value="">Aucun client — crée le premier</option>';
+  if (!clients.length) document.getElementById('new-client').hidden = false;
+  if (keep) { sel.value = keep; selectClient(keep); }
+}
+
+function selectClient(id) {
+  current = clients.find((c) => c.id === id) || null;
+  document.getElementById('btn-settings').disabled = !current;
+  document.getElementById('import-card').hidden = !current;
+  document.getElementById('opps-card').hidden = !current;
+  if (!current) return;
+  document.getElementById('set-source').value = current.authority_source;
+  document.getElementById('set-w-auth').value = current.weights?.authority ?? 1;
+  document.getElementById('set-w-ease').value = current.weights?.ease ?? 1;
+  document.getElementById('set-competitors').value = current.competitors.join('\n');
+  document.getElementById('client-out').innerHTML = current.competitors.length ? ''
+    : '<div class="msg info">Aucun concurrent renseigné : ajoute-les dans les réglages avant d\'importer un link gap.</div>';
+  statusFilter = '';
+  renderChips();
+  loadOpps();
+}
+
+function renderChips() {
+  const counts = current?.counts || {};
+  const total = Object.values(counts).reduce((a, b) => a + b, 0);
+  const chip = (key, label, n) => `<button class="chip ${statusFilter === key ? 'on' : ''}" onclick="filterStatus('${key}')">${label}<b>${n}</b></button>`;
+  document.getElementById('chips').innerHTML = chip('', 'Tous', total)
+    + Object.entries(STATUS_LABELS).map(([k, l]) => chip(k, l, counts[k] || 0)).join('');
+}
+function filterStatus(s) { statusFilter = s; renderChips(); loadOpps(); }
+
+async function loadAlerts() {
+  const { followups, lost } = await api('/followups');
+  const f = document.getElementById('st-follow');
+  const l = document.getElementById('st-lost');
+  f.hidden = !followups.length; f.textContent = `${followups.length} relance(s) dues`;
+  l.hidden = !lost.length; l.textContent = `${lost.length} lien(s) perdu(s)`;
+  document.getElementById('alerts-card').hidden = !followups.length && !lost.length;
+  document.getElementById('alerts').innerHTML =
+    (followups.length ? '<h4 class="hint" style="margin:0">Relances dues</h4><ul>' + followups.map((x) =>
+      `<li><b>${esc(x.domain)}</b> — ${esc(x.client_name)} · ${esc(STATUS_LABELS[x.status])} · relance le ${esc(x.next_followup_at)}${x.contact_note ? ' · ' + esc(x.contact_note) : ''}</li>`).join('') + '</ul>' : '')
+    + (lost.length ? '<h4 class="hint" style="margin:0">Liens perdus</h4><ul>' + lost.map((x) =>
+      `<li><b>${esc(x.domain)}</b> — ${esc(x.client_name)} · <a class="lk" href="${esc(x.link_url)}" target="_blank" rel="noopener noreferrer">page</a> · ${esc(RESULT_LABELS[x.last_check_result] || x.last_check_result || '')}</li>`).join('') + '</ul>' : '');
+}
+
+async function loadOpps() {
+  if (!current) return;
+  const tbody = document.getElementById('opps');
+  tbody.innerHTML = '<tr><td colspan="9" class="na">Chargement…</td></tr>';
+  const q = new URLSearchParams({ sort: document.getElementById('sort').value });
+  if (statusFilter) q.set('status', statusFilter);
+  try {
+    const { opportunities } = await api(`/clients/${encodeURIComponent(current.id)}/opportunities?${q}`);
+    tbody.innerHTML = opportunities.length ? opportunities.map(row).join('')
+      : '<tr><td colspan="9" class="na">Aucune opportunité ici. Importe un export CSV pour commencer.</td></tr>';
+  } catch (e) {
+    tbody.innerHTML = '';
+    say('opps-out', 'err', esc(e.message));
+  }
+}
+
+function scoreTitle(o) {
+  const c = o.score_detail?.components || {};
+  const part = (k, label) => {
+    const x = c[k];
+    if (!x) return '';
+    return x.missing ? `${label} : inconnue (exclue)` : `${label} : ${Math.round(x.value * 100)} (brut ${x.raw}) × poids ${x.weight}`;
+  };
+  return [part('authority', `Autorité ${c.authority?.source || ''}`), part('ease', 'Facilité')].filter(Boolean).join('\n');
+}
+
+function row(o) {
+  const options = [o.status, ...TRANSITIONS[o.status]].filter((v, i, a) => a.indexOf(v) === i)
+    .map((s) => `<option value="${s}" ${s === o.status ? 'selected' : ''}>${STATUS_LABELS[s]}</option>`).join('');
+  const comp = (o.competitors_linked !== null && o.competitors_total) ? `${o.competitors_linked}/${o.competitors_total}` : '<span class="na">inconnu</span>';
+  const score = o.score === null ? '<span class="na">—</span>' : `<span class="score" title="${esc(scoreTitle(o))}">${o.score}</span>`;
+  const domain = o.sample_url
+    ? `<a class="lk" href="${esc(o.sample_url)}" target="_blank" rel="noopener noreferrer">${esc(o.domain)}</a>` : esc(o.domain);
+  const link = o.link_url
+    ? `<a class="lk" href="${esc(o.link_url)}" target="_blank" rel="noopener noreferrer">page</a>`
+      + (o.last_check_result ? ` <span class="res ${esc(o.last_check_result)}" title="Vérifié le ${esc(fmtDate(o.last_checked_at))}">${esc(RESULT_LABELS[o.last_check_result])}</span>` : '')
+    : '';
+  return `<tr id="r-${o.id}">
+    <td class="dom">${domain}</td>
+    <td class="num">${num(o.semrush_as)}</td>
+    <td class="num">${num(o.ahrefs_dr)}</td>
+    <td class="num">${comp}</td>
+    <td class="num">${score}</td>
+    <td><select onchange="changeStatus('${o.id}', '${o.status}', this)" aria-label="Statut de ${esc(o.domain)}">${options}</select></td>
+    <td class="num">${o.next_followup_at ? esc(o.next_followup_at) : ''}</td>
+    <td>${link}</td>
+    <td class="row" style="flex-wrap:nowrap">
+      <button class="small secondary" onclick="editNote('${o.id}')" title="${esc(o.contact_note || 'Ajouter une note')}">Note</button>
+      ${o.link_url ? `<button class="small secondary" onclick="checkNow('${o.id}', this)">Vérifier</button>` : ''}
+      <button class="small secondary" onclick="showDetail('${o.id}')">Historique</button>
+    </td></tr>`;
+}
+
+/* ---------- actions ---------- */
+async function createClient() {
+  const body = {
+    name: document.getElementById('nc-name').value,
+    domain: document.getElementById('nc-domain').value,
+    sector: document.getElementById('nc-sector').value || null,
+    is_local: document.getElementById('nc-local').checked,
+    competitors: lines(document.getElementById('nc-competitors').value),
+  };
+  try {
+    const { client } = await api('/clients', { method: 'POST', body: JSON.stringify(body) });
+    document.getElementById('new-client').hidden = true;
+    ['nc-name', 'nc-domain', 'nc-sector', 'nc-competitors'].forEach((id) => { document.getElementById(id).value = ''; });
+    await loadClients(client.id);
+    say('client-out', 'ok', `Client « ${esc(client.name)} » créé.`);
+  } catch (e) { say('client-out', 'err', esc(e.message)); }
+}
+
+async function saveSettings() {
+  const body = {
+    authority_source: document.getElementById('set-source').value,
+    weights: { authority: Number(document.getElementById('set-w-auth').value), ease: Number(document.getElementById('set-w-ease').value) },
+    competitors: lines(document.getElementById('set-competitors').value),
+  };
+  try {
+    const { rescored } = await api(`/clients/${encodeURIComponent(current.id)}`, { method: 'PATCH', body: JSON.stringify(body) });
+    await loadClients(current.id);
+    say('client-out', 'ok', `Réglages enregistrés — ${rescored} score(s) recalculé(s).`);
+  } catch (e) { say('client-out', 'err', esc(e.message)); }
+}
+
+async function uploadFile(file) {
+  if (!file || !current) return;
+  const form = new FormData();
+  form.append('file', file);
+  say('import-out', 'info', `Import de « ${esc(file.name)} »…`);
+  try {
+    const r = await api(`/clients/${encodeURIComponent(current.id)}/imports`, { method: 'POST', body: form });
+    const skipped = r.skipped ? `<details><summary>${r.skipped} ligne(s) ignorée(s)</summary><ul>${r.skippedDetail.map((s) => `<li>ligne ${s.line} : ${esc(s.reason)}</li>`).join('')}</ul></details>` : '';
+    say('import-out', 'ok', `${r.rows} ligne(s) lue(s) — <b>${r.created}</b> nouvelle(s), <b>${r.updated}</b> mise(s) à jour.${skipped}`);
+    await loadClients(current.id);
+  } catch (e) {
+    if (e.body?.error === 'unknown_format') {
+      say('import-out', 'err', `${esc(e.body.message)}<br>Colonnes lues (séparateur <code>${esc(e.body.delimiter === '\t' ? 'tab' : e.body.delimiter)}</code>) : ${e.body.headers.map((h) => `<code>${esc(h)}</code>`).join(' ')}`);
+    } else say('import-out', 'err', esc(e.message));
+  } finally {
+    document.getElementById('file').value = '';
+  }
+}
+
+async function changeStatus(id, from, sel) {
+  const to = sel.value;
+  const body = { status: to };
+  if (to === 'obtenu') {
+    const url = prompt('URL de la page où le lien a été posé :');
+    if (!url) { sel.value = from; return; }
+    body.link_url = url.trim();
+  }
+  if (to === 'contacte' || to === 'relance') {
+    const d = prompt('Date de relance (AAAA-MM-JJ) — vide = dans 7 jours :', '');
+    if (d === null) { sel.value = from; return; }
+    if (d.trim()) body.next_followup_at = d.trim();
+  }
+  try {
+    const r = await api(`/opportunities/${id}`, { method: 'PATCH', body: JSON.stringify(body) });
+    if (r.check) say('opps-out', r.check.result === 'live_dofollow' ? 'ok' : 'info', `Vérification : ${esc(RESULT_LABELS[r.check.result])} — ${esc(r.check.detail || '')}`);
+    await Promise.all([loadClients(current.id), loadAlerts()]);
+  } catch (e) {
+    sel.value = from;
+    say('opps-out', 'err', esc(e.message));
+  }
+}
+
+async function editNote(id) {
+  const n = prompt('Note de contact (nom, e-mail, canal, réponse…) :');
+  if (n === null) return;
+  try {
+    await api(`/opportunities/${id}`, { method: 'PATCH', body: JSON.stringify({ contact_note: n }) });
+    await loadOpps();
+  } catch (e) { say('opps-out', 'err', esc(e.message)); }
+}
+
+async function checkNow(id, btn) {
+  btn.disabled = true;
+  try {
+    const { check } = await api(`/opportunities/${id}/check`, { method: 'POST' });
+    say('opps-out', check.result === 'live_dofollow' ? 'ok' : 'info', `Vérification : ${esc(RESULT_LABELS[check.result])} — ${esc(check.detail || '')}`);
+    await Promise.all([loadOpps(), loadAlerts()]);
+  } catch (e) { say('opps-out', 'err', esc(e.message)); btn.disabled = false; }
+}
+
+async function showDetail(id) {
+  const existing = document.getElementById('d-' + id);
+  if (existing) { existing.remove(); return; }
+  try {
+    const { opportunity: o, events, checks } = await api(`/opportunities/${id}`);
+    const html = `<tr class="detail" id="d-${id}"><td colspan="9"><div class="detail">
+      ${o.contact_note ? `<h4>Note</h4><p style="margin:0 0 12px;font-size:.84rem">${esc(o.contact_note)}</p>` : ''}
+      <h4>Pipeline</h4><ul>${events.map((e) => `<li>${esc(fmtDate(e.at))} — ${esc(STATUS_LABELS[e.from_status] || '')} → ${esc(STATUS_LABELS[e.to_status] || '')}${e.note ? ' · ' + esc(e.note) : ''}</li>`).join('') || '<li class="na">aucun changement</li>'}</ul>
+      <h4>Vérifications</h4><ul>${checks.map((c) => `<li>${esc(fmtDate(c.checked_at))} — <span class="res ${esc(c.result)}">${esc(RESULT_LABELS[c.result])}</span> ${c.http_status ? 'HTTP ' + c.http_status : ''} ${c.detail ? '· ' + esc(c.detail) : ''}</li>`).join('') || '<li class="na">aucune</li>'}</ul>
+    </div></td></tr>`;
+    document.getElementById('r-' + id).insertAdjacentHTML('afterend', html);
+  } catch (e) { say('opps-out', 'err', esc(e.message)); }
+}
+
+/* ---------- glisser-déposer ---------- */
+const drop = document.getElementById('drop');
+['dragenter', 'dragover'].forEach((ev) => drop.addEventListener(ev, (e) => { e.preventDefault(); drop.classList.add('over'); }));
+['dragleave', 'drop'].forEach((ev) => drop.addEventListener(ev, (e) => { e.preventDefault(); drop.classList.remove('over'); }));
+drop.addEventListener('drop', (e) => uploadFile(e.dataTransfer.files[0]));
+
+init();
+</script>
+</body>
+</html>

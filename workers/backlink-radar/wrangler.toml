@@ -1,0 +1,38 @@
+## Worker Cloudflare — backlink-radar-wassim
+## Backlink Radar : opportunités de backlinks dofollow gratuits pour les
+## clients SEO de Wassim (import d'exports Semrush / Ahrefs), score explicable,
+## pipeline de contact, vérification automatique des liens obtenus.
+## Spec : docs/backlink-radar/README.md. Stockage : D1 (schema.sql, appliqué
+## par le workflow de déploiement).
+
+name = "backlink-radar-wassim"
+main = "src/index.js"
+compatibility_date = "2025-01-15"
+compatibility_flags = ["nodejs_compat"]
+
+[vars]
+# Origines autorisées pour CORS (séparées par des virgules).
+ALLOWED_ORIGINS = "https://nastyjesus.github.io,http://localhost:3000,http://localhost:5173,http://localhost:8000"
+# Liens vérifiés par passage du cron : chaque vérification coûte une
+# sous-requête, la limite d'une invocation est de 50.
+CHECK_BATCH = "40"
+# Un lien obtenu est revérifié au plus tôt après ce nombre de jours.
+CHECK_EVERY_DAYS = "7"
+
+# Cron quotidien à 5h UTC : il traite les liens les plus anciennement vérifiés
+# (au plus CHECK_BATCH), ce qui revient à un contrôle hebdomadaire de chaque
+# lien tant que le volume reste sous CHECK_BATCH × 7 liens obtenus.
+[triggers]
+crons = ["0 5 * * *"]
+
+# Base D1 : créée/injectée par le workflow (wrangler d1 create backlink-radar).
+[[d1_databases]]
+binding = "DB"
+database_name = "backlink-radar"
+database_id = "REPLACE_WITH_D1_ID"
+
+# Secret à provisionner via `wrangler secret put` :
+#   WASSIM_AUTH_TOKEN  (header X-Wassim-Auth partagé avec les autres pages)
+
+[observability]
+enabled = true

@@ -1,0 +1,18 @@
+{
+  "name": "backlink-radar-wassim",
+  "version": "0.1.0",
+  "description": "Cloudflare Worker — Backlink Radar : opportunités de backlinks dofollow gratuits, pipeline de contact, vérification des liens obtenus",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "tail": "wrangler tail",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "devDependencies": {
+    "vitest": "^1.6.0",
+    "wrangler": "^3.78.0"
+  }
+}
