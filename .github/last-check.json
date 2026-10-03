@@ -1,13 +1,13 @@
 {
-  "checkedAt": "2026-10-03T08:05:58Z",
-  "target": "reports",
+  "checkedAt": "2026-10-03T08:09:40Z",
+  "target": "health",
   "gscHealth": {
     "ok": true,
     "mock": false,
     "googleKey": {
       "ok": true
     },
-    "ts": "2026-10-03T08:05:57.976Z"
+    "ts": "2026-10-03T08:09:39.844Z"
   },
   "geoHealth": {
     "ok": true,
@@ -17,7 +17,7 @@
       "openai",
       "gemini"
     ],
-    "ts": "2026-10-03T08:05:58.026Z"
+    "ts": "2026-10-03T08:09:39.924Z"
   },
   "gsc": {
     "latest": {
@@ -25,42 +25,42 @@
         "clientId": "api-myefarm",
         "clientName": "MyeFarm API",
         "property": "sc-domain:api.myefarm.net",
-        "period": "2026-10",
-        "periodLabel": "octobre 2026",
-        "generatedAt": "2026-10-01T06:55:31.963Z",
+        "period": "2026-09",
+        "periodLabel": "septembre 2026",
+        "generatedAt": "2026-10-03T06:00:53.258Z",
         "mock": false,
-        "url": "https://gsc-report-wassim.loumiwassim.workers.dev/r/c0b7ad3271f8fa9c14fca8de5cf0668f",
+        "url": "https://gsc-report-wassim.loumiwassim.workers.dev/r/b1b2e0c77193a0b44d04df5c6ecdfdd7",
         "kpis": {
           "clicks": {
-            "value": 0,
+            "value": 259,
             "deltas": {
-              "m1": -100,
-              "m3": -100,
-              "m6": -100
+              "m1": -42.2,
+              "m3": -47.4,
+              "m6": -58.8
             }
           },
           "impressions": {
-            "value": 0,
+            "value": 1612,
             "deltas": {
-              "m1": -100,
-              "m3": -100,
-              "m6": -100
+              "m1": 2.7,
+              "m3": 76.2,
+              "m6": -6.7
             }
           },
           "ctr": {
-            "value": 0,
+            "value": 0.1606699751861042,
             "deltas": {
-              "m1": -100,
-              "m3": -100,
-              "m6": -100
+              "m1": -43.7,
+              "m3": -70.1,
+              "m6": -55.8
             }
           },
           "position": {
-            "value": 0,
+            "value": 5.469602977667494,
             "deltas": {
-              "m1": -100,
-              "m3": -100,
-              "m6": -100
+              "m1": 16.5,
+              "m3": 85,
+              "m6": 22.9
             }
           }
         }
@@ -69,40 +69,40 @@
         "clientId": "baudzyeux",
         "clientName": "Baudzyeux",
         "property": "https://baudzyeux.fr/",
-        "period": "2026-10",
-        "periodLabel": "octobre 2026",
-        "generatedAt": "2026-10-01T06:55:30.045Z",
+        "period": "2026-09",
+        "periodLabel": "septembre 2026",
+        "generatedAt": "2026-10-03T06:00:48.017Z",
         "mock": false,
-        "url": "https://gsc-report-wassim.loumiwassim.workers.dev/r/37cc56fe0ec14d964e2f6023652ab446",
+        "url": "https://gsc-report-wassim.loumiwassim.workers.dev/r/338635371983be689186423cd65b299d",
         "kpis": {
           "clicks": {
-            "value": 0,
+            "value": 16,
             "deltas": {
-              "m1": -100,
+              "m1": null,
               "m3": null,
               "m6": null
             }
           },
           "impressions": {
-            "value": 0,
+            "value": 43,
             "deltas": {
-              "m1": -100,
+              "m1": null,
               "m3": null,
               "m6": null
             }
           },
           "ctr": {
-            "value": 0,
+            "value": 0.37209302325581395,
             "deltas": {
-              "m1": -100,
+              "m1": null,
               "m3": null,
               "m6": null
             }
           },
           "position": {
-            "value": 0,
+            "value": 4.046511627906977,
             "deltas": {
-              "m1": -100,
+              "m1": null,
               "m3": null,
               "m6": null
             }
@@ -113,42 +113,42 @@
         "clientId": "crezabeille",
         "clientName": "Crezabeille",
         "property": "https://crezabeille.fr/",
-        "period": "2026-10",
-        "periodLabel": "octobre 2026",
-        "generatedAt": "2026-10-01T06:55:25.298Z",
+        "period": "2026-09",
+        "periodLabel": "septembre 2026",
+        "generatedAt": "2026-10-03T06:00:40.849Z",
         "mock": false,
-        "url": "https://gsc-report-wassim.loumiwassim.workers.dev/r/8226874ffc6bacccfdda3a418a1dabb9",
+        "url": "https://gsc-report-wassim.loumiwassim.workers.dev/r/3291372a987e4ca13d480f26ee989a8c",
         "kpis": {
           "clicks": {
-            "value": 0,
+            "value": 22,
             "deltas": {
-              "m1": -100,
-              "m3": -100,
-              "m6": -100
+              "m1": -4.3,
+              "m3": 37.5,
+              "m6": -15.4
             }
           },
           "impressions": {
-            "value": 0,
+            "value": 1550,
             "deltas": {
-              "m1": -100,
-              "m3": -100,
-              "m6": -100
+              "m1": 0.6,
+              "m3": 135.9,
+              "m6": 41.8
             }
           },
           "ctr": {
-            "value": 0,
+            "value": 0.014193548387096775,
             "deltas": {
-              "m1": -100,
-              "m3": -100,
-              "m6": -100
+              "m1": -5,
+              "m3": -41.7,
+              "m6": -40.3
             }
           },
           "position": {
-            "value": 0,
+            "value": 21.35483870967742,
             "deltas": {
-              "m1": -100,
-              "m3": -100,
-              "m6": -100
+              "m1": 4,
+              "m3": 59.4,
+              "m6": 31.7
             }
           }
         }
@@ -157,42 +157,42 @@
         "clientId": "david-di2a",
         "clientName": "David DI2A",
         "property": "https://www.alarme-videosurveillance-rennes.fr/",
-        "period": "2026-10",
-        "periodLabel": "octobre 2026",
-        "generatedAt": "2026-10-01T06:55:26.207Z",
+        "period": "2026-09",
+        "periodLabel": "septembre 2026",
+        "generatedAt": "2026-10-03T06:00:42.003Z",
         "mock": false,
-        "url": "https://gsc-report-wassim.loumiwassim.workers.dev/r/0c4da8bee4098e30c10d760c73ddf971",
+        "url": "https://gsc-report-wassim.loumiwassim.workers.dev/r/b4fa16c837bbcaae2640d5cbd801e3cf",
         "kpis": {
           "clicks": {
-            "value": 0,
+            "value": 54,
             "deltas": {
-              "m1": -100,
-              "m3": -100,
-              "m6": -100
+              "m1": 38.5,
+              "m3": -26,
+              "m6": 10.2
             }
           },
           "impressions": {
-            "value": 0,
+            "value": 3936,
             "deltas": {
-              "m1": -100,
-              "m3": -100,
-              "m6": -100
+              "m1": 24.8,
+              "m3": 9.2,
+              "m6": 8.2
             }
           },
           "ctr": {
-            "value": 0,
+            "value": 0.013719512195121951,
             "deltas": {
-              "m1": -100,
-              "m3": -100,
-              "m6": -100
+              "m1": 10.9,
+              "m3": -32.3,
+              "m6": 1.9
             }
           },
           "position": {
-            "value": 0,
+            "value": 14.259654471544716,
             "deltas": {
-              "m1": -100,
-              "m3": -100,
-              "m6": -100
+              "m1": -10.1,
+              "m3": 4.9,
+              "m6": -32.5
             }
           }
         }
@@ -201,42 +201,42 @@
         "clientId": "delphine",
         "clientName": "Delphine (Courtier sur mesure)",
         "property": "https://courtiersurmesure.fr/",
-        "period": "2026-10",
-        "periodLabel": "octobre 2026",
-        "generatedAt": "2026-10-01T06:55:27.108Z",
+        "period": "2026-09",
+        "periodLabel": "septembre 2026",
+        "generatedAt": "2026-10-03T06:00:43.122Z",
         "mock": false,
-        "url": "https://gsc-report-wassim.loumiwassim.workers.dev/r/4800e0b87e2d141f9f76ded8d631bc93",
+        "url": "https://gsc-report-wassim.loumiwassim.workers.dev/r/76151be1f797e409a2317d9dca2962f0",
         "kpis": {
           "clicks": {
-            "value": 0,
+            "value": 192,
             "deltas": {
-              "m1": -100,
-              "m3": -100,
-              "m6": -100
+              "m1": 30.6,
+              "m3": 7.3,
+              "m6": 11
             }
           },
           "impressions": {
-            "value": 0,
+            "value": 9396,
             "deltas": {
-              "m1": -100,
-              "m3": -100,
-              "m6": -100
+              "m1": -0.1,
+              "m3": -7.3,
+              "m6": -20.9
             }
           },
           "ctr": {
-            "value": 0,
+            "value": 0.020434227330779056,
             "deltas": {
-              "m1": -100,
-              "m3": -100,
-              "m6": -100
+              "m1": 30.8,
+              "m3": 15.7,
+              "m6": 40.3
             }
           },
           "position": {
-            "value": 0,
+            "value": 13.200936568752661,
             "deltas": {
-              "m1": -100,
-              "m3": -100,
-              "m6": -100
+              "m1": -23.7,
+              "m3": 10.3,
+              "m6": -0.8
             }
           }
         }
@@ -245,42 +245,42 @@
         "clientId": "halteduvolcan",
         "clientName": "Halte du Volcan",
         "property": "https://www.halteduvolcan.net/",
-        "period": "2026-10",
-        "periodLabel": "octobre 2026",
-        "generatedAt": "2026-10-01T06:55:30.691Z",
+        "period": "2026-09",
+        "periodLabel": "septembre 2026",
+        "generatedAt": "2026-10-03T06:00:51.321Z",
         "mock": false,
-        "url": "https://gsc-report-wassim.loumiwassim.workers.dev/r/a49040e5e20929d289a0c556b7729880",
+        "url": "https://gsc-report-wassim.loumiwassim.workers.dev/r/d9053b13747472ce52218f8508a5f6e7",
         "kpis": {
           "clicks": {
-            "value": 0,
+            "value": 378,
             "deltas": {
-              "m1": -100,
-              "m3": -100,
-              "m6": -100
+              "m1": -31.8,
+              "m3": 10.9,
+              "m6": -15.2
             }
           },
           "impressions": {
-            "value": 0,
+            "value": 7512,
             "deltas": {
-              "m1": -100,
-              "m3": -100,
-              "m6": -100
+              "m1": -37,
+              "m3": -14.3,
+              "m6": 64
             }
           },
           "ctr": {
-            "value": 0,
+            "value": 0.050319488817891375,
             "deltas": {
-              "m1": -100,
-              "m3": -100,
-              "m6": -100
+              "m1": 8.4,
+              "m3": 29.3,
+              "m6": -48.3
             }
           },
           "position": {
-            "value": 0,
+            "value": 4.701810436634718,
             "deltas": {
-              "m1": -100,
-              "m3": -100,
-              "m6": -100
+              "m1": -15.5,
+              "m3": -30.7,
+              "m6": -8.6
             }
           }
         }
@@ -289,42 +289,42 @@
         "clientId": "julien-mcr",
         "clientName": "Julien MCR",
         "property": "https://www.serrurerie-porte-blindee-rennes.fr/",
-        "period": "2026-10",
-        "periodLabel": "octobre 2026",
-        "generatedAt": "2026-10-01T06:55:27.737Z",
+        "period": "2026-09",
+        "periodLabel": "septembre 2026",
+        "generatedAt": "2026-10-03T06:00:44.227Z",
         "mock": false,
-        "url": "https://gsc-report-wassim.loumiwassim.workers.dev/r/7b5e867e2426d8ca71e1648cd8301b4d",
+        "url": "https://gsc-report-wassim.loumiwassim.workers.dev/r/76a1a58fbab90d9a8b56b4edca8e29fe",
         "kpis": {
           "clicks": {
-            "value": 0,
+            "value": 83,
             "deltas": {
-              "m1": -100,
-              "m3": -100,
-              "m6": -100
+              "m1": 59.6,
+              "m3": -22.4,
+              "m6": -38.1
             }
           },
           "impressions": {
-            "value": 0,
+            "value": 8943,
             "deltas": {
-              "m1": -100,
-              "m3": -100,
-              "m6": -100
+              "m1": 4.3,
+              "m3": -19.1,
+              "m6": -29.4
             }
           },
           "ctr": {
-            "value": 0,
+            "value": 0.0092810019009281,
             "deltas": {
-              "m1": -100,
-              "m3": -100,
-              "m6": -100
+              "m1": 53.1,
+              "m3": -4.1,
+              "m6": -12.2
             }
           },
           "position": {
-            "value": 0,
+            "value": 19.614223414961423,
             "deltas": {
-              "m1": -100,
-              "m3": -100,
-              "m6": -100
+              "m1": -15.6,
+              "m3": 21.9,
+              "m6": 6.5
             }
           }
         }
@@ -333,42 +333,42 @@
         "clientId": "lissage-bresilien",
         "clientName": "Lissage Brésilien",
         "property": "sc-domain:lissage-bresilien.fr",
-        "period": "2026-10",
-        "periodLabel": "octobre 2026",
-        "generatedAt": "2026-10-01T06:55:31.462Z",
+        "period": "2026-09",
+        "periodLabel": "septembre 2026",
+        "generatedAt": "2026-10-03T06:00:52.256Z",
         "mock": false,
-        "url": "https://gsc-report-wassim.loumiwassim.workers.dev/r/870fd4d50201b1f48f08c9eab41ff34d",
+        "url": "https://gsc-report-wassim.loumiwassim.workers.dev/r/55621945c43584c7c0add9607a6af50b",
         "kpis": {
           "clicks": {
-            "value": 0,
+            "value": 4,
             "deltas": {
-              "m1": -100,
-              "m3": -100,
-              "m6": -100
+              "m1": -55.6,
+              "m3": -69.2,
+              "m6": -42.9
             }
           },
           "impressions": {
-            "value": 0,
+            "value": 1458,
             "deltas": {
-              "m1": -100,
-              "m3": -100,
-              "m6": -100
+              "m1": -25.3,
+              "m3": -88,
+              "m6": 40.2
             }
           },
           "ctr": {
-            "value": 0,
+            "value": 0.0027434842249657062,
             "deltas": {
-              "m1": -100,
-              "m3": -100,
-              "m6": -100
+              "m1": -40.5,
+              "m3": 155.9,
+              "m6": -59.2
             }
           },
           "position": {
-            "value": 0,
+            "value": 15.848422496570645,
             "deltas": {
-              "m1": -100,
-              "m3": -100,
-              "m6": -100
+              "m1": 8.1,
+              "m3": 117.1,
+              "m6": -19.4
             }
           }
         }
@@ -377,42 +377,42 @@
         "clientId": "myefarm",
         "clientName": "MyeFarm",
         "property": "https://www.myefarm.net/",
-        "period": "2026-10",
-        "periodLabel": "octobre 2026",
-        "generatedAt": "2026-10-01T06:55:24.710Z",
+        "period": "2026-09",
+        "periodLabel": "septembre 2026",
+        "generatedAt": "2026-10-03T06:00:39.878Z",
         "mock": false,
-        "url": "https://gsc-report-wassim.loumiwassim.workers.dev/r/3173b5090ca477554decaa56e87221e7",
+        "url": "https://gsc-report-wassim.loumiwassim.workers.dev/r/03a023a562b5727e9c7c07415cef7e88",
         "kpis": {
           "clicks": {
-            "value": 0,
+            "value": 14,
             "deltas": {
-              "m1": -100,
-              "m3": -100,
-              "m6": -100
+              "m1": -39.1,
+              "m3": -53.3,
+              "m6": 600
             }
           },
           "impressions": {
-            "value": 0,
+            "value": 1269,
             "deltas": {
-              "m1": -100,
-              "m3": -100,
-              "m6": -100
+              "m1": 22.7,
+              "m3": 290.5,
+              "m6": 309.4
             }
           },
           "ctr": {
-            "value": 0,
+            "value": 0.01103230890464933,
             "deltas": {
-              "m1": -100,
-              "m3": -100,
-              "m6": -100
+              "m1": -50.4,
+              "m3": -88,
+              "m6": 71
             }
           },
           "position": {
-            "value": 0,
+            "value": 34.49487785657998,
             "deltas": {
-              "m1": -100,
-              "m3": -100,
-              "m6": -100
+              "m1": 25,
+              "m3": 208.1,
+              "m6": 135.7
             }
           }
         }
@@ -421,42 +421,42 @@
         "clientId": "optel",
         "clientName": "SEO EVA (Optel)",
         "property": "https://optel-services.fr/",
-        "period": "2026-10",
-        "periodLabel": "octobre 2026",
-        "generatedAt": "2026-10-01T06:55:28.372Z",
+        "period": "2026-09",
+        "periodLabel": "septembre 2026",
+        "generatedAt": "2026-10-03T06:00:45.447Z",
         "mock": false,
-        "url": "https://gsc-report-wassim.loumiwassim.workers.dev/r/f12ed6b10e40e683dac3725d17671c5a",
+        "url": "https://gsc-report-wassim.loumiwassim.workers.dev/r/155ac93d579ed89380c8fcf4f911aeb8",
         "kpis": {
           "clicks": {
-            "value": 0,
+            "value": 20,
             "deltas": {
-              "m1": -100,
-              "m3": -100,
-              "m6": -100
+              "m1": 53.8,
+              "m3": 66.7,
+              "m6": -23.1
             }
           },
           "impressions": {
-            "value": 0,
+            "value": 2490,
             "deltas": {
-              "m1": -100,
-              "m3": -100,
-              "m6": -100
+              "m1": -43.1,
+              "m3": -20.6,
+              "m6": 12.9
             }
           },
           "ctr": {
-            "value": 0,
+            "value": 0.008032128514056224,
             "deltas": {
-              "m1": -100,
-              "m3": -100,
-              "m6": -100
+              "m1": 170.2,
+              "m3": 109.8,
+              "m6": -31.9
             }
           },
           "position": {
-            "value": 0,
+            "value": 31.704819277108435,
             "deltas": {
-              "m1": -100,
-              "m3": -100,
-              "m6": -100
+              "m1": -5.1,
+              "m3": -16.2,
+              "m6": -32.1
             }
           }
         }
@@ -465,11 +465,11 @@
         "clientId": "papaparfait",
         "clientName": "Papa Parfait",
         "property": "https://papaparfait.fr/",
-        "period": "2026-10",
-        "periodLabel": "octobre 2026",
-        "generatedAt": "2026-10-01T06:55:32.529Z",
+        "period": "2026-09",
+        "periodLabel": "septembre 2026",
+        "generatedAt": "2026-10-03T06:00:54.201Z",
         "mock": false,
-        "url": "https://gsc-report-wassim.loumiwassim.workers.dev/r/262bb3b385fbff86f24a1d3218377e43",
+        "url": "https://gsc-report-wassim.loumiwassim.workers.dev/r/e8083b77d41fd4f7bcdfd130ef5fcf4f",
         "kpis": {
           "clicks": {
             "value": 0,
@@ -480,9 +480,9 @@
             }
           },
           "impressions": {
-            "value": 0,
+            "value": 8,
             "deltas": {
-              "m1": -100,
+              "m1": null,
               "m3": null,
               "m6": null
             }
@@ -496,9 +496,9 @@
             }
           },
           "position": {
-            "value": 0,
+            "value": 25.5,
             "deltas": {
-              "m1": -100,
+              "m1": null,
               "m3": null,
               "m6": null
             }
@@ -509,11 +509,11 @@
         "clientId": "souslacote",
         "clientName": "Sous la Côte",
         "property": "https://souslacote.eu/",
-        "period": "2026-10",
-        "periodLabel": "octobre 2026",
-        "generatedAt": "2026-10-01T06:55:32.985Z",
+        "period": "2026-09",
+        "periodLabel": "septembre 2026",
+        "generatedAt": "2026-10-03T06:00:55.118Z",
         "mock": false,
-        "url": "https://gsc-report-wassim.loumiwassim.workers.dev/r/758b230e75c6dc78ce4c80ce05ed7f55",
+        "url": "https://gsc-report-wassim.loumiwassim.workers.dev/r/b656fdbaa70ea81a1356fa74ff19863c",
         "kpis": {
           "clicks": {
             "value": 0,
@@ -524,9 +524,9 @@
             }
           },
           "impressions": {
-            "value": 0,
+            "value": 44,
             "deltas": {
-              "m1": -100,
+              "m1": null,
               "m3": null,
               "m6": null
             }
@@ -540,9 +540,9 @@
             }
           },
           "position": {
-            "value": 0,
+            "value": 27.5,
             "deltas": {
-              "m1": -100,
+              "m1": null,
               "m3": null,
               "m6": null
             }
@@ -553,42 +553,42 @@
         "clientId": "wassim",
         "clientName": "Wassim Loumi",
         "property": "https://www.wassimloumicorporate.fr/",
-        "period": "2026-10",
-        "periodLabel": "octobre 2026",
-        "generatedAt": "2026-10-01T06:55:29.121Z",
+        "period": "2026-09",
+        "periodLabel": "septembre 2026",
+        "generatedAt": "2026-10-03T06:00:46.525Z",
         "mock": false,
-        "url": "https://gsc-report-wassim.loumiwassim.workers.dev/r/e648012ce866367a60a4cd3816763e6e",
+        "url": "https://gsc-report-wassim.loumiwassim.workers.dev/r/6298e724d8b004fb3bb4e7d43e6e1cad",
         "kpis": {
           "clicks": {
-            "value": 0,
+            "value": 21,
             "deltas": {
-              "m1": -100,
-              "m3": -100,
-              "m6": -100
+              "m1": 110,
+              "m3": 50,
+              "m6": 2000
             }
           },
           "impressions": {
-            "value": 0,
+            "value": 2762,
             "deltas": {
-              "m1": -100,
-              "m3": -100,
-              "m6": -100
+              "m1": -11.9,
+              "m3": 109.1,
+              "m6": 1018.2
             }
           },
           "ctr": {
-            "value": 0,
+            "value": 0.007603186097031137,
             "deltas": {
-              "m1": -100,
-              "m3": -100,
-              "m6": -100
+              "m1": 138.4,
+              "m3": -28.3,
+              "m6": 87.8
             }
           },
           "position": {
-            "value": 0,
+            "value": 14.156408399710354,
             "deltas": {
-              "m1": -100,
-              "m3": -100,
-              "m6": -100
+              "m1": -25.6,
+              "m3": -20.5,
+              "m6": -36
             }
           }
         }
@@ -597,42 +597,42 @@
         "clientId": "wassimloumi",
         "clientName": "Wassim Loumi (perso)",
         "property": "https://www.wassimloumi.fr/",
-        "period": "2026-10",
-        "periodLabel": "octobre 2026",
-        "generatedAt": "2026-10-01T06:55:33.401Z",
+        "period": "2026-09",
+        "periodLabel": "septembre 2026",
+        "generatedAt": "2026-10-03T06:00:56.037Z",
         "mock": false,
-        "url": "https://gsc-report-wassim.loumiwassim.workers.dev/r/20a21d27db8f55abea28cd93ec29aff7",
+        "url": "https://gsc-report-wassim.loumiwassim.workers.dev/r/5dc3895d34142a5776cdc1991eda321d",
         "kpis": {
           "clicks": {
-            "value": 0,
+            "value": 20,
             "deltas": {
-              "m1": -100,
-              "m3": -100,
-              "m6": -100
+              "m1": 53.8,
+              "m3": -9.1,
+              "m6": -13
             }
           },
           "impressions": {
-            "value": 0,
+            "value": 2983,
             "deltas": {
-              "m1": -100,
-              "m3": -100,
-              "m6": -100
+              "m1": -25.6,
+              "m3": 45,
+              "m6": 9
             }
           },
           "ctr": {
-            "value": 0,
+            "value": 0.00670465973851827,
             "deltas": {
-              "m1": -100,
-              "m3": -100,
-              "m6": -100
+              "m1": 106.7,
+              "m3": -37.3,
+              "m6": -20.2
             }
           },
           "position": {
-            "value": 0,
+            "value": 33.66443178008716,
             "deltas": {
-              "m1": -100,
-              "m3": -100,
-              "m6": -100
+              "m1": -13.1,
+              "m3": 63.1,
+              "m6": 26.7
             }
           }
         }
