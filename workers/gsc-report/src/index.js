@@ -81,6 +81,16 @@ export default {
       if (path === '/run' && request.method === 'POST') {
         const body = (await safeJson(request)) || {};
         const opts = { clientId: body.client, periodKey: body.period, notion: body.notion !== false };
+        // Un rapport n'a de sens que sur un mois calendaire TERMINÉ : générer le
+        // mois en cours produit des rapports partiels (voire vides, GSC ayant
+        // ~2 jours de latence) qui masquent le vrai dernier mois sur le
+        // dashboard. Déjà arrivé deux fois (12/09 et 01/10) — refus explicite.
+        if (opts.periodKey && opts.periodKey >= currentMonthKey()) {
+          return jsonResponse({
+            error: 'bad_request',
+            message: `period ${opts.periodKey} n'est pas un mois terminé — le mois en cours (${currentMonthKey()}) ne peut pas être généré (données partielles). Laisser vide pour le mois précédent.`,
+          }, 400, request, env);
+        }
         // Sans client ciblé : une invocation par client via le binding SELF —
         // le pull d'audit (8 appels API/client) dépasserait sinon la limite
         // Cloudflare de 50 sous-requêtes par invocation.
@@ -107,11 +117,15 @@ export default {
       if (path === '/latest' && request.method === 'GET') {
         if (!env.REPORTS) return jsonResponse({ error: 'kv_not_bound' }, 503, request, env);
         const list = await env.REPORTS.list({ prefix: 'report:' });
+        const nowKey = currentMonthKey();
         const byClient = {};
         for (const k of list.keys) {
           const stored = await env.REPORTS.get(k.name, 'json');
           if (!stored) continue;
           const entry = indexEntry(stored, url.origin);
+          // Les rapports d'un mois non terminé (générés avant le garde-fou de
+          // /run) sont ignorés : le « dernier rapport » est un mois complet.
+          if (entry.period >= nowKey) continue;
           const prev = byClient[entry.clientId];
           if (!prev || entry.period > prev.period) byClient[entry.clientId] = entry;
         }
@@ -134,12 +148,16 @@ export default {
         const period = url.searchParams.get('period'); // YYYY-MM ; défaut = dernier rapport de chaque client
         const prefix = clientFilter ? `report:${clientFilter}:` : 'report:';
         const list = await env.REPORTS.list({ prefix });
+        const nowKey = currentMonthKey();
         const byClient = {};
         for (const k of list.keys) {
           const stored = await env.REPORTS.get(k.name, 'json');
           if (!stored) continue;
           const key = stored.data.meta.period.key;
           if (period && key !== period) continue;
+          // Sans filtre explicite : même règle que /latest, on ignore les mois
+          // non terminés (rapports partiels générés avant le garde-fou).
+          if (!period && key >= nowKey) continue;
           const cid = stored.data.meta.clientId;
           const prev = byClient[cid];
           if (!prev || key > prev.data.meta.period.key) byClient[cid] = stored;
@@ -208,6 +226,11 @@ async function fanOutRun(env, origin, opts = {}) {
 
 function isMock(env) {
   return (env.MOCK_MODE || '').toLowerCase() === 'true';
+}
+
+/** Clé YYYY-MM du mois calendaire en cours (UTC). */
+function currentMonthKey() {
+  return new Date().toISOString().slice(0, 7);
 }
 
 /**
