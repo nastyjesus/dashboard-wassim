@@ -1,5 +1,5 @@
 {
-  "target": "reports",
-  "requestedAt": "2026-10-03T08:07:00Z",
-  "note": "Index des rapports stockés — verif que septembre existe"
+  "target": "health",
+  "requestedAt": "2026-10-03T08:12:00Z",
+  "note": "Relecture /latest apres garde-fou mois en cours"
 }
