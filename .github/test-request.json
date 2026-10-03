@@ -1,5 +1,5 @@
 {
-  "target": "health",
-  "requestedAt": "2026-10-03T08:04:30Z",
-  "note": "Verif post-cron rapports GSC septembre (routine du 3)"
+  "target": "reports",
+  "requestedAt": "2026-10-03T08:07:00Z",
+  "note": "Index des rapports stockés — verif que septembre existe"
 }
