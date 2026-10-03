@@ -10,7 +10,7 @@ on:
       target:
         description: "Quoi tester"
         type: choice
-        options: [health, push-config, run-gsc, run-geo, deep-export, all]
+        options: [health, push-config, run-gsc, run-geo, deep-export, reports, all]
         default: all
       gsc-period:
         description: "Mois GSC (YYYY-MM, vide = mois précédent)"
@@ -115,6 +115,19 @@ jobs:
                 '| clics', p.totals.clicks, '(', p.deltas.clicks, '% ) | KW:', p.queries.length,
                 '| gagnants:', p.movers.queries.up.length, '| perdants:', p.movers.queries.down.length,
                 '| opportunités:', p.opportunities.length);
+            }
+          "
+
+      - name: Index des rapports stockés (par période)
+        if: env.TARGET == 'reports'
+        run: |
+          curl -sS --max-time 60 "$GSC/reports" -H "X-Wassim-Auth: $TOKEN" > /tmp/reports.json
+          node -e "
+            const r = require('/tmp/reports.json').reports || [];
+            const by = {};
+            for (const x of r) { (by[x.period] = by[x.period] || []).push(x.clientId); }
+            for (const p of Object.keys(by).sort().reverse()) {
+              console.log(p, ':', by[p].length, 'rapports →', by[p].sort().join(', '));
             }
           "
 

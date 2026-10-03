@@ -129,6 +129,33 @@ describe('génération de rapports', () => {
     expect(res.status).toBe(404);
   });
 
+  it('refuse de générer le mois en cours (rapport partiel) et /latest ignore ceux déjà stockés', async () => {
+    const env = mockEnv();
+    const nowKey = new Date().toISOString().slice(0, 7);
+
+    // POST /run avec le mois en cours → 400 explicite.
+    const res = await run(env, '/run', { method: 'POST', body: JSON.stringify({ period: nowKey }) });
+    expect(res.status).toBe(400);
+    expect((await res.json()).message).toContain('mois terminé');
+
+    // Un rapport du mois en cours déjà stocké (généré avant le garde-fou)
+    // ne doit pas masquer le dernier mois complet dans /latest ni /export.
+    await run(env, '/run', { method: 'POST', body: JSON.stringify({ period: '2026-07' }) });
+    const key = [...env.REPORTS._store.keys()].find((k) => k.startsWith('report:demo-wassim:2026-07'));
+    const stored = JSON.parse(env.REPORTS._store.get(key));
+    stored.data.meta.period.key = nowKey;
+    await env.REPORTS.put(`report:demo-wassim:${nowKey}`, JSON.stringify(stored));
+
+    const latest = (await (await run(env, '/latest')).json()).latest;
+    expect(latest['demo-wassim'].period).toBe('2026-07');
+
+    const exp = await (await run(env, '/export')).json();
+    expect(exp.clients[0].meta.period.key).toBe('2026-07');
+    // Mais un filtre ?period= explicite sur ce mois reste servi.
+    const cur = await (await run(env, `/export?period=${nowKey}`)).json();
+    expect(cur.count).toBe(1);
+  });
+
   it('POST /run sans client passe par le binding SELF (une invocation par client)', async () => {
     const env = mockEnv();
     let selfCalls = 0;
