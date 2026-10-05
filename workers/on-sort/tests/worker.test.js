@@ -360,3 +360,28 @@ describe('/top ?city= (villes de l’app)', () => {
     expect(body.position).toEqual({ lat: 48.1173, lon: -1.6778 });
   });
 });
+
+describe('/top : une position explicite choisit le département', () => {
+  const odsUrls = () => fetch.mock.calls.map(([u]) => decodeURIComponent(String(u))).filter((u) => u.startsWith('https://ods.example/'));
+
+  it('city=Lorient + lat/lon de Rennes : agenda d’Ille-et-Vilaine, pas du Morbihan', async () => {
+    stubFetchLive();
+    const { body } = await appel('/top?date=2026-08-22&city=lorient&lat=48.1173&lon=-1.6778', envMock({ MOCK_MODE: 'false' }));
+    expect(body.position).toEqual({ lat: 48.1173, lon: -1.6778 });
+    expect(odsUrls().some((u) => u.includes('Ille-et-Vilaine'))).toBe(true);
+    expect(odsUrls().some((u) => u.includes('Morbihan'))).toBe(false);
+  });
+
+  it('lat/lon seuls près de Lorient : Morbihan', async () => {
+    stubFetchLive();
+    await appel('/top?date=2026-08-22&lat=47.75&lon=-3.37', envMock({ MOCK_MODE: 'false' }));
+    expect(odsUrls().some((u) => u.includes('Morbihan'))).toBe(true);
+  });
+
+  it('dept/code explicites restent prioritaires (ce que fait l’app)', async () => {
+    stubFetchLive();
+    await appel('/top?date=2026-08-22&lat=47.75&lon=-3.37&dept=Finist%C3%A8re&code=29', envMock({ MOCK_MODE: 'false' }));
+    expect(odsUrls().some((u) => u.includes('Finistère'))).toBe(true);
+    expect(odsUrls().some((u) => u.includes('Morbihan'))).toBe(false);
+  });
+});

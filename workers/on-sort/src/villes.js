@@ -49,3 +49,14 @@ export function villeParNomOuId(saisie) {
   if (!cle) return null;
   return VILLES.find((v) => v.id === cle || cleVille(v.nom).replace(/^saint/, 'st') === cle) || null;
 }
+
+/**
+ * Ville de l'app la plus proche d'une position (distance à vol d'oiseau).
+ * Sert à choisir le département quand /top reçoit une position GPS sans
+ * `dept`/`code` : sinon on interroge l'agenda du mauvais département.
+ */
+export function villeLaPlusProche(lat, lon) {
+  const r = Math.PI / 180;
+  const d2 = (v) => ((v.lat - lat) ** 2) + (((v.lon - lon) * Math.cos(lat * r)) ** 2);
+  return VILLES.reduce((meilleure, v) => (d2(v) < d2(meilleure) ? v : meilleure));
+}

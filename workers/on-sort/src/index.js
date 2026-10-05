@@ -13,7 +13,9 @@
 //                      &dept=&code=     (défaut : Ille-et-Vilaine / 35)
 //                      &city=           (une ville de l'app, par id ou nom :
 //                                        donne lat/lon/dept/code ; ceux passés
-//                                        explicitement restent prioritaires.
+//                                        explicitement restent prioritaires ;
+//                                        lat/lon sans dept/code → département
+//                                        de la ville de l'app la plus proche.
 //                                        Ville inconnue → 400, pas Rennes.)
 //   GET /diagnostic  — le go/no-go du POC : comptages réels par source,
 //                      part d'événements « famille », échantillons, verdict.
@@ -37,7 +39,7 @@ import { top } from './scoring.js';
 import { scoreFamille } from './famille.js';
 import { envoyerAlertes, desabonner, pageDesabonnement } from './alerte.js';
 import { MOCK_EVENEMENTS, MOCK_METEO, isMock } from './mocks.js';
-import { villeParNomOuId } from './villes.js';
+import { villeParNomOuId, villeLaPlusProche } from './villes.js';
 
 const DEFAUTS = {
   lat: 48.1173, lon: -1.6778, // Rennes
@@ -48,7 +50,7 @@ const CACHE_TTL = 6 * 3600; // les agendas bougent peu en journée
 // Version de clé de cache : bump à chaque changement de scoring (ou de lecture
 // des paramètres, ex. ?city=) pour invalider
 // d'un coup les tops déjà en cache (un redéploiement seul ne purge pas le cache).
-const CACHE_VERSION = 'scoring-2026-10-05-city';
+const CACHE_VERSION = 'scoring-2026-10-05-zone';
 /** Piliers en teaser dont on compte les « Ça m'intéresse ». */
 const PILIERS = ['couple', 'moi', 'tribu'];
 
@@ -257,17 +259,24 @@ function lireParams(url) {
   const base = ville
     ? { lat: ville.lat, lon: ville.lon, departement: ville.dept, codeDepartement: ville.code }
     : DEFAUTS;
+  const lat = num('lat') ?? base.lat;
+  const lon = num('lon') ?? base.lon;
+  // Une position explicite décide aussi du département, sauf dept/code
+  // explicites : city=Lorient&lat=<Rennes> interrogeait le Morbihan autour de
+  // Rennes, donc un top vide.
+  const zone = num('lat') !== null && num('lon') !== null ? villeLaPlusProche(lat, lon) : null;
+  const zoneBase = zone ? { departement: zone.dept, codeDepartement: zone.code } : base;
   return {
     ville: ville ? { id: ville.id, nom: ville.nom } : null,
     dateISO: /^\d{4}-\d{2}-\d{2}$/.test(url.searchParams.get('date') || '')
       ? url.searchParams.get('date')
       : prochainSamedi(),
-    lat: num('lat') ?? base.lat,
-    lon: num('lon') ?? base.lon,
+    lat,
+    lon,
     age: num('age') ?? DEFAUTS.age,
     rayonKm: num('rayon') ?? DEFAUTS.rayonKm,
-    departement: url.searchParams.get('dept') || base.departement,
-    codeDepartement: url.searchParams.get('code') || base.codeDepartement,
+    departement: url.searchParams.get('dept') || zoneBase.departement,
+    codeDepartement: url.searchParams.get('code') || zoneBase.codeDepartement,
   };
 }
 
