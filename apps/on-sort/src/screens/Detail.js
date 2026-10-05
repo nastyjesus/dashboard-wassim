@@ -5,6 +5,7 @@ import { Linking, Pressable, ScrollView, Share, StyleSheet, Text, View } from 'r
 import { couleurs, espace, rayon, police, typo, cadre } from '../theme.js';
 import { Pastille, Bouton, Section } from '../components/ui.js';
 import { LIEN_APP } from '../config.js';
+import { mentionSource } from '../mention.js';
 
 function messagePartage(ev) {
   const lignes = [`🎈 ${ev.titre}`];
@@ -69,6 +70,7 @@ export function Detail({ ev, onRetour, gardee, onGarder }) {
       </View>
 
       {!!ev.description && <Text style={styles.description}>{ev.description}</Text>}
+      {!!mentionSource(ev) && <Text style={styles.mention}>{mentionSource(ev)}</Text>}
 
       <View style={styles.actions}>
         {!!ev.url && <Bouton label="Voir l'événement" onPress={() => Linking.openURL(ev.url)} />}
@@ -98,5 +100,6 @@ const styles = StyleSheet.create({
   ligneIcone: { width: 28, fontSize: 15 },
   ligneTexte: { flex: 1, color: couleurs.texte, fontSize: 15, lineHeight: 21, fontFamily: police.corps },
   description: { color: couleurs.texte, fontSize: 15.5, lineHeight: 24, marginTop: espace.xl, fontFamily: police.corps },
+  mention: { color: couleurs.discret, fontSize: 13, lineHeight: 18, marginTop: espace.l, fontFamily: police.corps },
   actions: { marginTop: espace.xxl, gap: espace.m, alignItems: 'flex-start' },
 });

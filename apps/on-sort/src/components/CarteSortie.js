@@ -5,6 +5,7 @@
 import { Pressable, Text, View, StyleSheet } from 'react-native';
 import { couleurs, espace, rayon, police, typo, cadre, ombre } from '../theme.js';
 import { Pastille } from './ui.js';
+import { mentionSource } from '../mention.js';
 
 function sousTitre(ev) {
   const morceaux = [];
@@ -48,6 +49,7 @@ export function CarteSortie({ ev, rang, preferee, onPress, gardee, onGarder }) {
         <View style={styles.raisons}>
           {(ev.raisons || []).slice(0, 4).map((r) => <Pastille key={r} label={r} />)}
         </View>
+        {!!mentionSource(ev) && <Text style={styles.goMention}>{mentionSource(ev)}</Text>}
       </Pressable>
     );
   }
@@ -63,6 +65,7 @@ export function CarteSortie({ ev, rang, preferee, onPress, gardee, onGarder }) {
         <View style={styles.raisons}>
           {(ev.raisons || []).slice(0, 3).map((r) => <Pastille key={r} label={r} />)}
         </View>
+        {!!mentionSource(ev) && <Text style={styles.mention}>{mentionSource(ev)}</Text>}
       </View>
       <Etoile gardee={gardee} onPress={onGarder} />
       <Text style={styles.chevron}>›</Text>
@@ -86,6 +89,8 @@ const styles = StyleSheet.create({
   goChevron: { fontSize: 26, color: couleurs.encre, lineHeight: 26 },
   goTitre: { ...typo.displayL, color: couleurs.encre, fontFamily: police.display, marginTop: espace.s },
   goSous: { color: couleurs.encre, fontSize: 14, marginTop: espace.xs, fontFamily: police.corps },
+  // Mention de licence : texte sur ambre = encre (charte §2), en petit.
+  goMention: { color: couleurs.encre, fontSize: 12, lineHeight: 16, marginTop: espace.m, fontFamily: police.corps },
 
   // Panneau standard numéroté
   carte: {
@@ -110,6 +115,7 @@ const styles = StyleSheet.create({
   corps: { flex: 1 },
   titre: { color: couleurs.encre, fontSize: 16, lineHeight: 21, fontFamily: police.corpsFort },
   sousTitre: { color: couleurs.discret, fontSize: 13, marginTop: 2, fontFamily: police.corps },
+  mention: { color: couleurs.discret, fontSize: 12, lineHeight: 16, marginTop: espace.s, fontFamily: police.corps },
   chevron: { fontSize: 24, color: couleurs.encre, marginLeft: espace.s },
 
   raisons: { flexDirection: 'row', flexWrap: 'wrap', marginTop: espace.m },
