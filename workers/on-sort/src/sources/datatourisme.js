@@ -70,23 +70,39 @@ function periode(r, dateISO) {
   const periodes = [].concat(r.takesPlaceAt || [])
     .map((p) => ({ debut: (p.startDate || '').slice(0, 10), fin: (p.endDate || p.startDate || '').slice(0, 10), heure: p.startTime, heureFin: p.endTime }))
     .filter((p) => p.debut);
-  if (!periodes.length) return { debut: null, fin: null, creneaux: [] };
-  const duJour = periodes.filter((p) => p.debut <= dateISO && dateISO <= p.fin);
+  if (!periodes.length) return { debut: null, fin: null, creneaux: [], horsJour: false };
+  // Rendez-vous hebdomadaire codé en plages : plusieurs périodes qui
+  // commencent et finissent toutes le même jour de la semaine (constaté le
+  // 5 octobre 2026 : « Lecture offerte aux enfants », 18 plages de mercredi à
+  // mercredi, affichée un samedi avec « 10h, 10h et 10h »). Elle n'a lieu que
+  // ce jour-là, pas tous les jours de la plage.
+  const jour = (iso) => new Date(`${iso}T12:00:00Z`).getUTCDay();
+  const jours = new Set(periodes.flatMap((p) => [jour(p.debut), jour(p.fin)]));
+  const hebdo = periodes.length > 1 && jours.size === 1 && periodes.some((p) => p.fin > p.debut);
+  const horsJour = hebdo && jour(dateISO) !== [...jours][0];
+  const duJour = horsJour ? [] : periodes.filter((p) => p.debut <= dateISO && dateISO <= p.fin);
   // Créneaux au format d'OpenAgenda ({debut, fin} ISO local) : le scoring
-  // horaire (« après l'école », « trop tard ») les lit tels quels.
+  // horaire (« après l'école », « trop tard ») les lit tels quels. Une même
+  // séance répétée dans plusieurs plages ne compte qu'une fois.
+  const vus = new Set();
   const creneaux = duJour
     .filter((p) => /^\d{2}:\d{2}/.test(p.heure || ''))
     .map((p) => ({
       debut: `${dateISO}T${p.heure.slice(0, 5)}`,
-      fin: /^\d{2}:\d{2}/.test(p.heureFin || '') ? `${dateISO}T${p.heureFin.slice(0, 5)}` : null,
-    }));
+      fin: /^\d{2}:\d{2}/.test(p.heureFin || '') && p.heureFin.slice(0, 5) > p.heure.slice(0, 5)
+        ? `${dateISO}T${p.heureFin.slice(0, 5)}` : null,
+    }))
+    .filter((c) => (vus.has(c.debut) ? false : vus.add(c.debut)))
+    .sort((a, b) => a.debut.localeCompare(b.debut));
+  if (horsJour) return { debut: null, fin: null, creneaux: [], horsJour: true };
   if (duJour.length) {
-    return { debut: duJour[0].debut, fin: duJour.reduce((m, p) => (p.fin > m ? p.fin : m), duJour[0].fin), creneaux };
+    return { debut: duJour[0].debut, fin: duJour.reduce((m, p) => (p.fin > m ? p.fin : m), duJour[0].fin), creneaux, horsJour: false };
   }
   return {
     debut: periodes.reduce((m, p) => (p.debut < m ? p.debut : m), periodes[0].debut),
     fin: periodes.reduce((m, p) => (p.fin > m ? p.fin : m), periodes[0].fin),
     creneaux,
+    horsJour: false,
   };
 }
 
@@ -108,6 +124,7 @@ export function normaliser(r, dateISO) {
   const lon = Number(geo.longitude);
   const desc = [].concat(r.hasDescription || [])[0] || {};
   const p = periode(r, dateISO);
+  if (p.horsJour) return null; // rendez-vous hebdomadaire d'un autre jour
   return {
     origine: 'datatourisme',
     source: createur(r),
