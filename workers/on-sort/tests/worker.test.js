@@ -318,3 +318,45 @@ describe('compteurs d’usage', () => {
     expect(res.status).toBe(503);
   });
 });
+
+describe('/top ?city= (villes de l’app)', () => {
+  it('city=Lorient : position et département de Lorient, pas Rennes', async () => {
+    stubFetchLive();
+    const { res, body } = await appel('/top?date=2026-08-22&city=Lorient', envMock({ MOCK_MODE: 'false' }));
+    expect(res.status).toBe(200);
+    expect(body.ville).toEqual({ id: 'lorient', nom: 'Lorient' });
+    expect(body.position).toEqual({ lat: 47.748, lon: -3.366 });
+    // Les sources et la météo sont interrogées pour le Morbihan / Lorient.
+    const urls = fetch.mock.calls.map(([u]) => decodeURIComponent(String(u)));
+    expect(urls.some((u) => u.startsWith('https://ods.example/') && u.includes('Morbihan'))).toBe(true);
+    expect(urls.some((u) => u.startsWith('https://ods.example/') && u.includes('Ille-et-Vilaine'))).toBe(false);
+    expect(urls.some((u) => u.startsWith('https://meteo.example/') && u.includes('47.748'))).toBe(true);
+  });
+
+  it('accepte l’identifiant, la casse et les variantes de « Saint »', async () => {
+    for (const saisie of ['stmalo', 'saint-malo', 'Saint%20Malo']) {
+      const { body } = await appel(`/top?date=2026-08-22&city=${saisie}`, envMock());
+      expect(body.ville.id).toBe('stmalo');
+      expect(body.position).toEqual({ lat: 48.649, lon: -2.026 });
+    }
+    const { body } = await appel('/top?date=2026-08-22&ville=brest', envMock());
+    expect(body.ville.id).toBe('brest');
+  });
+
+  it('lat/lon explicites (GPS) restent prioritaires sur la ville', async () => {
+    const { body } = await appel('/top?date=2026-08-22&city=lorient&lat=47.75&lon=-3.37', envMock());
+    expect(body.position).toEqual({ lat: 47.75, lon: -3.37 });
+  });
+
+  it('ville inconnue : 400, jamais un top de Rennes', async () => {
+    const { res, body } = await appel('/top?date=2026-08-22&city=Atlantis', envMock());
+    expect(res.status).toBe(400);
+    expect(body).toEqual({ error: 'ville_inconnue', ville: 'Atlantis' });
+  });
+
+  it('sans city : Rennes par défaut, comme avant', async () => {
+    const { body } = await appel('/top?date=2026-08-22', envMock());
+    expect(body.ville).toBeNull();
+    expect(body.position).toEqual({ lat: 48.1173, lon: -1.6778 });
+  });
+});

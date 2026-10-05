@@ -34,3 +34,18 @@ export const VILLES = [
 
 /** Ville par identifiant, ou null si l'identifiant est inconnu (zone fermée). */
 export const villeParId = (id) => VILLES.find((v) => v.id === id) || null;
+
+const cleVille = (s) => String(s || '')
+  .normalize('NFD').replace(/[̀-ͯ]/g, '')
+  .toLowerCase().replace(/[^a-z0-9]/g, '');
+
+/**
+ * Ville par identifiant OU par nom (`?city=` de /top) : « Lorient »,
+ * « saint-malo », « Saint Malo » et « stmalo » désignent la même ville.
+ * « St-Brieuc » aussi : « saint » et « st » sont équivalents.
+ */
+export function villeParNomOuId(saisie) {
+  const cle = cleVille(saisie).replace(/^saint/, 'st');
+  if (!cle) return null;
+  return VILLES.find((v) => v.id === cle || cleVille(v.nom).replace(/^saint/, 'st') === cle) || null;
+}

@@ -11,6 +11,10 @@
 //                      &age=            (défaut : 3)
 //                      &rayon=          (km, défaut : 40)
 //                      &dept=&code=     (défaut : Ille-et-Vilaine / 35)
+//                      &city=           (une ville de l'app, par id ou nom :
+//                                        donne lat/lon/dept/code ; ceux passés
+//                                        explicitement restent prioritaires.
+//                                        Ville inconnue → 400, pas Rennes.)
 //   GET /diagnostic  — le go/no-go du POC : comptages réels par source,
 //                      part d'événements « famille », échantillons, verdict.
 //   POST /votes      — vote « Ça m'intéresse » d'un pilier en teaser
@@ -33,6 +37,7 @@ import { top } from './scoring.js';
 import { scoreFamille } from './famille.js';
 import { envoyerAlertes, desabonner, pageDesabonnement } from './alerte.js';
 import { MOCK_EVENEMENTS, MOCK_METEO, isMock } from './mocks.js';
+import { villeParNomOuId } from './villes.js';
 
 const DEFAUTS = {
   lat: 48.1173, lon: -1.6778, // Rennes
@@ -40,9 +45,10 @@ const DEFAUTS = {
   departement: 'Ille-et-Vilaine', codeDepartement: '35',
 };
 const CACHE_TTL = 6 * 3600; // les agendas bougent peu en journée
-// Version de clé de cache : bump à chaque changement de scoring pour invalider
+// Version de clé de cache : bump à chaque changement de scoring (ou de lecture
+// des paramètres, ex. ?city=) pour invalider
 // d'un coup les tops déjà en cache (un redéploiement seul ne purge pas le cache).
-const CACHE_VERSION = 'scoring-2026-10-05';
+const CACHE_VERSION = 'scoring-2026-10-05-city';
 /** Piliers en teaser dont on compte les « Ça m'intéresse ». */
 const PILIERS = ['couple', 'moi', 'tribu'];
 
@@ -70,6 +76,8 @@ export default {
 
     try {
       if (path === '/top' && request.method === 'GET') {
+        const { villeInconnue } = lireParams(url);
+        if (villeInconnue) return jsonResponse({ error: 'ville_inconnue', ville: villeInconnue }, 400, request, env);
         return await repondreAvecCache(request, env, ctx, () => calculerTop(request, url, env));
       }
       if (path === '/diagnostic' && request.method === 'GET') {
@@ -229,7 +237,11 @@ function normaliserVille(ville) {
     .slice(0, 40) || 'inconnue';
 }
 
-/** Paramètres de la requête avec défauts Rennes/3 ans. */
+/**
+ * Paramètres de la requête avec défauts Rennes/3 ans. `city` (ou `ville`)
+ * remplace ces défauts par la ville de l'app ; une ville inconnue rend
+ * `{ villeInconnue }` plutôt que de retomber en silence sur Rennes.
+ */
 function lireParams(url) {
   // Attention : Number(null) vaut 0 — il faut tester la présence du paramètre
   // avant de convertir, sinon lat/lon absents deviennent (0,0).
@@ -239,16 +251,23 @@ function lireParams(url) {
     const v = Number(s);
     return Number.isFinite(v) ? v : null;
   };
+  const saisieVille = (url.searchParams.get('city') || url.searchParams.get('ville') || '').trim();
+  const ville = saisieVille ? villeParNomOuId(saisieVille) : null;
+  if (saisieVille && !ville) return { villeInconnue: saisieVille };
+  const base = ville
+    ? { lat: ville.lat, lon: ville.lon, departement: ville.dept, codeDepartement: ville.code }
+    : DEFAUTS;
   return {
+    ville: ville ? { id: ville.id, nom: ville.nom } : null,
     dateISO: /^\d{4}-\d{2}-\d{2}$/.test(url.searchParams.get('date') || '')
       ? url.searchParams.get('date')
       : prochainSamedi(),
-    lat: num('lat') ?? DEFAUTS.lat,
-    lon: num('lon') ?? DEFAUTS.lon,
+    lat: num('lat') ?? base.lat,
+    lon: num('lon') ?? base.lon,
     age: num('age') ?? DEFAUTS.age,
     rayonKm: num('rayon') ?? DEFAUTS.rayonKm,
-    departement: url.searchParams.get('dept') || DEFAUTS.departement,
-    codeDepartement: url.searchParams.get('code') || DEFAUTS.codeDepartement,
+    departement: url.searchParams.get('dept') || base.departement,
+    codeDepartement: url.searchParams.get('code') || base.codeDepartement,
   };
 }
 
@@ -292,6 +311,7 @@ async function calculerTop(request, url, env) {
   return {
     mock: isMock(env),
     date: p.dateISO,
+    ville: p.ville,
     position: { lat: p.lat, lon: p.lon },
     age: p.age,
     rayonKm: p.rayonKm,
@@ -313,6 +333,7 @@ async function diagnostic(url, env) {
     return { mock: true, message: 'MOCK_MODE actif — le diagnostic ne se lit que sur données réelles.' };
   }
   const p = lireParams(url);
+  if (p.villeInconnue) return { error: 'ville_inconnue', ville: p.villeInconnue };
   const [oa, dt, meteo] = await Promise.all([
     evenementsOpenAgenda(env, p),
     evenementsDatatourisme(env, p),
