@@ -50,7 +50,7 @@ const CACHE_TTL = 6 * 3600; // les agendas bougent peu en journée
 // Version de clé de cache : bump à chaque changement de scoring (ou de lecture
 // des paramètres, ex. ?city=) pour invalider
 // d'un coup les tops déjà en cache (un redéploiement seul ne purge pas le cache).
-const CACHE_VERSION = 'scoring-2026-10-05-zone';
+const CACHE_VERSION = 'scoring-2026-10-05-datatourisme';
 /** Piliers en teaser dont on compte les « Ça m'intéresse ». */
 const PILIERS = ['couple', 'moi', 'tribu'];
 
@@ -312,7 +312,7 @@ async function calculerTop(request, url, env) {
     ]);
     meteo = prev;
     sources.openagenda = { ok: oa.ok, count: oa.evenements.length, ...(oa.erreur ? { erreur: oa.erreur } : {}) };
-    sources.datatourisme = { ok: dt.ok, count: dt.evenements.length, ...(dt.endpoint ? { endpoint: dt.endpoint } : {}) };
+    sources.datatourisme = { ok: dt.ok, count: dt.evenements.length, ...(dt.endpoint ? { endpoint: dt.endpoint } : {}), ...(dt.erreur ? { erreur: dt.erreur } : {}) };
     evenements = [...oa.evenements, ...dt.evenements].filter((ev) => actifCeJour(ev, p.dateISO));
   }
 
@@ -371,9 +371,12 @@ async function diagnostic(url, env) {
     departement: p.departement,
     meteo,
     openagenda: { ok: oa.ok, ...(oa.erreur ? { erreur: oa.erreur } : {}), ...bilanOA },
-    datatourisme: dt.ok
-      ? { ok: true, endpoint: dt.endpoint, ...analyse(dt.evenements), erreursSondees: dt.erreurs }
-      : { ok: false, erreursSondees: dt.erreurs },
+    datatourisme: {
+      ok: dt.ok, endpoint: dt.endpoint,
+      ...(dt.total !== undefined ? { totalApi: dt.total } : {}),
+      ...(dt.erreur ? { erreur: dt.erreur } : {}),
+      ...(dt.ok ? analyse(dt.evenements) : {}),
+    },
     retenusApresScoring: retenus,
     verdict: retenus >= 10 ? 'GO — densité largement suffisante'
       : retenus >= 3 ? 'LIMITE — ça passe pour un top 5, à re-tester sur plusieurs dates'

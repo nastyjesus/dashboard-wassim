@@ -7,12 +7,14 @@ d'événements famille exploitables en open data autour de Rennes ?**
 
 ## Ce que fait le worker
 
-1. Agrège les événements de deux sources ouvertes (sans clé) :
+1. Agrège les événements de deux sources ouvertes :
    - **OpenAgenda** via le miroir OpenDataSoft `evenements-publics-openagenda`
      (source principale : médiathèques, mairies, MJC) ;
-   - **DATAtourisme** via l'API ouverte de mars 2026 — endpoint encore à
-     confirmer : l'adaptateur sonde les candidats listés dans
-     `DATATOURISME_ENDPOINTS` et `/diagnostic` dit lequel répond.
+   - **DATAtourisme** via l'API v1 (`/entertainmentAndEvent`, rayon + jour
+     demandés, 300 fiches max par requête). Clé gratuite et nominative en
+     secret : `npx wrangler secret put DATATOURISME_API_KEY`. Sans clé, la
+     source se déclare en panne (`erreur: cle_absente`) et le top tourne sur
+     OpenAgenda seul. Quota : 1 000 requêtes/heure.
 2. Croise avec la météo du jour demandé (Open-Meteo — passer sur une licence
    commerciale avant monétisation).
 3. Filtre et score chaque événement : adapté aux enfants (heuristiques
@@ -101,9 +103,8 @@ Après déploiement (`https://on-sort-poc.loumiwassim.workers.dev/diagnostic`) :
 
 - `openagenda.count` — volume brut d'événements du département ce jour-là ;
 - `openagenda.familleExplicite` / `familleCompatible` — densité famille ;
-- `datatourisme.ok` + `erreursSondees` — si `false`, l'endpoint de la nouvelle
-  API reste à confirmer (voir la doc `api.datatourisme.fr/v1/docs`) puis à
-  figer dans `wrangler.toml` ;
+- `datatourisme.ok` + `erreur` + `totalApi` — si `false`, lire `erreur`
+  (`cle_absente`, `HTTP 401` clé refusée, `HTTP 429` quota) ;
 - `retenusApresScoring` + `verdict` — GO / LIMITE / NO-GO **sur cette date** :
   tester plusieurs samedis avant de conclure.
 

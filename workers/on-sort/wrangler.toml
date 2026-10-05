@@ -13,17 +13,17 @@ main = "src/index.js"
 compatibility_date = "2025-01-15"
 compatibility_flags = ["nodejs_compat"]
 
-# Variables non secrètes. Aucun secret nécessaire : toutes les sources sont
-# des données ouvertes sans clé (licence ouverte / Etalab).
+# Variables non secrètes. Un seul secret : DATATOURISME_API_KEY (clé API
+# DATAtourisme, gratuite et nominative) — `npx wrangler secret put
+# DATATOURISME_API_KEY`, jamais ici. Sans elle, la source DATAtourisme se
+# déclare en panne et le top tourne sur OpenAgenda seul.
 [vars]
 # Miroir OpenDataSoft des événements publics OpenAgenda — source principale
 # du POC : API stable, sans authentification.
 ODS_BASE = "https://public.opendatasoft.com/api/explore/v2.1/catalog/datasets/evenements-publics-openagenda/records"
-# API ouverte DATAtourisme (mars 2026) — la doc exacte n'a pas pu être
-# vérifiée depuis la session de dev (réseau restreint) : l'adaptateur sonde
-# ces endpoints candidats et /diagnostic dit lequel répond. Ajuster ici
-# quand le bon endpoint est confirmé, sans toucher au code.
-DATATOURISME_ENDPOINTS = "https://api.datatourisme.fr/api/open/evenements.json,https://www.datatourisme.fr/api/open/evenements.json"
+# API DATAtourisme v1 (doc : https://api.datatourisme.fr/v1/docs) — fêtes et
+# manifestations. Quota : 1 000 requêtes/heure par clé.
+DATATOURISME_BASE = "https://api.datatourisme.fr/v1/entertainmentAndEvent"
 # Prévisions météo (Open-Meteo, sans clé — usage non commercial OK pour le
 # POC ; passer sur l'offre payante ou Météo-France open data avant de
 # monétiser l'app).

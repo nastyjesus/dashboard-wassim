@@ -19,7 +19,8 @@ function envMock(extra = {}) {
     MOCK_MODE: 'true',
     ALLOWED_ORIGINS: 'http://localhost:3000',
     ODS_BASE: 'https://ods.example/records',
-    DATATOURISME_ENDPOINTS: 'https://dt.example/api/open/evenements.json',
+    DATATOURISME_BASE: 'https://dt.example/v1/entertainmentAndEvent',
+    DATATOURISME_API_KEY: 'cle-de-test',
     METEO_BASE: 'https://meteo.example/v1/forecast',
     ...extra,
   };
@@ -73,7 +74,7 @@ function stubFetchLive() {
         },
       });
     }
-    // DATAtourisme : la sonde échoue proprement (endpoint pas encore confirmé)
+    // DATAtourisme : l'API répond en erreur, la source se déclare en panne
     return new Response('not found', { status: 404 });
   }));
 }
@@ -134,14 +135,14 @@ describe('/diagnostic', () => {
     expect(body.mock).toBe(true);
   });
 
-  it('en live : comptages famille, erreurs de sonde DATAtourisme et verdict', async () => {
+  it('en live : comptages famille, erreur DATAtourisme et verdict', async () => {
     stubFetchLive();
     const { body } = await appel('/diagnostic?date=2026-08-22', envMock({ MOCK_MODE: 'false' }));
     expect(body.openagenda.count).toBe(3);
     expect(body.openagenda.familleExplicite).toBeGreaterThanOrEqual(2);
     expect(body.openagenda.echantillonFamille.length).toBeGreaterThan(0);
     expect(body.datatourisme.ok).toBe(false);
-    expect(body.datatourisme.erreursSondees.length).toBeGreaterThan(0);
+    expect(body.datatourisme.erreur).toBe('HTTP 404');
     expect(body.verdict).toContain('re-tester');
   });
 });
@@ -404,12 +405,15 @@ describe('/top : mention de la source DATAtourisme', () => {
       return new Response('not found', { status: 404 });
     }));
   }
+  // Forme réelle de l'API v1 (relevée le 5 octobre 2026).
   const fiche = {
-    label: { fr: 'Atelier marionnettes jeune public' },
-    description: 'Fabrication de marionnettes pour les enfants dès 3 ans.',
-    date_debut: '2026-08-22', date_fin: '2026-08-22', latitude: 48.115, longitude: -1.675,
+    uuid: 'dt-1',
+    label: { '@fr': 'Atelier marionnettes jeune public' },
+    hasDescription: [{ description: { '@fr': 'Fabrication de marionnettes pour les enfants dès 3 ans.' } }],
+    takesPlaceAt: [{ startDate: '2026-08-22', endDate: '2026-08-22', startTime: '10:00', endTime: '12:00' }],
+    isLocatedAt: [{ geo: { latitude: 48.115, longitude: -1.675 }, address: [{ streetAddress: ['Place du Parlement'], postalCode: '35000', addressLocality: 'Rennes' }] }],
     hasBeenCreatedBy: { legalName: 'Office de Tourisme de Rennes' },
-    lastUpdate: '2026-08-01T09:12:00Z',
+    lastUpdate: '2026-08-01',
   };
 
   it('chaque sortie DATAtourisme porte source (créateur) et majLe ; les autres source: null', async () => {
@@ -422,12 +426,34 @@ describe('/top : mention de la source DATAtourisme', () => {
   });
 
   it('lit aussi le nom multilingue ou en tableau ; sans nom, cite DATAtourisme', async () => {
-    stubAvecDatatourisme({ ...fiche, hasBeenCreatedBy: [{ 'schema:legalName': { fr: 'ADT 56' } }], lastUpdate: undefined, lastUpdateDatatourisme: '2026-07-30' });
+    stubAvecDatatourisme({ ...fiche, hasBeenCreatedBy: [{ legalName: { '@fr': 'ADT 56' } }], lastUpdate: undefined, lastUpdateDatatourisme: '2026-07-30T03:34:12.868Z' });
     let { body } = await appel('/top?date=2026-08-22&age=3', envMock({ MOCK_MODE: 'false' }));
     expect(body.top.find((e) => e.origine === 'datatourisme')).toMatchObject({ source: 'ADT 56', majLe: '2026-07-30' });
 
     stubAvecDatatourisme({ ...fiche, hasBeenCreatedBy: undefined, lastUpdate: 'inconnue' });
     ({ body } = await appel('/top?date=2026-08-22&age=3', envMock({ MOCK_MODE: 'false' })));
     expect(body.top.find((e) => e.origine === 'datatourisme')).toMatchObject({ source: 'DATAtourisme', majLe: null });
+  });
+});
+
+describe('source DATAtourisme (API v1)', () => {
+  it('interroge le rayon et le jour demandés, avec la clé en en-tête', async () => {
+    stubFetchLive();
+    await appel('/top?date=2026-08-22&age=3&rayon=25', envMock({ MOCK_MODE: 'false' }));
+    const [url, init] = fetch.mock.calls.find(([u]) => String(u).startsWith('https://dt.example/'));
+    const q = new URL(String(url)).searchParams;
+    expect(q.get('geo_distance')).toBe('48.1173,-1.6778,25km');
+    expect(q.get('filters')).toBe('takesPlaceAt.startDate[lte]=2026-08-22 AND takesPlaceAt.endDate[gte]=2026-08-22');
+    expect(q.get('fields')).toContain('hasBeenCreatedBy.legalName');
+    expect(init.headers['X-API-Key']).toBe('cle-de-test');
+  });
+
+  it('sans clé : source en panne déclarée, aucun appel, le top tourne quand même', async () => {
+    stubFetchLive();
+    const { res, body } = await appel('/top?date=2026-08-22', envMock({ MOCK_MODE: 'false', DATATOURISME_API_KEY: undefined }));
+    expect(res.status).toBe(200);
+    expect(body.sources.datatourisme).toMatchObject({ ok: false, count: 0, erreur: 'cle_absente' });
+    expect(fetch.mock.calls.some(([u]) => String(u).startsWith('https://dt.example/'))).toBe(false);
+    expect(body.top.length).toBeGreaterThan(0);
   });
 });
