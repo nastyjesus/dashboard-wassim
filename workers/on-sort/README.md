@@ -15,6 +15,10 @@ d'événements famille exploitables en open data autour de Rennes ?**
      secret : `npx wrangler secret put DATATOURISME_API_KEY`. Sans clé, la
      source se déclare en panne (`erreur: cle_absente`) et le top tourne sur
      OpenAgenda seul. Quota : 1 000 requêtes/heure.
+   - **Médiathèques de Lorient** via leur flux RSS (`MEDIATHEQUES_LORIENT_RSS`),
+     interrogé seulement quand Lorient est dans le rayon. Seules les séances
+     étiquetées Petite enfance, Maternelle, Enfant ou Famille comptent ; les
+     trois lieux sont géocodés dans `src/sources/mediatheques-lorient.js`.
 2. Croise avec la météo du jour demandé (Open-Meteo — passer sur une licence
    commerciale avant monétisation).
 3. Filtre et score chaque événement : adapté aux enfants (heuristiques

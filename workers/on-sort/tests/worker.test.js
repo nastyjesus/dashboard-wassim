@@ -457,3 +457,16 @@ describe('source DATAtourisme (API v1)', () => {
     expect(body.top.length).toBeGreaterThan(0);
   });
 });
+
+describe('/top : source médiathèques de Lorient', () => {
+  it('interrogée à Lorient (et déclarée), ignorée ailleurs', async () => {
+    stubFetchLive(); // le flux répond 404 dans ce stub : source en panne déclarée
+    let { body } = await appel('/top?date=2026-08-22&city=lorient', envMock({ MOCK_MODE: 'false', MEDIATHEQUES_LORIENT_RSS: 'https://med.example/rss' }));
+    expect(body.sources.mediatheques_lorient).toMatchObject({ ok: false, count: 0, erreur: 'HTTP 404' });
+
+    stubFetchLive();
+    ({ body } = await appel('/top?date=2026-08-22&city=rennes', envMock({ MOCK_MODE: 'false', MEDIATHEQUES_LORIENT_RSS: 'https://med.example/rss' })));
+    expect(body.sources.mediatheques_lorient).toBeUndefined();
+    expect(fetch.mock.calls.some(([u]) => String(u).startsWith('https://med.example/'))).toBe(false);
+  });
+});

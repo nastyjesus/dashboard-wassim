@@ -34,6 +34,7 @@
 import { jsonResponse, preflightResponse } from './cors.js';
 import { evenementsOpenAgenda } from './sources/openagenda.js';
 import { evenementsDatatourisme } from './sources/datatourisme.js';
+import { evenementsMediathequesLorient } from './sources/mediatheques-lorient.js';
 import { previsionJour } from './meteo.js';
 import { top } from './scoring.js';
 import { scoreFamille } from './famille.js';
@@ -50,7 +51,7 @@ const CACHE_TTL = 6 * 3600; // les agendas bougent peu en journée
 // Version de clé de cache : bump à chaque changement de scoring (ou de lecture
 // des paramètres, ex. ?city=) pour invalider
 // d'un coup les tops déjà en cache (un redéploiement seul ne purge pas le cache).
-const CACHE_VERSION = 'scoring-2026-10-05-hebdo';
+const CACHE_VERSION = 'scoring-2026-10-05-mediatheques';
 /** Piliers en teaser dont on compte les « Ça m'intéresse ». */
 const PILIERS = ['couple', 'moi', 'tribu'];
 
@@ -305,15 +306,24 @@ async function calculerTop(request, url, env) {
     meteo = MOCK_METEO;
     sources.mock = { ok: true, count: evenements.length };
   } else {
-    const [oa, dt, prev] = await Promise.all([
+    const [oa, dt, med, prev] = await Promise.all([
       evenementsOpenAgenda(env, p),
       evenementsDatatourisme(env, p),
+      evenementsMediathequesLorient(env, p),
       previsionJour(env, p.lat, p.lon, p.dateISO),
     ]);
     meteo = prev;
     sources.openagenda = { ok: oa.ok, count: oa.evenements.length, ...(oa.erreur ? { erreur: oa.erreur } : {}) };
     sources.datatourisme = { ok: dt.ok, count: dt.evenements.length, ...(dt.endpoint ? { endpoint: dt.endpoint } : {}), ...(dt.erreur ? { erreur: dt.erreur } : {}) };
-    evenements = [...oa.evenements, ...dt.evenements].filter((ev) => actifCeJour(ev, p.dateISO));
+    // Hors de Lorient, la source ne s'interroge pas : on ne l'affiche pas.
+    if (!med.horsZone) {
+      sources.mediatheques_lorient = {
+        ok: med.ok, count: med.evenements.length,
+        ...(med.seancesDuJour !== undefined ? { seancesDuJour: med.seancesDuJour } : {}),
+        ...(med.erreur ? { erreur: med.erreur } : {}),
+      };
+    }
+    evenements = [...oa.evenements, ...dt.evenements, ...med.evenements].filter((ev) => actifCeJour(ev, p.dateISO));
   }
 
   const resultat = top(evenements, { dateISO: p.dateISO, lat: p.lat, lon: p.lon, age: p.age, rayonKm: p.rayonKm, meteo });
@@ -343,9 +353,10 @@ async function diagnostic(url, env) {
   }
   const p = lireParams(url);
   if (p.villeInconnue) return { error: 'ville_inconnue', ville: p.villeInconnue };
-  const [oa, dt, meteo] = await Promise.all([
+  const [oa, dt, med, meteo] = await Promise.all([
     evenementsOpenAgenda(env, p),
     evenementsDatatourisme(env, p),
+    evenementsMediathequesLorient(env, p),
     previsionJour(env, p.lat, p.lon, p.dateISO),
   ]);
 
@@ -362,7 +373,7 @@ async function diagnostic(url, env) {
   };
 
   const bilanOA = analyse(oa.evenements);
-  const retenus = top([...oa.evenements, ...dt.evenements].filter((ev) => actifCeJour(ev, p.dateISO)),
+  const retenus = top([...oa.evenements, ...dt.evenements, ...med.evenements].filter((ev) => actifCeJour(ev, p.dateISO)),
     { dateISO: p.dateISO, lat: p.lat, lon: p.lon, age: p.age, rayonKm: p.rayonKm, meteo }).retenus;
 
   return {
@@ -377,6 +388,9 @@ async function diagnostic(url, env) {
       ...(dt.erreur ? { erreur: dt.erreur } : {}),
       ...(dt.ok ? analyse(dt.evenements) : {}),
     },
+    ...(med.horsZone ? {} : {
+      mediatheques_lorient: { ok: med.ok, ...(med.erreur ? { erreur: med.erreur } : {}), ...analyse(med.evenements) },
+    }),
     retenusApresScoring: retenus,
     verdict: retenus >= 10 ? 'GO — densité largement suffisante'
       : retenus >= 3 ? 'LIMITE — ça passe pour un top 5, à re-tester sur plusieurs dates'

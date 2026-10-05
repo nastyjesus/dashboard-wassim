@@ -24,6 +24,9 @@ ODS_BASE = "https://public.opendatasoft.com/api/explore/v2.1/catalog/datasets/ev
 # API DATAtourisme v1 (doc : https://api.datatourisme.fr/v1/docs) — fêtes et
 # manifestations. Quota : 1 000 requêtes/heure par clé.
 DATATOURISME_BASE = "https://api.datatourisme.fr/v1/entertainmentAndEvent"
+# Agenda RSS des médiathèques de Lorient (seule source dans Lorient même) —
+# interrogé seulement quand Lorient est dans le rayon demandé.
+MEDIATHEQUES_LORIENT_RSS = "https://mediatheque.lorient.bzh/agenda/rss/nid/218450"
 # Prévisions météo (Open-Meteo, sans clé — usage non commercial OK pour le
 # POC ; passer sur l'offre payante ou Météo-France open data avant de
 # monétiser l'app).
