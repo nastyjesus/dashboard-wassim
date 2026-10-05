@@ -69,6 +69,25 @@ const EXCLUSIONS = [
   // Commerce, sport de club, vie associative adulte : pas une sortie enfant.
   'braderie', 'vide-grenier', 'vide grenier', 'troc', 'vente de livres',
   'match', 'championnat', "séance d'essai", "séances d'essais", 'séances d’essais',
+  // Lieux et publics seniors : lus aussi dans le nom du lieu (voir LIEUX_ADULTES).
+  'senior', 'sénior', 'seniors', 'séniors', 'ehpad', 'maison de retraite',
+  'résidence autonomie', 'residence autonomie',
+  // Bénévolat : « accompagner des enfants » y décrit la mission, pas le public.
+  'bénévole', 'benevole', 'bénévoles', 'benevoles', 'bénévolat', 'benevolat',
+];
+
+/**
+ * Bien-être adulte (sophrologie, massages, praticiens…). Exclu sauf si le
+ * texte nomme un public enfant ou un âge : « massage bébé », « yoga
+ * parent-enfant dès 3 ans » restent des sorties. Constaté le 5 octobre 2026 :
+ * les portes ouvertes d'une résidence seniors (« Moment de bien-être ») ont
+ * pris le GO de Rennes grâce au mot « éveil » d'un « éveil corporel ».
+ */
+const BIEN_ETRE = [
+  'bien-être', 'bien être', 'bien-etre', 'bien etre', 'sophrologie', 'sophrologue',
+  'réflexologie', 'reflexologie', 'massage', 'huiles essentielles', 'naturopathie',
+  'naturopathe', 'méditation', 'meditation', 'relaxation', 'hypnose', 'reiki',
+  'praticien', 'praticienne', 'thérapeute', 'therapeute',
 ];
 
 /**
@@ -93,6 +112,9 @@ const PIEGES = [
   /\bà tout petit prix\b/g, /\btout petit prix\b/g, /\bpetits prix\b/g,
   /\ben éveil\b/g, /\ben eveil\b/g,
   /\bfamille mary\b/g, // marque
+  /\bentreprises? familiales?\b/g, /\bexploitations? familiales?\b/g,
+  // Comparaison, pas un spectacle : « orphelines comme au début du conte ».
+  /\bcomme (dans|au d[ée]but|[àa] la fin) (d'un|du|un) conte\b/g,
 ];
 
 /**
@@ -106,7 +128,12 @@ const PUBLIC_ENFANT = new RegExp([
   'avec (vos|tes|ses|leurs|votre|ton|son) enfants?',
   'en famille', 'jeune public', 'petits et grands', 'grands et petits', 'petites et grands',
   'tout-petits', 'tout petits', 'les enfants', 'vos enfants', 'tes enfants',
-  'dès \\d', 'à partir de \\d', 'a partir de \\d', 'accompagn',
+  'dès \\d', 'à partir de \\d', 'a partir de \\d',
+  // « Accompagné d'un adulte », pas « accompagnant les apiculteurs » ni
+  // « accompagner des enfants » (mission de bénévole) : le mot seul matchait.
+  "accompagnée?s? (d['’]un|par un|de (leurs?|vos|ses|tes) )",
+  '(enfants?|mineurs?) (doivent être |sont |non |obligatoirement )?accompagn',
+  'accompagnateur',
   'maternelle', 'jeunesse',
   // Le tutoiement des programmes de médiathèque s'adresse aux enfants :
   // « viens fabriquer ton marque-page », « tu as entre 5 et 8 ans ? ».
@@ -156,7 +183,10 @@ function compte(texte, mots) {
  */
 export function analyseFamille(ev) {
   const texte = normalise([ev.titre, ev.description, (ev.motsCles || []).join(' ')].join(' '));
-  if (compte(texte, EXCLUSIONS) > 0) return { score: -1, specifique: false };
+  // Le nom du lieu compte pour les exclusions (« Résidence séniors OVELIA »),
+  // pas pour les mots forts : « Salle familiale » ne dit rien du public.
+  const avecLieu = `${texte} ${normalise(ev.lieuNom)}`;
+  if (compte(avecLieu, EXCLUSIONS) > 0) return { score: -1, specifique: false };
   if (TITRES_EXCLUS.some((re) => re.test(ev.titre || ''))) return { score: -1, specifique: false };
 
   const specifiques = compte(texte, FORTS_SPECIFIQUES);
@@ -165,6 +195,7 @@ export function analyseFamille(ev) {
   const faibles = compte(texte, FAIBLES);
   // Un public est nommé si le texte le dit, ou s'il donne une tranche d'âge.
   const publicEnfant = PUBLIC_ENFANT.test(texte) || trancheAge(ev) !== null;
+  if (!publicEnfant && compte(avecLieu, BIEN_ETRE) > 0) return { score: -1, specifique: false };
 
   if (specifiques >= 1) return { score: forts >= 2 ? 3 : 2, specifique: true };
   if (generiques >= 1) {

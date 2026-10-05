@@ -31,7 +31,7 @@ describe('scoreFamille', () => {
 
   it('matche par mot entier : « contemporaine » ≠ « conte », « réveil » ≠ « éveil »', () => {
     expect(scoreFamille({ titre: 'Exposition d’art contemporain', description: 'peinture contemporaine' })).toBe(0);
-    expect(scoreFamille({ titre: 'Réveil musculaire des seniors', description: '' })).toBe(0);
+    expect(scoreFamille({ titre: 'Réveil musculaire matinal', description: '' })).toBe(0);
     // …mais le vrai mot compte toujours.
     expect(scoreFamille({ titre: 'Conte et comptines', description: '' })).toBe(3);
   });
@@ -152,5 +152,52 @@ describe('lieuType', () => {
 
   it('inconnu sinon', () => {
     expect(lieuType({ titre: 'Rencontre', description: '' })).toBe('inconnu');
+  });
+});
+
+describe('analyseFamille — les faux positifs du top de Rennes du 5 octobre 2026', () => {
+  it('portes ouvertes d’une résidence seniors : exclu, même avec « éveil corporel »', () => {
+    expect(scoreFamille({
+      titre: 'Moment de bien-être à la rencontre de vos praticien(ne)s Cantepien(ne)s',
+      description: 'Portes ouvertes de la résidence. 10h Éveil corporel - 11h Atelier collectif de sophrologie - 16h Atelier ludique liens familiaux.',
+      lieuNom: 'Résidence séniors OVELIA',
+    })).toBe(-1);
+  });
+
+  it('le nom du lieu suffit à exclure (EHPAD, résidence seniors)', () => {
+    expect(scoreFamille({ titre: 'Après-midi contes', description: 'pour les familles', lieuNom: 'EHPAD Les Glycines' })).toBe(-1);
+    expect(scoreFamille({ titre: 'Loto', description: '', lieuNom: 'Résidence Seniors Domitys' })).toBe(-1);
+  });
+
+  it('bien-être adulte exclu, sauf public enfant nommé', () => {
+    expect(scoreFamille({ titre: 'Atelier sophrologie', description: 'Ateliers découverte, éveil et relaxation' })).toBe(-1);
+    expect(scoreFamille({ titre: 'Massage bébé', description: 'Pour les parents et leurs bébés de 0 à 12 mois' })).toBeGreaterThanOrEqual(2);
+    expect(scoreFamille({ titre: 'Yoga parent-enfant', description: 'Relaxation en famille dès 3 ans' })).toBeGreaterThanOrEqual(2);
+  });
+
+  it('appel à bénévoles : exclu, même pour « accompagner des enfants »', () => {
+    expect(scoreFamille({
+      titre: 'Appel à Bénévoles',
+      description: 'L’association recherche des bénévoles pour accompagner des enfants du CE2 au CM2. Un goûter à partager.',
+      motsCles: ['bénévolat', 'enfant'],
+    })).toBe(-1);
+  });
+
+  it('« accompagn » ne nomme plus un public à lui seul', () => {
+    // Entreprise familiale qui accompagne des apiculteurs : pas une sortie.
+    expect(scoreFamille({
+      titre: 'Découvrez les richesses de la ruche',
+      description: 'Une entreprise familiale française qui accompagne les apiculteurs.',
+    })).toBeLessThan(1);
+    // …mais la consigne d'accompagnement d'un enfant reste un indice de public.
+    expect(scoreFamille({ titre: 'Atelier famille', description: 'Tout public, accompagné d’un adulte.' })).toBe(2);
+    expect(scoreFamille({ titre: 'Atelier famille', description: 'Les mineurs doivent être accompagnés.' })).toBe(2);
+  });
+});
+
+describe('analyseFamille — « conte » en comparaison', () => {
+  it('concert baroque « comme au début du conte » : pas un conte', () => {
+    expect(scoreFamille({ titre: 'Filles du Roy', description: 'Orphelines comme au début du conte, parties de Bretagne.', motsCles: ['concert', 'baroque'] })).toBe(0);
+    expect(scoreFamille({ titre: 'Heure du conte', description: '' })).toBe(2);
   });
 });
