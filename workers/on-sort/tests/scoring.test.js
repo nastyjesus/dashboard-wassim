@@ -5,7 +5,7 @@ const RENNES = { lat: 48.1173, lon: -1.6778 };
 const CTX = { ...RENNES, age: 3, rayonKm: 40, meteo: null };
 
 const atelier = (extra = {}) => ({
-  source: 'test', id: 'a',
+  origine: 'test', id: 'a',
   titre: 'Atelier marionnettes jeune public',
   description: 'Pour les enfants de 3 à 6 ans. Gratuit.',
   motsCles: [], lieuNom: 'Médiathèque',
@@ -49,7 +49,7 @@ describe('scorer', () => {
 
   it('exclut les événements emploi/pro même proches (cas réels remontés)', () => {
     const pro = (titre) => scorer({
-      source: 'test', id: 'x', titre, description: '',
+      origine: 'test', id: 'x', titre, description: '',
       lat: 48.11, lon: -1.68, dateDebut: '2026-08-22', dateFin: '2026-08-22',
     }, CTX);
     expect(pro('Rencontrez ACTUAL intérim !')).toBeNull();
@@ -60,7 +60,7 @@ describe('scorer', () => {
 
   it('exclut un événement neutre sans aucun signal enfant', () => {
     const s = scorer({
-      source: 'test', id: 'n', titre: 'Réunion publique de quartier', description: 'ordre du jour',
+      origine: 'test', id: 'n', titre: 'Réunion publique de quartier', description: 'ordre du jour',
       lat: 48.11, lon: -1.68, dateDebut: '2026-08-22', dateFin: '2026-08-22',
     }, CTX);
     expect(s).toBeNull();
@@ -106,8 +106,8 @@ describe('scorer', () => {
 
 describe('dedoublonner', () => {
   it('fusionne le même événement venu de deux sources', () => {
-    const a = atelier({ source: 'openagenda', dateDebut: '2026-08-22' });
-    const b = atelier({ source: 'datatourisme', dateDebut: '2026-08-22', id: 'autre' });
+    const a = atelier({ origine: 'openagenda', dateDebut: '2026-08-22' });
+    const b = atelier({ origine: 'datatourisme', dateDebut: '2026-08-22', id: 'autre' });
     expect(dedoublonner([a, b])).toHaveLength(1);
   });
 
@@ -125,7 +125,7 @@ describe('scorer — distance et heure (cas réel du 18 septembre 2026)', () => 
   const VENDREDI = '2026-09-18';
 
   const toutPetitTuLis = {
-    source: 'openagenda', id: 'tptl',
+    origine: 'openagenda', id: 'tptl',
     titre: 'Tout Petit Tu Lis ! : « Au feu, les pompiers ! » (0-3 ans)',
     description: 'Lecture pour les tout-petits de 0 à 3 ans.',
     dateDebut: '2026-09-18', dateFin: '2026-09-18',
@@ -137,7 +137,7 @@ describe('scorer — distance et heure (cas réel du 18 septembre 2026)', () => 
     lat: 47.94, lon: -1.23, // La Guerche-de-Bretagne, ~39 km
   };
   const spationaute = {
-    source: 'openagenda', id: 'spatio',
+    origine: 'openagenda', id: 'spatio',
     titre: 'Le petit spationaute',
     description: 'Parcours pour les enfants de 0 à 3 ans.',
     dateDebut: '2026-09-01', dateFin: '2026-10-31',
@@ -176,7 +176,7 @@ describe('scorer — distance et heure (cas réel du 18 septembre 2026)', () => 
     const pense = scorer(atelier(), CTX); // marionnettes + tranche d'âge
     expect(pense.raisons).toContain('Pensé pour les enfants');
     const ouvert = scorer({
-      source: 'test', id: 's', titre: 'Solo de danse afro-contemporaine',
+      origine: 'test', id: 's', titre: 'Solo de danse afro-contemporaine',
       description: 'Accessible à toutes et tous, enfants et parents.',
       lat: 48.11, lon: -1.68, dateDebut: '2026-09-26', dateFin: '2026-09-26',
     }, { ...CTX, dateISO: '2026-09-26' });

@@ -26,13 +26,21 @@ d'événements famille exploitables en open data autour de Rennes ?**
 | Endpoint | Rôle |
 |---|---|
 | `GET /health` | état du worker |
-| `GET /top?date=YYYY-MM-DD&lat=&lon=&age=&rayon=&dept=&code=` | le produit : top 5 scoré (défauts : samedi prochain, Rennes, 3 ans, 40 km, Ille-et-Vilaine) |
+| `GET /top?date=YYYY-MM-DD&lat=&lon=&age=&rayon=&dept=&code=&city=` | le produit : top 5 scoré (défauts : samedi prochain, Rennes, 3 ans, 40 km, Ille-et-Vilaine ; `city` = une ville de l'app, ville inconnue → 400) |
 | `GET /diagnostic?date=...` | **le go/no-go** : comptages réels par source, part « famille », échantillons, verdict |
 | `POST /votes` · `GET /votes` | « Ça m'intéresse » des piliers en teaser |
 | `POST /ville-demande` · `GET /ville-demande` | villes réclamées hors zone (filet si Supabase KO) |
 | `POST /mesure` `{evt}` | +1 sur un compteur d'usage du jour |
 | `GET /mesures?jours=14` | les compteurs par jour, les totaux et les taux |
 | `GET /desabonnement?jeton=` | coupe l'alerte du week-end, sans compte ni mot de passe |
+
+Chaque sortie du `/top` porte `origine` (`openagenda`, `datatourisme`, `mock`)
+et deux champs de **mention de source** : `source` (nom du créateur de la
+donnée) et `majLe` (date de mise à jour, YYYY-MM-DD). Ils ne sont remplis que
+pour DATAtourisme, dont la Licence Ouverte impose de citer le créateur et la
+date sur chaque sortie affichée ; `null` pour les autres sources. Règle
+d'affichage : mention si `source` est rempli. Sans nom lisible dans la fiche,
+`source` vaut `DATAtourisme` (jamais vide pour cette origine).
 
 ## L'alerte du week-end (cron du vendredi)
 

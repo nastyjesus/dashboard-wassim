@@ -11,7 +11,7 @@ export const MOCK_METEO = {
 /** Événements fictifs façonnés comme la sortie des sources normalisées. */
 export const MOCK_EVENEMENTS = [
   {
-    source: 'mock', id: 'demo-1',
+    origine: 'mock', source: null, majLe: null, id: 'demo-1',
     titre: '[DÉMO] Atelier marionnettes jeune public',
     description: 'Atelier de fabrication de marionnettes pour les enfants de 3 à 6 ans, suivi d’un mini-spectacle. Gratuit sur inscription.',
     motsCles: ['enfant', 'atelier'], dateDebut: null, dateFin: null,
@@ -20,7 +20,7 @@ export const MOCK_EVENEMENTS = [
     url: null, gratuit: true,
   },
   {
-    source: 'mock', id: 'demo-2',
+    origine: 'mock', source: null, majLe: null, id: 'demo-2',
     titre: '[DÉMO] Balade contée en forêt',
     description: 'Balade en plein air ponctuée de contes, en famille, dès 3 ans.',
     motsCles: ['famille', 'nature'], dateDebut: null, dateFin: null,
@@ -29,7 +29,7 @@ export const MOCK_EVENEMENTS = [
     url: null, gratuit: false,
   },
   {
-    source: 'mock', id: 'demo-3',
+    origine: 'mock', source: null, majLe: null, id: 'demo-3',
     titre: '[DÉMO] Éveil musical des tout-petits',
     description: 'Séance d’éveil musical pour les bébés et tout-petits (0-3 ans).',
     motsCles: ['bébé'], dateDebut: null, dateFin: null,
@@ -38,7 +38,7 @@ export const MOCK_EVENEMENTS = [
     url: null, gratuit: false,
   },
   {
-    source: 'mock', id: 'demo-4',
+    origine: 'mock', source: null, majLe: null, id: 'demo-4',
     titre: '[DÉMO] Conférence d’histoire locale',
     description: 'Conférence universitaire, public adulte.',
     motsCles: [], dateDebut: null, dateFin: null,
@@ -47,7 +47,7 @@ export const MOCK_EVENEMENTS = [
     url: null, gratuit: true,
   },
   {
-    source: 'mock', id: 'demo-5',
+    origine: 'mock', source: null, majLe: null, id: 'demo-5',
     titre: '[DÉMO] Visite de la ferme pédagogique',
     description: 'Rencontre avec les animaux de la ferme, jeux en famille, dès 2 ans. Entrée libre.',
     motsCles: ['famille', 'animaux'], dateDebut: null, dateFin: null,
@@ -56,7 +56,7 @@ export const MOCK_EVENEMENTS = [
     url: null, gratuit: true,
   },
   {
-    source: 'mock', id: 'demo-6',
+    origine: 'mock', source: null, majLe: null, id: 'demo-6',
     titre: '[DÉMO] Spectacle de contes et comptines',
     description: 'Spectacle jeune public à la médiathèque, de 2 à 5 ans.',
     motsCles: ['jeune public'], dateDebut: null, dateFin: null,

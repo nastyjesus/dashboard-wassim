@@ -105,7 +105,11 @@ function normaliser(r) {
   if (!r || !(r.title_fr || r.title)) return null;
   const coords = r.location_coordinates || {};
   return {
-    source: 'openagenda',
+    origine: 'openagenda',
+    // `source`/`majLe` : mention de la Licence Ouverte DATAtourisme, à
+    // afficher seulement pour cette source. Rien à citer ici.
+    source: null,
+    majLe: null,
     id: r.uid ? String(r.uid) : null,
     titre: texteBrut(r.title_fr || r.title), // certains titres contiennent des sauts de ligne
     description: texteBrut([r.description_fr, r.longdescription_fr].filter(Boolean).join(' ')).slice(0, 1200),

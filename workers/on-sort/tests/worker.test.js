@@ -385,3 +385,49 @@ describe('/top : une position explicite choisit le département', () => {
     expect(odsUrls().some((u) => u.includes('Morbihan'))).toBe(false);
   });
 });
+
+describe('/top : mention de la source DATAtourisme', () => {
+  function stubAvecDatatourisme(fiche) {
+    vi.stubGlobal('fetch', vi.fn(async (url) => {
+      const u = String(url);
+      if (u.startsWith('https://ods.example/')) {
+        return Response.json({ results: [{
+          uid: 9, title_fr: 'Heure du conte des tout-petits', description_fr: 'Pour les enfants de 0 à 3 ans.',
+          firstdate_begin: '2026-08-22T10:30:00+02:00', lastdate_end: '2026-08-22T11:30:00+02:00',
+          location_coordinates: { lat: 48.12, lon: -1.68 },
+        }] });
+      }
+      if (u.startsWith('https://dt.example/')) return Response.json({ objects: [fiche], meta: { total: 1 } });
+      if (u.startsWith('https://meteo.example/')) {
+        return Response.json({ daily: { time: ['2026-08-22'], weather_code: [1], temperature_2m_max: [20], precipitation_probability_max: [5] } });
+      }
+      return new Response('not found', { status: 404 });
+    }));
+  }
+  const fiche = {
+    label: { fr: 'Atelier marionnettes jeune public' },
+    description: 'Fabrication de marionnettes pour les enfants dès 3 ans.',
+    date_debut: '2026-08-22', date_fin: '2026-08-22', latitude: 48.115, longitude: -1.675,
+    hasBeenCreatedBy: { legalName: 'Office de Tourisme de Rennes' },
+    lastUpdate: '2026-08-01T09:12:00Z',
+  };
+
+  it('chaque sortie DATAtourisme porte source (créateur) et majLe ; les autres source: null', async () => {
+    stubAvecDatatourisme(fiche);
+    const { body } = await appel('/top?date=2026-08-22&age=3', envMock({ MOCK_MODE: 'false' }));
+    const dt = body.top.find((e) => e.origine === 'datatourisme');
+    expect(dt).toMatchObject({ titre: 'Atelier marionnettes jeune public', source: 'Office de Tourisme de Rennes', majLe: '2026-08-01' });
+    const oa = body.top.find((e) => e.origine === 'openagenda');
+    expect(oa).toMatchObject({ source: null, majLe: null });
+  });
+
+  it('lit aussi le nom multilingue ou en tableau ; sans nom, cite DATAtourisme', async () => {
+    stubAvecDatatourisme({ ...fiche, hasBeenCreatedBy: [{ 'schema:legalName': { fr: 'ADT 56' } }], lastUpdate: undefined, lastUpdateDatatourisme: '2026-07-30' });
+    let { body } = await appel('/top?date=2026-08-22&age=3', envMock({ MOCK_MODE: 'false' }));
+    expect(body.top.find((e) => e.origine === 'datatourisme')).toMatchObject({ source: 'ADT 56', majLe: '2026-07-30' });
+
+    stubAvecDatatourisme({ ...fiche, hasBeenCreatedBy: undefined, lastUpdate: 'inconnue' });
+    ({ body } = await appel('/top?date=2026-08-22&age=3', envMock({ MOCK_MODE: 'false' })));
+    expect(body.top.find((e) => e.origine === 'datatourisme')).toMatchObject({ source: 'DATAtourisme', majLe: null });
+  });
+});

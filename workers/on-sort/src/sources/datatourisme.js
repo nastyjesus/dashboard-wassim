@@ -15,7 +15,7 @@ function endpoints(env) {
 /** Extrait un tableau d'événements d'une réponse de forme inconnue. */
 function tableauDe(data) {
   if (Array.isArray(data)) return data;
-  for (const cle of ['evenements', 'events', 'results', 'data', 'items']) {
+  for (const cle of ['objects', 'evenements', 'events', 'results', 'data', 'items']) { // objects : API v1
     if (Array.isArray(data?.[cle])) return data[cle];
   }
   return null;
@@ -29,16 +29,47 @@ function champ(obj, ...noms) {
   return null;
 }
 
+/** Texte d'une valeur DATAtourisme : chaîne, tableau, ou objet multilingue {fr: …}. */
+function texte(v) {
+  if (v === null || v === undefined || v === '') return null;
+  if (typeof v === 'string' || typeof v === 'number') return String(v).trim() || null;
+  if (Array.isArray(v)) return v.map(texte).find(Boolean) || null;
+  if (typeof v === 'object') return texte(v.fr ?? v['@value'] ?? v.value ?? Object.values(v)[0]);
+  return null;
+}
+
+/**
+ * Créateur de la donnée (`hasBeenCreatedBy`) — la Licence Ouverte de
+ * DATAtourisme impose de le citer, avec la date de mise à jour, sur chaque
+ * sortie affichée. Sans nom lisible, on cite au moins DATAtourisme : une
+ * mention vide ne serait pas conforme.
+ */
+function createur(r) {
+  const c = [].concat(champ(r, 'hasBeenCreatedBy', 'createur', 'creator') || [])[0];
+  const nom = c && typeof c === 'object'
+    ? texte(champ(c, 'legalName', 'schema:legalName', 'name', 'schema:name', 'label', 'rdfs:label'))
+    : texte(c);
+  return nom || 'DATAtourisme';
+}
+
+/** Date de mise à jour de la fiche, en YYYY-MM-DD (null si absente). */
+function dateMaj(r) {
+  const d = texte(champ(r, 'lastUpdate', 'lastUpdateDatatourisme', 'dateMaj', 'updatedAt'));
+  return d && /^\d{4}-\d{2}-\d{2}/.test(d) ? d.slice(0, 10) : null;
+}
+
 function normaliser(r) {
-  const titre = champ(r, 'nom', 'label', 'title', 'titre', 'name');
+  const titre = texte(champ(r, 'nom', 'label', 'title', 'titre', 'name'));
   if (!titre) return null;
   const lat = Number(champ(r, 'latitude', 'lat'));
   const lon = Number(champ(r, 'longitude', 'lon', 'lng'));
   return {
-    source: 'datatourisme',
+    origine: 'datatourisme',
+    source: createur(r),
+    majLe: dateMaj(r),
     id: champ(r, 'id', 'uid', 'identifier'),
     titre: String(titre),
-    description: String(champ(r, 'description', 'shortDescription', 'resume') || '').slice(0, 1200),
+    description: String(texte(champ(r, 'description', 'shortDescription', 'resume')) || '').slice(0, 1200),
     motsCles: [].concat(champ(r, 'categories', 'types', 'themes') || []).map(String),
     dateDebut: String(champ(r, 'date_debut', 'startDate', 'dateDebut', 'debut') || '').slice(0, 10) || null,
     dateFin: String(champ(r, 'date_fin', 'endDate', 'dateFin', 'fin') || '').slice(0, 10) || null,
