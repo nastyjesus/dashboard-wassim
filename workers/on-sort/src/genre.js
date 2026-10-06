@@ -37,6 +37,19 @@ const TYPES_DATATOURISME = {
   Festival: 'festival',
 };
 
+/**
+ * Classes génériques : toute fiche en porte plusieurs (une fiche normale a 5
+ * à 10 types, dont 1 ou 2 spécifiques). Au-delà de TYPES_SPECIFIQUES_MAX
+ * types spécifiques, la fiche a été typée en vrac et ses types ne disent
+ * rien — constaté le 6 octobre 2026 : une visite guidée de maison natale
+ * typée à la fois Festival, Congress, SaleEvent, BusinessEvent, Visit…
+ */
+const TYPES_GENERIQUES = new Set([
+  'PointOfInterest', 'Event', 'EntertainmentAndEvent', 'CulturalEvent', 'Product', 'Practice',
+  'Traineeship', 'SportsEvent', 'SocialEvent', 'ChildrensEvent', 'Game', 'Rambling', 'LocalAnimation',
+]);
+const TYPES_SPECIFIQUES_MAX = 3;
+
 /** Lecture, conte, comptines : le rendez-vous régulier des médiathèques. */
 const LECTURE = /\blectures?\b|\bcontes?\b|\bcontées?\b|\bconteu|\bhistoires?\b|\bhistoriettes?\b|\bbouquin|\blecteurs?\b|\blivres?\b|\bkamishiba|\bracontines?\b|\bcomptines?\b|\bbiblio|\bheure du conte|\blire\b|\bon lit\b/;
 
@@ -54,9 +67,13 @@ function nomType(t) {
  * @returns {{genre: string, enfant: boolean}|null}
  */
 export function exceptionnel(ev) {
-  for (const t of ev.types || []) {
-    const genre = TYPES_DATATOURISME[nomType(t)];
-    if (genre) return { genre, enfant: EXCEPTIONNELS.find((e) => e.genre === genre).enfant };
+  const types = (ev.types || []).map(nomType);
+  const specifiques = types.filter((t) => !TYPES_GENERIQUES.has(t)).length;
+  if (specifiques <= TYPES_SPECIFIQUES_MAX) {
+    for (const t of types) {
+      const genre = TYPES_DATATOURISME[t];
+      if (genre) return { genre, enfant: EXCEPTIONNELS.find((e) => e.genre === genre).enfant };
+    }
   }
   const texte = texteGenre(ev);
   for (const e of EXCEPTIONNELS) if (e.re.test(texte)) return { genre: e.genre, enfant: e.enfant };

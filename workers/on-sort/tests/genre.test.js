@@ -20,6 +20,14 @@ describe('genre', () => {
     expect(exceptionnel(ev('Spectacle', { types: ['ShowEvent'] }))).toBeNull();
   });
 
+  it('ignore les types d\'une fiche DATAtourisme typée en vrac', () => {
+    const vrac = ['CulturalEvent', 'Congress', 'FairOrShow', 'PointOfInterest', 'BusinessEvent', 'Event', 'SaleEvent',
+      'Product', 'IntroductionCourse', 'Traineeship', 'Visit', 'Festival', 'EntertainmentAndEvent', 'Practice'];
+    expect(exceptionnel(ev('Visite guidée de la Maison natale Charles de Gaulle', { types: vrac }))).toBeNull();
+    const ludinoxe = ['SportsEvent', 'Festival', 'PointOfInterest', 'EntertainmentAndEvent', 'Event', 'Game', 'CulturalEvent'];
+    expect(exceptionnel(ev('Ludinoxe', { types: ludinoxe }))?.genre).toBe('festival');
+  });
+
   it('ne lit pas la description : « arts du cirque » dans un atelier n\'est pas un cirque de passage', () => {
     expect(exceptionnel(ev('Atelier motricité', { description: 'initiation aux arts du cirque' }))).toBeNull();
   });
@@ -47,6 +55,13 @@ describe('scoring du genre', () => {
     expect(r.genre).toBe('cirque');
     expect(r.raisons).toContain('À ne pas rater');
     expect(r.raisons).toContain('Ouvert aux enfants');
+  });
+
+  it('lit l\'âge rangé dans les mots-clés (« dès 12 ans » → pas pour un enfant de 3 ans)', () => {
+    const corvidae = ev('Corvidae. Quand les espèces se regardent', {
+      ...ici, description: 'Un spectacle de marionnettes.', motsCles: ['Théâtre & marionnettes', 'NEXT Festival', 'dès 12 ans'],
+    });
+    expect(scorer(corvidae, ctx)).toBeNull();
   });
 
   it('pas de bonus pour un festival étalé sur une saison', () => {

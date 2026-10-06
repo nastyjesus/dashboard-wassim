@@ -246,7 +246,9 @@ export function scoreFamille(ev) {
 export function trancheAge(ev) {
   // Âge corrigé à la main depuis l'admin : il prime sur la lecture du texte.
   if (Number.isFinite(ev.ageMin)) return { min: ev.ageMin, max: Number.isFinite(ev.ageMax) ? ev.ageMax : null };
-  const texte = normalise([ev.titre, ev.description].join(' '));
+  // Les mots-clés aussi : des agendas y rangent l'âge (« dès 12 ans » sur
+  // « Corvidae », proposé à un enfant de 3 ans le 6 octobre 2026).
+  const texte = normalise([ev.titre, ev.description, ...(ev.motsCles || [])].join(' '));
   let m;
   // « 6 mois - 3 ans », « de 6 mois à 3 ans », « 18 mois à 4 ans »
   m = texte.match(/(\d{1,2})\s*mois\s*(?:à|a|-|–|et)\s*(\d{1,2})\s*ans/);

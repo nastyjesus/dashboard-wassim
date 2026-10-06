@@ -15,8 +15,13 @@ const RAYON_DEFAUT_KM = 40;
  * doit pouvoir battre une séance de lecture bien notée (voir genre.js).
  * Au-delà de EXCEPTIONNEL_JOURS_MAX, ce n'est plus « de passage » (festival
  * étalé sur une saison) : pas de bonus.
+ * Cirque, manèges, carnaval, feu d'artifice, Noël (genres « enfant ») pèsent
+ * plus : ils ne donnent presque jamais d'âge ni de « jeune public », et
+ * plafonnaient à 10 points derrière n'importe quel spectacle à 12,5 — le
+ * Cirque Pinder à Paris sortait du top 5 (constaté le 6 octobre 2026).
  */
 const BONUS_EXCEPTIONNEL = 3;
+const BONUS_EXCEPTIONNEL_ENFANT = 5;
 const EXCEPTIONNEL_JOURS_MAX = 45;
 /** Lecture/conte : la routine des médiathèques, légèrement en retrait. */
 const MALUS_LECTURE = 1.5;
@@ -109,7 +114,7 @@ export function evaluer(ev, ctx) {
   // même s'il reste deux mois : Pinder passe tout l'hiver à Paris.
   const dePassage = duree === null || duree <= EXCEPTIONNEL_JOURS_MAX || ev.origine === 'cirques';
   if (ex && dePassage) {
-    score += BONUS_EXCEPTIONNEL;
+    score += ex.enfant ? BONUS_EXCEPTIONNEL_ENFANT : BONUS_EXCEPTIONNEL;
     raisons.push('À ne pas rater');
   }
   if (lecture) score -= MALUS_LECTURE;
