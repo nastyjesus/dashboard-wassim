@@ -296,7 +296,9 @@ const PAGE = String.raw`<!doctype html>
       });
   }
 
-  // Les 18 villes, 3 à la fois : chaque appel interroge les sources en direct.
+  // Les 18 villes une par une : chaque appel interroge les sources en direct,
+  // et en parallèle le plan gratuit Cloudflare coupe le worker (erreur 1102).
+  // ~13 s pour tout charger ; la liste se remplit au fil de l'eau.
   function chargerTout() {
     etat.parVille = {}; etat.erreurs = {};
     var file = etat.villes.map(function (v) { return v.id; });
@@ -311,7 +313,7 @@ const PAGE = String.raw`<!doctype html>
         return suivant();
       });
     }
-    return Promise.all([suivant(), suivant(), suivant()]).then(function () {
+    return suivant().then(function () {
       etat.chargement = 0; majStatut(total, total); rendre();
     });
   }
@@ -724,7 +726,10 @@ const PAGE = String.raw`<!doctype html>
       });
       rendre();
       var ids = villesARecharger && villesARecharger.length ? villesARecharger : etat.villes.map(function (v) { return v.id; });
-      return Promise.all(ids.map(chargerVille)).then(function () { majStatut(etat.villes.length, etat.villes.length); rendre(); });
+      // Une ville après l'autre (limite CPU du plan gratuit en parallèle).
+      return ids.reduce(function (p, id) {
+        return p.then(function () { return chargerVille(id).then(rendre); });
+      }, Promise.resolve()).then(function () { majStatut(etat.villes.length, etat.villes.length); rendre(); });
     }).catch(function (e) { toast('Échec : ' + e.message); throw e; });
   }
 
