@@ -23,6 +23,7 @@
 //   GET  /votes      — les totaux par pilier
 //   POST /propositions — un organisateur propose une sortie (src/propositions.js)
 //   GET  /photos/<id>  — photo d'une proposition
+//   GET  /encart?ville=&page=[&jour=] — encart HTML des pages thématiques du site
 //   POST /ville-demande — demande d'ajout d'une ville (filet si Supabase KO)
 //   GET  /ville-demande — les villes demandées, triées par fréquence
 //   POST /mesure     — incrémente un compteur d'usage (aucun identifiant)
@@ -52,6 +53,7 @@ import { MOCK_EVENEMENTS, MOCK_METEO, isMock } from './mocks.js';
 import { villeParNomOuId, villeLaPlusProche } from './villes.js';
 import { pourAffichage } from './texte.js';
 import { recevoirProposition, servirPhoto } from './propositions.js';
+import { calculerEncart } from './encart.js';
 import { lireSurcouche, appliquerSurcouche } from './admin/surcouche.js';
 import { routeAdmin } from './admin/api.js';
 
@@ -114,6 +116,10 @@ export default {
       if (path === '/propositions' && request.method === 'POST') {
         const { status, corps } = await recevoirProposition(request, env, ctx);
         return jsonResponse(corps, status, request, env);
+      }
+      // Encart des pages thématiques du site (shortcode WordPress) — src/encart.js.
+      if (path === '/encart' && request.method === 'GET') {
+        return await servirEncart(request, url, env, ctx);
       }
       if (path.startsWith('/photos/') && request.method === 'GET') {
         return (await servirPhoto(env, path.slice('/photos/'.length))) || jsonResponse({ error: 'not_found' }, 404, request, env);
@@ -495,5 +501,36 @@ async function repondreAvecCache(request, env, ctx, calcul, versionSurcouche = 0
     'Cache-Control': `public, max-age=${CACHE_TTL}`,
   });
   if (utilisable && ctx?.waitUntil) ctx.waitUntil(caches.default.put(cle, reponse.clone()));
+  return reponse;
+}
+
+/** Encart HTML des pages du site, en cache 3 h (même clé versionnée que /top). */
+const ENCART_TTL = 3 * 3600;
+async function servirEncart(request, url, env, ctx) {
+  const surcouche = await lireSurcouche(env);
+  const cle = new URL(request.url);
+  cle.searchParams.delete('fresh');
+  cle.searchParams.set('cv', CACHE_VERSION);
+  cle.searchParams.set('sv', String(surcouche.version));
+  const requeteCle = new Request(cle.toString(), { method: 'GET' });
+  const utilisable = url.searchParams.get('fresh') !== '1' && !isMock(env) && typeof caches !== 'undefined' && caches.default;
+  if (utilisable) {
+    const enCache = await caches.default.match(requeteCle);
+    if (enCache) return enCache;
+  }
+  const r = await calculerEncart(url, env, {
+    lireParams, chargerSources, lireSurcouche: async () => surcouche, appliquerSurcouche,
+  });
+  if (r.statut === 400) return jsonResponse({ error: r.erreur }, 400, request, env);
+  const reponse = new Response(r.statut === 200 ? r.html : null, {
+    status: r.statut,
+    headers: {
+      ...(r.statut === 200 ? { 'Content-Type': 'text/html; charset=utf-8' } : {}),
+      'Cache-Control': `public, max-age=${ENCART_TTL}`,
+      'X-Robots-Tag': 'noindex', // le fragment s'indexe dans la page du site, pas seul
+      'Access-Control-Allow-Origin': '*',
+    },
+  });
+  if (utilisable && ctx?.waitUntil) ctx.waitUntil(caches.default.put(requeteCle, reponse.clone()));
   return reponse;
 }
