@@ -68,13 +68,15 @@ function Description({ texte }) {
     <View style={styles.description}>
       {visibles.map((p, i) => {
         const puce = /^[-•–]\s+/.test(p);
+        // Un paragraphe qui suit une liste reprend l'air d'un paragraphe.
+        const apresListe = i > 0 && /^[-•–]\s+/.test(visibles[i - 1]);
         return puce ? (
           <View key={i} style={styles.puce}>
             <Text style={styles.puceSigne}>•</Text>
             <Text style={[styles.paragraphe, styles.puceTexte]}>{p.replace(/^[-•–]\s+/, '')}</Text>
           </View>
         ) : (
-          <Text key={i} style={styles.paragraphe}>{p}</Text>
+          <Text key={i} style={[styles.paragraphe, apresListe && styles.apresListe]}>{p}</Text>
         );
       })}
       {longue && (ouverte || visibles.length < paragraphes.length) && (
@@ -149,6 +151,7 @@ const styles = StyleSheet.create({
   puce: { flexDirection: 'row', paddingLeft: espace.xs },
   puceSigne: { width: 18, color: couleurs.texte, fontSize: 15.5, lineHeight: 24 },
   puceTexte: { flex: 1, marginBottom: espace.xs },
+  apresListe: { marginTop: espace.s },
   suite: { paddingVertical: espace.s },
   suiteTexte: { color: couleurs.encre, fontSize: 14, letterSpacing: 0.5, fontFamily: police.corpsFort },
   mention: { color: couleurs.discret, fontSize: 13, lineHeight: 18, marginTop: espace.l, fontFamily: police.corps },
