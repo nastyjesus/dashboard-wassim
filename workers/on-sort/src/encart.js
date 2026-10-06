@@ -62,7 +62,8 @@ export const PAGES = {
   gratuit: { titre: 'gratuitement', filtre: (ev) => ev.gratuit === true || aLaRaison('Gratuit')(ev), date: (t) => prochain(t, 6) },
   'apres-l-ecole': { titre: 'après l’école', filtre: aLaRaison('Après l’école'), date: prochainJourEcole },
   'vacances-toussaint': { titre: 'pendant les vacances de la Toussaint', date: (t) => dateSaison(t, '2026-10-17', '2026-11-01') },
-  halloween: { titre: 'pour Halloween', filtre: duGenre('halloween'), date: (t) => dateSaison(t, '2026-10-17', '2026-11-01') },
+  // Halloween : la semaine qui précède, là où se concentrent les animations.
+  halloween: { titre: 'pour Halloween', filtre: duGenre('halloween'), date: (t) => dateSaison(t, '2026-10-24', '2026-11-01') },
   noel: { titre: 'pour Noël', filtre: duGenre('noel'), date: (t) => dateSaison(t, '2026-11-28', '2026-12-24') },
   carnaval: { titre: 'pour le carnaval', filtre: duGenre('parade'), date: (t) => dateSaison(t, '2027-02-06', '2027-03-14') },
 };

@@ -98,6 +98,7 @@ const BIEN_ETRE = [
 const TITRES_EXCLUS = [
   /^\s*complet\b/i,            // « COMPLET Rythmes et comptines »
   /\bcomplet\s*[/:\-–]/i,      // « COMPLET/Pique ma curiosité »
+  /\(\s*complet\s*\)|[-–]\s*complet\s*$/i, // « Bébés lecteurs (COMPLET) », « Atelier – complet »
   /\bannul[ée]/i,
   /\breport[ée]/i,
   /^\s*inscriptions?\b/i,      // « Inscription : Sport en anglais » = saison annuelle

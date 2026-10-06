@@ -201,3 +201,12 @@ describe('analyseFamille — « conte » en comparaison', () => {
     expect(scoreFamille({ titre: 'Heure du conte', description: '' })).toBe(2);
   });
 });
+
+describe('titres complets', () => {
+  it('« (COMPLET) » ou « – complet » en fin de titre : exclu', async () => {
+    const { analyseFamille } = await import('../src/famille.js');
+    expect(analyseFamille({ titre: 'Bébés lecteurs (COMPLET)', description: 'Pour les tout-petits' }).score).toBe(-1);
+    expect(analyseFamille({ titre: 'Atelier comptines – complet', description: 'Pour les tout-petits' }).score).toBe(-1);
+    expect(analyseFamille({ titre: 'Un programme complet pour les petits', description: 'jeune public' }).score).toBeGreaterThan(0);
+  });
+});
