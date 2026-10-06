@@ -170,8 +170,27 @@ function echapper(mot) {
 // pas compter comme « conte », ni « réveil » comme « éveil » (bug constaté
 // sur données réelles : toutes les expos d'art contemporain passaient pour
 // du jeune public).
+// Regex compilées une fois par mot : les recompiler pour chaque mot de chaque
+// sortie à chaque /top coûtait ~80 % du CPU du worker (erreurs 1102 sur le
+// plan gratuit). Pas de drapeau g : `test` reste sans état, réutilisable.
+const REGEX_MOTS = new Map();
+function regexMot(mot) {
+  let re = REGEX_MOTS.get(mot);
+  if (!re) {
+    re = new RegExp(`(^|[^\\p{L}])${echapper(mot)}s?(?![\\p{L}])`, 'u');
+    REGEX_MOTS.set(mot, re);
+  }
+  return re;
+}
+
+// Le préfiltre `includes` écarte presque tous les mots en un balayage natif :
+// la regex (mot entier) ne tourne que si le mot figure déjà dans le texte.
+// Même résultat, CPU divisé — c'était l'exécution des regex Unicode sur
+// chaque description, pas leur compilation, qui coûtait.
 function compte(texte, mots) {
-  return mots.filter((m) => new RegExp(`(^|[^\\p{L}])${echapper(m)}s?(?![\\p{L}])`, 'u').test(texte)).length;
+  let n = 0;
+  for (const m of mots) if (texte.includes(m) && regexMot(m).test(texte)) n += 1;
+  return n;
 }
 
 /**

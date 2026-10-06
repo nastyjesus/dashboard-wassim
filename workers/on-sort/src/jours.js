@@ -5,6 +5,7 @@
 // sur les premières données réelles.
 
 const JOURS = ['dimanche', 'lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi'];
+const JOURS_RE = JOURS.map((j) => new RegExp(`\\b${j}s?\\b`)); // compilées une fois (CPU)
 
 /** Index (0 = dimanche, comme getUTCDay) des jours cités dans un texte. */
 export function joursMentionnes(texte) {
@@ -26,7 +27,7 @@ export function joursMentionnes(texte) {
   if (/week-?end/.test(t)) { trouves.add(6); trouves.add(0); }
 
   for (let i = 0; i < JOURS.length; i++) {
-    if (new RegExp(`\\b${JOURS[i]}s?\\b`).test(t)) trouves.add(i);
+    if (t.includes(JOURS[i]) && JOURS_RE[i].test(t)) trouves.add(i);
   }
   return trouves;
 }
