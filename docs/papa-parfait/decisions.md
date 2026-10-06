@@ -64,6 +64,25 @@ excellente sur 1. Les votes nous diront quel pilier construire en priorité.
   les 5 meilleures options »). C'est la différence Doctolib vs Pages Jaunes.
 - Le top 5 est scoré : famille, âge, distance, jour réel, météo (intérieur si
   pluie), gratuité, événements ponctuels priorisés sur les expos permanentes.
+- **L'exceptionnel passe devant la routine** (décidé le 6 octobre 2026). Audit
+  sur 18 villes × 3 dates : la lecture/conte faisait 41 % des sorties retenues
+  et 42 % des GO, le cirque 3 sur 277. Désormais un cirque de passage, une
+  fête foraine, un carnaval, un festival ou un marché de Noël gagne « À ne pas
+  rater » (bonus, s'il dure 45 jours au plus) ; la lecture perd un peu, et un
+  top n'en garde qu'une sauf s'il n'a rien d'autre. Résultat mesuré : lecture
+  à 30 % des top 5 et 31 % des GO, 11 GO « À ne pas rater » sur 39.
+  Détail : `workers/on-sort/src/genre.js`.
+- **Lecture d'OpenAgenda corrigée le même jour** : on lisait les 300 premiers
+  événements par date de début croissante, et à Paris des séries ouvertes en
+  2020 prenaient toutes les places — rien de ce qui commençait après le
+  15 septembre n'était vu. On lit maintenant les plus récents d'abord.
+- **Sources de l'exceptionnel, par priorité** : types DATAtourisme
+  (`CircusEvent`, `Carnival`, `Parade`, `Festival`, déjà lus) ; tournées des
+  cirques Pinder, Arlette Gruss, Medrano (pages HTML stables, à scraper) ;
+  open data « Que faire à Paris » et agenda Nantes Métropole ; Ticketmaster à
+  tester. JDS.fr couvre bien cirques et fêtes foraines mais sous copyright :
+  partenariat plutôt que scraping. Fêtes foraines et marchés de Noël : saisie
+  annuelle depuis l'admin.
 - **Partage viral** : chaque fiche a un bouton « Partager » qui envoie la sortie
   + le lien de l'app. Chaque partage entre parents = acquisition gratuite.
 

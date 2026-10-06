@@ -36,6 +36,10 @@ function stubFetchLive() {
   vi.stubGlobal('fetch', vi.fn(async (url) => {
     const u = String(url);
     if (u.startsWith('https://ods.example/')) {
+      // Lot des animations au long cours (2e requête OpenAgenda) : vide ici.
+      if (new URL(u).searchParams.get('where').includes("firstdate_begin<date'")) {
+        return Response.json({ results: [] });
+      }
       return Response.json({
         results: [
           {
@@ -158,16 +162,39 @@ describe('pagination OpenAgenda', () => {
     vi.stubGlobal('fetch', vi.fn(async (url) => {
       const u = String(url);
       if (u.startsWith('https://ods.example/')) {
-        appels.push(u);
-        const offset = Number(new URL(u).searchParams.get('offset'));
+        appels.push(new URL(u).searchParams);
+        const p = appels.at(-1);
+        const offset = Number(p.get('offset'));
+        if (p.get('where').includes("firstdate_begin<date'")) {
+          // Lot des animations au long cours : une page partielle.
+          return Response.json({ results: Array.from({ length: 5 }, (_, i) => enregistrement(1000 + i)) });
+        }
         const taille = offset === 0 ? 100 : 40; // page 2 incomplète → stop
         return Response.json({ results: Array.from({ length: taille }, (_, i) => enregistrement(offset + i)) });
       }
       return new Response('not found', { status: 404 });
     }));
     const { body } = await appel('/top?date=2026-08-22', envMock({ MOCK_MODE: 'false' }));
-    expect(appels).toHaveLength(2);
-    expect(body.sources.openagenda.count).toBe(140);
+    expect(appels).toHaveLength(3);
+    expect(body.sources.openagenda.count).toBe(145);
+  });
+
+  it('lit les récents d\'abord, du plus récent au plus ancien (bug des 300 zombies de Paris)', async () => {
+    const appels = [];
+    vi.stubGlobal('fetch', vi.fn(async (url) => {
+      const u = String(url);
+      if (u.startsWith('https://ods.example/')) {
+        appels.push(new URL(u).searchParams);
+        return Response.json({ results: [] });
+      }
+      return new Response('not found', { status: 404 });
+    }));
+    await appel('/top?date=2026-10-10', envMock({ MOCK_MODE: 'false' }));
+    const [recents, anciens] = appels;
+    expect(recents.get('where')).toContain("firstdate_begin>=date'2026-08-11'");
+    expect(recents.get('order_by')).toBe('firstdate_begin desc');
+    expect(anciens.get('where')).toContain("firstdate_begin<date'2026-08-11'");
+    expect(anciens.get('order_by')).toBe('firstdate_begin desc');
   });
 });
 

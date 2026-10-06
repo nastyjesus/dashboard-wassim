@@ -134,8 +134,10 @@ export function normaliser(r, dateISO) {
     description: String(texte(desc.description) || texte(desc.shortDescription) || '').slice(0, 1200),
     // Les types (« ChildrensEvent », « ShowEvent »…) ne parlent pas
     // français : ils ne servent pas aux heuristiques famille, qui lisent le
-    // texte. On ne les met pas en mots-clés pour ne rien fausser.
+    // texte. On ne les met pas en mots-clés pour ne rien fausser ; ils
+    // servent à reconnaître l'exceptionnel (CircusEvent, Carnival… — genre.js).
     motsCles: [],
+    types: [].concat(r.type || []).map((t) => (typeof t === 'string' ? t : texte(t))).filter(Boolean),
     dateDebut: p.debut,
     dateFin: p.fin,
     horaires: null,

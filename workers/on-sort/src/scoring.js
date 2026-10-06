@@ -6,8 +6,20 @@
 import { analyseFamille, trancheAge, lieuType } from './famille.js';
 import { jourCompatible, dureeJours } from './jours.js';
 import { verdictHoraire, libelleHoraires } from './horaires.js';
+import { exceptionnel, estLecture } from './genre.js';
 
 const RAYON_DEFAUT_KM = 40;
+
+/**
+ * Exceptionnel (cirque de passage, fête foraine, carnaval…) : un bonus qui
+ * doit pouvoir battre une séance de lecture bien notée (voir genre.js).
+ * Au-delà de EXCEPTIONNEL_JOURS_MAX, ce n'est plus « de passage » (festival
+ * étalé sur une saison) : pas de bonus.
+ */
+const BONUS_EXCEPTIONNEL = 3;
+const EXCEPTIONNEL_JOURS_MAX = 45;
+/** Lecture/conte : la routine des médiathèques, légèrement en retrait. */
+const MALUS_LECTURE = 1.5;
 
 /**
  * Distance : paliers francs plutôt qu'une pente douce. Sur données réelles,
@@ -49,8 +61,14 @@ export function scorer(ev, ctx) {
  */
 export function evaluer(ev, ctx) {
   const force = ev.force === true;
-  const { score: famille, specifique } = analyseFamille(ev);
-  if (famille < 0 && !force) return { exclu: 'anti-famille' }; // signal explicitement anti-famille
+  const analyse = analyseFamille(ev);
+  const { specifique } = analyse;
+  if (analyse.score < 0 && !force) return { exclu: 'anti-famille' }; // signal explicitement anti-famille
+  // Un cirque ou des manèges n'ont pas besoin d'écrire « en famille » pour
+  // être une sortie d'enfant : le genre vaut un public nommé (« Ouvert aux
+  // enfants », pas « Pensé pour » — rien ne le prouve pour un tout-petit).
+  const ex = exceptionnel(ev);
+  const famille = ex?.enfant ? Math.max(analyse.score, 2) : analyse.score;
 
   // Récurrent un autre jour (« les dimanches » un samedi) : hors-jeu.
   if (!jourCompatible(ev, ctx.dateISO)) return { exclu: 'jour-incompatible' };
@@ -84,6 +102,14 @@ export function evaluer(ev, ctx) {
     if (famille < 2 && !force) return { exclu: 'permanent-non-enfant' };
     score -= 1;
   }
+
+  // Genre : l'exceptionnel de passage devant, la lecture un cran derrière.
+  const lecture = !ex && estLecture(ev);
+  if (ex && (duree === null || duree <= EXCEPTIONNEL_JOURS_MAX)) {
+    score += BONUS_EXCEPTIONNEL;
+    raisons.push('À ne pas rater');
+  }
+  if (lecture) score -= MALUS_LECTURE;
 
   // Âge : exclusion si l'enfant est trop jeune, bonus si la tranche colle.
   if (age) {
@@ -141,6 +167,7 @@ export function evaluer(ev, ctx) {
     lieuType: type,
     age: age || null,
     dureeJours: duree,
+    genre: ex ? ex.genre : (lecture ? 'lecture' : 'autre'),
     raisons,
   };
 }
@@ -160,6 +187,8 @@ export function dedoublonner(evenements) {
  * Retourne aussi les comptages bruts pour le diagnostic.
  */
 const MAX_PERMANENTS_AU_TOP = 2;
+/** Une seule lecture/conte par top — les autres seulement pour compléter. */
+const MAX_LECTURES_AU_TOP = 1;
 
 export function top(evenements, ctx, n = 5) {
   const uniques = dedoublonner(evenements);
@@ -184,14 +213,27 @@ export function selectionner(scoresBruts, n = 5) {
 
   // Diversité : jamais plus de 2 animations permanentes dans le top — les
   // événements du jour doivent rester la tête d'affiche. Une épinglée passe.
+  // Même logique pour la lecture : une par top, sinon une médiathèque
+  // active remplit les cinq places (« Historiettes », « Les samedis à
+  // histoires »… constaté à Rennes le 6 octobre 2026). Les lectures écartées
+  // complètent seulement un top qui n'a rien d'autre à proposer.
   const selection = [];
+  const enReserve = [];
   let permanents = 0;
+  let lectures = 0;
   for (const ev of scores) {
     const longue = !ev.epingle && ev.dureeJours !== null && ev.dureeJours > 90;
     if (longue && permanents >= MAX_PERMANENTS_AU_TOP) continue;
+    const lecture = !ev.epingle && ev.genre === 'lecture';
+    if (lecture && lectures >= MAX_LECTURES_AU_TOP) { enReserve.push(ev); continue; }
     if (longue) permanents += 1;
+    if (lecture) lectures += 1;
     selection.push(ev);
     if (selection.length === n) break;
+  }
+  for (const ev of enReserve) {
+    if (selection.length === n) break;
+    selection.push(ev);
   }
   return selection;
 }

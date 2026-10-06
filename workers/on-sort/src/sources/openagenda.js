@@ -8,7 +8,15 @@
 // parsing est volontairement tolérant.
 
 const LIMITE = 100; // max autorisé par requête sur l'API Explore
-const PAGES_MAX = 3; // jusqu'à 300 événements analysés par appel
+// 400 événements analysés au plus par appel (limite CPU du plan gratuit),
+// répartis en deux lots — voir `evenementsOpenAgenda`. Les récents prennent
+// jusqu'à 3 pages ; les animations au long cours ont ce qui reste, au moins
+// une page (Paris : 116 récents, 275 au long cours dont le Palais des enfants).
+const PAGES_TOTAL = 4;
+const PAGES_RECENTS_MAX = 3;
+// Un événement « récent » a commencé dans les RECENT_JOURS jours précédant la
+// date demandée (ou ce jour-là). Les autres sont des animations au long cours.
+const RECENT_JOURS = 60;
 
 /** Échappe une valeur pour un littéral de chaîne ODSQL. */
 function odsql(valeur) {
@@ -27,33 +35,64 @@ export async function evenementsOpenAgenda(env, { departement, dateISO }) {
     || 'https://public.opendatasoft.com/api/explore/v2.1/catalog/datasets/evenements-publics-openagenda/records';
   // Événements dont la plage [première date, dernière date] couvre le jour
   // demandé. Le filtrage fin (occurrence réelle ce jour-là) reste en JS.
-  const where = [
+  const couvre = [
     `location_department=${odsql(departement)}`,
     `firstdate_begin<=date'${dateISO}'`,
     `lastdate_end>=date'${dateISO}'`,
-  ].join(' AND ');
-  // Pagination : le département dépasse largement les 100 événements par
-  // requête — on collecte jusqu'à PAGES_MAX pages pour élargir le vivier.
+  ];
+  const limite = dateMoinsJours(dateISO, RECENT_JOURS);
+  // Deux lots. Avant le 6 octobre 2026, un seul tri par date de début
+  // croissante, coupé à 300 : à Paris, les 300 places partaient à des séries
+  // démarrées en 2020-2021 et tout ce qui commençait après le 15 septembre
+  // était invisible — les ponctuels du jour (cirque, fête, spectacle) d'abord.
+  //  1. les récents, du plus récent au plus ancien : l'événement du jour passe
+  //     en tête ;
+  //  2. les animations au long cours (musées, espaces enfants), au moins une
+  //     page, elles aussi de la plus récente à la plus ancienne : une série
+  //     ouverte en 2020 est le plus souvent abandonnée. Trier par mise à jour
+  //     ne marche pas — les grosses institutions rafraîchissent tout chaque
+  //     jour, et le Palais des enfants tombait 269e sur 275.
+  const recents = await lireLot(base, [...couvre, `firstdate_begin>=date'${limite}'`].join(' AND '),
+    'firstdate_begin desc', PAGES_RECENTS_MAX);
+  const anciens = await lireLot(base, [...couvre, `firstdate_begin<date'${limite}'`].join(' AND '),
+    'firstdate_begin desc', Math.max(1, PAGES_TOTAL - recents.pages));
+  const evenements = [...recents.evenements, ...anciens.evenements];
+  const erreur = recents.erreur || anciens.erreur;
+  // Un lot en panne n'efface pas l'autre ; panne déclarée si rien n'est lu.
+  if (!evenements.length && erreur) return { ok: false, evenements: [], erreur };
+  return { ok: true, evenements };
+}
+
+/**
+ * Lit jusqu'à `pagesMax` pages d'une requête ; les pages déjà lues restent
+ * acquises. `pages` : le nombre de requêtes faites (budget du lot suivant).
+ */
+async function lireLot(base, where, ordre, pagesMax) {
   const evenements = [];
+  let pages = 0;
   try {
-    for (let page = 0; page < PAGES_MAX; page++) {
+    while (pages < pagesMax) {
       const url = `${base}?where=${encodeURIComponent(where)}&limit=${LIMITE}`
-        + `&offset=${page * LIMITE}&order_by=firstdate_begin`;
+        + `&offset=${pages * LIMITE}&order_by=${encodeURIComponent(ordre)}`;
+      pages += 1;
       const res = await fetch(url, { headers: { Accept: 'application/json' } });
-      if (!res.ok) {
-        if (page === 0) return { ok: false, evenements: [], erreur: `HTTP ${res.status}` };
-        break; // les pages déjà collectées restent exploitables
-      }
+      if (!res.ok) return { evenements, pages, erreur: `HTTP ${res.status}` };
       const data = await res.json();
       const resultats = Array.isArray(data.results) ? data.results : [];
       evenements.push(...resultats.map(normaliser).filter(Boolean));
       if (resultats.length < LIMITE) break;
     }
-    return { ok: true, evenements };
+    return { evenements, pages, erreur: null };
   } catch (e) {
-    if (evenements.length) return { ok: true, evenements };
-    return { ok: false, evenements: [], erreur: String(e.message || e) };
+    return { evenements, pages, erreur: String(e.message || e) };
   }
+}
+
+/** YYYY-MM-DD moins n jours (calcul en UTC, sans dérive de fuseau). */
+function dateMoinsJours(dateISO, n) {
+  const d = new Date(`${dateISO}T12:00:00Z`);
+  d.setUTCDate(d.getUTCDate() - n);
+  return d.toISOString().slice(0, 10);
 }
 
 /** Les descriptions arrivent avec du HTML et des entités : on nettoie. */
