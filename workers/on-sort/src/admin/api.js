@@ -9,6 +9,8 @@
 //   POST /admin/api/action     une modification (voir surcouche.js)
 //   GET  /admin/api/journal    les dernières modifications, annulables
 //   GET  /admin/api/stats      usage (?jours=30), votes, villes demandées
+//   GET  /admin/api/cirques    état des tournées de cirques (dernière lecture)
+//   POST /admin/api/cirques    relit les sites des cirques tout de suite
 //
 // Accès : en-tête `Authorization: Bearer <ADMIN_TOKEN>`. ADMIN_TOKEN est un
 // secret Cloudflare (`npx wrangler secret put ADMIN_TOKEN`). Sans lui,
@@ -21,6 +23,7 @@ import {
   lireSurcouche, lireJournal, appliquerSurcouche, executerAction, cleEvenement,
 } from './surcouche.js';
 import { pageAdmin } from './page.js';
+import { actualiserTournees, etatTournees } from '../sources/cirques.js';
 
 /** Comparaison à temps constant : la durée ne trahit pas la longueur commune. */
 function memeSecret(a, b) {
@@ -89,6 +92,15 @@ export async function routeAdmin(request, env, url, path, deps) {
     const r = await executerAction(env, action);
     if (r.erreur) return rep({ error: 'bad_request', message: r.erreur }, 400);
     return rep({ ok: true, surcouche: r.surcouche, entree: r.entree });
+  }
+
+  // Tournées des cirques : état de la dernière lecture (GET) ou relecture
+  // immédiate sans attendre le cron du matin (POST).
+  if (path === '/admin/api/cirques' && request.method === 'GET') {
+    return rep(await etatTournees(env));
+  }
+  if (path === '/admin/api/cirques' && request.method === 'POST') {
+    return rep(await actualiserTournees(env));
   }
 
   if (path === '/admin/api/stats' && request.method === 'GET') {

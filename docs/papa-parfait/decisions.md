@@ -76,13 +76,20 @@ excellente sur 1. Les votes nous diront quel pilier construire en priorité.
   événements par date de début croissante, et à Paris des séries ouvertes en
   2020 prenaient toutes les places — rien de ce qui commençait après le
   15 septembre n'était vu. On lit maintenant les plus récents d'abord.
-- **Sources de l'exceptionnel, par priorité** : types DATAtourisme
-  (`CircusEvent`, `Carnival`, `Parade`, `Festival`, déjà lus) ; tournées des
-  cirques Pinder, Arlette Gruss, Medrano (pages HTML stables, à scraper) ;
-  open data « Que faire à Paris » et agenda Nantes Métropole ; Ticketmaster à
-  tester. JDS.fr couvre bien cirques et fêtes foraines mais sous copyright :
-  partenariat plutôt que scraping. Fêtes foraines et marchés de Noël : saisie
-  annuelle depuis l'admin.
+- **Sources de l'exceptionnel** :
+  - *En place le 6 octobre 2026* : types DATAtourisme (`CircusEvent`,
+    `Carnival`, `Parade`, `Festival`) ; **tournées des cirques** Pinder,
+    Arlette Gruss et Medrano, relues chaque matin sur leurs sites officiels
+    (`sources/cirques.js`, état dans `/diagnostic` et `/admin/api/cirques`) ;
+    **« Que faire à Paris »** (open data Ville de Paris, ODbL, source citée
+    sur chaque sortie) — à Paris, l'OpenAgenda ne donnait que 12 sorties
+    retenues sur 564 événements un samedi.
+  - *Ensuite* : agenda Nantes Métropole (Licence Ouverte, doublon partiel
+    d'OpenAgenda) ; Ticketmaster à tester. JDS.fr couvre bien cirques et
+    fêtes foraines mais sous copyright : partenariat plutôt que scraping.
+    Fêtes foraines et marchés de Noël : saisie annuelle depuis l'admin.
+    Cirque Amar (site Wix rendu en JS) et Zavatta (plusieurs cirques sous ce
+    nom) écartés.
 - **Partage viral** : chaque fiche a un bouton « Partager » qui envoie la sortie
   + le lien de l'app. Chaque partage entre parents = acquisition gratuite.
 

@@ -30,14 +30,18 @@
 //                      voir src/admin/api.js). Ses consignes (sorties masquées,
 //                      corrigées, épinglées, ajoutées) s'appliquent à /top.
 //
-// Et un travail programmé : le vendredi, l'alerte du week-end part par e-mail
-// aux papas qui l'ont demandée (voir src/alerte.js et [triggers] dans
-// wrangler.toml).
+// Et deux travaux programmés ([triggers] dans wrangler.toml) :
+//  - chaque matin, les tournées des cirques sont relues sur leurs sites
+//    (src/sources/cirques.js) et rangées en KV pour /top ;
+//  - le vendredi, l'alerte du week-end part par e-mail aux papas qui l'ont
+//    demandée (voir src/alerte.js).
 
 import { jsonResponse, preflightResponse } from './cors.js';
 import { evenementsOpenAgenda } from './sources/openagenda.js';
 import { evenementsDatatourisme } from './sources/datatourisme.js';
 import { evenementsMediathequesLorient } from './sources/mediatheques-lorient.js';
+import { evenementsParis } from './sources/paris.js';
+import { evenementsCirques, actualiserTournees, etatTournees } from './sources/cirques.js';
 import { previsionJour } from './meteo.js';
 import { top } from './scoring.js';
 import { scoreFamille } from './famille.js';
@@ -56,7 +60,9 @@ const CACHE_TTL = 6 * 3600; // les agendas bougent peu en journée
 // Version de clé de cache : bump à chaque changement de scoring (ou de lecture
 // des paramètres, ex. ?city=) pour invalider
 // d'un coup les tops déjà en cache (un redéploiement seul ne purge pas le cache).
-const CACHE_VERSION = 'scoring-2026-10-06-genre';
+const CACHE_VERSION = 'scoring-2026-10-06-paris-cirques';
+/** Cron quotidien des tournées de cirques — identique à wrangler.toml. */
+const CRON_CIRQUES = '0 5 * * *';
 /** Piliers en teaser dont on compte les « Ça m'intéresse ». */
 const PILIERS = ['couple', 'moi', 'tribu'];
 
@@ -175,9 +181,18 @@ export default {
     return jsonResponse({ error: 'not_found' }, 404, request, env);
   },
 
-  // Vendredi (voir [triggers] dans wrangler.toml) : l'alerte du week-end.
+  // Travaux programmés (voir [triggers] dans wrangler.toml) : CRON_CIRQUES
+  // relit les tournées, l'autre est l'alerte du week-end du vendredi.
   // Le résumé part dans les logs — `npx wrangler tail` pour le lire en direct.
   async scheduled(event, env, ctx) {
+    if (event.cron === CRON_CIRQUES) {
+      ctx.waitUntil(
+        actualiserTournees(env)
+          .then((resume) => console.log('tournées des cirques :', JSON.stringify(resume)))
+          .catch((e) => console.error('tournées des cirques, échec :', e.message || e)),
+      );
+      return;
+    }
     ctx.waitUntil(
       envoyerAlertes(env)
         .then((resume) => console.log('alerte week-end :', JSON.stringify(resume)))
@@ -326,10 +341,12 @@ async function chargerSources(env, p) {
   if (isMock(env)) {
     return { evenements: MOCK_EVENEMENTS, meteo: MOCK_METEO, sources: { mock: { ok: true, count: MOCK_EVENEMENTS.length } } };
   }
-  const [oa, dt, med, meteo] = await Promise.all([
+  const [oa, dt, med, paris, cirques, meteo] = await Promise.all([
     evenementsOpenAgenda(env, p),
     evenementsDatatourisme(env, p),
     evenementsMediathequesLorient(env, p),
+    evenementsParis(env, p),
+    evenementsCirques(env, p),
     previsionJour(env, p.lat, p.lon, p.dateISO),
   ]);
   const sources = {};
@@ -343,7 +360,12 @@ async function chargerSources(env, p) {
       ...(med.erreur ? { erreur: med.erreur } : {}),
     };
   }
-  const evenements = [...oa.evenements, ...dt.evenements, ...med.evenements].filter((ev) => actifCeJour(ev, p.dateISO));
+  if (!paris.horsZone) {
+    sources.paris = { ok: paris.ok, count: paris.evenements.length, ...(paris.erreur ? { erreur: paris.erreur } : {}) };
+  }
+  sources.cirques = { ok: cirques.ok, count: cirques.evenements.length, ...(cirques.erreur ? { erreur: cirques.erreur } : {}) };
+  const evenements = [...oa.evenements, ...dt.evenements, ...med.evenements, ...paris.evenements, ...cirques.evenements]
+    .filter((ev) => actifCeJour(ev, p.dateISO));
   return { evenements, meteo, sources };
 }
 
@@ -379,10 +401,13 @@ async function diagnostic(url, env) {
   }
   const p = lireParams(url);
   if (p.villeInconnue) return { error: 'ville_inconnue', ville: p.villeInconnue };
-  const [oa, dt, med, meteo] = await Promise.all([
+  const [oa, dt, med, paris, cirques, tournees, meteo] = await Promise.all([
     evenementsOpenAgenda(env, p),
     evenementsDatatourisme(env, p),
     evenementsMediathequesLorient(env, p),
+    evenementsParis(env, p),
+    evenementsCirques(env, p),
+    etatTournees(env),
     previsionJour(env, p.lat, p.lon, p.dateISO),
   ]);
 
@@ -399,7 +424,8 @@ async function diagnostic(url, env) {
   };
 
   const bilanOA = analyse(oa.evenements);
-  const retenus = top([...oa.evenements, ...dt.evenements, ...med.evenements].filter((ev) => actifCeJour(ev, p.dateISO)),
+  const tous = [...oa.evenements, ...dt.evenements, ...med.evenements, ...paris.evenements, ...cirques.evenements];
+  const retenus = top(tous.filter((ev) => actifCeJour(ev, p.dateISO)),
     { dateISO: p.dateISO, lat: p.lat, lon: p.lon, age: p.age, rayonKm: p.rayonKm, meteo }).retenus;
 
   return {
@@ -417,6 +443,12 @@ async function diagnostic(url, env) {
     ...(med.horsZone ? {} : {
       mediatheques_lorient: { ok: med.ok, ...(med.erreur ? { erreur: med.erreur } : {}), ...analyse(med.evenements) },
     }),
+    ...(paris.horsZone ? {} : {
+      paris: { ok: paris.ok, ...(paris.erreur ? { erreur: paris.erreur } : {}), ...analyse(paris.evenements) },
+    }),
+    // État de la dernière lecture des sites de cirques (une panne = un site
+    // refait, à corriger dans sources/cirques.js).
+    cirques: { ok: cirques.ok, ...(cirques.erreur ? { erreur: cirques.erreur } : {}), count: cirques.evenements.length, tournees },
     retenusApresScoring: retenus,
     verdict: retenus >= 10 ? 'GO — densité largement suffisante'
       : retenus >= 3 ? 'LIMITE — ça passe pour un top 5, à re-tester sur plusieurs dates'

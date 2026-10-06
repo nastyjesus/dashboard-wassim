@@ -105,7 +105,10 @@ export function evaluer(ev, ctx) {
 
   // Genre : l'exceptionnel de passage devant, la lecture un cran derrière.
   const lecture = !ex && estLecture(ev);
-  if (ex && (duree === null || duree <= EXCEPTIONNEL_JOURS_MAX)) {
+  // Un cirque de la tournée officielle (sources/cirques.js) est de passage
+  // même s'il reste deux mois : Pinder passe tout l'hiver à Paris.
+  const dePassage = duree === null || duree <= EXCEPTIONNEL_JOURS_MAX || ev.origine === 'cirques';
+  if (ex && dePassage) {
     score += BONUS_EXCEPTIONNEL;
     raisons.push('À ne pas rater');
   }

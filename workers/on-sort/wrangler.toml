@@ -51,7 +51,8 @@ id = "53f9f68cbc5b43f2a2d2072216565d3e"
 # se demande quoi faire demain. Le worker ne fait rien si les secrets
 # SUPABASE_URL / SUPABASE_SERVICE_KEY / RESEND_KEY ne sont pas posés.
 [triggers]
-crons = ["0 15 * * 5"]
+# + chaque jour 5 h UTC : relecture des tournées de cirques (src/sources/cirques.js).
+crons = ["0 15 * * 5", "0 5 * * *"]
 
 [observability]
 enabled = true
