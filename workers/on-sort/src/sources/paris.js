@@ -78,9 +78,11 @@ export function normaliser(r) {
     majLe: (r.updated_at || '').slice(0, 10) || null,
     id: r.id ? String(r.id) : null,
     titre: texteBrut(r.title),
-    // Le public (« Public tout-petits. ») en tête : c'est lui que lisent les
-    // heuristiques famille quand aucun âge n'est donné.
-    description: texteBrut([r.audience, r.lead_text, r.description].filter(Boolean).join(' ')).slice(0, 1200),
+    // Le public (« Public tout-petits. ») juste après le chapeau : c'est lui
+    // que lisent les heuristiques famille quand aucun âge n'est donné. Pas en
+    // tête : le début de description signe les séries (scoring.js), et deux
+    // sorties différentes y partageraient « Public tout-petits et enfants… ».
+    description: texteBrut([r.lead_text, r.audience, r.description].filter(Boolean).join(' ')).slice(0, 1200),
     motsCles: String(r.qfap_tags || '').split(';').map((s) => s.trim()).filter(Boolean),
     dateDebut: (r.date_start || '').slice(0, 10) || null,
     dateFin: (r.date_end || '').slice(0, 10) || null,

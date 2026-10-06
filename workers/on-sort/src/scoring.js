@@ -197,6 +197,19 @@ export function dedoublonner(evenements) {
 const MAX_PERMANENTS_AU_TOP = 2;
 /** Une seule lecture/conte par top — les autres seulement pour compléter. */
 const MAX_LECTURES_AU_TOP = 1;
+/** Début de description qui signe une série (même texte, lieu différent). */
+const SERIE_CARACTERES = 80;
+
+/**
+ * Clé de série : le début normalisé de la description. Les déclinaisons
+ * d'un même rendez-vous (un parc, une crèche, une bibliothèque différente)
+ * partagent leur texte et ne diffèrent qu'après. Null si la description est
+ * trop courte pour signer quoi que ce soit.
+ */
+export function cleSerie(ev) {
+  const d = (ev.description || '').toLowerCase().replace(/[^\p{L}\p{N}]+/gu, ' ').trim();
+  return d.length >= SERIE_CARACTERES ? d.slice(0, SERIE_CARACTERES) : null;
+}
 
 export function top(evenements, ctx, n = 5) {
   const uniques = dedoublonner(evenements);
@@ -225,17 +238,23 @@ export function selectionner(scoresBruts, n = 5) {
   // active remplit les cinq places (« Historiettes », « Les samedis à
   // histoires »… constaté à Rennes le 6 octobre 2026). Les lectures écartées
   // complètent seulement un top qui n'a rien d'autre à proposer.
+  // Et une seule sortie par série : « Dimanches sportifs JARDIN BOTANIQUE »,
+  // « … JARDIN PUBLIC », « … PARC BORDELAIS » prenaient quatre places du top
+  // de Bordeaux (6 octobre 2026) — même texte, seul le parc change.
   const selection = [];
   const enReserve = [];
+  const series = new Set();
   let permanents = 0;
   let lectures = 0;
   for (const ev of scores) {
     const longue = !ev.epingle && ev.dureeJours !== null && ev.dureeJours > 90;
     if (longue && permanents >= MAX_PERMANENTS_AU_TOP) continue;
     const lecture = !ev.epingle && ev.genre === 'lecture';
-    if (lecture && lectures >= MAX_LECTURES_AU_TOP) { enReserve.push(ev); continue; }
+    const serie = ev.epingle ? null : cleSerie(ev);
+    if ((lecture && lectures >= MAX_LECTURES_AU_TOP) || (serie && series.has(serie))) { enReserve.push(ev); continue; }
     if (longue) permanents += 1;
     if (lecture) lectures += 1;
+    if (serie) series.add(serie);
     selection.push(ev);
     if (selection.length === n) break;
   }

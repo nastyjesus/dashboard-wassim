@@ -60,7 +60,7 @@ const CACHE_TTL = 6 * 3600; // les agendas bougent peu en journée
 // Version de clé de cache : bump à chaque changement de scoring (ou de lecture
 // des paramètres, ex. ?city=) pour invalider
 // d'un coup les tops déjà en cache (un redéploiement seul ne purge pas le cache).
-const CACHE_VERSION = 'scoring-2026-10-06-cirques-bonus';
+const CACHE_VERSION = 'scoring-2026-10-06-series';
 /** Cron quotidien des tournées de cirques — identique à wrangler.toml. */
 const CRON_CIRQUES = '0 5 * * *';
 /** Piliers en teaser dont on compte les « Ça m'intéresse ». */

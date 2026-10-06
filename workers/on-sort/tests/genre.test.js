@@ -89,6 +89,19 @@ describe('selectionner — une lecture par top', () => {
     expect(top.map((e) => e.titre)).toEqual(['Historiettes', 'Atelier peinture', 'Ferme pédagogique', 'Concert jeune public', 'Cinéma']);
   });
 
+  it('une seule sortie par série (même texte, lieu différent)', () => {
+    const texte = (lieu) => `Les Dimanches Sportifs : un moment pour se retrouver, prendre soin de soi et se dépenser dans la bonne humeur. Venez bouger gratuitement en plein cœur du ${lieu}.`;
+    const dimanche = (lieu, score) => ({ titre: `Dimanches sportifs ${lieu}`, description: texte(lieu), score, genre: 'autre', dureeJours: 0 });
+    const top = selectionner([
+      dimanche('Jardin Botanique', 10), dimanche('Jardin Public', 10), dimanche('Parc Bordelais', 10),
+      sortie('Cool Kids Club', 13.5, 'autre'), sortie('Olalaland', 9, 'autre'),
+    ]);
+    expect(top.map((e) => e.titre)).toEqual([
+      'Cool Kids Club', 'Dimanches sportifs Jardin Botanique', 'Olalaland',
+      'Dimanches sportifs Jardin Public', 'Dimanches sportifs Parc Bordelais',
+    ]);
+  });
+
   it('complète avec d\'autres lectures plutôt que de laisser un top court', () => {
     const top = selectionner([
       sortie('Historiettes', 12, 'lecture'), sortie('Les petites histoires', 11, 'lecture'),
