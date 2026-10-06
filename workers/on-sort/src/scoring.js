@@ -164,6 +164,21 @@ const MAX_PERMANENTS_AU_TOP = 2;
 export function top(evenements, ctx, n = 5) {
   const uniques = dedoublonner(evenements);
   const scores = uniques.map((ev) => scorer(ev, ctx)).filter(Boolean);
+  return {
+    total: evenements.length,
+    uniques: uniques.length,
+    retenus: scores.length,
+    top: selectionner(scores, n),
+  };
+}
+
+/**
+ * Le classement à partir d'événements déjà scorés (sortie de `scorer`).
+ * Séparé de `top` pour que l'admin, qui score déjà tout pour afficher le
+ * détail, ne paie pas le scoring deux fois (limite CPU du plan gratuit).
+ */
+export function selectionner(scoresBruts, n = 5) {
+  const scores = [...scoresBruts];
   // Épinglées à la main (admin) d'abord, puis par score.
   scores.sort((a, b) => (b.epingle === true) - (a.epingle === true) || b.score - a.score);
 
@@ -178,11 +193,5 @@ export function top(evenements, ctx, n = 5) {
     selection.push(ev);
     if (selection.length === n) break;
   }
-
-  return {
-    total: evenements.length,
-    uniques: uniques.length,
-    retenus: scores.length,
-    top: selection,
-  };
+  return selection;
 }

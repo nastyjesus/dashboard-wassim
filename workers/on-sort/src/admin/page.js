@@ -281,11 +281,19 @@ const PAGE = String.raw`<!doctype html>
       + '&rayon=' + encodeURIComponent($('f-rayon').value);
   }
 
-  function chargerVille(id) {
+  // Le plan gratuit Cloudflare coupe parfois une grosse ville (CPU, erreur
+  // 1102 → HTTP 503) : on réessaie deux fois, avec une pause, avant d'afficher l'erreur.
+  function chargerVille(id, essai) {
+    essai = essai || 0;
     etat.erreurs[id] = null;
     return api('ville?ville=' + encodeURIComponent(id) + '&' + params())
       .then(function (r) { etat.parVille[id] = r; })
-      .catch(function (e) { etat.erreurs[id] = e.message; });
+      .catch(function (e) {
+        if (essai < 2 && /503/.test(e.message)) {
+          return new Promise(function (ok) { setTimeout(ok, 1500 * (essai + 1)); }).then(function () { return chargerVille(id, essai + 1); });
+        }
+        etat.erreurs[id] = e.message;
+      });
   }
 
   // Les 18 villes, 3 à la fois : chaque appel interroge les sources en direct.

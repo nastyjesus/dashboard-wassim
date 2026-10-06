@@ -15,8 +15,7 @@
 // l'admin est fermée (503) — jamais ouverte par défaut.
 
 import { jsonResponse } from '../cors.js';
-import { evaluer, top, dedoublonner } from '../scoring.js';
-import { libelleHoraires } from '../horaires.js';
+import { evaluer, selectionner, dedoublonner } from '../scoring.js';
 import { VILLES, villeParId } from '../villes.js';
 import {
   lireSurcouche, lireJournal, appliquerSurcouche, executerAction, cleEvenement,
@@ -117,28 +116,36 @@ async function analyserVille(env, url, ville, deps) {
   ]);
   const ctx = { dateISO: p.dateISO, lat: p.lat, lon: p.lon, age: p.age, rayonKm: p.rayonKm, meteo };
 
+  // Un seul passage de scoring, comme /top : le plan gratuit coupe le worker
+  // au-delà de ~10 ms de CPU (erreur 1102), et scorer deux fois chaque
+  // sortie d'une grande ville suffisait à la dépasser. Masquées et doublons
+  // ne sont pas scorés : ils n'entrent pas dans le top.
   const tous = appliquerSurcouche(bruts, surcouche, p.dateISO, { garderMasques: true });
   const visibles = tous.filter((ev) => !ev.masque);
-  const resultat = top(visibles, ctx);
-  const rangs = new Map(resultat.top.map((ev, i) => [ev.cle, i + 1]));
   const uniques = new Set(dedoublonner(visibles).map((ev) => ev.cle));
+  const evaluations = new Map();
+  for (const ev of visibles) if (uniques.has(ev.cle)) evaluations.set(ev.cle, evaluer(ev, ctx));
+  const scores = [...evaluations.values()].filter((e) => !e.exclu);
+  const selection = selectionner(scores);
+  const rangs = new Map(selection.map((ev, i) => [ev.cle, i + 1]));
   const originaux = new Map(bruts.map((ev) => [cleEvenement(ev), ev]));
 
   const evenements = tous.map((ev) => {
-    const e = evaluer(ev, ctx);
+    const e = evaluations.get(ev.cle) || {};
     const doublon = !ev.masque && !uniques.has(ev.cle);
     const brut = originaux.get(ev.cle);
     return {
       cle: ev.cle,
       origine: ev.origine,
       titre: ev.titre,
-      description: ev.description || '',
+      // Tronquée : sérialiser 1 200 caractères × 500 sorties pèse sur le CPU.
+      description: (ev.description || '').slice(0, 600),
       ville: ev.ville || null,
       lieuNom: ev.lieuNom || null,
       adresse: ev.adresse || null,
       dateDebut: ev.dateDebut || null,
       dateFin: ev.dateFin || null,
-      horaires: libelleHoraires(ev, p.dateISO) || ev.horaires || null,
+      horaires: (e.exclu === undefined && e.horaires) || ev.horaires || null,
       horairesBruts: ev.horaires || null,
       url: ev.url || null,
       gratuit: ev.gratuit ?? null,
@@ -153,12 +160,12 @@ async function analyserVille(env, url, ville, deps) {
       manuel: ev.origine === 'manuel',
       corrige: ev.corrige || null,
       original: ev.corrige && brut ? Object.fromEntries(ev.corrige.map((k) => [k, brut[k] ?? null])) : null,
-      score: e.exclu || doublon ? null : e.score,
-      raisons: e.exclu || doublon ? [] : e.raisons,
+      score: e.score ?? null,
+      raisons: e.raisons || [],
       motif: doublon ? 'doublon' : (e.exclu || null),
       distanceKm: e.distanceKm ?? null,
-      age: e.exclu ? null : e.age,
-      lieuType: e.exclu ? null : e.lieuType,
+      age: e.age || null,
+      lieuType: e.lieuType || null,
       rang: rangs.get(ev.cle) || null,
     };
   });
@@ -170,8 +177,8 @@ async function analyserVille(env, url, ville, deps) {
     rayonKm: p.rayonKm,
     meteo,
     sources,
-    stats: { total: resultat.total, uniques: resultat.uniques, retenus: resultat.retenus },
-    top: resultat.top.map((ev) => ev.cle),
+    stats: { total: visibles.length, uniques: uniques.size, retenus: scores.length },
+    top: selection.map((ev) => ev.cle),
     evenements,
   };
 }
