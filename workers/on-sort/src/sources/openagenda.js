@@ -7,6 +7,7 @@
 // affine en code : le format des champs varie selon les contributeurs, le
 // parsing est volontairement tolérant.
 
+import { assembler, champsDescription } from '../texte.js';
 const LIMITE = 100; // max autorisé par requête sur l'API Explore
 // 400 événements analysés au plus par appel (limite CPU du plan gratuit),
 // répartis en deux lots — voir `evenementsOpenAgenda`. Les récents prennent
@@ -151,7 +152,8 @@ function normaliser(r) {
     majLe: null,
     id: r.uid ? String(r.uid) : null,
     titre: texteBrut(r.title_fr || r.title), // certains titres contiennent des sauts de ligne
-    description: texteBrut([r.description_fr, r.longdescription_fr].filter(Boolean).join(' ')).slice(0, 1200),
+    // Paragraphes gardés, chapeau non répété, coupe en fin de phrase (texte.js).
+    ...champsDescription(assembler(r.description_fr, r.longdescription_fr)),
     motsCles: Array.isArray(r.keywords_fr) ? r.keywords_fr : [],
     dateDebut: (r.firstdate_begin || '').slice(0, 10) || null,
     dateFin: (r.lastdate_end || '').slice(0, 10) || null,

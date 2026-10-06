@@ -18,6 +18,7 @@
 //    « A partir de -1 ans » existe) ;
 //  - qfap_tags : « Enfants;Théâtre » ; lat_lon : {lat, lon} ou null.
 
+import { assembler, champsDescription, texteLisible } from '../texte.js';
 import { distanceKm } from '../scoring.js';
 
 const BASE_DEFAUT = 'https://opendata.paris.fr/api/explore/v2.1/catalog/datasets/que-faire-a-paris-/records';
@@ -67,6 +68,14 @@ export function ageAudience(audience) {
   return { min: min ? Math.max(0, Number(min[1])) : 0, max: max ? Number(max[1]) : null };
 }
 
+/** Le public en deuxième ligne, juste sous le chapeau. */
+function avecPublic(texte, publicVise) {
+  if (!publicVise) return texte;
+  const lignes = texte ? texte.split('\n') : [];
+  lignes.splice(Math.min(1, lignes.length), 0, publicVise);
+  return lignes.join('\n');
+}
+
 export function normaliser(r) {
   if (!r || !r.title) return null;
   const age = ageAudience(r.audience);
@@ -82,7 +91,7 @@ export function normaliser(r) {
     // que lisent les heuristiques famille quand aucun âge n'est donné. Pas en
     // tête : le début de description signe les séries (scoring.js), et deux
     // sorties différentes y partageraient « Public tout-petits et enfants… ».
-    description: texteBrut([r.lead_text, r.audience, r.description].filter(Boolean).join(' ')).slice(0, 1200),
+    ...champsDescription(avecPublic(assembler(r.lead_text, r.description), texteLisible(r.audience))),
     motsCles: String(r.qfap_tags || '').split(';').map((s) => s.trim()).filter(Boolean),
     dateDebut: (r.date_start || '').slice(0, 10) || null,
     dateFin: (r.date_end || '').slice(0, 10) || null,

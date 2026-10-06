@@ -207,8 +207,13 @@ const SERIE_CARACTERES = 80;
  * trop courte pour signer quoi que ce soit.
  */
 export function cleSerie(ev) {
-  const d = (ev.description || '').toLowerCase().replace(/[^\p{L}\p{N}]+/gu, ' ').trim();
-  return d.length >= SERIE_CARACTERES ? d.slice(0, SERIE_CARACTERES) : null;
+  // Première ligne assez longue pour signer : les descriptions gardent leurs
+  // paragraphes (texte.js) et certaines commencent par une courte ligne de
+  // public commune à toute une source (« Petite enfance »).
+  const ligne = (ev.description || '').split('\n')
+    .map((l) => l.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, ' ').trim())
+    .find((l) => l.length >= SERIE_CARACTERES);
+  return ligne ? ligne.slice(0, SERIE_CARACTERES) : null;
 }
 
 export function top(evenements, ctx, n = 5) {

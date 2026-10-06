@@ -188,6 +188,9 @@ export function appliquerSurcouche(evenements, s, dateISO, { garderMasques = fal
     // Les créneaux structurés de la source priment sur le texte : un horaire
     // corrigé à la main doit les remplacer, sinon il ne s'afficherait jamais.
     if (correction?.champs.horaires) ev.creneaux = [];
+    // Même chose pour la description : le texte complet de la source (renvoyé
+    // à la fiche, voir texte.js) ne doit pas masquer une description corrigée.
+    if (correction?.champs.description) delete ev.descriptionComplete;
     if (masque) ev.masque = true;
     if (correction) ev.corrige = Object.keys(correction.champs);
     if (s.epingles?.[cle]) { ev.epingle = true; ev.force = true; }

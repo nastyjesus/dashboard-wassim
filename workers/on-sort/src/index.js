@@ -48,6 +48,7 @@ import { scoreFamille } from './famille.js';
 import { envoyerAlertes, desabonner, pageDesabonnement } from './alerte.js';
 import { MOCK_EVENEMENTS, MOCK_METEO, isMock } from './mocks.js';
 import { villeParNomOuId, villeLaPlusProche } from './villes.js';
+import { pourAffichage } from './texte.js';
 import { lireSurcouche, appliquerSurcouche } from './admin/surcouche.js';
 import { routeAdmin } from './admin/api.js';
 
@@ -60,7 +61,7 @@ const CACHE_TTL = 6 * 3600; // les agendas bougent peu en journée
 // Version de clé de cache : bump à chaque changement de scoring (ou de lecture
 // des paramètres, ex. ?city=) pour invalider
 // d'un coup les tops déjà en cache (un redéploiement seul ne purge pas le cache).
-const CACHE_VERSION = 'scoring-2026-10-06-series';
+const CACHE_VERSION = 'scoring-2026-10-06-paragraphes';
 /** Cron quotidien des tournées de cirques — identique à wrangler.toml. */
 const CRON_CIRQUES = '0 5 * * *';
 /** Piliers en teaser dont on compte les « Ça m'intéresse ». */
@@ -375,6 +376,9 @@ async function calculerTop(request, url, env, surcouche) {
   const evenements = surcouche ? appliquerSurcouche(bruts, surcouche, p.dateISO) : bruts;
 
   const resultat = top(evenements, { dateISO: p.dateISO, lat: p.lat, lon: p.lon, age: p.age, rayonKm: p.rayonKm, meteo });
+  // Les sorties du top portent leur texte complet (la fiche) ; le scoring
+  // n'en a lu que l'extrait (texte.js).
+  const selection = resultat.top.map(pourAffichage);
   return {
     mock: isMock(env),
     date: p.dateISO,
@@ -385,8 +389,8 @@ async function calculerTop(request, url, env, surcouche) {
     meteo,
     sources,
     stats: { total: resultat.total, uniques: resultat.uniques, retenus: resultat.retenus },
-    preferee: resultat.top[0] || null,
-    top: resultat.top,
+    preferee: selection[0] || null,
+    top: selection,
   };
 }
 

@@ -12,6 +12,7 @@
 // lieux sont géocodés ici (Base Adresse Nationale, adresses de la page
 // horaires officielle).
 
+import { champsDescription, texteLisible } from '../texte.js';
 import { distanceKm } from '../scoring.js';
 
 const RSS_DEFAUT = 'https://mediatheque.lorient.bzh/agenda/rss/nid/218450';
@@ -104,7 +105,7 @@ export function normaliser(bloc) {
     titre,
     // Le public en tête : lisible sur la fiche, et c'est là (titre +
     // description) que la détection d'âge le cherche.
-    description: [publics.join('. '), texteBrut(corps)].filter(Boolean).join('. ').slice(0, 1200),
+    ...champsDescription([publics.join('. '), texteLisible(corps)].filter(Boolean).join('\n')),
     motsCles: etiquettes.filter((e) => !LIEUX[e] && !PUBLICS[e]),
     dateDebut: debut.date,
     dateFin: debut.date,

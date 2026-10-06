@@ -13,6 +13,7 @@
 // startTime, endTime}, `isLocatedAt[0].geo` / `.address[0]`,
 // `hasBeenCreatedBy.legalName`, `lastUpdate` (YYYY-MM-DD).
 
+import { champsDescription, texteLisible } from '../texte.js';
 const BASE_DEFAUT = 'https://api.datatourisme.fr/v1/entertainmentAndEvent';
 const PAGE_SIZE = 100; // maximum de l'API
 const PAGES_MAX = 3; // 300 fiches : Lorient en compte ~130 un samedi, Rennes ~40
@@ -131,7 +132,7 @@ export function normaliser(r, dateISO) {
     majLe: dateMaj(r),
     id: r.uuid || null,
     titre,
-    description: String(texte(desc.description) || texte(desc.shortDescription) || '').slice(0, 1200),
+    ...champsDescription(texteLisible(texte(desc.description) || texte(desc.shortDescription) || '')),
     // Les types (« ChildrensEvent », « ShowEvent »…) ne parlent pas
     // français : ils ne servent pas aux heuristiques famille, qui lisent le
     // texte. On ne les met pas en mots-clés pour ne rien fausser ; ils

@@ -49,7 +49,7 @@ describe('médiathèques de Lorient : lecture du flux', () => {
       lat: 47.764416, lon: -3.385134, ville: 'Lorient', gratuit: true,
       motsCles: ['Lectures'],
     });
-    expect(ev.description).toMatch(/^Pour les tout-petits de 0 à 3 ans\. L'accueil des Tout-petits/);
+    expect(ev.description).toMatch(/^Pour les tout-petits de 0 à 3 ans\nL'accueil des Tout-petits/);
     expect(ev.description).toContain('réservé aux enfants de leur naissance à 3 ans');
     expect(ev.description).not.toContain('Médiathèque de Keryado'); // badges retirés du texte
   });
