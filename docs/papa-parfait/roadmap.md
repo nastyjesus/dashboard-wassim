@@ -1,19 +1,71 @@
 # 🗺️ Roadmap & état d'avancement
 
-> **Point global effectué le 18 septembre 2026.** Tout ce qui suit a été vérifié
-> dans le code du dépôt et sur les URLs en ligne. Aucun chiffre n'est estimé.
+> **Dernier point : 6 octobre 2026** (section suivante). Le point du
+> 18 septembre et les lots qui en découlent restent plus bas, statuts mis à
+> jour. Tout est vérifié dans le code, en prod ou sur `/mesures` ; aucun
+> chiffre n'est estimé.
 
 ## Les 3 phases (à ne pas confondre)
 
 | Phase | La question | État |
 |---|---|---|
 | **1. Construire** | Avec quoi je fabrique l'app ? | ✅ **Fait** (Expo / React Native) |
-| **2. Publier** | Où les gens la trouvent / installent ? | 🟡 En cours (PWA en ligne, Play Store à faire) |
-| **3. Monétiser** | Comment ça rapporte de l'argent ? | 🟡 Modèle choisi (abonnement + achat à vie), offre et socle technique à faire |
+| **2. Publier** | Où les gens la trouvent / installent ? | 🟡 PWA en ligne et déployée à chaque push ; lien pas encore diffusé ; Play Store à faire |
+| **3. Monétiser** | Comment ça rapporte de l'argent ? | 🔴 Modèle choisi (abonnement + achat à vie), rien de codé |
 
 ---
 
-## 📍 L'état réel au 18 septembre 2026
+## 📍 Point du 6 octobre 2026
+
+### Usage réel (`GET /mesures?jours=14`)
+
+~16 ouvertures, 14 tops affichés, 4 tops vides, **1 sortie gardée, 0 compte,
+0 alerte envoyée** sur deux semaines. Le « zéro à casser » du 18 septembre
+n'est pas cassé : **le lien n'a pas été diffusé.** C'est le premier blocage,
+et il n'est pas technique.
+
+### Fait depuis le 18 septembre
+
+- **Lots 1, 1 bis, 1 ter, 1 quater, 2** : faits (voir plus bas).
+- **Lot 3** : Cockpit en prod, build allégé de 68 %, politique de
+  confidentialité en ligne (`/confidentialite`). Bouton Google **masqué**
+  (flux web incomplet). Partage aux papas : **pas fait**.
+- **Entrée sans compte** (23/09) : le top s'affiche avant toute inscription ;
+  le compte n'apparaît qu'au premier « garder ». Voir `decisions.md`.
+- **Mesure d'usage** `/mesures` + page Cockpit ; **alerte du week-end** par
+  e-mail le vendredi (Resend) ; **site = seule vitrine indexée**, app en
+  `noindex` ; checklist et vérificateur DNS pour `app.<domaine>`.
+- **Sources** : DATAtourisme réparé (API v1), RSS des médiathèques de Lorient,
+  **tournées des cirques** Pinder / Arlette Gruss / Medrano (cron quotidien),
+  **« Que faire à Paris »** (open data Ville de Paris).
+- **Admin** `/admin` : sorties d'une ville, consignes (masquer, corriger,
+  épingler, ajouter), sources, stats, journal.
+- **Qualité du top (6 octobre)** — audit 18 villes × 3 dates :
+  - lecture d'OpenAgenda corrigée (à Paris, des séries de 2020 prenaient les
+    300 places : rien de ce qui commençait après le 15 septembre n'était vu) ;
+  - **l'exceptionnel passe devant** (« À ne pas rater » : cirque, fête
+    foraine, carnaval, festival, marché de Noël…) ; une seule lecture et une
+    seule sortie par série dans un top ;
+  - lecture/conte : 43 % → 30 % des top 5, 42 % → 31 % des GO ; 11 GO « À
+    ne pas rater » sur 39. Paris : le GO du 10 octobre est un cirque.
+- **CPU du plan gratuit** : erreurs 1102 corrigées (scoring ÷4, admin ville
+  par ville). Paris tient à ~680 événements analysés.
+
+### Prochaines étapes, dans l'ordre
+
+1. **Diffuser le lien à 10-20 papas** (Wassim). Suivre comptes, sorties
+   gardées, demandes de ville sur `/mesures`.
+2. **Bouton Google sur le web** : finir le flux ou l'assumer masqué.
+3. **Sous-domaine `app.<domaine>`** : DNS prêt, en attente de la migration.
+4. **Lot 4 — Play Store** : Data safety, build EAS `.aab`, test interne
+   (politique de confidentialité déjà en ligne, `eas.json` présent).
+5. **Lot 5 — facturation** et **Lot 6 — Open-Meteo commercial** : inchangés.
+6. **Sources, à la demande** : agenda Nantes Métropole, test Ticketmaster,
+   fêtes foraines et marchés de Noël saisis une fois par an dans l'admin.
+
+---
+
+## 📍 L'état réel au 18 septembre 2026 (historique)
 
 ### Ce qui tourne en ligne
 
@@ -201,9 +253,8 @@ Côtes-d'Armor 1.
    il échoue aussi si le bundle construit ne contient pas la configuration
    Supabase. Mieux vaut un déploiement rouge qu'une PWA qui affiche un écran
    d'inscription sans créer de compte.
-6. **Reste à faire par Wassim** : poser ces deux secrets dans le dépôt GitHub
-   (Settings → Secrets and variables → Actions). Tant qu'ils manquent, le
-   déploiement de la PWA échouera volontairement.
+6. ✅ **Secrets posés** : vérifié le 6 octobre 2026, le bundle de la PWA en
+   ligne contient bien l'URL du projet Supabase.
 
 ### Lot 3 — Déployer, vérifier, partager
 
@@ -264,12 +315,12 @@ interne peut suivre immédiatement le court terme.
 ## ⛔ Hors périmètre, assumé
 
 - **Tribu** : worker non déployé, permission D1 absente du token Cloudflare.
-- **DATAtourisme** : endpoint introuvable (404), OpenAgenda suffit.
-- **Migration Cockpit des écrans Couple, Moi, Tribu, Commentaires** : ils
-  utilisent encore les anciens jetons (`ombre`, `rayon`) mais restent invisibles
-  tant que les piliers sont en teaser.
+- ~~DATAtourisme : endpoint introuvable~~ — **réglé le 5 octobre 2026**
+  (connecteur réécrit pour l'API v1, en prod).
+- ~~Migration Cockpit des écrans Couple, Moi, Tribu, Commentaires~~ — **faite
+  le 20 septembre 2026**.
 
-Aucun de ces trois points ne bloque la monétisation.
+Le point restant (Tribu) ne bloque pas la monétisation.
 
 ---
 
@@ -277,12 +328,12 @@ Aucun de ces trois points ne bloque la monétisation.
 
 | Anomalie | Effet | Lot |
 |---|---|---|
-| `p.age` rejette l'âge 0 (`src/storage.js`) | Un papa de bébé reboucle sur l'onboarding | Lot 1 |
-| Route `POST /ville-demande` absente du worker | Demandes de ville perdues en silence en cas de secours | Lot 1 |
-| `AGES = [1..8]` inutilisée | Confusion avec `AGES_ENFANT` (0-5) | Lot 1 |
-| Secrets Supabase absents du workflow web | La PWA déployée ignore les comptes | Lot 2 |
-| Connexion Google non testée sur web | Bouton potentiellement inopérant sur la PWA | Lot 3 |
-| 23 polices embarquées pour 4 utilisées | `dist` à 4,7 Mo | Lot 3 |
+| ✅ `p.age` rejette l'âge 0 (`src/storage.js`) | Corrigé (`p.age != null`) | Lot 1 |
+| ✅ Route `POST /ville-demande` absente du worker | Implémentée (KV) | Lot 1 |
+| ✅ `AGES = [1..8]` inutilisée | Supprimée | Lot 1 |
+| ✅ Secrets Supabase absents du workflow web | Injectés au build, avec garde-fous | Lot 2 |
+| Connexion Google non fonctionnelle sur web | Bouton **masqué** depuis le 20/09 (flux incomplet) | Lot 3 |
+| ✅ 23 polices embarquées pour 4 utilisées | Build allégé de 68 % | Lot 3 |
 | `vitest` non installé dans les workers en local | `npm test` échoue tant qu'on n'a pas fait `npm ci` | à l'occasion |
 
 ---
@@ -292,7 +343,6 @@ Aucun de ces trois points ne bloque la monétisation.
 | Point | Impact | Action |
 |---|---|---|
 | **Token Cloudflare sans permission D1** | La Tribu ne peut pas s'activer en ligne | Ajouter « D1 Edit » au token, puis relancer le déploiement de `papa-tribu`. Non bloquant tant que la Tribu est en teaser. |
-| **Endpoint DATAtourisme non confirmé** | Une source de sorties en moins | Trouver l'URL réelle de l'endpoint événements et la poser dans `workers/on-sort/wrangler.toml` (`DATATOURISME_ENDPOINTS`). |
 | **Bouton « bloquer un utilisateur » manquant** | Exigé par Google pour du contenu communautaire | À ajouter avant toute activation publique de la Tribu, pas avant. |
 
 ---
@@ -303,5 +353,8 @@ Aucun de ces trois points ne bloque la monétisation.
   branche `claude/side-hustle-brainstorm-ykikf8`.
 - **18 septembre 2026** : point global, charte « Cockpit clair », comptes
   Supabase, roadmap court et moyen terme (ce document).
+- **6 octobre 2026** : point d'étape ; audit des sorties (trop de lecture,
+  OpenAgenda tronqué) ; l'exceptionnel devant, tournées des cirques et
+  « Que faire à Paris » en sources.
 
 > Pour reprendre avec Claude : « lis `docs/papa-parfait/` et continue Papa Parfait ».
