@@ -36,11 +36,24 @@ export function distanceKm(lat1, lon1, lat2, lon2) {
  * @param {{lat: number, lon: number, age: number, rayonKm?: number, meteo?: object|null}} ctx
  */
 export function scorer(ev, ctx) {
+  const r = evaluer(ev, ctx);
+  return r.exclu ? null : r;
+}
+
+/**
+ * Comme `scorer`, mais dit pourquoi un événement est écarté : `{exclu: motif}`
+ * au lieu de null. Sert l'admin (« pourquoi cette sortie n'apparaît pas ? »).
+ * `ev.force` (sortie ajoutée ou épinglée à la main) passe les filtres de
+ * contenu — on sait que c'est une sortie enfant — mais pas ceux de jour, d'âge
+ * ni de distance, qui dépendent du papa.
+ */
+export function evaluer(ev, ctx) {
+  const force = ev.force === true;
   const { score: famille, specifique } = analyseFamille(ev);
-  if (famille < 0) return null; // signal explicitement anti-famille
+  if (famille < 0 && !force) return { exclu: 'anti-famille' }; // signal explicitement anti-famille
 
   // Récurrent un autre jour (« les dimanches » un samedi) : hors-jeu.
-  if (!jourCompatible(ev, ctx.dateISO)) return null;
+  if (!jourCompatible(ev, ctx.dateISO)) return { exclu: 'jour-incompatible' };
 
   // Exiger un vrai signal « sortie enfant » : au moins un mot-clé famille
   // (faible ou fort) OU une tranche d'âge enfant détectée. Sans ça, des
@@ -51,10 +64,10 @@ export function scorer(ev, ctx) {
   // adulte) ne suffit pas — trop de faux positifs pro/adultes sinon.
   const age = trancheAge(ev);
   const signalEnfant = famille >= 1 || (age && age.min <= 12);
-  if (!signalEnfant) return null;
+  if (!signalEnfant && !force) return { exclu: 'pas-de-signal-enfant' };
 
   const raisons = [];
-  let score = famille * 2;
+  let score = Math.max(famille, 0) * 2;
   // L'étiquette dit ce qu'on sait vraiment : « pensé pour » quand un mot
   // spécifique (jeune public, marionnettes, bébé…) ou un âge le prouve ;
   // « ouvert aux enfants » quand le texte nomme seulement un public familial.
@@ -68,14 +81,14 @@ export function scorer(ev, ctx) {
   const duree = dureeJours(ev);
   if (duree !== null && duree <= 3) { score += 1.5; raisons.push('Événement ponctuel'); }
   if (duree !== null && duree > 90) {
-    if (famille < 2) return null;
+    if (famille < 2 && !force) return { exclu: 'permanent-non-enfant' };
     score -= 1;
   }
 
   // Âge : exclusion si l'enfant est trop jeune, bonus si la tranche colle.
   if (age) {
-    if (ctx.age < age.min) return null;
-    if (age.max !== null && ctx.age > age.max) return null;
+    if (ctx.age < age.min) return { exclu: 'trop-jeune' };
+    if (age.max !== null && ctx.age > age.max) return { exclu: 'trop-grand' };
     score += 2;
     raisons.push(age.max !== null ? `${age.min}-${age.max} ans` : `Dès ${age.min} ans`);
   }
@@ -85,7 +98,7 @@ export function scorer(ev, ctx) {
   const rayon = ctx.rayonKm || RAYON_DEFAUT_KM;
   if (Number.isFinite(ev.lat) && Number.isFinite(ev.lon)) {
     km = distanceKm(ctx.lat, ctx.lon, ev.lat, ev.lon);
-    if (km > rayon) return null;
+    if (km > rayon) return { exclu: 'hors-rayon', distanceKm: km };
     const d = bonusDistance(km);
     score += d.points;
     if (d.raison) raisons.push(d.raison);
@@ -151,14 +164,15 @@ const MAX_PERMANENTS_AU_TOP = 2;
 export function top(evenements, ctx, n = 5) {
   const uniques = dedoublonner(evenements);
   const scores = uniques.map((ev) => scorer(ev, ctx)).filter(Boolean);
-  scores.sort((a, b) => b.score - a.score);
+  // Épinglées à la main (admin) d'abord, puis par score.
+  scores.sort((a, b) => (b.epingle === true) - (a.epingle === true) || b.score - a.score);
 
   // Diversité : jamais plus de 2 animations permanentes dans le top — les
-  // événements du jour doivent rester la tête d'affiche.
+  // événements du jour doivent rester la tête d'affiche. Une épinglée passe.
   const selection = [];
   let permanents = 0;
   for (const ev of scores) {
-    const longue = ev.dureeJours !== null && ev.dureeJours > 90;
+    const longue = !ev.epingle && ev.dureeJours !== null && ev.dureeJours > 90;
     if (longue && permanents >= MAX_PERMANENTS_AU_TOP) continue;
     if (longue) permanents += 1;
     selection.push(ev);

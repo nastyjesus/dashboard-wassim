@@ -115,6 +115,42 @@ Après déploiement (`https://on-sort-poc.loumiwassim.workers.dev/diagnostic`) :
 Critère de passage au week-end 2 (l'app Expo) : un top 5 pertinent sur au
 moins 3 samedis différents, sans doublons absurdes ni hors-sujet.
 
+## Admin (`/admin`)
+
+Back-office réservé à Wassim : `https://on-sort-poc.loumiwassim.workers.dev/admin`.
+
+**Mise en route (une fois)** — poser le secret, sinon l'admin reste fermée (503) :
+
+```bash
+cd workers/on-sort
+npx wrangler secret put ADMIN_TOKEN   # coller une longue chaîne aléatoire
+```
+
+Le jeton se colle une fois dans la page (gardé dans le navigateur, bouton
+« Sortir » pour l'effacer). Pour en changer : refaire `secret put`.
+
+**Ce qu'on y fait**
+
+| Onglet | Rôle |
+|--------|------|
+| Sorties | Toutes les sorties des 18 villes pour une date / un âge / un rayon. Filtres ville, département, source, état (dans un top, retenues, écartées, masquées, corrigées, épinglées, manuelles), gratuit, recherche. Fiche : score détaillé par ville ou motif d'exclusion, masquer, épingler, corriger, dupliquer en manuelle. |
+| Top par ville | Le top 5 exact qu'un papa voit, consignes admin comprises. |
+| Sources | OpenAgenda / DATAtourisme / médiathèques : ok ou panne, ville par ville. |
+| Stats | Entonnoir 30 jours, votes piliers, villes demandées. |
+| Journal | Les 300 dernières modifs, chacune annulable. |
+| Villes | Lecture seule (ouvrir une ville = changement de code). |
+
+**Comment ça marche** — les sorties ne sont stockées nulle part : `/top`
+interroge les agendas en direct. Les consignes admin vivent dans le KV `VOTES`
+(`adm:surcouche`, `adm:journal`) et s'appliquent à chaque `/top`, donc aussi à
+l'app et à l'alerte du vendredi. La version de la surcouche entre dans la clé
+de cache : une modif se voit tout de suite (délai de propagation KV ~60 s).
+
+- Une sortie **manuelle** ou **épinglée** passe le filtre « contenu famille »
+  mais reste soumise au jour, à l'âge et au rayon du papa.
+- Une sortie manuelle peut être **récurrente** : plage de dates + jours cochés.
+- Une **correction** tient tant que la source garde le même identifiant.
+
 ## Dev local
 
 ```bash

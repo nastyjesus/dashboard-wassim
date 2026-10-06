@@ -26,6 +26,9 @@
 //   POST /mesure     — incrémente un compteur d'usage (aucun identifiant)
 //   GET  /mesures    — les compteurs par jour (?jours=14)
 //   GET  /desabonnement?jeton= — coupe l'alerte du week-end, sans mot de passe
+//   GET  /admin + /admin/api/* — back-office de Wassim (secret ADMIN_TOKEN,
+//                      voir src/admin/api.js). Ses consignes (sorties masquées,
+//                      corrigées, épinglées, ajoutées) s'appliquent à /top.
 //
 // Et un travail programmé : le vendredi, l'alerte du week-end part par e-mail
 // aux papas qui l'ont demandée (voir src/alerte.js et [triggers] dans
@@ -41,6 +44,8 @@ import { scoreFamille } from './famille.js';
 import { envoyerAlertes, desabonner, pageDesabonnement } from './alerte.js';
 import { MOCK_EVENEMENTS, MOCK_METEO, isMock } from './mocks.js';
 import { villeParNomOuId, villeLaPlusProche } from './villes.js';
+import { lireSurcouche, appliquerSurcouche } from './admin/surcouche.js';
+import { routeAdmin } from './admin/api.js';
 
 const DEFAUTS = {
   lat: 48.1173, lon: -1.6778, // Rennes
@@ -78,10 +83,18 @@ export default {
     }
 
     try {
+      if (path === '/admin' || path.startsWith('/admin/')) {
+        return await routeAdmin(request, env, url, path, {
+          lireParams, chargerSources, mesures, totauxVotes, villesDemandees,
+        });
+      }
       if (path === '/top' && request.method === 'GET') {
         const { villeInconnue } = lireParams(url);
         if (villeInconnue) return jsonResponse({ error: 'ville_inconnue', ville: villeInconnue }, 400, request, env);
-        return await repondreAvecCache(request, env, ctx, () => calculerTop(request, url, env));
+        // Lue avant le cache : sa version entre dans la clé, donc une
+        // modification admin se voit tout de suite au lieu d'attendre 6 h.
+        const surcouche = await lireSurcouche(env);
+        return await repondreAvecCache(request, env, ctx, () => calculerTop(request, url, env, surcouche), surcouche.version);
       }
       if (path === '/diagnostic' && request.method === 'GET') {
         return jsonResponse(await diagnostic(url, env), 200, request, env);
@@ -103,11 +116,7 @@ export default {
       }
       if (path === '/votes' && request.method === 'GET') {
         if (!env.VOTES) return jsonResponse({ error: 'kv_not_bound' }, 503, request, env);
-        const totaux = {};
-        for (const pilier of PILIERS) {
-          totaux[pilier] = (await env.VOTES.list({ prefix: `vote:${pilier}:`, limit: 1000 })).keys.length;
-        }
-        return jsonResponse({ votes: totaux }, 200, request, env);
+        return jsonResponse({ votes: await totauxVotes(env) }, 200, request, env);
       }
       // Demandes de ville : filet de secours quand Supabase n'est pas joignable
       // (l'app écrit normalement dans la table `demandes_ville`). Une clé KV par
@@ -125,16 +134,7 @@ export default {
       }
       if (path === '/ville-demande' && request.method === 'GET') {
         if (!env.VOTES) return jsonResponse({ error: 'kv_not_bound' }, 503, request, env);
-        const { keys } = await env.VOTES.list({ prefix: 'ville:', limit: 1000 });
-        const parVille = new Map();
-        for (const { name } of keys) {
-          const ville = name.split(':')[1] || '';
-          parVille.set(ville, (parVille.get(ville) || 0) + 1);
-        }
-        const demandes = [...parVille.entries()]
-          .map(([ville, total]) => ({ ville, total }))
-          .sort((a, b) => b.total - a.total || a.ville.localeCompare(b.ville));
-        return jsonResponse({ demandes }, 200, request, env);
+        return jsonResponse({ demandes: await villesDemandees(env) }, 200, request, env);
       }
       // Compteurs d'usage. Une clé par jour et par étape, incrémentée en
       // lecture-écriture : KV n'a pas d'incrément atomique, deux écritures
@@ -185,6 +185,28 @@ export default {
     );
   },
 };
+
+/** Totaux « Ça m'intéresse » par pilier. */
+async function totauxVotes(env) {
+  const totaux = {};
+  for (const pilier of PILIERS) {
+    totaux[pilier] = (await env.VOTES.list({ prefix: `vote:${pilier}:`, limit: 1000 })).keys.length;
+  }
+  return totaux;
+}
+
+/** Villes demandées (filet KV), de la plus demandée à la moins demandée. */
+async function villesDemandees(env) {
+  const { keys } = await env.VOTES.list({ prefix: 'ville:', limit: 1000 });
+  const parVille = new Map();
+  for (const { name } of keys) {
+    const ville = name.split(':')[1] || '';
+    parVille.set(ville, (parVille.get(ville) || 0) + 1);
+  }
+  return [...parVille.entries()]
+    .map(([ville, total]) => ({ ville, total }))
+    .sort((a, b) => b.total - a.total || a.ville.localeCompare(b.ville));
+}
 
 /** Jour courant en UTC (YYYY-MM-DD) : la clé de compteur du jour. */
 function jourISO(d = new Date()) {
@@ -295,36 +317,40 @@ function actifCeJour(ev, dateISO) {
   return ev.dateDebut === dateISO;
 }
 
-async function calculerTop(request, url, env) {
-  const p = lireParams(url);
-
-  let evenements;
-  let meteo;
-  const sources = {};
+/**
+ * Interroge les sources (ou les données de démo) pour des paramètres lus par
+ * `lireParams`. Rend les événements actifs ce jour-là, l'état de chaque
+ * source et la météo. Partagé par /top et l'admin.
+ */
+async function chargerSources(env, p) {
   if (isMock(env)) {
-    evenements = MOCK_EVENEMENTS;
-    meteo = MOCK_METEO;
-    sources.mock = { ok: true, count: evenements.length };
-  } else {
-    const [oa, dt, med, prev] = await Promise.all([
-      evenementsOpenAgenda(env, p),
-      evenementsDatatourisme(env, p),
-      evenementsMediathequesLorient(env, p),
-      previsionJour(env, p.lat, p.lon, p.dateISO),
-    ]);
-    meteo = prev;
-    sources.openagenda = { ok: oa.ok, count: oa.evenements.length, ...(oa.erreur ? { erreur: oa.erreur } : {}) };
-    sources.datatourisme = { ok: dt.ok, count: dt.evenements.length, ...(dt.endpoint ? { endpoint: dt.endpoint } : {}), ...(dt.erreur ? { erreur: dt.erreur } : {}) };
-    // Hors de Lorient, la source ne s'interroge pas : on ne l'affiche pas.
-    if (!med.horsZone) {
-      sources.mediatheques_lorient = {
-        ok: med.ok, count: med.evenements.length,
-        ...(med.seancesDuJour !== undefined ? { seancesDuJour: med.seancesDuJour } : {}),
-        ...(med.erreur ? { erreur: med.erreur } : {}),
-      };
-    }
-    evenements = [...oa.evenements, ...dt.evenements, ...med.evenements].filter((ev) => actifCeJour(ev, p.dateISO));
+    return { evenements: MOCK_EVENEMENTS, meteo: MOCK_METEO, sources: { mock: { ok: true, count: MOCK_EVENEMENTS.length } } };
   }
+  const [oa, dt, med, meteo] = await Promise.all([
+    evenementsOpenAgenda(env, p),
+    evenementsDatatourisme(env, p),
+    evenementsMediathequesLorient(env, p),
+    previsionJour(env, p.lat, p.lon, p.dateISO),
+  ]);
+  const sources = {};
+  sources.openagenda = { ok: oa.ok, count: oa.evenements.length, ...(oa.erreur ? { erreur: oa.erreur } : {}) };
+  sources.datatourisme = { ok: dt.ok, count: dt.evenements.length, ...(dt.endpoint ? { endpoint: dt.endpoint } : {}), ...(dt.erreur ? { erreur: dt.erreur } : {}) };
+  // Hors de Lorient, la source ne s'interroge pas : on ne l'affiche pas.
+  if (!med.horsZone) {
+    sources.mediatheques_lorient = {
+      ok: med.ok, count: med.evenements.length,
+      ...(med.seancesDuJour !== undefined ? { seancesDuJour: med.seancesDuJour } : {}),
+      ...(med.erreur ? { erreur: med.erreur } : {}),
+    };
+  }
+  const evenements = [...oa.evenements, ...dt.evenements, ...med.evenements].filter((ev) => actifCeJour(ev, p.dateISO));
+  return { evenements, meteo, sources };
+}
+
+async function calculerTop(request, url, env, surcouche) {
+  const p = lireParams(url);
+  const { evenements: bruts, meteo, sources } = await chargerSources(env, p);
+  const evenements = surcouche ? appliquerSurcouche(bruts, surcouche, p.dateISO) : bruts;
 
   const resultat = top(evenements, { dateISO: p.dateISO, lat: p.lat, lon: p.lon, age: p.age, rayonKm: p.rayonKm, meteo });
   return {
@@ -400,7 +426,7 @@ async function diagnostic(url, env) {
 
 /** Cache HTTP (6 h) sur les réponses live — les sources sont lentes.
  *  `?fresh=1` force le recalcul (un redéploiement ne purge pas le cache). */
-async function repondreAvecCache(request, env, ctx, calcul) {
+async function repondreAvecCache(request, env, ctx, calcul, versionSurcouche = 0) {
   const fresh = new URL(request.url).searchParams.get('fresh') === '1';
   const utilisable = !fresh && !isMock(env) && typeof caches !== 'undefined' && caches.default;
   // Clé versionnée : les entrées d'une version de scoring antérieure ne sont
@@ -408,6 +434,7 @@ async function repondreAvecCache(request, env, ctx, calcul) {
   const urlCle = new URL(request.url);
   urlCle.searchParams.delete('fresh');
   urlCle.searchParams.set('cv', CACHE_VERSION);
+  urlCle.searchParams.set('sv', String(versionSurcouche));
   const cle = new Request(urlCle.toString(), { method: 'GET' });
   if (utilisable) {
     const enCache = await caches.default.match(cle);

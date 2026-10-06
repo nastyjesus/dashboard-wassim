@@ -225,6 +225,8 @@ export function scoreFamille(ev) {
  * (max = null si non borné), ou null si aucune indication.
  */
 export function trancheAge(ev) {
+  // Âge corrigé à la main depuis l'admin : il prime sur la lecture du texte.
+  if (Number.isFinite(ev.ageMin)) return { min: ev.ageMin, max: Number.isFinite(ev.ageMax) ? ev.ageMax : null };
   const texte = normalise([ev.titre, ev.description].join(' '));
   let m;
   // « 6 mois - 3 ans », « de 6 mois à 3 ans », « 18 mois à 4 ans »
@@ -264,6 +266,7 @@ export function trancheAge(ev) {
  * 'interieur' | 'exterieur' | 'inconnu' — sert au score météo.
  */
 export function lieuType(ev) {
+  if (ev.lieuType === 'interieur' || ev.lieuType === 'exterieur') return ev.lieuType; // corrigé à la main
   const texte = normalise([ev.titre, ev.description, ev.lieuNom].join(' '));
   const dedans = compte(texte, INTERIEUR);
   const dehors = compte(texte, EXTERIEUR);
