@@ -59,9 +59,16 @@ export async function lireJournal(env) {
 // ---------------------------------------------------------------------------
 // Validation des saisies
 
-const TEXTES = { titre: 160, description: 2000, horaires: 160, lieuNom: 120, adresse: 200, ville: 80, url: 500 };
+// billetterie, photo (identifiant d'une photo servie par /photos/<id>) et
+// proposePar viennent des propositions d'organisateurs (propositions.js).
+const TEXTES = {
+  titre: 160, description: 2000, horaires: 160, lieuNom: 120, adresse: 200, ville: 80, url: 500,
+  billetterie: 500, photo: 64, proposePar: 120,
+};
+const URLS = ['url', 'billetterie'];
 export const CHAMPS_CORRIGEABLES = [
   ...Object.keys(TEXTES), 'lat', 'lon', 'gratuit', 'dateDebut', 'dateFin', 'ageMin', 'ageMax', 'lieuType',
+  'prixEnfant', 'prixAdulte', 'reservation',
 ];
 const DATE = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -76,8 +83,15 @@ export function nettoyerChamps(brut) {
     if (k in TEXTES) {
       const t = String(v).trim().slice(0, TEXTES[k]);
       if (!t) continue;
-      if (k === 'url' && !/^https?:\/\//i.test(t)) return { erreur: 'url doit commencer par http(s)://' };
+      if (URLS.includes(k) && !/^https?:\/\//i.test(t)) return { erreur: `${k} doit commencer par http(s)://` };
+      if (k === 'photo' && !/^[a-z0-9-]+$/i.test(t)) return { erreur: 'photo : identifiant invalide' };
       champs[k] = t;
+    } else if (k === 'prixEnfant' || k === 'prixAdulte') {
+      const n = Number(String(v).replace(',', '.'));
+      if (!Number.isFinite(n) || n < 0 || n > 500) return { erreur: `${k} : un montant entre 0 et 500 €` };
+      champs[k] = Math.round(n * 100) / 100;
+    } else if (k === 'reservation') {
+      champs[k] = v === true || v === 'true' || v === 'oui';
     } else if (k === 'lat' || k === 'lon') {
       const n = Number(v);
       const max = k === 'lat' ? 90 : 180;
@@ -116,11 +130,27 @@ export function nettoyerManuel(brut) {
   const jours = Array.isArray(brut.jours)
     ? [...new Set(brut.jours.map(Number).filter((j) => Number.isInteger(j) && j >= 0 && j <= 6))].sort()
     : [];
+  // Séances précises (propositions d'organisateurs) : « AAAA-MM-JJTHH:MM »,
+  // au format des créneaux OpenAgenda que lit le scoring horaire.
+  const SEANCE = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/;
+  const creneaux = Array.isArray(brut.creneaux)
+    ? brut.creneaux
+      .filter((c) => c && SEANCE.test(c.debut || ''))
+      .slice(0, 60)
+      .map((c) => ({ debut: c.debut, fin: SEANCE.test(c.fin || '') && c.fin > c.debut ? c.fin : null }))
+    : [];
+  // Dates précises (événement joué certains jours seulement) : la plage seule
+  // le proposerait tous les jours du premier au dernier.
+  const dates = Array.isArray(brut.dates)
+    ? [...new Set(brut.dates.map(String).filter((d) => DATE.test(d)))].sort().slice(0, 60)
+    : [];
   return {
     manuel: {
       ...champs,
       dateFin: champs.dateFin || champs.dateDebut,
       jours, // vide = tous les jours de la plage
+      ...(dates.length ? { dates } : {}),
+      ...(creneaux.length ? { creneaux } : {}),
       villeId: brut.villeId ? String(brut.villeId).slice(0, 40) : null,
     },
   };
@@ -132,6 +162,7 @@ export function nettoyerManuel(brut) {
 /** Une sortie manuelle a-t-elle lieu ce jour-là (plage + jours de la semaine) ? */
 export function manuelActif(m, dateISO) {
   if (!m.dateDebut || dateISO < m.dateDebut || dateISO > (m.dateFin || m.dateDebut)) return false;
+  if (m.dates && m.dates.length) return m.dates.includes(dateISO);
   if (!m.jours || !m.jours.length) return true;
   return m.jours.includes(new Date(`${dateISO}T12:00:00Z`).getUTCDay());
 }
@@ -149,7 +180,7 @@ export function evenementManuel(cle, m) {
     dateDebut: m.dateDebut,
     dateFin: m.dateFin || m.dateDebut,
     horaires: m.horaires || null,
-    creneaux: [],
+    creneaux: m.creneaux || [],
     lieuNom: m.lieuNom || null,
     adresse: m.adresse || null,
     ville: m.ville || null,
@@ -160,6 +191,12 @@ export function evenementManuel(cle, m) {
     ...(Number.isFinite(m.ageMin) ? { ageMin: m.ageMin } : {}),
     ...(Number.isFinite(m.ageMax) ? { ageMax: m.ageMax } : {}),
     ...(m.lieuType ? { lieuType: m.lieuType } : {}),
+    ...(Number.isFinite(m.prixEnfant) ? { prixEnfant: m.prixEnfant } : {}),
+    ...(Number.isFinite(m.prixAdulte) ? { prixAdulte: m.prixAdulte } : {}),
+    ...(m.reservation ? { reservation: true } : {}),
+    ...(m.billetterie ? { billetterie: m.billetterie } : {}),
+    ...(m.photo ? { photo: m.photo } : {}),
+    ...(m.proposePar ? { proposePar: m.proposePar } : {}),
     force: true,
   };
 }

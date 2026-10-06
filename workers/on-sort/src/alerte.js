@@ -189,11 +189,11 @@ async function marquerEnvoye(env, id, jour) {
   });
 }
 
-async function envoyerEmail(env, { to, subject, html, text }) {
+export async function envoyerEmail(env, { to, subject, html, text, replyTo }) {
   const res = await fetch('https://api.resend.com/emails', {
     method: 'POST',
     headers: { Authorization: `Bearer ${env.RESEND_KEY}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ from: EXPEDITEUR, to: [to], subject, html, text }),
+    body: JSON.stringify({ from: EXPEDITEUR, to: [to], subject, html, text, ...(replyTo ? { reply_to: replyTo } : {}) }),
   });
   if (!res.ok) throw new Error(`Resend : ${res.status} ${(await res.text()).slice(0, 120)}`);
   return true;

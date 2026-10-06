@@ -1,0 +1,228 @@
+<!--
+  Formulaire « Proposer une sortie » — bloc à coller tel quel dans une page
+  WordPress (bloc « HTML personnalisé »). Autonome : HTML + CSS + JS, aucun
+  plugin. Il envoie au worker Papa Parfait (POST /propositions), qui valide,
+  géocode, stocke et prévient Wassim. Voir brief-cowork-formulaire.md.
+
+  Ne pas renommer les attributs name="…" : le worker les lit tels quels.
+  L'adresse d'envoi est dans data-api (à passer sur https://app.papaparfait.fr
+  quand le sous-domaine sera en place).
+-->
+<div class="pp-proposer" data-api="https://on-sort-poc.loumiwassim.workers.dev/propositions">
+<style>
+  .pp-proposer{--pp-encre:#1B2430;--pp-ambre:#FF8A00;--pp-alerte:#C2410C;--pp-ok:#2F7D4F;max-width:720px;margin:0 auto;font-size:16px;line-height:1.5;color:var(--pp-encre)}
+  .pp-proposer fieldset{border:2px solid var(--pp-encre);border-radius:10px;padding:16px 20px;margin:0 0 20px}
+  .pp-proposer legend{font-weight:700;padding:0 6px}
+  .pp-proposer label{display:block;margin:12px 0 4px;font-weight:600}
+  .pp-proposer .pp-aide{font-weight:400;font-size:14px;opacity:.8}
+  .pp-proposer input[type=text],.pp-proposer input[type=email],.pp-proposer input[type=tel],.pp-proposer input[type=url],
+  .pp-proposer input[type=date],.pp-proposer input[type=time],.pp-proposer input[type=number],.pp-proposer textarea,.pp-proposer select{
+    width:100%;box-sizing:border-box;padding:10px 12px;border:1.5px solid var(--pp-encre);border-radius:6px;font:inherit;background:#fff}
+  .pp-proposer .pp-ligne{display:flex;gap:12px;flex-wrap:wrap}
+  .pp-proposer .pp-ligne>div{flex:1;min-width:140px}
+  .pp-proposer .pp-choix{display:flex;gap:8px 18px;flex-wrap:wrap;margin-top:6px}
+  .pp-proposer .pp-choix label{display:flex;gap:6px;align-items:center;margin:0;font-weight:400}
+  .pp-proposer .pp-seance{display:flex;gap:8px;align-items:end;flex-wrap:wrap;margin-top:8px}
+  .pp-proposer .pp-seance>div{flex:1;min-width:120px}
+  .pp-proposer button{font:inherit;font-weight:700;border:2px solid var(--pp-encre);border-radius:999px;padding:10px 20px;cursor:pointer;background:#fff;color:var(--pp-encre)}
+  .pp-proposer button.pp-principal{background:var(--pp-ambre)}
+  .pp-proposer button:disabled{opacity:.5;cursor:wait}
+  .pp-proposer .pp-erreur{color:var(--pp-alerte);font-size:14px;margin-top:4px}
+  .pp-proposer .pp-message{border:2px solid var(--pp-encre);border-radius:10px;padding:16px;margin-top:16px}
+  .pp-proposer .pp-message.ok{border-color:var(--pp-ok)}
+  .pp-proposer .pp-message.ko{border-color:var(--pp-alerte)}
+  .pp-proposer .pp-piege{position:absolute;left:-9999px;width:1px;height:1px;overflow:hidden}
+  .pp-proposer [hidden]{display:none!important}
+</style>
+
+<form novalidate>
+  <fieldset>
+    <legend>Votre sortie</legend>
+    <label>C’est…</label>
+    <div class="pp-choix">
+      <label><input type="radio" name="type" value="evenement" checked> Un événement daté (spectacle, atelier, fête…)</label>
+      <label><input type="radio" name="type" value="lieu"> Un lieu ouvert toute l’année (ferme, parc, espace de jeux…)</label>
+    </div>
+    <label for="pp-titre">Titre *</label>
+    <input type="text" id="pp-titre" name="titre" maxlength="160" required>
+    <label for="pp-description">Description * <span class="pp-aide">— ce que vivent les enfants, en quelques phrases</span></label>
+    <textarea id="pp-description" name="description" rows="5" maxlength="2000" required></textarea>
+  </fieldset>
+
+  <fieldset>
+    <legend>Où ?</legend>
+    <label for="pp-lieu">Nom du lieu *</label>
+    <input type="text" id="pp-lieu" name="lieuNom" maxlength="120" required>
+    <label for="pp-adresse">Adresse *</label>
+    <input type="text" id="pp-adresse" name="adresse" maxlength="200" required>
+    <div class="pp-ligne">
+      <div><label for="pp-cp">Code postal *</label><input type="text" id="pp-cp" name="codePostal" inputmode="numeric" maxlength="5" required></div>
+      <div><label for="pp-ville">Ville *</label><input type="text" id="pp-ville" name="ville" maxlength="80" required></div>
+    </div>
+  </fieldset>
+
+  <fieldset data-pour="evenement">
+    <legend>Quand ?</legend>
+    <p class="pp-aide">Ajoutez chaque séance (jusqu’à 30). L’heure aide les papas à savoir si c’est faisable après l’école.</p>
+    <div class="pp-seances"></div>
+    <div class="pp-erreur" data-erreur="date"></div>
+    <p><button type="button" class="pp-ajouter">+ Ajouter une date</button></p>
+  </fieldset>
+
+  <fieldset data-pour="lieu" hidden>
+    <legend>Quand est-ce ouvert ?</legend>
+    <label>Jours d’ouverture *</label>
+    <div class="pp-choix">
+      <label><input type="checkbox" name="jours" value="1"> lun</label>
+      <label><input type="checkbox" name="jours" value="2"> mar</label>
+      <label><input type="checkbox" name="jours" value="3"> mer</label>
+      <label><input type="checkbox" name="jours" value="4"> jeu</label>
+      <label><input type="checkbox" name="jours" value="5"> ven</label>
+      <label><input type="checkbox" name="jours" value="6"> sam</label>
+      <label><input type="checkbox" name="jours" value="0"> dim</label>
+    </div>
+    <div class="pp-erreur" data-erreur="jours"></div>
+    <label for="pp-horaires">Horaires * <span class="pp-aide">— ex. « 10h – 18h »</span></label>
+    <input type="text" id="pp-horaires" name="horaires" maxlength="160">
+    <div class="pp-ligne">
+      <div><label for="pp-pdebut">Ouvert du <span class="pp-aide">(facultatif)</span></label><input type="date" id="pp-pdebut" name="periodeDebut"></div>
+      <div><label for="pp-pfin">au <span class="pp-aide">(facultatif)</span></label><input type="date" id="pp-pfin" name="periodeFin"></div>
+    </div>
+    <div class="pp-erreur" data-erreur="periode"></div>
+  </fieldset>
+
+  <fieldset>
+    <legend>Pour qui, et combien ?</legend>
+    <label>Âges concernés *</label>
+    <div class="pp-choix">
+      <label><input type="checkbox" name="ages" value="0-3"> 0-3 ans</label>
+      <label><input type="checkbox" name="ages" value="3-6"> 3-6 ans</label>
+      <label><input type="checkbox" name="ages" value="6-10"> 6-10 ans</label>
+      <label><input type="checkbox" name="ages" value="10+"> 10 ans et +</label>
+    </div>
+    <div class="pp-erreur" data-erreur="ages"></div>
+    <div class="pp-choix" style="margin-top:12px"><label><input type="checkbox" name="gratuit"> Gratuit</label></div>
+    <div class="pp-ligne">
+      <div><label for="pp-penfant">Prix enfant (€)</label><input type="text" id="pp-penfant" name="prixEnfant" inputmode="decimal" placeholder="ex. 8"></div>
+      <div><label for="pp-padulte">Prix adulte (€)</label><input type="text" id="pp-padulte" name="prixAdulte" inputmode="decimal" placeholder="ex. 12"></div>
+    </div>
+    <div class="pp-choix" style="margin-top:12px"><label><input type="checkbox" name="reservation"> Réservation obligatoire</label></div>
+    <label for="pp-billetterie">Lien de billetterie <span class="pp-aide">(facultatif)</span></label>
+    <input type="url" id="pp-billetterie" name="billetterie" placeholder="https://">
+    <label for="pp-url">Page officielle <span class="pp-aide">(facultatif)</span></label>
+    <input type="url" id="pp-url" name="urlOfficielle" placeholder="https://">
+    <label for="pp-photo">Photo <span class="pp-aide">(facultatif — JPG, PNG ou WEBP, 2 Mo max)</span></label>
+    <input type="file" id="pp-photo" name="photo" accept="image/jpeg,image/png,image/webp">
+  </fieldset>
+
+  <fieldset>
+    <legend>Vous</legend>
+    <label for="pp-organisme">Organisme *</label>
+    <input type="text" id="pp-organisme" name="organisme" maxlength="120" required>
+    <div class="pp-ligne">
+      <div><label for="pp-nom">Votre nom *</label><input type="text" id="pp-nom" name="contactNom" maxlength="80" required></div>
+      <div><label for="pp-tel">Téléphone <span class="pp-aide">(facultatif)</span></label><input type="tel" id="pp-tel" name="telephone" maxlength="30"></div>
+    </div>
+    <label for="pp-email">E-mail * <span class="pp-aide">— pour vous prévenir de la publication</span></label>
+    <input type="email" id="pp-email" name="contactEmail" maxlength="160" required>
+  </fieldset>
+
+  <!-- Champ piège : invisible pour un humain, rempli par les robots. -->
+  <div class="pp-piege" aria-hidden="true"><label>Site web <input type="text" name="site_web" tabindex="-1" autocomplete="off"></label></div>
+
+  <p class="pp-aide">Nous publions les sorties pensées pour les enfants de 0 à 10 ans, dans les villes où Papa Parfait est ouvert. Chaque proposition est relue sous 48 h ; vous recevez un e-mail à la publication. C’est gratuit.</p>
+  <button type="submit" class="pp-principal">Proposer ma sortie</button>
+  <div class="pp-message" hidden></div>
+</form>
+
+<template class="pp-modele-seance">
+  <div class="pp-seance">
+    <div><label>Date</label><input type="date" name="date"></div>
+    <div><label>Début</label><input type="time" name="heureDebut"></div>
+    <div><label>Fin</label><input type="time" name="heureFin"></div>
+    <button type="button" class="pp-retirer" aria-label="Retirer cette date">✕</button>
+  </div>
+</template>
+
+<script>
+(function () {
+  var racine = document.currentScript.closest('.pp-proposer');
+  var form = racine.querySelector('form');
+  var seances = racine.querySelector('.pp-seances');
+  var modele = racine.querySelector('.pp-modele-seance');
+  var message = racine.querySelector('.pp-message');
+
+  function ajouterSeance() {
+    if (seances.children.length >= 30) return;
+    seances.appendChild(modele.content.cloneNode(true));
+  }
+  ajouterSeance();
+  racine.querySelector('.pp-ajouter').addEventListener('click', ajouterSeance);
+  seances.addEventListener('click', function (e) {
+    if (e.target.classList.contains('pp-retirer') && seances.children.length > 1) e.target.closest('.pp-seance').remove();
+  });
+
+  function majType() {
+    var type = form.querySelector('input[name=type]:checked').value;
+    racine.querySelectorAll('[data-pour]').forEach(function (f) { f.hidden = f.getAttribute('data-pour') !== type; });
+  }
+  form.querySelectorAll('input[name=type]').forEach(function (r) { r.addEventListener('change', majType); });
+
+  function afficherErreurs(erreurs) {
+    racine.querySelectorAll('.pp-erreur.pp-auto').forEach(function (e) { e.remove(); });
+    racine.querySelectorAll('[data-erreur]').forEach(function (e) { e.textContent = ''; });
+    var premier = null;
+    Object.keys(erreurs || {}).forEach(function (champ) {
+      var zone = racine.querySelector('[data-erreur="' + champ + '"]');
+      var cible = form.querySelector('[name="' + champ + '"]');
+      if (!zone && cible) {
+        zone = document.createElement('div');
+        zone.className = 'pp-erreur pp-auto';
+        cible.insertAdjacentElement('afterend', zone);
+      }
+      if (zone) { zone.textContent = erreurs[champ]; premier = premier || zone; }
+    });
+    if (premier) premier.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }
+
+  function dire(texte, ok) {
+    message.hidden = false;
+    message.className = 'pp-message ' + (ok ? 'ok' : 'ko');
+    message.textContent = texte;
+  }
+
+  form.addEventListener('submit', function (e) {
+    e.preventDefault();
+    var photo = form.querySelector('[name=photo]').files[0];
+    if (photo && photo.size > 2 * 1024 * 1024) { afficherErreurs({ photo: 'Photo de 2 Mo maximum.' }); return; }
+    var bouton = form.querySelector('button[type=submit]');
+    bouton.disabled = true;
+    message.hidden = true;
+    var donnees = new FormData(form);
+    // Les champs de la partie masquée (événement / lieu) ne sont pas envoyés.
+    var type = donnees.get('type');
+    if (type === 'lieu') { ['date', 'heureDebut', 'heureFin'].forEach(function (k) { donnees.delete(k); }); }
+    else { ['jours', 'horaires', 'periodeDebut', 'periodeFin'].forEach(function (k) { donnees.delete(k); }); }
+    fetch(racine.getAttribute('data-api'), { method: 'POST', body: donnees })
+      .then(function (r) { return r.json().catch(function () { return {}; }); })
+      .then(function (r) {
+        bouton.disabled = false;
+        if (r.ok) {
+          afficherErreurs({});
+          form.reset(); seances.innerHTML = ''; ajouterSeance(); majType();
+          dire('Merci ! Votre sortie est bien reçue. Nous la relisons sous 48 h et vous écrivons dès qu’elle est en ligne.', true);
+        } else if (r.erreurs) {
+          afficherErreurs(r.erreurs);
+          dire('Quelques champs sont à corriger, ils sont signalés en rouge.', false);
+        } else {
+          dire(r.message || 'L’envoi n’a pas abouti. Réessayez dans un instant, ou écrivez-nous à contact@papaparfait.fr.', false);
+        }
+      })
+      .catch(function () {
+        bouton.disabled = false;
+        dire('L’envoi n’a pas abouti (connexion ?). Réessayez dans un instant, ou écrivez-nous à contact@papaparfait.fr.', false);
+      });
+  });
+})();
+</script>
+</div>

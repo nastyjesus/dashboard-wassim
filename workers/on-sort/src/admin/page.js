@@ -211,7 +211,7 @@ const PAGE = String.raw`<!doctype html>
   };
   var ONGLETS = [
     ['sorties', 'Sorties'], ['top', 'Top par ville'], ['sources', 'Sources'],
-    ['stats', 'Stats'], ['journal', 'Journal'], ['villes', 'Villes']
+    ['propositions', 'Propositions'], ['stats', 'Stats'], ['journal', 'Journal'], ['villes', 'Villes']
   ];
 
   function $(id) { return document.getElementById(id); }
@@ -250,6 +250,7 @@ const PAGE = String.raw`<!doctype html>
     erreurs: {},       // id ville -> message
     surcouche: null,
     journal: [],
+    propositions: [],
     stats: null,
     onglet: relire('adm-onglet') || 'sorties',
     filtres: { q: '', ville: '', dept: '', source: '', etat: '', gratuit: false, tri: 'score' },
@@ -319,8 +320,8 @@ const PAGE = String.raw`<!doctype html>
   }
 
   function chargerSurcouche() {
-    return Promise.all([api('surcouche'), api('journal')]).then(function (r) {
-      etat.surcouche = r[0].surcouche; etat.journal = r[1].journal;
+    return Promise.all([api('surcouche'), api('journal'), api('propositions')]).then(function (r) {
+      etat.surcouche = r[0].surcouche; etat.journal = r[1].journal; etat.propositions = r[2].propositions || [];
     });
   }
 
@@ -421,10 +422,12 @@ const PAGE = String.raw`<!doctype html>
     var nav = $('onglets');
     var nbJournal = etat.journal.length;
     nav.innerHTML = ONGLETS.map(function (o) {
-      var n = o[0] === 'journal' && nbJournal ? '<span class="n">' + nbJournal + '</span>' : '';
+      var nbAttente = etat.propositions.filter(function (p) { return p.statut === 'attente'; }).length;
+      var n = o[0] === 'journal' && nbJournal ? '<span class="n">' + nbJournal + '</span>'
+        : o[0] === 'propositions' && nbAttente ? ' <span class="tag epingle">' + nbAttente + '</span>' : '';
       return '<button role="tab" data-onglet="' + o[0] + '" aria-selected="' + (etat.onglet === o[0]) + '">' + esc(o[1]) + n + '</button>';
     }).join('');
-    var vues = { sorties: vueSorties, top: vueTop, sources: vueSources, stats: vueStats, journal: vueJournal, villes: vueVilles };
+    var vues = { sorties: vueSorties, top: vueTop, sources: vueSources, propositions: vuePropositions, stats: vueStats, journal: vueJournal, villes: vueVilles };
     vues[etat.onglet]();
     if (etat.ficheCle) rendreFiche();
   }
@@ -610,6 +613,67 @@ const PAGE = String.raw`<!doctype html>
       html += '</tbody></table>';
     }
     $('vue').innerHTML = html + '</div>';
+  }
+
+  // Propositions des organisateurs (formulaire du site). Valider crée une
+  // sortie manuelle (scorée comme les autres) et prévient l'organisateur.
+  var TRANCHES = { '0-3': '0-3 ans', '3-6': '3-6 ans', '6-10': '6-10 ans', '10+': '10 ans et +' };
+  var JOURS = ['dim', 'lun', 'mar', 'mer', 'jeu', 'ven', 'sam'];
+  function quandProposition(p) {
+    if (p.type === 'lieu') {
+      return 'Lieu permanent · ' + p.jours.map(function (j) { return JOURS[j]; }).join(', ') + ' · ' + p.horaires
+        + ' · du ' + p.periodeDebut + ' au ' + p.periodeFin;
+    }
+    return p.seances.map(function (s) { return s.date + (s.debut ? ' ' + s.debut + (s.fin ? '–' + s.fin : '') : ''); }).join(' · ');
+  }
+  function vuePropositions() {
+    var html = '<h2>Propositions des organisateurs</h2><p class="texte">Envoyées depuis le formulaire du site. <b>Valider</b> publie la sortie (scorée comme les autres, sans bonus) et prévient l’organisateur ; <b>Refuser</b> le prévient aussi, avec ton motif. Titre, prix et description sont modifiables avant de valider.</p>';
+    if (!etat.propositions.length) { $('vue').innerHTML = html + '<div class="panneau vide">Aucune proposition pour l’instant.</div>'; return; }
+    etat.propositions.forEach(function (p) {
+      var attente = p.statut === 'attente';
+      var tarif = p.gratuit ? 'Gratuit' : [p.prixEnfant != null ? 'enfant ' + p.prixEnfant + ' €' : '', p.prixAdulte != null ? 'adulte ' + p.prixAdulte + ' €' : ''].filter(Boolean).join(' · ');
+      html += '<div class="panneau" style="margin-bottom:12px" data-proposition="' + esc(p.id) + '">'
+        + '<div style="display:flex;gap:16px;flex-wrap:wrap">'
+        + (p.photo ? '<img src="/photos/' + esc(p.photo) + '" alt="" style="width:140px;height:140px;object-fit:cover;border:2px solid var(--encre);border-radius:6px">' : '')
+        + '<div style="flex:1;min-width:260px">'
+        + '<div>' + (attente ? '<span class="tag epingle">En attente</span>' : p.statut === 'publiee' ? '<span class="tag ok">Publiée</span>' : '<span class="tag ko">Refusée</span>')
+        + ' <span class="tag leger">' + (p.type === 'lieu' ? 'Lieu' : 'Événement') + '</span> <span class="aide">reçue le ' + esc(dateFr(p.recueLe)) + '</span></div>'
+        + (attente ? '<p><input class="p-titre" value="' + esc(p.titre) + '" style="width:100%;font-weight:700"></p>' : '<h3>' + esc(p.titre) + '</h3>')
+        + '<p class="aide">' + esc(p.lieuNom) + ' — ' + esc(p.adresse) + ', ' + esc(p.codePostal) + ' ' + esc(p.ville) + '</p>'
+        + '<p><b>Quand :</b> ' + esc(quandProposition(p)) + '</p>'
+        + '<p><b>Âges :</b> ' + esc(p.tranches.map(function (t) { return TRANCHES[t] || t; }).join(', '))
+        + ' · <b>Tarif :</b> ' + (attente
+          ? 'enfant <input class="p-prixEnfant" size="4" value="' + esc(p.prixEnfant == null ? '' : p.prixEnfant) + '"> € · adulte <input class="p-prixAdulte" size="4" value="' + esc(p.prixAdulte == null ? '' : p.prixAdulte) + '"> €' + (p.gratuit ? ' (gratuit coché)' : '')
+          : esc(tarif))
+        + (p.reservation ? ' · <b>réservation obligatoire</b>' : '') + '</p>'
+        + (p.billetterie ? '<p class="aide">Billetterie : <a href="' + esc(p.billetterie) + '" target="_blank" rel="noopener">' + esc(p.billetterie) + '</a></p>' : '')
+        + (p.urlOfficielle ? '<p class="aide">Page officielle : <a href="' + esc(p.urlOfficielle) + '" target="_blank" rel="noopener">' + esc(p.urlOfficielle) + '</a></p>' : '')
+        + '<p class="aide">Proposé par <b>' + esc(p.organisme) + '</b> — ' + esc(p.contactNom) + ', <a href="mailto:' + esc(p.contactEmail) + '">' + esc(p.contactEmail) + '</a>' + (p.telephone ? ', ' + esc(p.telephone) : '') + '</p>'
+        + '</div></div>'
+        + (attente ? '<textarea class="p-description" rows="5" style="width:100%;margin-top:8px">' + esc(p.description) + '</textarea>'
+          : '<p class="desc">' + esc(p.description) + '</p>')
+        + (p.motif ? '<p class="aide">Motif du refus : ' + esc(p.motif) + '</p>' : '')
+        + (attente ? '<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:8px">'
+          + '<button class="btn primaire" data-valider="' + esc(p.id) + '">Valider et publier</button>'
+          + '<input class="p-motif" placeholder="Motif du refus (envoyé à l’organisateur)" style="flex:1;min-width:220px">'
+          + '<button class="btn danger" data-refuser="' + esc(p.id) + '">Refuser</button></div>' : '')
+        + '</div>';
+    });
+    $('vue').innerHTML = html;
+  }
+  function deciderProposition(id, action, bouton) {
+    var bloc = document.querySelector('[data-proposition="' + id + '"]');
+    var lire = function (c) { var el = bloc.querySelector('.' + c); return el ? el.value.trim() : ''; };
+    var champs = { titre: lire('p-titre'), description: lire('p-description') };
+    ['prixEnfant', 'prixAdulte'].forEach(function (k) {
+      var v = lire('p-' + k).replace(',', '.');
+      champs[k] = v === '' ? null : Number(v);
+    });
+    bouton.disabled = true;
+    api('propositions', { corps: { id: id, action: action, motif: lire('p-motif'), champs: champs } }).then(function () {
+      toast(action === 'valider' ? 'Publiée — l’organisateur est prévenu.' : 'Refusée — l’organisateur est prévenu.');
+      return chargerSurcouche().then(function () { rendre(); return chargerTout(); });
+    }).catch(function (err) { bouton.disabled = false; toast(err.message); });
   }
 
   function vueVilles() {
@@ -816,6 +880,10 @@ const PAGE = String.raw`<!doctype html>
   document.addEventListener('click', function (e) {
     var onglet = e.target.closest('[data-onglet]');
     if (onglet) { etat.onglet = onglet.getAttribute('data-onglet'); stocker('adm-onglet', etat.onglet); rendre(); return; }
+    var valider = e.target.closest('[data-valider]');
+    if (valider) { deciderProposition(valider.getAttribute('data-valider'), 'valider', valider); return; }
+    var refuser = e.target.closest('[data-refuser]');
+    if (refuser) { deciderProposition(refuser.getAttribute('data-refuser'), 'refuser', refuser); return; }
     var annuler = e.target.closest('[data-annuler]');
     if (annuler) { annuler.disabled = true; agir({ type: 'annuler', journalId: annuler.getAttribute('data-annuler') }, null).catch(function () { annuler.disabled = false; }); return; }
     var ville = e.target.closest('[data-ville]');

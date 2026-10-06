@@ -2,11 +2,12 @@
 // puis les actions : voir l'événement, partager, y aller.
 
 import { useState } from 'react';
-import { Linking, Pressable, ScrollView, Share, StyleSheet, Text, View } from 'react-native';
+import { Image, Linking, Pressable, ScrollView, Share, StyleSheet, Text, View } from 'react-native';
 import { couleurs, espace, rayon, police, typo, cadre } from '../theme.js';
 import { Pastille, Bouton, Section } from '../components/ui.js';
 import { LIEN_APP } from '../config.js';
 import { mentionSource } from '../mention.js';
+import { tarif } from '../tarif.js';
 
 function messagePartage(ev) {
   const lignes = [`🎈 ${ev.titre}`];
@@ -98,6 +99,10 @@ export function Detail({ ev, onRetour, gardee, onGarder }) {
         <Text style={styles.retourTexte}>‹ RETOUR</Text>
       </Pressable>
 
+      {!!ev.photoUrl && (
+        <Image source={{ uri: ev.photoUrl }} style={styles.photo} resizeMode="cover" accessibilityIgnoresInvertColors />
+      )}
+
       <Text style={styles.titre}>{ev.titre}</Text>
 
       <View style={styles.raisons}>
@@ -110,6 +115,8 @@ export function Detail({ ev, onRetour, gardee, onGarder }) {
         {!!ev.lieuNom && !!ev.adresse && <Ligne icone=" " texte={ev.adresse} />}
         <Ligne icone="🕐" texte={ev.horaires} />
         <Ligne icone="🎂" texte={age} />
+        <Ligne icone="💶" texte={tarif(ev)} />
+        <Ligne icone="🎟️" texte={ev.reservation ? 'Réservation obligatoire' : null} />
         <Ligne
           icone="🚗"
           texte={ev.distanceKm !== null && ev.distanceKm !== undefined ? `à ${ev.distanceKm} km` : null}
@@ -118,9 +125,18 @@ export function Detail({ ev, onRetour, gardee, onGarder }) {
 
       {!!ev.description && <Description texte={ev.description} />}
       {!!mentionSource(ev) && <Text style={styles.mention}>{mentionSource(ev)}</Text>}
+      {!!ev.proposePar && <Text style={styles.mention}>Proposé par {ev.proposePar}</Text>}
 
       <View style={styles.actions}>
-        {!!ev.url && <Bouton label="Voir l'événement" onPress={() => Linking.openURL(ev.url)} />}
+        {/* Un seul bouton ambre : la billetterie quand il faut réserver. */}
+        {!!ev.billetterie && <Bouton label="Réserver 🎟️" onPress={() => Linking.openURL(ev.billetterie)} />}
+        {!!ev.url && ev.url !== ev.billetterie && (
+          <Bouton
+            variante={ev.billetterie ? 'secondaire' : undefined}
+            label="Voir l'événement"
+            onPress={() => Linking.openURL(ev.url)}
+          />
+        )}
         {!!onGarder && (
           <Bouton
             variante="secondaire"
@@ -140,6 +156,8 @@ const styles = StyleSheet.create({
   contenu: { padding: espace.xl, paddingTop: 56, paddingBottom: espace.xxl },
   retour: { marginBottom: espace.l },
   retourTexte: { color: couleurs.encre, fontSize: 14, letterSpacing: 0.5, fontFamily: police.corpsFort },
+  // Hublot cadré (charte §4) : encre 2px, rayon s, recadré.
+  photo: { width: '100%', height: 200, borderRadius: rayon.s, marginBottom: espace.l, backgroundColor: couleurs.panneau, ...cadre },
   titre: { ...typo.displayL, color: couleurs.encre, fontFamily: police.display },
   raisons: { flexDirection: 'row', flexWrap: 'wrap', marginTop: espace.l },
   bloc: { backgroundColor: couleurs.panneau, borderRadius: rayon.m, padding: espace.l, ...cadre },

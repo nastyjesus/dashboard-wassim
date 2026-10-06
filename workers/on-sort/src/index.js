@@ -21,6 +21,8 @@
 //                      part d'événements « famille », échantillons, verdict.
 //   POST /votes      — vote « Ça m'intéresse » d'un pilier en teaser
 //   GET  /votes      — les totaux par pilier
+//   POST /propositions — un organisateur propose une sortie (src/propositions.js)
+//   GET  /photos/<id>  — photo d'une proposition
 //   POST /ville-demande — demande d'ajout d'une ville (filet si Supabase KO)
 //   GET  /ville-demande — les villes demandées, triées par fréquence
 //   POST /mesure     — incrémente un compteur d'usage (aucun identifiant)
@@ -49,6 +51,7 @@ import { envoyerAlertes, desabonner, pageDesabonnement } from './alerte.js';
 import { MOCK_EVENEMENTS, MOCK_METEO, isMock } from './mocks.js';
 import { villeParNomOuId, villeLaPlusProche } from './villes.js';
 import { pourAffichage } from './texte.js';
+import { recevoirProposition, servirPhoto } from './propositions.js';
 import { lireSurcouche, appliquerSurcouche } from './admin/surcouche.js';
 import { routeAdmin } from './admin/api.js';
 
@@ -105,6 +108,15 @@ export default {
       }
       if (path === '/diagnostic' && request.method === 'GET') {
         return jsonResponse(await diagnostic(url, env), 200, request, env);
+      }
+      // Propositions de sorties par les organisateurs (formulaire du site
+      // WordPress) et leurs photos — voir src/propositions.js.
+      if (path === '/propositions' && request.method === 'POST') {
+        const { status, corps } = await recevoirProposition(request, env, ctx);
+        return jsonResponse(corps, status, request, env);
+      }
+      if (path.startsWith('/photos/') && request.method === 'GET') {
+        return (await servirPhoto(env, path.slice('/photos/'.length))) || jsonResponse({ error: 'not_found' }, 404, request, env);
       }
       // Votes « Ça m'intéresse » des piliers en teaser (Couple/Moi/Tribu) :
       // une clé KV par appareil et par pilier — idempotent, comptage par
@@ -378,7 +390,9 @@ async function calculerTop(request, url, env, surcouche) {
   const resultat = top(evenements, { dateISO: p.dateISO, lat: p.lat, lon: p.lon, age: p.age, rayonKm: p.rayonKm, meteo });
   // Les sorties du top portent leur texte complet (la fiche) ; le scoring
   // n'en a lu que l'extrait (texte.js).
-  const selection = resultat.top.map(pourAffichage);
+  // Photo d'une sortie proposée : l'app reçoit l'adresse complète.
+  const selection = resultat.top.map(pourAffichage)
+    .map((ev) => (ev.photo ? { ...ev, photoUrl: `${url.origin}/photos/${ev.photo}` } : ev));
   return {
     mock: isMock(env),
     date: p.dateISO,

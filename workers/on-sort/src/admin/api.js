@@ -11,6 +11,8 @@
 //   GET  /admin/api/stats      usage (?jours=30), votes, villes demandées
 //   GET  /admin/api/cirques    état des tournées de cirques (dernière lecture)
 //   POST /admin/api/cirques    relit les sites des cirques tout de suite
+//   GET  /admin/api/propositions   propositions des organisateurs (en attente d'abord)
+//   POST /admin/api/propositions   {id, action: valider|refuser, motif?, champs?}
 //
 // Accès : en-tête `Authorization: Bearer <ADMIN_TOKEN>`. ADMIN_TOKEN est un
 // secret Cloudflare (`npx wrangler secret put ADMIN_TOKEN`). Sans lui,
@@ -24,6 +26,7 @@ import {
 } from './surcouche.js';
 import { pageAdmin } from './page.js';
 import { actualiserTournees, etatTournees } from '../sources/cirques.js';
+import { listerPropositions, deciderProposition } from '../propositions.js';
 
 /** Comparaison à temps constant : la durée ne trahit pas la longueur commune. */
 function memeSecret(a, b) {
@@ -96,6 +99,19 @@ export async function routeAdmin(request, env, url, path, deps) {
 
   // Tournées des cirques : état de la dernière lecture (GET) ou relecture
   // immédiate sans attendre le cron du matin (POST).
+  // Propositions des organisateurs : la file, et la décision (valider crée la
+  // sortie manuelle et prévient l'organisateur ; refuser le prévient aussi).
+  if (path === '/admin/api/propositions' && request.method === 'GET') {
+    return rep({ propositions: await listerPropositions(env) });
+  }
+  if (path === '/admin/api/propositions' && request.method === 'POST') {
+    const corps = await request.json().catch(() => null);
+    if (!corps || !corps.id) return rep({ error: 'bad_request' }, 400);
+    const r = await deciderProposition(env, corps);
+    if (r.erreur) return rep({ error: 'bad_request', message: r.erreur }, 400);
+    return rep(r);
+  }
+
   if (path === '/admin/api/cirques' && request.method === 'GET') {
     return rep(await etatTournees(env));
   }

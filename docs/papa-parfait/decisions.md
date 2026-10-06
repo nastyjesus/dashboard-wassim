@@ -76,6 +76,19 @@ excellente sur 1. Les votes nous diront quel pilier construire en priorité.
   événements par date de début croissante, et à Paris des séries ouvertes en
   2020 prenaient toutes les places — rien de ce qui commençait après le
   15 septembre n'était vu. On lit maintenant les plus récents d'abord.
+- **Les organisateurs proposent leurs sorties** (décidé le 6 octobre 2026,
+  après l'analyse du concurrent rennesenfamille.fr : 14 de ses 19 sorties d'un
+  samedi sont hors open data). Formulaire sur le site WordPress (Cowork, voir
+  `brief-cowork-formulaire.md`), envoi au worker (`src/propositions.js`).
+  Événements datés et lieux permanents, 0-10 ans, villes ouvertes seulement ;
+  prix enfant/adulte, âge, réservation, billetterie, photo (2 Mo, KV).
+  Validation par Wassim dans l'admin (onglet Propositions), e-mail à
+  contact@papaparfait.fr ; l'organisateur reçoit un accusé puis la décision,
+  et il est crédité « Proposé par … » sur la fiche. **Aucun bonus de
+  classement** : le public enfant déclaré vaut « pensé pour les enfants »,
+  comme un « jeune public » lu dans un agenda, rien de plus. Le prix est
+  affiché, il ne pèse pas encore dans le GO. Photo : fiche + panneau GO
+  (charte §4).
 - **Sources de l'exceptionnel** :
   - *En place le 6 octobre 2026* : types DATAtourisme (`CircusEvent`,
     `Carnival`, `Parade`, `Festival`) ; **tournées des cirques** Pinder,

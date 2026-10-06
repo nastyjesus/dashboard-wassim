@@ -105,6 +105,12 @@ On les réserve donc aux vrais libellés d'instrument et de section. On n'empile
 - Tags / pastilles (« 3-5 ans », « Gratuit », « À l'abri ») : pilule, contour
   encre 1.5px, fond transparent ou `panneau`. Le tag « à l'abri » peut prendre
   le vert `reussite`.
+- **Photos** (ajouté le 6 octobre 2026, photos envoyées par les organisateurs) :
+  une photo est un **hublot cadré** — bordure encre 2px, rayon `s`, recadrée en
+  `cover`, jamais d'arrondi fort ni d'ombre. Sur la fiche : pleine largeur, 200 px
+  de haut, sous « Retour ». Sur le panneau GO : pleine largeur, 150 px, entre
+  le statut et le titre. **Jamais** sur les cartes numérotées (2 à 5) : elles
+  restent des lignes d'instrument homogènes. Pas de photo = pas d'espace réservé.
 
 ---
 

@@ -67,13 +67,17 @@ export function scorer(ev, ctx) {
 export function evaluer(ev, ctx) {
   const force = ev.force === true;
   const analyse = analyseFamille(ev);
-  const { specifique } = analyse;
   if (analyse.score < 0 && !force) return { exclu: 'anti-famille' }; // signal explicitement anti-famille
   // Un cirque ou des manèges n'ont pas besoin d'écrire « en famille » pour
   // être une sortie d'enfant : le genre vaut un public nommé (« Ouvert aux
   // enfants », pas « Pensé pour » — rien ne le prouve pour un tout-petit).
   const ex = exceptionnel(ev);
-  const famille = ex?.enfant ? Math.max(analyse.score, 2) : analyse.score;
+  // Proposée par un organisateur avec des tranches d'âge cochées (0-10 ans
+  // exigé par le formulaire) : le public enfant est déclaré, pas deviné. C'est
+  // ce que l'on déduit d'un « jeune public » dans un agenda — pas un bonus.
+  const declaree = Boolean(ev.proposePar) && Number.isFinite(ev.ageMin);
+  const specifique = analyse.specifique || declaree;
+  const famille = ex?.enfant || declaree ? Math.max(analyse.score, 2) : analyse.score;
 
   // Récurrent un autre jour (« les dimanches » un samedi) : hors-jeu.
   if (!jourCompatible(ev, ctx.dateISO)) return { exclu: 'jour-incompatible' };

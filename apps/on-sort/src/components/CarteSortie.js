@@ -2,7 +2,7 @@
 // Préférée = panneau GO ambre (relief plein). Les autres = panneaux blancs
 // numérotés (le rang du classement). Raisons = pastilles cadrées à l'encre.
 
-import { Pressable, Text, View, StyleSheet } from 'react-native';
+import { Image, Pressable, Text, View, StyleSheet } from 'react-native';
 import { couleurs, espace, rayon, police, typo, cadre, ombre } from '../theme.js';
 import { Pastille } from './ui.js';
 import { mentionSource } from '../mention.js';
@@ -43,6 +43,10 @@ export function CarteSortie({ ev, rang, preferee, onPress, gardee, onGarder }) {
             <Text style={styles.goChevron}>›</Text>
           </View>
         </View>
+        {/* Photo (sorties proposées par les organisateurs) : hublot cadré, GO seulement (charte §4). */}
+        {!!ev.photoUrl && (
+          <Image source={{ uri: ev.photoUrl }} style={styles.goPhoto} resizeMode="cover" accessibilityIgnoresInvertColors />
+        )}
         <Text style={styles.goTitre} numberOfLines={3}>{ev.titre}</Text>
         {!!sousTitre(ev) && <Text style={styles.goSous}>{sousTitre(ev)}</Text>}
         {!!ev.horaires && <Text style={styles.goSous} numberOfLines={1}>🕐 {ev.horaires}</Text>}
@@ -87,6 +91,7 @@ const styles = StyleSheet.create({
   goActions: { flexDirection: 'row', alignItems: 'center', gap: espace.m },
   goStatut: { ...typo.instrument, color: couleurs.encre, fontFamily: police.corpsFort, textTransform: 'uppercase' },
   goChevron: { fontSize: 26, color: couleurs.encre, lineHeight: 26 },
+  goPhoto: { width: '100%', height: 150, borderRadius: rayon.s, marginTop: espace.m, backgroundColor: couleurs.panneau, ...cadre },
   goTitre: { ...typo.displayL, color: couleurs.encre, fontFamily: police.display, marginTop: espace.s },
   goSous: { color: couleurs.encre, fontSize: 14, marginTop: espace.xs, fontFamily: police.corps },
   // Mention de licence : texte sur ambre = encre (charte §2), en petit.
