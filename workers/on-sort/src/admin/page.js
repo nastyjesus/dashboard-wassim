@@ -211,7 +211,7 @@ const PAGE = String.raw`<!doctype html>
   };
   var ONGLETS = [
     ['sorties', 'Sorties'], ['top', 'Top par ville'], ['sources', 'Sources'],
-    ['propositions', 'Propositions'], ['stats', 'Stats'], ['journal', 'Journal'], ['villes', 'Villes']
+    ['propositions', 'Propositions'], ['prospection', 'Prospection'], ['stats', 'Stats'], ['journal', 'Journal'], ['villes', 'Villes']
   ];
 
   function $(id) { return document.getElementById(id); }
@@ -251,6 +251,8 @@ const PAGE = String.raw`<!doctype html>
     surcouche: null,
     journal: [],
     propositions: [],
+    prospection: null,
+    filtresProspect: { ville: '', type: '', statut: '', q: '' },
     stats: null,
     onglet: relire('adm-onglet') || 'sorties',
     filtres: { q: '', ville: '', dept: '', source: '', etat: '', gratuit: false, tri: 'score' },
@@ -320,7 +322,7 @@ const PAGE = String.raw`<!doctype html>
   }
 
   function chargerSurcouche() {
-    return Promise.all([api('surcouche'), api('journal'), api('propositions')]).then(function (r) {
+    return Promise.all([api('surcouche'), api('journal'), api('propositions'), chargerProspection()]).then(function (r) {
       etat.surcouche = r[0].surcouche; etat.journal = r[1].journal; etat.propositions = r[2].propositions || [];
     });
   }
@@ -427,7 +429,7 @@ const PAGE = String.raw`<!doctype html>
         : o[0] === 'propositions' && nbAttente ? ' <span class="tag epingle">' + nbAttente + '</span>' : '';
       return '<button role="tab" data-onglet="' + o[0] + '" aria-selected="' + (etat.onglet === o[0]) + '">' + esc(o[1]) + n + '</button>';
     }).join('');
-    var vues = { sorties: vueSorties, top: vueTop, sources: vueSources, propositions: vuePropositions, stats: vueStats, journal: vueJournal, villes: vueVilles };
+    var vues = { sorties: vueSorties, top: vueTop, sources: vueSources, propositions: vuePropositions, prospection: vueProspection, stats: vueStats, journal: vueJournal, villes: vueVilles };
     vues[etat.onglet]();
     if (etat.ficheCle) rendreFiche();
   }
@@ -676,6 +678,102 @@ const PAGE = String.raw`<!doctype html>
     }).catch(function (err) { bouton.disabled = false; toast(err.message); });
   }
 
+  // Prospection : les lieux invités à proposer leurs sorties. Wassim envoie
+  // à la main depuis contact@ (pas d'envoi automatique : délivrabilité).
+  var STATUTS_PROSPECT = [
+    ['a-contacter', 'À contacter'], ['contacte', 'Contacté'], ['relance', 'Relancé'],
+    ['a-propose', 'A proposé'], ['refus', 'Pas intéressé'], ['injoignable', 'Injoignable']
+  ];
+  var TYPES_PROSPECT = { spectacle: 'Spectacle jeune public', loisirs: 'Loisirs', musee: 'Musée / sciences', cinema: 'Cinéma' };
+  var LIEN_FORMULAIRE = 'https://papaparfait.fr/proposer-une-sortie/';
+  var RELANCE_JOURS = 7;
+  var PHRASES_TYPE = {
+    spectacle: 'vos spectacles jeune public',
+    loisirs: 'votre lieu et ses animations pour les enfants',
+    musee: 'vos ateliers et visites en famille',
+    cinema: 'vos séances pour les enfants'
+  };
+  function nomVille(id) { var v = etat.villes.filter(function (x) { return x.id === id; })[0]; return v ? v.nom : id; }
+  function emailProspect(l) {
+    var ville = nomVille(l.ville);
+    return {
+      sujet: 'Faire connaître ' + PHRASES_TYPE[l.type] + ' aux papas de ' + ville,
+      corps: 'Bonjour,\n\n'
+        + 'Je m’appelle Wassim, je développe Papa Parfait, une application qui aide les papas à choisir en quelques secondes la meilleure sortie du jour avec leur enfant de 0 à 10 ans, selon son âge, l’heure et la météo. Elle est ouverte à ' + ville + '.\n\n'
+        + 'J’aimerais y faire apparaître ' + PHRASES_TYPE[l.type] + ' (' + l.nom + ') : beaucoup de lieux comme le vôtre ne figurent dans aucun agenda public, et ce sont souvent les sorties que les parents cherchent.\n\n'
+        + 'C’est gratuit et ça prend trois minutes : ' + LIEN_FORMULAIRE + '\n'
+        + 'Prix, âges, horaires, photo : vous gardez la main sur ce qui est affiché, et votre lieu est crédité sur la fiche.\n\n'
+        + 'Je reste disponible si vous avez la moindre question.\n\n'
+        + 'Bonne journée,\nWassim — Papa Parfait\ncontact@papaparfait.fr'
+    };
+  }
+  function aRelancer(l) {
+    return l.statut === 'contacte' && l.contacteLe && (Date.now() - new Date(l.contacteLe).getTime()) > RELANCE_JOURS * 86400000;
+  }
+  function vueProspection() {
+    var doc = etat.prospection;
+    var html = '<h2>Prospection des lieux</h2><p class="texte">Lieux à inviter à proposer leurs sorties (formulaire du site). <b>Écrire</b> ouvre ta messagerie avec l’e-mail prérempli — envoie depuis contact@papaparfait.fr — puis passe le lieu en « Contacté ». Un lieu qui envoie une proposition passe tout seul en « A proposé ».</p>';
+    if (!doc) { $('vue').innerHTML = html + '<div class="panneau vide">Chargement…</div>'; return; }
+    if (!doc.lieux.length) { $('vue').innerHTML = html + '<div class="panneau vide">Aucun lieu pour l’instant.</div>'; return; }
+    var f = etat.filtresProspect;
+    var compte = {};
+    doc.lieux.forEach(function (l) { compte[l.statut] = (compte[l.statut] || 0) + 1; });
+    var nbRelance = doc.lieux.filter(aRelancer).length;
+    html += '<div class="panneau" style="margin-bottom:12px;display:flex;gap:8px;flex-wrap:wrap">'
+      + STATUTS_PROSPECT.map(function (s) { return '<span class="tag' + (s[0] === 'a-propose' ? ' ok' : '') + '">' + esc(s[1]) + ' : ' + (compte[s[0]] || 0) + '</span>'; }).join(' ')
+      + (nbRelance ? ' <span class="tag epingle">À relancer : ' + nbRelance + '</span>' : '') + '</div>';
+    html += '<div class="filtres">'
+      + '<label><span class="instr">Recherche</span><input type="search" id="pq" value="' + esc(f.q) + '" placeholder="Nom, commune…"></label>'
+      + '<label><span class="instr">Ville</span><select id="pville">' + optionsVilles(f.ville, true) + '</select></label>'
+      + '<label><span class="instr">Type</span><select id="ptype"><option value="">Tous</option>' + Object.keys(TYPES_PROSPECT).map(function (t) {
+        return '<option value="' + t + '"' + (f.type === t ? ' selected' : '') + '>' + esc(TYPES_PROSPECT[t]) + '</option>';
+      }).join('') + '</select></label>'
+      + '<label><span class="instr">Statut</span><select id="pstatut"><option value="">Tous</option><option value="relancer"' + (f.statut === 'relancer' ? ' selected' : '') + '>À relancer</option>' + STATUTS_PROSPECT.map(function (s) {
+        return '<option value="' + s[0] + '"' + (f.statut === s[0] ? ' selected' : '') + '>' + esc(s[1]) + '</option>';
+      }).join('') + '</select></label></div>';
+    var q = f.q.toLowerCase();
+    var lieux = doc.lieux.filter(function (l) {
+      if (f.ville && l.ville !== f.ville) return false;
+      if (f.type && l.type !== f.type) return false;
+      if (f.statut === 'relancer' ? !aRelancer(l) : (f.statut && l.statut !== f.statut)) return false;
+      if (q && (l.nom + ' ' + (l.commune || '')).toLowerCase().indexOf(q) < 0) return false;
+      return true;
+    }).sort(function (a, b) { return nomVille(a.ville).localeCompare(nomVille(b.ville)) || a.type.localeCompare(b.type) || a.nom.localeCompare(b.nom); });
+    html += '<p class="aide">' + lieux.length + ' lieu(x)</p><div class="panneau" style="padding:0;overflow-x:auto"><table><thead><tr><th>Lieu</th><th>Ville</th><th>Contact</th><th>Statut</th><th class="col-option">Note</th></tr></thead><tbody>';
+    lieux.forEach(function (l) {
+      var mail = emailProspect(l);
+      var contact = l.email
+        ? '<a class="btn petit" href="mailto:' + esc(l.email) + '?subject=' + encodeURIComponent(mail.sujet) + '&body=' + encodeURIComponent(mail.corps) + '">Écrire</a> '
+          + '<button class="btn petit" data-copier="' + esc(l.id) + '">Copier</button><div class="aide">' + esc(l.email) + '</div>'
+        : (l.pageContact ? '<a class="btn petit" href="' + esc(l.pageContact) + '" target="_blank" rel="noopener">Page contact</a> <button class="btn petit" data-copier="' + esc(l.id) + '">Copier</button>' : '<span class="discret">—</span>');
+      html += '<tr><td><div class="titre">' + (l.site ? '<a href="' + esc(l.site) + '" target="_blank" rel="noopener">' + esc(l.nom) + '</a>' : esc(l.nom)) + '</div>'
+        + '<div class="aide">' + esc(TYPES_PROSPECT[l.type] || l.type) + (l.pourquoi ? ' · ' + esc(l.pourquoi) : '') + '</div></td>'
+        + '<td>' + esc(nomVille(l.ville)) + (l.commune && l.commune !== nomVille(l.ville) ? '<div class="aide">' + esc(l.commune) + '</div>' : '') + '</td>'
+        + '<td>' + contact + (l.telephone ? '<div class="aide">' + esc(l.telephone) + '</div>' : '') + '</td>'
+        + '<td><select data-statut="' + esc(l.id) + '">' + STATUTS_PROSPECT.map(function (s) {
+          return '<option value="' + s[0] + '"' + (l.statut === s[0] ? ' selected' : '') + '>' + esc(s[1]) + '</option>';
+        }).join('') + '</select>' + (aRelancer(l) ? '<div><span class="tag epingle">À relancer</span></div>' : '')
+        + (l.contacteLe ? '<div class="aide">contacté le ' + esc(dateFr(l.contacteLe)) + '</div>' : '') + '</td>'
+        + '<td class="col-option"><input data-note="' + esc(l.id) + '" value="' + esc(l.note || '') + '" placeholder="Note…" style="width:100%;min-width:160px"></td></tr>';
+    });
+    $('vue').innerHTML = html + '</tbody></table></div>';
+    [['pq', 'q', 'oninput'], ['pville', 'ville', 'onchange'], ['ptype', 'type', 'onchange'], ['pstatut', 'statut', 'onchange']].forEach(function (c) {
+      $(c[0])[c[2]] = function () {
+        f[c[1]] = $(c[0]).value;
+        if (c[0] === 'pq') { clearTimeout(vueProspection.attente); vueProspection.attente = setTimeout(function () { vueProspection(); var el = $('pq'); el.focus(); el.setSelectionRange(el.value.length, el.value.length); }, 250); }
+        else vueProspection();
+      };
+    });
+  }
+  function majProspect(id, champs) {
+    return api('prospection', { corps: Object.assign({ id: id }, champs) }).then(function (r) {
+      etat.prospection.lieux = etat.prospection.lieux.map(function (l) { return l.id === id ? r.lieu : l; });
+    }).catch(function (err) { toast(err.message); });
+  }
+  function chargerProspection() {
+    return api('prospection').then(function (d) { etat.prospection = d; }).catch(function () { etat.prospection = { lieux: [] }; });
+  }
+
   function vueVilles() {
     var html = '<h2>Villes ouvertes</h2><p class="texte">Lecture seule : ouvrir ou fermer une ville reste un changement de code (apps/on-sort/src/config.js + workers/on-sort/src/villes.js).</p>'
       + '<div class="panneau" style="padding:0;overflow-x:auto"><table><thead><tr><th>Ville</th><th>Département</th><th class="num">Sorties du jour</th><th class="num">Retenues</th><th class="num">Top</th><th class="col-option">Préférée</th></tr></thead><tbody>';
@@ -880,6 +978,13 @@ const PAGE = String.raw`<!doctype html>
   document.addEventListener('click', function (e) {
     var onglet = e.target.closest('[data-onglet]');
     if (onglet) { etat.onglet = onglet.getAttribute('data-onglet'); stocker('adm-onglet', etat.onglet); rendre(); return; }
+    var copier = e.target.closest('[data-copier]');
+    if (copier) {
+      var lieu = etat.prospection.lieux.filter(function (l) { return l.id === copier.getAttribute('data-copier'); })[0];
+      var m = emailProspect(lieu);
+      navigator.clipboard.writeText('Objet : ' + m.sujet + '\n\n' + m.corps).then(function () { toast('E-mail copié — colle-le dans ta messagerie.'); });
+      return;
+    }
     var valider = e.target.closest('[data-valider]');
     if (valider) { deciderProposition(valider.getAttribute('data-valider'), 'valider', valider); return; }
     var refuser = e.target.closest('[data-refuser]');
@@ -890,6 +995,12 @@ const PAGE = String.raw`<!doctype html>
     if (ville) { etat.villeTop = ville.getAttribute('data-ville'); etat.onglet = 'top'; rendre(); return; }
     var ligne = e.target.closest('#vue [data-cle]');
     if (ligne) ouvrirFiche(ligne.getAttribute('data-cle'));
+  });
+  document.addEventListener('change', function (e) {
+    var statut = e.target.closest('[data-statut]');
+    if (statut) { majProspect(statut.getAttribute('data-statut'), { statut: statut.value }).then(vueProspection); return; }
+    var note = e.target.closest('[data-note]');
+    if (note) majProspect(note.getAttribute('data-note'), { note: note.value });
   });
   $('fiche-voile').onclick = fermerFiche;
   document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && etat.ficheCle !== undefined) fermerFiche(); });

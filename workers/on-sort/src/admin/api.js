@@ -13,6 +13,8 @@
 //   POST /admin/api/cirques    relit les sites des cirques tout de suite
 //   GET  /admin/api/propositions   propositions des organisateurs (en attente d'abord)
 //   POST /admin/api/propositions   {id, action: valider|refuser, motif?, champs?}
+//   GET  /admin/api/prospection    lieux à inviter et leur suivi
+//   POST /admin/api/prospection    {id, statut?, note?}
 //
 // Accès : en-tête `Authorization: Bearer <ADMIN_TOKEN>`. ADMIN_TOKEN est un
 // secret Cloudflare (`npx wrangler secret put ADMIN_TOKEN`). Sans lui,
@@ -27,6 +29,7 @@ import {
 import { pageAdmin } from './page.js';
 import { actualiserTournees, etatTournees } from '../sources/cirques.js';
 import { listerPropositions, deciderProposition } from '../propositions.js';
+import { lireProspection, majLieu } from './prospection.js';
 
 /** Comparaison à temps constant : la durée ne trahit pas la longueur commune. */
 function memeSecret(a, b) {
@@ -108,6 +111,18 @@ export async function routeAdmin(request, env, url, path, deps) {
     const corps = await request.json().catch(() => null);
     if (!corps || !corps.id) return rep({ error: 'bad_request' }, 400);
     const r = await deciderProposition(env, corps);
+    if (r.erreur) return rep({ error: 'bad_request', message: r.erreur }, 400);
+    return rep(r);
+  }
+
+  // Prospection des lieux (src/admin/prospection.js).
+  if (path === '/admin/api/prospection' && request.method === 'GET') {
+    return rep(await lireProspection(env));
+  }
+  if (path === '/admin/api/prospection' && request.method === 'POST') {
+    const corps = await request.json().catch(() => null);
+    if (!corps || !corps.id) return rep({ error: 'bad_request' }, 400);
+    const r = await majLieu(env, corps);
     if (r.erreur) return rep({ error: 'bad_request', message: r.erreur }, 400);
     return rep(r);
   }

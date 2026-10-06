@@ -25,6 +25,7 @@ import { VILLES } from './villes.js';
 import { distanceKm } from './scoring.js';
 import { envoyerEmail } from './alerte.js';
 import { executerAction } from './admin/surcouche.js';
+import { rapprocherProposition } from './admin/prospection.js';
 
 const CLE = 'prop:fiche:';
 const CLE_PHOTO = 'prop:photo:';
@@ -230,6 +231,8 @@ export async function recevoirProposition(request, env, ctx) {
 
   const fiche = { ...p, id, statut: 'attente', recueLe: new Date().toISOString(), ...position, villeId: ville.id, photo: photoId };
   await env.VOTES.put(CLE + id, JSON.stringify(fiche));
+  // Un lieu prospecté qui répond passe « a proposé » dans le suivi.
+  await rapprocherProposition(env, p).catch((e) => console.error('prospection, rapprochement :', e.message));
 
   // E-mails après la réponse : l'organisateur n'attend pas Resend.
   if (env.RESEND_KEY) {
