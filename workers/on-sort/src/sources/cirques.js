@@ -51,9 +51,18 @@ function mois(mot) {
 
 const iso = (a, m, j) => `${a}-${String(m).padStart(2, '0')}-${String(j).padStart(2, '0')}`;
 
-/** Ville lisible : « LE MANS » → « Le Mans », « Aix les bains » → « Aix Les Bains ». */
-function villeLisible(v) {
-  return texte(v).toLowerCase().replace(/(^|[\s'-])(\p{L})/gu, (m, sep, l) => sep + l.toUpperCase());
+const PARTICULES = new Set(['de', 'du', 'des', 'sur', 'sous', 'les', 'la', 'le', 'en', 'lès', 'et', 'aux']);
+
+/**
+ * Nom de commune à la française : « LE MANS » → « Le Mans », « Aix les
+ * bains » → « Aix-les-Bains », « Villeneuve D'Ascq » → « Villeneuve-d'Ascq ».
+ * Seul l'article de tête garde son espace (Le Mans, La Rochelle).
+ */
+export function villeLisible(v) {
+  const mots = texte(v).toLowerCase().split(/[\s-]+/).filter(Boolean);
+  const maj = (m) => m.replace(/^(d')?(\p{L})/u, (x, d, l) => (d || '') + l.toUpperCase());
+  const article = mots.length > 1 && ['le', 'la', 'les'].includes(mots[0]) ? `${maj(mots.shift())} ` : '';
+  return article + mots.map((m, i) => (i > 0 && (PARTICULES.has(m) || m.startsWith("d'")) ? m.replace(/^(d')(\p{L})/u, (x, d, l) => d + l.toUpperCase()) : maj(m))).join('-');
 }
 
 /**
@@ -163,10 +172,16 @@ async function geocoder(env, ville) {
   const cle = CLE_GEO + sansAccents(ville).toLowerCase().replace(/[^a-z0-9]+/g, '-');
   const connu = await env.VOTES.get(cle, 'json');
   if (connu) return connu;
-  const url = `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(ville)}&count=1&language=fr&countryCode=FR`;
-  const res = await fetch(url);
-  if (!res.ok) return null;
-  const r = (await res.json())?.results?.[0];
+  // Le géocodeur veut les traits d'union : « Villeneuve D'Ascq » ne donne
+  // rien, « Villeneuve-D'Ascq » si (constaté le 6 octobre 2026).
+  let r = null;
+  for (const nom of new Set([ville, ville.trim().replace(/\s+/g, '-')])) {
+    const url = `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(nom)}&count=1&language=fr&countryCode=FR`;
+    const res = await fetch(url);
+    if (!res.ok) return null;
+    r = (await res.json())?.results?.[0];
+    if (r) break;
+  }
   if (!r) return null;
   const geo = { lat: r.latitude, lon: r.longitude };
   await env.VOTES.put(cle, JSON.stringify(geo));
