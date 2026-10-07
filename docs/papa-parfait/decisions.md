@@ -89,6 +89,22 @@ excellente sur 1. Les votes nous diront quel pilier construire en priorité.
   comme un « jeune public » lu dans un agenda, rien de plus. Le prix est
   affiché, il ne pèse pas encore dans le GO. Photo : fiche + panneau GO
   (charte §4).
+- **Prospection des lieux** (décidé le 7 octobre 2026) : 448 lieux sur les
+  18 villes (spectacles jeune public, loisirs, musées, cinémas ; 278 avec
+  e-mail public), suivis dans l'admin (onglet Prospection, e-mail type,
+  relance à 7 jours). Envoi **à la main** depuis contact@ — jamais
+  automatique, pour préserver la délivrabilité des alertes.
+- **Pages SEO du site** (décidé le 7 octobre 2026) : texte durable rédigé par
+  Cowork + encart « Le top du moment » inséré côté serveur par un shortcode
+  (`GET /encart`), 15 pages × Rennes, Nantes, Bordeaux, Lille, Paris, en trois
+  vagues (`brief-cowork-pages-seo.md`).
+- **Concours avec des lieux** (décidé le 7 octobre 2026) : page du site par
+  concours (`bloc-concours.html`), prénom + e-mail + ville ; l'alerte du
+  week-end est une case **décochée**, jamais une condition (consentement libre
+  RGPD). Les inscrits sans compte vont dans le KV et reçoivent l'alerte comme
+  les comptes (top d'un enfant de 3 ans, âge inconnu), désabonnement en un
+  clic. Tirage dans l'admin après clôture, données des participants purgées
+  3 mois après le tirage (cron du matin).
 - **Sources de l'exceptionnel** :
   - *En place le 6 octobre 2026* : types DATAtourisme (`CircusEvent`,
     `Carnival`, `Parade`, `Festival`) ; **tournées des cirques** Pinder,

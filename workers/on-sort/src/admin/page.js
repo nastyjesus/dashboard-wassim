@@ -58,6 +58,8 @@ const PAGE = String.raw`<!doctype html>
   h3{font-weight:700;font-size:15px;line-height:18px;letter-spacing:.5px;text-transform:uppercase}
 
   .panneau{background:var(--panneau);border:2px solid var(--encre);border-radius:10px;padding:16px}
+  #form-concours label{display:grid;gap:4px;font-weight:600}
+  #form-concours input,#form-concours select{font:inherit;padding:6px 8px;border:1.5px solid var(--encre);border-radius:6px;font-weight:400}
   .grille{display:grid;gap:16px}
   .instr{font:600 12px/14px var(--corps);letter-spacing:.6px;text-transform:uppercase;color:var(--discret)}
   .discret{color:var(--discret)}
@@ -211,7 +213,7 @@ const PAGE = String.raw`<!doctype html>
   };
   var ONGLETS = [
     ['sorties', 'Sorties'], ['top', 'Top par ville'], ['sources', 'Sources'],
-    ['propositions', 'Propositions'], ['prospection', 'Prospection'], ['stats', 'Stats'], ['journal', 'Journal'], ['villes', 'Villes']
+    ['propositions', 'Propositions'], ['prospection', 'Prospection'], ['concours', 'Concours'], ['stats', 'Stats'], ['journal', 'Journal'], ['villes', 'Villes']
   ];
 
   function $(id) { return document.getElementById(id); }
@@ -252,6 +254,7 @@ const PAGE = String.raw`<!doctype html>
     journal: [],
     propositions: [],
     prospection: null,
+    concours: null,
     filtresProspect: { ville: '', type: '', statut: '', q: '' },
     stats: null,
     onglet: relire('adm-onglet') || 'sorties',
@@ -322,7 +325,7 @@ const PAGE = String.raw`<!doctype html>
   }
 
   function chargerSurcouche() {
-    return Promise.all([api('surcouche'), api('journal'), api('propositions'), chargerProspection()]).then(function (r) {
+    return Promise.all([api('surcouche'), api('journal'), api('propositions'), chargerProspection(), chargerConcours()]).then(function (r) {
       etat.surcouche = r[0].surcouche; etat.journal = r[1].journal; etat.propositions = r[2].propositions || [];
     });
   }
@@ -429,7 +432,7 @@ const PAGE = String.raw`<!doctype html>
         : o[0] === 'propositions' && nbAttente ? ' <span class="tag epingle">' + nbAttente + '</span>' : '';
       return '<button role="tab" data-onglet="' + o[0] + '" aria-selected="' + (etat.onglet === o[0]) + '">' + esc(o[1]) + n + '</button>';
     }).join('');
-    var vues = { sorties: vueSorties, top: vueTop, sources: vueSources, propositions: vuePropositions, prospection: vueProspection, stats: vueStats, journal: vueJournal, villes: vueVilles };
+    var vues = { sorties: vueSorties, top: vueTop, sources: vueSources, propositions: vuePropositions, prospection: vueProspection, concours: vueConcours, stats: vueStats, journal: vueJournal, villes: vueVilles };
     vues[etat.onglet]();
     if (etat.ficheCle) rendreFiche();
   }
@@ -703,6 +706,7 @@ const PAGE = String.raw`<!doctype html>
         + 'J’aimerais y faire apparaître ' + PHRASES_TYPE[l.type] + ' (' + l.nom + ') : beaucoup de lieux comme le vôtre ne figurent dans aucun agenda public, et ce sont souvent les sorties que les parents cherchent.\n\n'
         + 'C’est gratuit et ça prend trois minutes : ' + LIEN_FORMULAIRE + '\n'
         + 'Prix, âges, horaires, photo : vous gardez la main sur ce qui est affiché, et votre lieu est crédité sur la fiche.\n\n'
+        + 'Et si vous voulez aller plus loin : nous organisons des jeux-concours avec les lieux partenaires (quelques places offertes, une page dédiée sur notre site, que vous pouvez partager à votre communauté). Dites-moi si cela vous intéresse.\n\n'
         + 'Je reste disponible si vous avez la moindre question.\n\n'
         + 'Bonne journée,\nWassim — Papa Parfait\ncontact@papaparfait.fr'
     };
@@ -772,6 +776,85 @@ const PAGE = String.raw`<!doctype html>
   }
   function chargerProspection() {
     return api('prospection').then(function (d) { etat.prospection = d; }).catch(function () { etat.prospection = { lieux: [] }; });
+  }
+
+  // Concours avec des lieux partenaires (src/concours.js). Participation sur
+  // une page du site ; tirage ici, après la clôture, puis envoi aux gagnants.
+  function chargerConcours() {
+    return api('concours').then(function (d) { etat.concours = d.concours; }).catch(function () { etat.concours = []; });
+  }
+  function etatConcours(c) {
+    if (c.prevenusLe) return '<span class="tag ok">Gagnants prévenus</span>';
+    if (c.tirageLe) return '<span class="tag epingle">Tiré — à prévenir</span>';
+    if (c.ouvert) return '<span class="tag ok">Ouvert</span>';
+    return new Date().toISOString().slice(0, 10) < c.debut ? '<span class="tag leger">À venir</span>' : '<span class="tag">Clos — à tirer</span>';
+  }
+  function vueConcours() {
+    var html = '<h2>Concours</h2><p class="texte">Des places offertes par un lieu partenaire, à gagner sur une page du site. L’alerte du week-end est une option décochée, jamais une condition. Tirage après la clôture, puis « Prévenir les gagnants » (après relecture).</p>';
+    var liste = etat.concours || [];
+    liste.forEach(function (c) {
+      var lien = '/concours/' + encodeURIComponent(c.id) + '/reglement';
+      html += '<div class="panneau" style="margin-bottom:12px"><div style="display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap">'
+        + '<div><h3 style="margin:0">' + esc(c.titre) + '</h3><div class="aide">' + esc(c.lot) + ' · ' + esc(c.partenaire) + ' · du ' + esc(c.debut) + ' au ' + esc(c.fin)
+        + ' · ' + esc((c.villes || []).map(nomVille).join(', ') || 'toutes villes') + '</div>'
+        + '<div class="aide">Identifiant du bloc : <code>' + esc(c.id) + '</code> · <a href="' + lien + '" target="_blank" rel="noopener">règlement</a></div></div>'
+        + '<div>' + etatConcours(c) + '<div class="aide" style="text-align:right"><b>' + c.nbParticipants + '</b> participant(s) · ' + c.nbAlerte + ' abonné(s) à l’alerte</div></div></div>';
+      if (c.gagnants && c.gagnants.length) {
+        html += '<p><b>Gagnants</b> (tirés le ' + esc(dateFr(c.tirageLe)) + ' parmi ' + c.tirageParmi + ') : '
+          + c.gagnants.map(function (g) { return esc(g.prenom) + (g.email ? ' &lt;' + esc(g.email) + '&gt;' : '') + ' (' + esc(nomVille(g.villeId)) + ')'; }).join(', ') + '</p>';
+      }
+      html += '<div style="display:flex;gap:8px;flex-wrap:wrap">'
+        + (!c.tirageLe && !c.ouvert && c.nbParticipants ? '<button class="btn primaire" data-tirer="' + esc(c.id) + '">Tirer au sort</button>' : '')
+        + (c.tirageLe && !c.prevenusLe ? '<button class="btn primaire" data-prevenir="' + esc(c.id) + '">Prévenir les gagnants</button>' : '')
+        + (c.nbParticipants ? '<button class="btn" data-export="' + esc(c.id) + '">Exporter (CSV)</button>' : '')
+        + (!c.tirageLe ? '<button class="btn" data-editer-concours="' + esc(c.id) + '">Modifier</button>' : '')
+        + '</div></div>';
+    });
+    var e = etat.concoursEdite || {};
+    html += '<h3>' + (e.id ? 'Modifier le concours' : 'Nouveau concours') + '</h3><form id="form-concours" class="panneau" style="display:grid;gap:8px;max-width:640px">'
+      + '<label>Identifiant (dans l’adresse, ex. nocturnes-parc-2026) <input name="id" value="' + esc(e.id || '') + '"' + (e.id ? ' readonly' : '') + ' required></label>'
+      + '<label>Titre <input name="titre" value="' + esc(e.titre || '') + '" required></label>'
+      + '<label>Lot (ex. 2 × 4 entrées pour les Nocturnes) <input name="lot" value="' + esc(e.lot || '') + '" required></label>'
+      + '<label>Partenaire <input name="partenaire" value="' + esc(e.partenaire || '') + '" required></label>'
+      + '<label>Site du partenaire <input name="partenaireUrl" value="' + esc(e.partenaireUrl || '') + '" placeholder="https://"></label>'
+      + '<label>Nombre de gagnants <input name="nbGagnants" type="number" min="1" max="50" value="' + esc(e.nbGagnants || 1) + '" required></label>'
+      + '<label>Début <input name="debut" type="date" value="' + esc(e.debut || '') + '" required></label>'
+      + '<label>Fin (incluse) <input name="fin" type="date" value="' + esc(e.fin || '') + '" required></label>'
+      + '<label>Villes concernées <span class="aide">(Ctrl+clic pour en choisir plusieurs ; aucune = toutes)</span><select name="villes" multiple size="6">' + etat.villes.map(function (v) {
+        return '<option value="' + esc(v.id) + '"' + ((e.villes || []).indexOf(v.id) >= 0 ? ' selected' : '') + '>' + esc(v.nom) + '</option>';
+      }).join('') + '</select></label>'
+      + '<div><button class="btn primaire" type="submit">Enregistrer</button> ' + (e.id ? '<button class="btn" type="button" id="annuler-concours">Annuler</button>' : '') + '</div>'
+      + '<p class="erreur" id="erreur-concours"></p></form>';
+    $('vue').innerHTML = html;
+    $('form-concours').onsubmit = function (ev) {
+      ev.preventDefault();
+      var f = ev.target;
+      var corps = {
+        id: f.id.value, titre: f.titre.value, lot: f.lot.value, partenaire: f.partenaire.value, partenaireUrl: f.partenaireUrl.value,
+        nbGagnants: f.nbGagnants.value, debut: f.debut.value, fin: f.fin.value,
+        villes: [].slice.call(f.villes.selectedOptions).map(function (o) { return o.value; })
+      };
+      api('concours', { corps: { action: 'enregistrer', concours: corps } }).then(function () {
+        etat.concoursEdite = null; toast('Concours enregistré.'); return chargerConcours();
+      }).then(vueConcours).catch(function (err) { $('erreur-concours').textContent = err.message; });
+    };
+    if ($('annuler-concours')) $('annuler-concours').onclick = function () { etat.concoursEdite = null; vueConcours(); };
+  }
+  function actionConcours(id, action, bouton) {
+    bouton.disabled = true;
+    api('concours', { corps: { action: action, id: id } }).then(function (r) {
+      toast(action === 'tirer' ? r.gagnants.length + ' gagnant(s) tiré(s) parmi ' + r.parmi + '. Relis avant de prévenir.' : r.prevenus + ' gagnant(s) prévenu(s)' + (r.echecs ? ', ' + r.echecs + ' échec(s)' : '') + '.');
+      return chargerConcours();
+    }).then(vueConcours).catch(function (err) { bouton.disabled = false; toast(err.message); });
+  }
+  function exporterConcours(id) {
+    fetch('/admin/api/concours/participants?id=' + encodeURIComponent(id), { headers: { Authorization: 'Bearer ' + etat.jeton } })
+      .then(function (r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.blob(); })
+      .then(function (b) {
+        var a = document.createElement('a');
+        a.href = URL.createObjectURL(b); a.download = 'concours-' + id + '.csv';
+        document.body.appendChild(a); a.click(); a.remove();
+      }).catch(function (err) { toast(err.message); });
   }
 
   function vueVilles() {
@@ -978,6 +1061,17 @@ const PAGE = String.raw`<!doctype html>
   document.addEventListener('click', function (e) {
     var onglet = e.target.closest('[data-onglet]');
     if (onglet) { etat.onglet = onglet.getAttribute('data-onglet'); stocker('adm-onglet', etat.onglet); rendre(); return; }
+    var tirerC = e.target.closest('[data-tirer]');
+    if (tirerC) { actionConcours(tirerC.getAttribute('data-tirer'), 'tirer', tirerC); return; }
+    var prevenirC = e.target.closest('[data-prevenir]');
+    if (prevenirC) { actionConcours(prevenirC.getAttribute('data-prevenir'), 'prevenir', prevenirC); return; }
+    var exporterC = e.target.closest('[data-export]');
+    if (exporterC) { exporterConcours(exporterC.getAttribute('data-export')); return; }
+    var editerC = e.target.closest('[data-editer-concours]');
+    if (editerC) {
+      etat.concoursEdite = (etat.concours || []).filter(function (c) { return c.id === editerC.getAttribute('data-editer-concours'); })[0];
+      vueConcours(); return;
+    }
     var copier = e.target.closest('[data-copier]');
     if (copier) {
       var lieu = etat.prospection.lieux.filter(function (l) { return l.id === copier.getAttribute('data-copier'); })[0];

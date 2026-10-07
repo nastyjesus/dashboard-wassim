@@ -1,0 +1,95 @@
+<!--
+  Bloc « Participer au concours » — à coller dans la page WordPress d'un
+  concours (bloc « HTML personnalisé », rôle Administrateur). Un seul réglage :
+  data-concours = l'identifiant du concours, affiché dans l'admin Papa Parfait
+  (onglet Concours). Le bloc lit lui-même le lot, les dates et l'état
+  (ouvert / terminé) au worker, et renvoie au règlement.
+  Ne pas renommer les attributs name="…" : le worker les lit tels quels.
+  Voir brief-cowork-concours.md.
+-->
+<div class="pp-concours" data-api="https://on-sort-poc.loumiwassim.workers.dev" data-concours="IDENTIFIANT-DU-CONCOURS">
+<style>
+  .pp-concours{--pp-encre:#1B2430;--pp-ambre:#FF8A00;--pp-alerte:#C2410C;--pp-ok:#2F7D4F;max-width:560px;margin:0 auto;font-size:16px;line-height:1.5;color:var(--pp-encre)}
+  .pp-concours .pp-cadre{border:2px solid var(--pp-encre);border-radius:10px;padding:16px 20px}
+  .pp-concours label{display:block;margin:12px 0 4px;font-weight:600}
+  .pp-concours input[type=text],.pp-concours input[type=email],.pp-concours select{width:100%;box-sizing:border-box;padding:10px 12px;border:1.5px solid var(--pp-encre);border-radius:6px;font:inherit;background:#fff}
+  .pp-concours .pp-coche{display:flex;gap:8px;align-items:flex-start;font-weight:400;margin-top:12px}
+  .pp-concours .pp-coche input{margin-top:5px}
+  .pp-concours button{font:inherit;font-weight:700;border:2px solid var(--pp-encre);border-radius:999px;padding:10px 20px;cursor:pointer;background:var(--pp-ambre);color:var(--pp-encre);margin-top:16px}
+  .pp-concours button:disabled{opacity:.5;cursor:wait}
+  .pp-concours .pp-erreur{color:var(--pp-alerte);font-size:14px;margin-top:4px}
+  .pp-concours .pp-aide{font-size:14px;opacity:.8}
+  .pp-concours .pp-message{border:2px solid var(--pp-encre);border-radius:10px;padding:16px;margin-top:16px}
+  .pp-concours .pp-message.ok{border-color:var(--pp-ok)}
+  .pp-concours .pp-message.ko{border-color:var(--pp-alerte)}
+  .pp-concours .pp-piege{position:absolute;left:-9999px;width:1px;height:1px;overflow:hidden}
+  .pp-concours [hidden]{display:none!important}
+</style>
+<div class="pp-cadre">
+  <p class="pp-entete"><b class="pp-lot">Chargement du concours…</b><br><span class="pp-aide pp-dates"></span></p>
+  <form novalidate hidden>
+    <label for="pp-c-prenom">Prénom *</label>
+    <input type="text" id="pp-c-prenom" name="prenom" maxlength="60" autocomplete="given-name">
+    <label for="pp-c-email">E-mail *</label>
+    <input type="email" id="pp-c-email" name="email" maxlength="160" autocomplete="email">
+    <label for="pp-c-ville">Votre ville *</label>
+    <select id="pp-c-ville" name="ville"><option value="">Choisir…</option></select>
+    <label class="pp-coche"><input type="checkbox" name="alerte"> <span>Je veux aussi recevoir <b>l’alerte du week-end</b> : le vendredi, les meilleures sorties du samedi près de chez moi. Facultatif, sans effet sur le tirage, désinscription en un clic.</span></label>
+    <label class="pp-coche"><input type="checkbox" name="reglement"> <span>J’accepte le <a class="pp-reglement" href="#" target="_blank" rel="noopener">règlement du jeu</a>. *</span></label>
+    <div class="pp-piege" aria-hidden="true"><label>Site web <input type="text" name="site_web" tabindex="-1" autocomplete="off"></label></div>
+    <button type="submit">Je participe</button>
+  </form>
+  <div class="pp-message" hidden></div>
+</div>
+<script>
+(function () {
+  var racine = document.currentScript.closest('.pp-concours');
+  var api = racine.getAttribute('data-api');
+  var id = racine.getAttribute('data-concours');
+  var form = racine.querySelector('form');
+  var message = racine.querySelector('.pp-message');
+  var VILLES = [['rennes','Rennes'],['bruz','Bruz'],['stmalo','Saint-Malo'],['vitre','Vitré'],['stbrieuc','Saint-Brieuc'],['vannes','Vannes'],['lorient','Lorient'],['brest','Brest'],['quimper','Quimper'],['nantes','Nantes'],['stnazaire','Saint-Nazaire'],['paris','Paris'],['lille','Lille'],['valenciennes','Valenciennes'],['dunkerque','Dunkerque'],['bordeaux','Bordeaux'],['libourne','Libourne'],['arcachon','Arcachon']];
+
+  function dire(texte, ok) { message.hidden = false; message.className = 'pp-message ' + (ok ? 'ok' : 'ko'); message.textContent = texte; }
+  function dateFr(iso) { return iso.split('-').reverse().join('/'); }
+
+  racine.querySelector('.pp-reglement').href = api + '/concours/' + encodeURIComponent(id) + '/reglement';
+  fetch(api + '/concours/' + encodeURIComponent(id)).then(function (r) { return r.json(); }).then(function (c) {
+    if (!c || !c.id) { racine.querySelector('.pp-lot').textContent = 'Concours introuvable.'; return; }
+    racine.querySelector('.pp-lot').textContent = 'À gagner : ' + c.lot + ' — offert par ' + c.partenaire;
+    racine.querySelector('.pp-dates').textContent = (c.ouvert ? 'Participation jusqu’au ' : 'Concours terminé le ') + dateFr(c.fin) + ' inclus · ' + c.nbGagnants + ' gagnant(s) tiré(s) au sort';
+    var choix = c.villes && c.villes.length ? VILLES.filter(function (v) { return c.villes.indexOf(v[0]) >= 0; }) : VILLES;
+    var select = form.querySelector('[name=ville]');
+    choix.forEach(function (v) { var o = document.createElement('option'); o.value = v[0]; o.textContent = v[1]; select.appendChild(o); });
+    if (choix.length === 1) select.value = choix[0][0];
+    form.hidden = !c.ouvert;
+    if (!c.ouvert) dire('Ce concours est terminé. Merci de votre intérêt !', false);
+  }).catch(function () { racine.querySelector('.pp-lot').textContent = 'Le concours ne se charge pas pour le moment. Réessayez dans un instant.'; });
+
+  form.addEventListener('submit', function (e) {
+    e.preventDefault();
+    racine.querySelectorAll('.pp-erreur').forEach(function (x) { x.remove(); });
+    var bouton = form.querySelector('button');
+    bouton.disabled = true;
+    fetch(api + '/concours/' + encodeURIComponent(id) + '/participer', { method: 'POST', body: new FormData(form) })
+      .then(function (r) { return r.json().catch(function () { return {}; }); })
+      .then(function (r) {
+        bouton.disabled = false;
+        if (r.ok) {
+          form.hidden = true;
+          dire(r.deja ? 'Vous participez déjà avec cette adresse : bonne chance !' : 'C’est noté, bonne chance ! Les gagnants seront prévenus par e-mail après la clôture.', true);
+        } else if (r.erreurs) {
+          Object.keys(r.erreurs).forEach(function (champ) {
+            var cible = form.querySelector('[name="' + champ + '"]');
+            var zone = document.createElement('div'); zone.className = 'pp-erreur'; zone.textContent = r.erreurs[champ];
+            (cible.closest('.pp-coche') || cible).insertAdjacentElement('afterend', zone);
+          });
+        } else {
+          dire(r.message || 'La participation n’a pas abouti. Réessayez dans un instant.', false);
+        }
+      })
+      .catch(function () { bouton.disabled = false; dire('La participation n’a pas abouti (connexion ?). Réessayez dans un instant.', false); });
+  });
+})();
+</script>
+</div>

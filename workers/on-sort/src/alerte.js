@@ -81,7 +81,9 @@ function ligneSortie(ev, rang) {
  */
 export function corpsAlerte({ prenom, top, ville, age, dateISO, lienDesabo }) {
   const quand = libelleDate(dateISO);
-  const lienTop = `${LIEN_APP}/?ville=${encodeURIComponent(ville.id)}&age=${age}`;
+  // Abonné sans compte (concours) : âge inconnu, pas de pré-remplissage ni de libellé d'âge.
+  const lienTop = `${LIEN_APP}/?ville=${encodeURIComponent(ville.id)}${age != null ? `&age=${age}` : ''}`;
+  const entete = [quand, ville.nom, age != null ? labelAge(age) : null].filter(Boolean).join(' · ').toUpperCase();
   const bonjour = prenom ? `Salut ${prenom},` : 'Salut,';
 
   const html = `<!doctype html>
@@ -92,7 +94,7 @@ export function corpsAlerte({ prenom, top, ville, age, dateISO, lienDesabo }) {
       <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:540px;">
         <tr><td style="background:#1B1815;padding:18px 20px;border-radius:10px;">
           <div style="font:800 30px/30px 'Helvetica Neue',Arial,sans-serif;color:#F4EFE6;letter-spacing:-.5px;">ON SORT ?</div>
-          <div style="font:600 12px/14px 'Helvetica Neue',Arial,sans-serif;color:#FF8A00;letter-spacing:.08em;margin-top:6px;">${echapper(quand.toUpperCase())} · ${echapper(ville.nom.toUpperCase())} · ${echapper(labelAge(age).toUpperCase())}</div>
+          <div style="font:600 12px/14px 'Helvetica Neue',Arial,sans-serif;color:#FF8A00;letter-spacing:.08em;margin-top:6px;">${echapper(entete)}</div>
         </td></tr>
 
         <tr><td style="font:400 15px/23px 'Helvetica Neue',Arial,sans-serif;color:#5C554B;padding:18px 4px 6px;">
@@ -213,17 +215,22 @@ async function compter(env, evt, combien = 1) {
  */
 export async function envoyerAlertes(env, maintenant = new Date()) {
   const manquants = ['SUPABASE_URL', 'SUPABASE_SERVICE_KEY', 'RESEND_KEY'].filter((k) => !env[k]);
-  if (manquants.length) return { ignore: `secrets manquants : ${manquants.join(', ')}` };
+  // Sans Resend, rien ne part. Sans Supabase, seuls les abonnés sans compte
+  // (KV, inscrits via un concours) sont servis.
+  if (!env.RESEND_KEY) return { ignore: `secrets manquants : ${manquants.join(', ')}` };
+  const avecComptes = Boolean(env.SUPABASE_URL && env.SUPABASE_SERVICE_KEY);
 
   const jour = maintenant.toISOString().slice(0, 10);
   const dateISO = prochainSamedi(maintenant);
   const base = env.BASE_URL || 'https://on-sort-poc.loumiwassim.workers.dev';
 
-  let profils;
-  try {
-    profils = await profilsAAlerter(env, jour);
-  } catch (e) {
-    return { erreur: String(e.message || e) };
+  let profils = [];
+  if (avecComptes) {
+    try {
+      profils = await profilsAAlerter(env, jour);
+    } catch (e) {
+      return { erreur: String(e.message || e) };
+    }
   }
 
   const resume = { destinataires: profils.length, envoyes: 0, silences: 0, erreurs: [] };
@@ -256,8 +263,74 @@ export async function envoyerAlertes(env, maintenant = new Date()) {
     }
   }
 
+  // Abonnés sans compte (KV) : même e-mail, âge inconnu → top d'un enfant de 3 ans.
+  for (const a of await abonnesSansCompte(env, jour)) {
+    resume.destinataires += 1;
+    try {
+      const ville = villeParId(a.villeId);
+      if (!ville) { resume.silences += 1; continue; }
+      const cle = `${ville.id}:${AGE_SANS_COMPTE}`;
+      if (!cacheTop.has(cle)) cacheTop.set(cle, await topPour(base, ville, AGE_SANS_COMPTE, dateISO));
+      const top = (cacheTop.get(cle) || []).slice(0, 3);
+      if (top.length === 0) { resume.silences += 1; continue; }
+      const lienDesabo = `${base}/desabonnement?jeton=${a.jeton}`;
+      const { html, texte } = corpsAlerte({ prenom: a.prenom, top, ville, age: null, dateISO, lienDesabo });
+      await envoyerEmail(env, { to: a.email, subject: sujetAlerte(top, ville, dateISO), html, text: texte });
+      await env.VOTES.put(CLE_ABONNE + a.jeton, JSON.stringify({ ...a, envoyeLe: jour }));
+      resume.envoyes += 1;
+    } catch (e) {
+      resume.erreurs.push(String(e.message || e).slice(0, 140));
+    }
+  }
+
   await compter(env, 'alerte-envoyee', resume.envoyes);
   return resume;
+}
+
+// ---------------------------------------------------------------------------
+// Abonnés sans compte — inscrits en cochant « Recevoir l'alerte du week-end »
+// en participant à un concours (src/concours.js). Une clé par abonné
+// (alerte:abonne:<jeton>) et un index par e-mail pour ne pas inscrire deux fois.
+
+const CLE_ABONNE = 'alerte:abonne:';
+const CLE_ABONNE_EMAIL = 'alerte:email:';
+const AGE_SANS_COMPTE = 3;
+
+async function empreinte(texte) {
+  const h = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(texte));
+  return [...new Uint8Array(h)].map((b) => b.toString(16).padStart(2, '0')).join('').slice(0, 32);
+}
+
+/** Inscrit (ou laisse inscrit) un abonné sans compte. Renvoie son jeton. */
+export async function abonnerSansCompte(env, { email, prenom, villeId, source }) {
+  if (!env.VOTES) return null;
+  const cleEmail = CLE_ABONNE_EMAIL + await empreinte(email.trim().toLowerCase());
+  const existant = await env.VOTES.get(cleEmail);
+  if (existant) return existant;
+  const jeton = crypto.randomUUID();
+  await env.VOTES.put(CLE_ABONNE + jeton, JSON.stringify({
+    jeton, email: email.trim().toLowerCase(), prenom: prenom || null, villeId, source: source || null,
+    inscritLe: new Date().toISOString(), envoyeLe: null,
+  }));
+  await env.VOTES.put(cleEmail, jeton);
+  return jeton;
+}
+
+async function abonnesSansCompte(env, jour) {
+  if (!env.VOTES || typeof env.VOTES.list !== 'function') return [];
+  const { keys } = await env.VOTES.list({ prefix: CLE_ABONNE, limit: 1000 });
+  const abonnes = await Promise.all(keys.map((k) => env.VOTES.get(k.name, 'json')));
+  return abonnes.filter((a) => a && a.envoyeLe !== jour);
+}
+
+/** Désabonnement d'un abonné sans compte : efface sa fiche et son index. */
+async function desabonnerSansCompte(env, jeton) {
+  if (!env.VOTES) return false;
+  const a = await env.VOTES.get(CLE_ABONNE + jeton, 'json');
+  if (!a) return false;
+  await env.VOTES.delete(CLE_ABONNE + jeton);
+  await env.VOTES.delete(CLE_ABONNE_EMAIL + await empreinte(a.email));
+  return true;
 }
 
 /**
@@ -266,6 +339,7 @@ export async function envoyerAlertes(env, maintenant = new Date()) {
  */
 export async function desabonner(env, jeton) {
   if (!/^[0-9a-f-]{36}$/i.test(jeton || '')) return { ok: false, motif: 'lien-invalide' };
+  if (await desabonnerSansCompte(env, jeton)) return { ok: true };
   if (!env.SUPABASE_URL || !env.SUPABASE_SERVICE_KEY) return { ok: false, motif: 'panne' };
 
   const res = await fetch(`${env.SUPABASE_URL}/rest/v1/profils?alerte_jeton=eq.${jeton}`, {

@@ -15,6 +15,9 @@
 //   POST /admin/api/propositions   {id, action: valider|refuser, motif?, champs?}
 //   GET  /admin/api/prospection    lieux à inviter et leur suivi
 //   POST /admin/api/prospection    {id, statut?, note?}
+//   GET  /admin/api/concours       concours + nombre de participants
+//   POST /admin/api/concours       {action: enregistrer|tirer|prevenir, …}
+//   GET  /admin/api/concours/participants?id=   export CSV
 //
 // Accès : en-tête `Authorization: Bearer <ADMIN_TOKEN>`. ADMIN_TOKEN est un
 // secret Cloudflare (`npx wrangler secret put ADMIN_TOKEN`). Sans lui,
@@ -30,6 +33,7 @@ import { pageAdmin } from './page.js';
 import { actualiserTournees, etatTournees } from '../sources/cirques.js';
 import { listerPropositions, deciderProposition } from '../propositions.js';
 import { lireProspection, majLieu } from './prospection.js';
+import { listerConcours, agirConcours, csvParticipants } from '../concours.js';
 
 /** Comparaison à temps constant : la durée ne trahit pas la longueur commune. */
 function memeSecret(a, b) {
@@ -113,6 +117,25 @@ export async function routeAdmin(request, env, url, path, deps) {
     const r = await deciderProposition(env, corps);
     if (r.erreur) return rep({ error: 'bad_request', message: r.erreur }, 400);
     return rep(r);
+  }
+
+  // Concours (src/concours.js) : liste, création/édition, tirage, envoi aux gagnants, export.
+  if (path === '/admin/api/concours' && request.method === 'GET') {
+    return rep(await listerConcours(env));
+  }
+  if (path === '/admin/api/concours' && request.method === 'POST') {
+    const corps = await request.json().catch(() => null);
+    if (!corps || !corps.action) return rep({ error: 'bad_request' }, 400);
+    const r = await agirConcours(env, corps);
+    if (r.erreur) return rep({ error: 'bad_request', message: r.erreur }, 400);
+    return rep(r);
+  }
+  if (path === '/admin/api/concours/participants' && request.method === 'GET') {
+    const id = url.searchParams.get('id') || '';
+    // BOM en tête : Excel ouvre alors le CSV en UTF-8 (accents corrects).
+    return new Response(`﻿${await csvParticipants(env, id)}`, {
+      headers: { 'Content-Type': 'text/csv; charset=utf-8', 'Content-Disposition': `attachment; filename="concours-${id.replace(/[^a-z0-9-]/g, '')}.csv"`, ...SANS_CACHE },
+    });
   }
 
   // Prospection des lieux (src/admin/prospection.js).

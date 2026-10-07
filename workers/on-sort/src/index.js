@@ -24,6 +24,7 @@
 //   POST /propositions — un organisateur propose une sortie (src/propositions.js)
 //   GET  /photos/<id>  — photo d'une proposition
 //   GET  /encart?ville=&page=[&jour=] — encart HTML des pages thématiques du site
+//   GET  /concours/<id>[/reglement] · POST /concours/<id>/participer — concours (src/concours.js)
 //   POST /ville-demande — demande d'ajout d'une ville (filet si Supabase KO)
 //   GET  /ville-demande — les villes demandées, triées par fréquence
 //   POST /mesure     — incrémente un compteur d'usage (aucun identifiant)
@@ -54,6 +55,7 @@ import { villeParNomOuId, villeLaPlusProche } from './villes.js';
 import { pourAffichage } from './texte.js';
 import { recevoirProposition, servirPhoto } from './propositions.js';
 import { calculerEncart } from './encart.js';
+import { concoursPublic, lireConcours, pageReglement, participer, purgerConcours } from './concours.js';
 import { lireSurcouche, appliquerSurcouche } from './admin/surcouche.js';
 import { routeAdmin } from './admin/api.js';
 
@@ -120,6 +122,24 @@ export default {
       // Encart des pages thématiques du site (shortcode WordPress) — src/encart.js.
       if (path === '/encart' && request.method === 'GET') {
         return await servirEncart(request, url, env, ctx);
+      }
+      // Concours (src/concours.js) : infos publiques, règlement, participation.
+      const mConcours = path.match(/^\/concours\/([a-z0-9-]+)(\/reglement|\/participer)?$/);
+      if (mConcours) {
+        const [, id, suite] = mConcours;
+        if (!suite && request.method === 'GET') {
+          const c = await concoursPublic(env, id);
+          return jsonResponse(c || { error: 'not_found' }, c ? 200 : 404, request, env);
+        }
+        if (suite === '/reglement' && request.method === 'GET') {
+          const c = (await lireConcours(env)).concours.find((x) => x.id === id);
+          if (!c) return jsonResponse({ error: 'not_found' }, 404, request, env);
+          return new Response(pageReglement(c), { headers: { 'Content-Type': 'text/html; charset=utf-8' } });
+        }
+        if (suite === '/participer' && request.method === 'POST') {
+          const { status, corps } = await participer(request, env, id);
+          return jsonResponse(corps, status, request, env);
+        }
       }
       if (path.startsWith('/photos/') && request.method === 'GET') {
         return (await servirPhoto(env, path.slice('/photos/'.length))) || jsonResponse({ error: 'not_found' }, 404, request, env);
@@ -208,7 +228,11 @@ export default {
       ctx.waitUntil(
         actualiserTournees(env)
           .then((resume) => console.log('tournées des cirques :', JSON.stringify(resume)))
-          .catch((e) => console.error('tournées des cirques, échec :', e.message || e)),
+          .catch((e) => console.error('tournées des cirques, échec :', e.message || e))
+          // Même passage matinal : purge des concours tirés depuis plus de 3 mois (règlement).
+          .then(() => purgerConcours(env))
+          .then((r) => console.log('concours, purge :', JSON.stringify(r)))
+          .catch((e) => console.error('concours, purge en échec :', e.message || e)),
       );
       return;
     }
