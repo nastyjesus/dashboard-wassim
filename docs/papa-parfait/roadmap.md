@@ -51,6 +51,28 @@ et il n'est pas technique.
 - **CPU du plan gratuit** : erreurs 1102 corrigées (scoring ÷4, admin ville
   par ville). Paris tient à ~680 événements analysés.
 
+### Livré le 7 octobre 2026 (après l'analyse de rennesenfamille.fr)
+
+- **Propositions des organisateurs** : formulaire pour le site (bloc prêt),
+  file de validation dans l'admin, prix / âge / réservation / photo affichés
+  dans l'app.
+- **Prospection** : 448 lieux sur 18 villes dans l'admin, e-mail type, suivi.
+- **Pages SEO** : encart « Le top du moment » (`/encart`) + brief de 15 pages
+  × 5 villes pour Cowork.
+- **Concours** avec des lieux : bloc pour le site, tirage dans l'admin ;
+  l'alerte du week-end accepte des abonnés sans compte.
+- **Veille concurrente** du vendredi dans l'admin.
+- Fiche sortie lisible (paragraphes, « Lire la suite »).
+
+### Ce qui attend une action (hors code)
+
+- **Cowork** : page « Proposer une sortie » (`brief-cowork-formulaire.md`),
+  shortcode + vague 1 des pages SEO (`brief-cowork-pages-seo.md`), page du
+  premier concours quand un lieu dit oui (`brief-cowork-concours.md`).
+- **Wassim** : envoyer les premiers e-mails de prospection (onglet
+  Prospection, Rennes d'abord) ; relire les fiches signalées (lieux
+  saisonniers, offre jeune public peu claire).
+
 ### Prochaines étapes, dans l'ordre
 
 1. **Diffuser le lien à 10-20 papas** (Wassim). Suivre comptes, sorties
