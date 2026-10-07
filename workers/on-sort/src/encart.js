@@ -86,7 +86,9 @@ function mention(ev) {
 const PASTILLES = /^(\d|Dès|Gratuit|À l’abri|À ne pas rater|Après l’école|Pensé pour)/;
 
 export function rendre({ ville, page, dateISO, age, top }) {
-  const lien = `${LIEN_APP}/?ville=${encodeURIComponent(ville.id)}&age=${age}`;
+  // L'app ne connaît que 0-5 ans (contrat site ↔ app) : la page « 6-10 ans »
+  // envoie 5, l'âge le plus proche, plutôt qu'un 7 que l'app ramènerait à 3.
+  const lien = `${LIEN_APP}/?ville=${encodeURIComponent(ville.id)}&age=${Math.min(age, 5)}`;
   const items = top.map((ev) => {
     const lieu = [ev.lieuNom, ev.ville].filter(Boolean).join(', ');
     const tags = (ev.raisons || []).filter((r) => PASTILLES.test(r)).slice(0, 3);
