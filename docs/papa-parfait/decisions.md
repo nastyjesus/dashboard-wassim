@@ -105,6 +105,13 @@ excellente sur 1. Les votes nous diront quel pilier construire en priorité.
   les comptes (top d'un enfant de 3 ans, âge inconnu), désabonnement en un
   clic. Tirage dans l'admin après clôture, données des participants purgées
   3 mois après le tirage (cron du matin).
+- **Concurrent rennais : veille seulement** (décidé le 7 octobre 2026). Pas de
+  contact ni de partenariat. Le vendredi, après l'alerte, le worker lit les
+  titres de sa page « ce week-end » (usage interne, rien n'est republié) et
+  dit pour chacune de ses sorties du samedi si elle est absente de nos
+  sources, écartée par notre filtre, ou retenue (`src/veille.js`, panneau en
+  tête de l'onglet Prospection, historique sur six mois). Les absentes
+  désignent les lieux à démarcher en priorité.
 - **Sources de l'exceptionnel** :
   - *En place le 6 octobre 2026* : types DATAtourisme (`CircusEvent`,
     `Carnival`, `Parade`, `Festival`) ; **tournées des cirques** Pinder,

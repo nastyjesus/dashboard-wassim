@@ -255,6 +255,7 @@ const PAGE = String.raw`<!doctype html>
     propositions: [],
     prospection: null,
     concours: null,
+    veille: null,
     filtresProspect: { ville: '', type: '', statut: '', q: '' },
     stats: null,
     onglet: relire('adm-onglet') || 'sorties',
@@ -325,7 +326,7 @@ const PAGE = String.raw`<!doctype html>
   }
 
   function chargerSurcouche() {
-    return Promise.all([api('surcouche'), api('journal'), api('propositions'), chargerProspection(), chargerConcours()]).then(function (r) {
+    return Promise.all([api('surcouche'), api('journal'), api('propositions'), chargerProspection(), chargerConcours(), chargerVeille()]).then(function (r) {
       etat.surcouche = r[0].surcouche; etat.journal = r[1].journal; etat.propositions = r[2].propositions || [];
     });
   }
@@ -714,11 +715,39 @@ const PAGE = String.raw`<!doctype html>
   function aRelancer(l) {
     return l.statut === 'contacte' && l.contacteLe && (Date.now() - new Date(l.contacteLe).getTime()) > RELANCE_JOURS * 86400000;
   }
+  // Veille concurrente, en tête de la prospection : ses sorties absentes de
+  // nos sources désignent les lieux à démarcher en priorité.
+  function panneauVeille() {
+    var v = etat.veille;
+    var html = '<div class="panneau" style="margin-bottom:16px"><div style="display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;align-items:center">'
+      + '<h3 style="margin:0">Veille : sélection « ce week-end » de rennesenfamille.fr</h3>'
+      + '<button class="btn petit" id="relever-veille">Relever maintenant</button></div>';
+    if (!v || !v.releve) return html + '<p class="aide">Pas encore de relevé : il se fait chaque vendredi après l’alerte, ou avec le bouton.</p></div>';
+    var r = v.releve;
+    html += '<p>Samedi ' + esc(r.dateISO) + ' (relevé le ' + esc(dateFr(r.le)) + ') : <b>' + r.total + '</b> sorties chez elle — '
+      + '<span class="tag ko">' + r.absentes + ' absentes de nos sources</span> <span class="tag">' + r.ecartees + ' écartées par notre filtre</span> <span class="tag ok">' + r.retenues + ' retenues</span></p>';
+    if (v.historique.length > 1) {
+      html += '<p class="aide">Évolution des absentes : ' + v.historique.slice().reverse().map(function (h) { return esc(h.dateISO.slice(5)) + ' ' + h.absentes + '/' + h.total; }).join(' → ') + '</p>';
+    }
+    html += '<details><summary>Le détail</summary><table><thead><tr><th>Sa sortie</th><th>Lieu</th><th>Chez nous</th></tr></thead><tbody>'
+      + r.lignes.map(function (l) {
+        var chez = l.statut === 'absente' ? '<span class="tag ko">absente</span>'
+          : l.statut === 'ecartee' ? '<span class="tag">écartée : ' + esc(l.motif) + '</span><div class="aide">' + esc(l.notre) + '</div>'
+            : '<span class="tag ok">retenue (' + l.score + ')</span><div class="aide">' + esc(l.notre) + '</div>';
+        return '<tr><td>' + esc(l.titre) + (l.heure ? ' <span class="aide">' + esc(l.heure) + '</span>' : '') + '</td><td>' + esc(l.lieu || '—') + '</td><td>' + chez + '</td></tr>';
+      }).join('') + '</tbody></table></details></div>';
+    return html;
+  }
+  function chargerVeille() {
+    return api('veille').then(function (d) { etat.veille = d; }).catch(function () { etat.veille = null; });
+  }
+
   function vueProspection() {
     var doc = etat.prospection;
     var html = '<h2>Prospection des lieux</h2><p class="texte">Lieux à inviter à proposer leurs sorties (formulaire du site). <b>Écrire</b> ouvre ta messagerie avec l’e-mail prérempli — envoie depuis contact@papaparfait.fr — puis passe le lieu en « Contacté ». Un lieu qui envoie une proposition passe tout seul en « A proposé ».</p>';
+    html += panneauVeille();
     if (!doc) { $('vue').innerHTML = html + '<div class="panneau vide">Chargement…</div>'; return; }
-    if (!doc.lieux.length) { $('vue').innerHTML = html + '<div class="panneau vide">Aucun lieu pour l’instant.</div>'; return; }
+    if (!doc.lieux.length) { $('vue').innerHTML = html + '<div class="panneau vide">Aucun lieu pour l’instant.</div>'; brancherVeille(); return; }
     var f = etat.filtresProspect;
     var compte = {};
     doc.lieux.forEach(function (l) { compte[l.statut] = (compte[l.statut] || 0) + 1; });
@@ -761,6 +790,7 @@ const PAGE = String.raw`<!doctype html>
         + '<td class="col-option"><input data-note="' + esc(l.id) + '" value="' + esc(l.note || '') + '" placeholder="Note…" style="width:100%;min-width:160px"></td></tr>';
     });
     $('vue').innerHTML = html + '</tbody></table></div>';
+    brancherVeille();
     [['pq', 'q', 'oninput'], ['pville', 'ville', 'onchange'], ['ptype', 'type', 'onchange'], ['pstatut', 'statut', 'onchange']].forEach(function (c) {
       $(c[0])[c[2]] = function () {
         f[c[1]] = $(c[0]).value;
@@ -768,6 +798,16 @@ const PAGE = String.raw`<!doctype html>
         else vueProspection();
       };
     });
+  }
+  function brancherVeille() {
+    var b = $('relever-veille');
+    if (!b) return;
+    b.onclick = function () {
+      b.disabled = true; b.textContent = 'Relevé en cours…';
+      api('veille', { corps: {} }).then(function () { return chargerVeille(); })
+        .then(function () { toast('Veille relevée.'); vueProspection(); })
+        .catch(function (err) { b.disabled = false; b.textContent = 'Relever maintenant'; toast(err.message); });
+    };
   }
   function majProspect(id, champs) {
     return api('prospection', { corps: Object.assign({ id: id }, champs) }).then(function (r) {

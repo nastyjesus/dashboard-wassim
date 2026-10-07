@@ -18,6 +18,8 @@
 //   GET  /admin/api/concours       concours + nombre de participants
 //   POST /admin/api/concours       {action: enregistrer|tirer|prevenir, …}
 //   GET  /admin/api/concours/participants?id=   export CSV
+//   GET  /admin/api/veille         veille concurrente (dernier relevé, historique)
+//   POST /admin/api/veille         relevé immédiat
 //
 // Accès : en-tête `Authorization: Bearer <ADMIN_TOKEN>`. ADMIN_TOKEN est un
 // secret Cloudflare (`npx wrangler secret put ADMIN_TOKEN`). Sans lui,
@@ -34,6 +36,7 @@ import { actualiserTournees, etatTournees } from '../sources/cirques.js';
 import { listerPropositions, deciderProposition } from '../propositions.js';
 import { lireProspection, majLieu } from './prospection.js';
 import { listerConcours, agirConcours, csvParticipants } from '../concours.js';
+import { releverVeille, lireVeille } from '../veille.js';
 
 /** Comparaison à temps constant : la durée ne trahit pas la longueur commune. */
 function memeSecret(a, b) {
@@ -117,6 +120,19 @@ export async function routeAdmin(request, env, url, path, deps) {
     const r = await deciderProposition(env, corps);
     if (r.erreur) return rep({ error: 'bad_request', message: r.erreur }, 400);
     return rep(r);
+  }
+
+  // Veille concurrente (src/veille.js) : dernier relevé, ou relevé immédiat.
+  if (path === '/admin/api/veille' && request.method === 'GET') {
+    return rep(await lireVeille(env));
+  }
+  if (path === '/admin/api/veille' && request.method === 'POST') {
+    try {
+      const resume = await releverVeille(env, { ...deps, lireSurcouche, appliquerSurcouche });
+      return rep({ ok: true, resume });
+    } catch (e) {
+      return rep({ error: 'veille', message: String(e.message || e) }, 502);
+    }
   }
 
   // Concours (src/concours.js) : liste, création/édition, tirage, envoi aux gagnants, export.

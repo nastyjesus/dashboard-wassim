@@ -38,7 +38,8 @@
 //  - chaque matin, les tournées des cirques sont relues sur leurs sites
 //    (src/sources/cirques.js) et rangées en KV pour /top ;
 //  - le vendredi, l'alerte du week-end part par e-mail aux papas qui l'ont
-//    demandée (voir src/alerte.js).
+//    demandée (voir src/alerte.js), puis la veille concurrente compare la
+//    sélection de rennesenfamille.fr à nos sources (src/veille.js).
 
 import { jsonResponse, preflightResponse } from './cors.js';
 import { evenementsOpenAgenda } from './sources/openagenda.js';
@@ -56,6 +57,7 @@ import { pourAffichage } from './texte.js';
 import { recevoirProposition, servirPhoto } from './propositions.js';
 import { calculerEncart } from './encart.js';
 import { concoursPublic, lireConcours, pageReglement, participer, purgerConcours } from './concours.js';
+import { releverVeille } from './veille.js';
 import { lireSurcouche, appliquerSurcouche } from './admin/surcouche.js';
 import { routeAdmin } from './admin/api.js';
 
@@ -239,7 +241,11 @@ export default {
     ctx.waitUntil(
       envoyerAlertes(env)
         .then((resume) => console.log('alerte week-end :', JSON.stringify(resume)))
-        .catch((e) => console.error('alerte week-end, échec :', e.message || e)),
+        .catch((e) => console.error('alerte week-end, échec :', e.message || e))
+        // Puis la veille concurrente du vendredi (src/veille.js).
+        .then(() => releverVeille(env, { lireParams, chargerSources, lireSurcouche, appliquerSurcouche }))
+        .then((r) => console.log('veille concurrente :', JSON.stringify(r)))
+        .catch((e) => console.error('veille concurrente, échec :', e.message || e)),
     );
   },
 };
