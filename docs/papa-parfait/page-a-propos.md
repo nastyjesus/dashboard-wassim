@@ -132,6 +132,10 @@ Bouton : **Trouver une sortie** → lien vers l'app.
 À coller dans le `<head>` de la page (extension SEO → champ « code d'en-tête »,
 ou bloc HTML personnalisé). Remplace les `[À COMPLÉTER]` avant publication.
 
+> **12/10/2026 :** la page en ligne utilise un autre graphe (Organization +
+> WebSite + AboutPage). Le nœud Person y est ajouté avec l'`@id` ci-dessous,
+> partagé par toutes les pages signées : voir `brief-cowork-auteur.md`.
+
 ```html
 <script type="application/ld+json">
 {
@@ -139,8 +143,10 @@ ou bloc HTML personnalisé). Remplace les `[À COMPLÉTER]` avant publication.
   "@type": "AboutPage",
   "mainEntity": {
     "@type": "Person",
+    "@id": "https://papaparfait.fr/a-propos/#wassim",
     "name": "Wassim Loumi",
-    "jobTitle": "[À COMPLÉTER : ton métier]",
+    "jobTitle": "Fondateur de Papa Parfait",
+    "url": "https://papaparfait.fr/a-propos/",
     "email": "loumiwassim@gmail.com",
     "address": { "@type": "PostalAddress", "addressLocality": "Bruz", "addressCountry": "FR" },
     "sameAs": ["[À COMPLÉTER : URL LinkedIn]", "[À COMPLÉTER : autres profils publics]"]
