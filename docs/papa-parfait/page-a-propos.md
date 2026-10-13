@@ -129,38 +129,62 @@ Bouton : **Trouver une sortie** → lien vers l'app.
 
 ## Bonus SEO / GEO — données structurées
 
-À coller dans le `<head>` de la page (extension SEO → champ « code d'en-tête »,
-ou bloc HTML personnalisé). Remplace les `[À COMPLÉTER]` avant publication.
+**En ligne depuis le 12/10/2026** (snippet WPCode n°40, posé par Cowork). Ce
+bloc reflète la page publiée : le modifier ici ne change rien au site, il faut
+passer par Cowork.
 
-> **12/10/2026 :** la page en ligne utilise un autre graphe (Organization +
-> WebSite + AboutPage). Le nœud Person y est ajouté avec l'`@id` ci-dessous,
-> partagé par toutes les pages signées : voir `brief-cowork-auteur.md`.
+Le nœud Person porte l'`@id` `https://papaparfait.fr/a-propos/#wassim`, repris
+comme `author` sur les 83 pages signées (snippet n°197, voir
+`brief-cowork-auteur.md`). Garder cet `@id` stable : c'est lui qui relie les
+pages à la même personne.
 
 ```html
 <script type="application/ld+json">
 {
   "@context": "https://schema.org",
-  "@type": "AboutPage",
-  "mainEntity": {
-    "@type": "Person",
-    "@id": "https://papaparfait.fr/a-propos/#wassim",
-    "name": "Wassim Loumi",
-    "jobTitle": "Fondateur de Papa Parfait",
-    "url": "https://papaparfait.fr/a-propos/",
-    "email": "loumiwassim@gmail.com",
-    "address": { "@type": "PostalAddress", "addressLocality": "Bruz", "addressCountry": "FR" },
-    "sameAs": ["[À COMPLÉTER : URL LinkedIn]", "[À COMPLÉTER : autres profils publics]"]
-  },
-  "about": {
-    "@type": "MobileApplication",
-    "name": "Papa Parfait",
-    "applicationCategory": "LifestyleApplication",
-    "operatingSystem": "Web, Android",
-    "offers": { "@type": "Offer", "price": "0", "priceCurrency": "EUR" }
-  }
+  "@graph": [
+    {
+      "@type": "Organization",
+      "@id": "https://papaparfait.fr/#organization",
+      "name": "Papa Parfait",
+      "url": "https://papaparfait.fr/",
+      "slogan": "Le QG des papas",
+      "logo": { "@type": "ImageObject", "url": "https://papaparfait.fr/wp-content/uploads/2026/09/papa-parfait-logo.png" },
+      "founder": {
+        "@type": "Person",
+        "@id": "https://papaparfait.fr/a-propos/#wassim",
+        "name": "Wassim Loumi",
+        "jobTitle": "Fondateur de Papa Parfait",
+        "url": "https://papaparfait.fr/a-propos/"
+      },
+      "parentOrganization": { "@type": "Organization", "name": "SARL SOWPHOTO" },
+      "areaServed": { "@type": "Country", "name": "France" }
+    },
+    {
+      "@type": "WebSite",
+      "@id": "https://papaparfait.fr/#website",
+      "url": "https://papaparfait.fr/",
+      "name": "Papa Parfait",
+      "inLanguage": "fr-FR",
+      "publisher": { "@id": "https://papaparfait.fr/#organization" }
+    },
+    {
+      "@type": "AboutPage",
+      "@id": "https://papaparfait.fr/a-propos/#webpage",
+      "url": "https://papaparfait.fr/a-propos/",
+      "name": "À propos de Papa Parfait",
+      "inLanguage": "fr-FR",
+      "isPartOf": { "@id": "https://papaparfait.fr/#website" },
+      "about": { "@id": "https://papaparfait.fr/#organization" },
+      "mainEntity": { "@id": "https://papaparfait.fr/#organization" }
+    }
+  ]
 }
 </script>
 ```
+
+Pistes non retenues à ce jour : `sameAs` (LinkedIn) sur la Person, nœud
+MobileApplication pour l'app. À proposer à Wassim avant tout ajout.
 
 ---
 
