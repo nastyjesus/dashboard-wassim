@@ -74,6 +74,16 @@ function dateLongue(iso) {
   return new Date(`${iso}T12:00:00Z`).toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', timeZone: 'UTC' });
 }
 
+/**
+ * Le jour affiché dans le titre. Les pages d'âge ou de situation visent le
+ * prochain samedi : un lundi, « samedi 17 octobre » seul passait pour une
+ * erreur de date. Dans la semaine à venir, on écrit donc « ce samedi 17 octobre ».
+ */
+function quand(dateISO, aujourdhui) {
+  const d = dateLongue(dateISO);
+  return aujourdhui && dateISO > aujourdhui && dateISO <= plus(aujourdhui, 6) ? `ce ${d}` : d;
+}
+
 /** Mention exigée par les licences (DATAtourisme, Que faire à Paris) — même règle que l'app. */
 function mention(ev) {
   if (!ev.source) return null;
@@ -85,7 +95,7 @@ function mention(ev) {
 /** Les pastilles utiles hors de l'app : âge, gratuit, à l'abri, à ne pas rater. */
 const PASTILLES = /^(\d|Dès|Gratuit|À l’abri|À ne pas rater|Après l’école|Pensé pour)/;
 
-export function rendre({ ville, page, dateISO, age, top }) {
+export function rendre({ ville, page, dateISO, aujourdhui, age, top }) {
   // L'app ne connaît que 0-5 ans (contrat site ↔ app) : la page « 6-10 ans »
   // envoie 5, l'âge le plus proche, plutôt qu'un 7 que l'app ramènerait à 3.
   const lien = `${LIEN_APP}/?ville=${encodeURIComponent(ville.id)}&age=${Math.min(age, 5)}`;
@@ -101,7 +111,7 @@ export function rendre({ ville, page, dateISO, age, top }) {
       + '</li>';
   }).join('');
   return `<section class="pp-encart" style="border:2px solid #1B2430;border-radius:10px;padding:16px 20px;margin:24px 0">`
-    + `<h2 class="pp-encart-entete" style="margin-top:0">Le top du moment à ${echapper(ville.nom)} ${echapper(page.titre)} — ${echapper(dateLongue(dateISO))}</h2>`
+    + `<h2 class="pp-encart-entete" style="margin-top:0">Le top du moment à ${echapper(ville.nom)} ${echapper(page.titre)} — ${echapper(quand(dateISO, aujourdhui))}</h2>`
     + `<ol class="pp-encart-liste" style="padding-left:20px">${items}</ol>`
     + `<p class="pp-encart-cta" style="margin-bottom:0"><a href="${echapper(lien)}" style="display:inline-block;background:#FF8A00;color:#1B2430;border:2px solid #1B2430;border-radius:999px;padding:10px 20px;font-weight:700;text-decoration:none">Voir le top du jour pour mon enfant</a></p>`
     + `<p class="pp-encart-maj" style="font-size:.75em;opacity:.7;margin-bottom:0">Sélection calculée par Papa Parfait selon l’âge, la distance, l’horaire et la météo — mise à jour plusieurs fois par jour.</p>`
@@ -135,5 +145,5 @@ export async function calculerEncart(url, env, deps, aujourdhui = new Date().toI
     .filter((ev) => !ev.masque);
   const top = selectionner(retenus, 5);
   if (!top.length) return { statut: 204 };
-  return { statut: 200, html: rendre({ ville, page, dateISO, age, top }) };
+  return { statut: 200, html: rendre({ ville, page, dateISO, aujourdhui, age, top }) };
 }

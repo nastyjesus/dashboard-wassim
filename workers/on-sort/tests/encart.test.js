@@ -34,10 +34,17 @@ describe('calculerEncart', () => {
     const url = new URL('https://w/encart?ville=rennes&page=2-ans');
     const r = await calculerEncart(url, {}, deps([evenement('Marionnettes <b>du samedi</b>', { source: 'DATAtourisme', majLe: '2026-10-01' })]), MARDI);
     expect(r.statut).toBe(200);
-    expect(r.html).toContain('Le top du moment à Rennes avec un enfant de 2 ans — samedi 10 octobre');
+    expect(r.html).toContain('Le top du moment à Rennes avec un enfant de 2 ans — ce samedi 10 octobre');
     expect(r.html).toContain('Marionnettes &lt;b&gt;du samedi&lt;/b&gt;'); // échappé
     expect(r.html).toContain('?ville=rennes&amp;age=2');
     expect(r.html).toContain('Source : DATAtourisme, mise à jour le 01/10/2026');
+  });
+
+  it('titre : « ce samedi » dans la semaine, le jour même ou plus loin sans « ce »', () => {
+    const titre = (dateISO, aujourdhui) => rendre({ ville: { id: 'lille', nom: 'Lille' }, page: PAGES.bebe, dateISO, aujourdhui, age: 0, top: [evenement('A')] });
+    expect(titre('2026-10-17', '2026-10-12')).toContain('avec un bébé — ce samedi 17 octobre');
+    expect(titre('2026-10-17', '2026-10-17')).toContain('avec un bébé — samedi 17 octobre');
+    expect(titre('2026-11-28', '2026-10-12')).toContain('avec un bébé — samedi 28 novembre');
   });
 
   it('gratuit : ne garde que les sorties gratuites ; rien → 204', async () => {
