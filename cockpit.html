@@ -1000,10 +1000,10 @@ function Pilotage({ caSigne, moisSigne, moisContratsActifs, moisNouveaux, cumulS
         <div style={{ fontSize: 12.5, color: "#C9BFAE", marginTop: 6 }}>
           pipeline pondéré {court(pipePondere)} € · {contratsReste.signe} contrat{contratsReste.signe > 1 ? "s" : ""} signé{contratsReste.signe > 1 ? "s" : ""}
         </div>
-        {[60000, 80000].map((t) => (
+        {[objectif].map((t) => (
           <div key={t} style={{ marginTop: 15 }}>
             <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, color: "#C9BFAE", marginBottom: 5 }}>
-              <span>Objectif {t / 1000}k</span>
+              <span>Objectif {court(t)} €</span>
               <span style={{ color: caSigne >= t ? "#9DBF9D" : "#E0A277", fontWeight: 600 }}>{caSigne >= t ? "atteint" : `manque ${court(t - caSigne)} €`}</span>
             </div>
             <div style={{ height: 10, background: "#3a352e", borderRadius: 6, overflow: "hidden", position: "relative" }}>
