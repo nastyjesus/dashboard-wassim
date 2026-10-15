@@ -10,7 +10,7 @@ on:
       target:
         description: "Quoi tester"
         type: choice
-        options: [health, push-config, run-gsc, run-geo, deep-export, reports, all]
+        options: [health, push-config, run-gsc, run-geo, deep-export, reports, geo-history, all]
         default: all
       gsc-period:
         description: "Mois GSC (YYYY-MM, vide = mois précédent)"
@@ -128,6 +128,24 @@ jobs:
             for (const x of r) { (by[x.period] = by[x.period] || []).push(x.clientId); }
             for (const p of Object.keys(by).sort().reverse()) {
               console.log(p, ':', by[p].length, 'rapports →', by[p].sort().join(', '));
+            }
+          "
+
+      - name: Historique GEO (dates des relevés + erreurs du dernier)
+        if: env.TARGET == 'geo-history'
+        run: |
+          curl -sS --max-time 120 "$GEO/export" -H "X-Wassim-Auth: $TOKEN" > /tmp/geoexp.json
+          node -e "
+            const d = require('/tmp/geoexp.json');
+            for (const c of d.clients || []) {
+              const hist = (c.history || []).map(h => h.date + (h.summary.answers > 0 ? '(' + h.summary.answers + ' rép.)' : '(VIDE)')).join(', ');
+              console.log(c.client.id.padEnd(18), '→', hist);
+              const last = (c.history || [])[c.history.length - 1];
+              if (last && last.summary.answers === 0) {
+                for (const [n, e] of Object.entries(last.summary.perEngine || {})) {
+                  if (!e.ok) console.log('   ', n, 'KO:', String(e.error || '').slice(0, 160));
+                }
+              }
             }
           "
 

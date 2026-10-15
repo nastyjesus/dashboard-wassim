@@ -1,5 +1,5 @@
 {
-  "target": "health",
-  "requestedAt": "2026-10-15T08:09:30Z",
-  "note": "Verif post-cron GEO du 15 octobre (routine)"
+  "target": "geo-history",
+  "requestedAt": "2026-10-15T08:11:00Z",
+  "note": "Diagnostic : le cron GEO du 15 a-t-il tourne ?"
 }
