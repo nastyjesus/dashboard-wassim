@@ -367,7 +367,7 @@ function mapRows(rows) {
       let encMap = {};
       try { encMap = JSON.parse(rtext(p["Encaissements"]) || "{}") || {}; } catch (e) { encMap = {}; }
       const planMap = litPlan(rtext(p["Echeances"]));
-      const c = { id: r.id, nom: title, type: typeId, prix: montant, debut, duree, source: p["Source"] && p["Source"].select ? p["Source"].select.name : "", nombre: p["Nombre"] && p["Nombre"].number != null ? p["Nombre"].number : 1, echPlan: planMap };
+      const c = { id: r.id, nom: title, type: typeId, prix: montant, debut, duree, source: p["Source"] && p["Source"].select ? p["Source"].select.name : "", offre: rtext(p["Offre"]), nombre: p["Nombre"] && p["Nombre"].number != null ? p["Nombre"].number : 1, echPlan: planMap };
       c.ech = echeances(c).map((e) => ({ ...e, encaisse: encMap[e.mkey] != null ? Number(encMap[e.mkey]) : null }));
       clients.push(c);
     }
@@ -407,8 +407,17 @@ function objFamille(p) {
 const contratUnites = (c) => (c.type === "bni" ? Number(c.nombre) || 1 : 1);
 const estBniNouveau = (p) => p.id === "bni-new" || (p.nom || "").toLowerCase().includes("nouveau");
 const estBniRenouv = (p) => p.id === "bni-renew" || (p.nom || "").toLowerCase().includes("renouvel");
-/* offre visée correspondant à un contrat ou un prospect (famille + montant + libellé) */
-function offreDe(prestas, famille, montant, libelle) {
+/* offre visée choisie explicitement sur le contrat (champ Offre de Notion) */
+const OFFRE_HORS = "Hors offres";
+const normNom = (x) => String(x || "").trim().toLowerCase();
+const offreNommee = (prestas, offre) => (offre ? prestas.find((p) => normNom(p.nom) === normNom(offre)) || null : null);
+/* offre visée correspondant à un contrat ou un prospect : choix explicite, sinon famille + montant + libellé */
+function offreDe(prestas, famille, montant, libelle, offre) {
+  if (normNom(offre) === normNom(OFFRE_HORS)) return null;
+  const nommee = offreNommee(prestas, offre);
+  if (nommee) return nommee;
+  /* « autres » ponctuels : uniquement sur choix explicite */
+  if (famille === "ponc") return null;
   const cands = prestas.filter((p) => objFamille(p) === famille);
   if (cands.length <= 1) return cands[0] || null;
   const lib = (libelle || "").toLowerCase();
@@ -442,14 +451,21 @@ function resteContrats(prestas, clients, prospects = [], membres = [], bniProspe
   clients.forEach((c) => {
     const i = idxOf(c.debut || "2000-01");
     if (i > 11) return;
-    if (i < 0) { if (caFY(c) > 0) { avantEx.nb += 1; avantEx.ca += caFY(c); } return; }
-    const l = ligneDe(offreDe(prestas, c.type, c.prix, c.nom));
+    /* démarré avant l'exercice : compté dans son offre seulement si elle est choisie explicitement */
+    if (i < 0) {
+      if (caFY(c) <= 0) return;
+      const lp = ligneDe(offreNommee(prestas, c.offre));
+      if (lp) lp.signe += contratUnites(c);
+      else { avantEx.nb += 1; avantEx.ca += caFY(c); }
+      return;
+    }
+    const l = ligneDe(offreDe(prestas, c.type, c.prix, c.nom, c.offre));
     if (l) l.signe += contratUnites(c);
     else { horsOffres.nb += 1; horsOffres.ca += caFY(c); }
   });
   /* pipeline : prospects actifs, typés */
   prospects.filter((p) => p.type && !["signe", "perdu"].includes(p.etape)).forEach((p) => {
-    const l = ligneDe(offreDe(prestas, p.type, p.montant, p.offre));
+    const l = ligneDe(offreDe(prestas, p.type, p.montant, p.offre, p.offre));
     if (l) l.pipe += 1;
   });
   /* BNI : recrutement en cours → nouveaux membres ; échéances à venir dans l'exercice → renouvellements */
@@ -853,6 +869,7 @@ function Cockpit() {
     "Statut": "Signé",
     "Source": d.source || null,
     "Nombre": Number(d.nombre) || 1,
+    "Offre": d.offre || "",
     "Echeances": d.echPlan && Object.keys(d.echPlan).length ? ecritPlan(d.echPlan) : "",
   });
   const confirmerSignature = (data) => {
@@ -939,7 +956,7 @@ function Cockpit() {
       {/* modales */}
       {fProspect !== null && <FicheProspect p={fProspect} sourcesList={sourcesList} onClose={() => setFProspect(null)} onSave={(p) => { majProspect(p); setFProspect(null); }} onDelete={(id) => { if (isNotionId(id)) ecrire(() => apiArchive(id), "Suppression"); setFProspect(null); }} />}
       {signature && <FicheSignature p={signature} onClose={() => setSignature(null)} onConfirm={confirmerSignature} />}
-      {fClient && <FicheClient c={fClient} sourcesList={sourcesList} onClose={() => setFClient(null)} onSave={(c) => { majClient(c); setFClient(null); }} onDelete={(c) => { setFClient(null); setASupprimer(c); }} />}
+      {fClient && <FicheClient c={fClient} sourcesList={sourcesList} prestas={prestas} onClose={() => setFClient(null)} onSave={(c) => { majClient(c); setFClient(null); }} onDelete={(c) => { setFClient(null); setASupprimer(c); }} />}
       {fLevier && <FicheLevier ctx={fLevier} onClose={() => setFLevier(null)} onSave={(lev) => { saveLevier(fLevier.offre, fLevier.cat, lev); setFLevier(null); }} onDelete={(id) => { deleteLevier(fLevier.offre, fLevier.cat, id); setFLevier(null); }} />}
       {fMembre && <FicheMembre m={fMembre} onClose={() => setFMembre(null)} onSave={(m) => { majMembre(m); setFMembre(null); }} onDelete={(m) => { setFMembre(null); setASupprimer({ ...m, kind: "membre" }); }} />}
       {fBniProspect && <FicheBniProspect b={fBniProspect} onClose={() => setFBniProspect(null)} onSave={(b) => { majBniProspect(b); setFBniProspect(null); }} onDelete={(b) => { setFBniProspect(null); setASupprimer({ ...b, kind: "prospect BNI" }); }} />}
@@ -2357,7 +2374,7 @@ function FicheSignature({ p, onClose, onConfirm }) {
   );
 }
 
-function FicheClient({ c, sourcesList, onClose, onSave, onDelete }) {
+function FicheClient({ c, sourcesList, prestas = [], onClose, onSave, onDelete }) {
   const planDepart = c.echPlan && typeof c.echPlan === "object" ? c.echPlan : {};
   const [f, setF] = useState({
     ...c,
@@ -2399,6 +2416,13 @@ function FicheClient({ c, sourcesList, onClose, onSave, onDelete }) {
       {f.type === "bni" && Number(f.prix) > 0 && (
         <div style={{ fontSize: 12.5, color: S.deep, marginTop: -6, marginBottom: 12 }}>Total : <b>{eur(Number(f.prix) * (Number(f.nombre) || 1))}</b> ({eur(f.prix)} × {Number(f.nombre) || 1})</div>
       )}
+      <Ch label="Offre visée (objectifs)">
+        <select value={f.offre || ""} onChange={(e) => set("offre", e.target.value)} style={inp}>
+          <option value="">Automatique (selon le type et le prix)</option>
+          {prestas.map((p) => <option key={p.id} value={(p.nom || "").trim()}>{(p.nom || "").trim()}</option>)}
+          <option value={OFFRE_HORS}>{OFFRE_HORS} (compte dans le CA seulement)</option>
+        </select>
+      </Ch>
       <Ch label={f.type === "bni" ? "Mois de commission" : est(f.type).rec ? "Mois de démarrage" : "Mois de signature"}>
         <select value={f.debut} onChange={(e) => set("debut", e.target.value)} style={inp}>
           {CHOIX.map((o) => <option key={o.key} value={o.key}>{lab(o.y, o.m)}{o.idx < 0 ? " (exercice préc.)" : o.idx > 11 ? " (exercice suiv.)" : ""}</option>)}
