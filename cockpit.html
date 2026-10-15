@@ -37,7 +37,7 @@
 const { useState, useEffect } = React;
 
 /* ================= VERSION : force le rechargement si une version plus récente est en ligne ================= */
-const BUILD = "2026-10-15-a";
+const BUILD = "2026-10-15-b";
 (async () => {
   try {
     const r = await fetch(location.pathname + "?check=" + Date.now(), { cache: "no-store" });
@@ -923,7 +923,6 @@ function Cockpit() {
   const NAV = [
     { id: "pilotage", nom: "Pilotage", ic: <TrendingUp size={16} /> },
     { id: "crm", nom: "CRM", ic: <Users size={16} /> },
-    { id: "tunnel", nom: "Tunnel", ic: <Funnel size={16} /> },
     { id: "contrats", nom: "Contrats", ic: <FileText size={16} /> },
     { id: "bni", nom: "BNI", ic: <Award size={16} /> },
     { id: "objectifs", nom: "Objectifs", ic: <Target size={16} /> },
@@ -969,7 +968,6 @@ function Cockpit() {
       <div style={{ padding: "20px 18px 0", maxWidth: 1120, margin: "0 auto" }}>
         {vue === "pilotage" && <Pilotage {...{ caSigne, moisSigne, moisContratsActifs, moisNouveaux, cumulSigne, pipePondere, setVue, objectif, contratsReste, renouvellements, mrrEnJeu, parSource }} />}
         {vue === "crm" && <CRM {...{ prospects, setFProspect, bougerEtape, marquerPerdu, relancer, pipePondere, pipeBrut }} />}
-        {vue === "tunnel" && <Tunnel {...{ tunnels, setFLevier, saveLevier, basculerLevier, tunSaveEtat }} />}
         {vue === "contrats" && <Contrats {...{ clients, moisSigne, setFClient, setASupprimer, caSigne }} />}
         {vue === "bni" && <VueBNI {...{ membres, bniProspects, bniConf, majBniConf, majMembre, clients, membrePerfs, setFMembre, setFBniProspect, setFPerf, bougerEtapeBni, abandonnerBniProspect, setBniConfirm, setASupprimer, bniSaveEtat }} />}
         {vue === "objectifs" && <Objectifs {...{ prestas, heures, charges, objSim, majPresta, ajouterPresta, supprimerPresta, setHeuresObj, setChargesObj, setConfirmReset, objSaveEtat, caSigne }} />}
