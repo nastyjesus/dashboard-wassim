@@ -404,7 +404,20 @@ function objFamille(p) {
   return "ponc";
 }
 /* un contrat BNI porte plusieurs unités (nombre) ; les autres comptent pour 1 */
-const contratUnites = (c) => (c.type === "bni" ? Number(c.nombre) || 1 : 1);
+/* unités d'un contrat face à une offre : BNI = nombre ; abonnement = durée / durée de l'offre
+   (un contrat de 12 mois sur une offre de 6 compte pour 2) ; sinon 1 */
+const contratUnites = (c, p) => {
+  if (c.type === "bni") return Number(c.nombre) || 1;
+  if (p && p.type === "rec" && est(c.type).rec) return Math.max(1, Math.round((Number(c.duree) || 6) / (Number(p.duree) || 6)));
+  return 1;
+};
+/* valeur totale d'un contrat, exercice suivant compris */
+const valeurTotale = (c) => {
+  const plan = c.echPlan && typeof c.echPlan === "object" ? Object.values(c.echPlan).reduce((s, v) => s + (Number(v) || 0), 0) : 0;
+  if (plan > 0) return plan;
+  if (est(c.type).rec) return (Number(c.prix) || 0) * (Number(c.duree) || 6);
+  return (Number(c.prix) || 0) * (c.type === "bni" ? Number(c.nombre) || 1 : 1);
+};
 const estBniNouveau = (p) => p.id === "bni-new" || (p.nom || "").toLowerCase().includes("nouveau");
 const estBniRenouv = (p) => p.id === "bni-renew" || (p.nom || "").toLowerCase().includes("renouvel");
 /* offre visée choisie explicitement sur le contrat (champ Offre de Notion) */
@@ -437,7 +450,7 @@ function resteContrats(prestas, clients, prospects = [], membres = [], bniProspe
   const moisRestants = Math.max(1, 12 - Math.max(0, idxNow));
   const lignes = prestas.map((p) => ({
     id: p.id, nom: (p.nom || "").trim(), objectif: Number(p.qty) || 0, valeur: objValeurMission(p),
-    famille: objFamille(p), prix: Number(p.prix) || 0, rec: p.type === "rec",
+    famille: objFamille(p), prix: Number(p.prix) || 0, rec: p.type === "rec", duree: Number(p.duree) || 6,
     signe: 0, pipe: 0,
     pipeLabel: objFamille(p) === "bni" && estBniRenouv(p) ? "prévus" : "en cours",
   }));
@@ -447,6 +460,7 @@ function resteContrats(prestas, clients, prospects = [], membres = [], bniProspe
      CA de l'exercice est suivi à part : il compte dans l'objectif de CA. */
   const caFY = (c) => (c.ech || []).reduce((s, e) => s + e.du, 0);
   const horsOffres = { nb: 0, ca: 0 };
+  let valeurSignee = 0, reporte = 0;
   const avantEx = { nb: 0, ca: 0 };
   clients.forEach((c) => {
     const i = idxOf(c.debut || "2000-01");
@@ -455,12 +469,16 @@ function resteContrats(prestas, clients, prospects = [], membres = [], bniProspe
     if (i < 0) {
       if (caFY(c) <= 0) return;
       const lp = ligneDe(offreNommee(prestas, c.offre));
-      if (lp) lp.signe += contratUnites(c);
+      const pp = offreNommee(prestas, c.offre);
+      if (lp) lp.signe += contratUnites(c, pp);
       else { avantEx.nb += 1; avantEx.ca += caFY(c); }
       return;
     }
-    const l = ligneDe(offreDe(prestas, c.type, c.prix, c.nom, c.offre));
-    if (l) l.signe += contratUnites(c);
+    valeurSignee += valeurTotale(c);
+    reporte += Math.max(0, valeurTotale(c) - caFY(c));
+    const po = offreDe(prestas, c.type, c.prix, c.nom, c.offre);
+    const l = ligneDe(po);
+    if (l) l.signe += contratUnites(c, po);
     else { horsOffres.nb += 1; horsOffres.ca += caFY(c); }
   });
   /* pipeline : prospects actifs, typés */
@@ -481,6 +499,9 @@ function resteContrats(prestas, clients, prospects = [], membres = [], bniProspe
     l.reste = Math.max(0, l.objectif - l.signe);
     l.montantReste = l.reste * l.valeur;
     l.parMois = l.reste / moisRestants;
+    /* abonnement signé ce mois-ci : seuls les mois avant fin août comptent dans l'exercice */
+    l.moisDispo = l.rec ? Math.min(l.duree, moisRestants) : 1;
+    l.valeurCeMois = l.rec ? l.prix * l.moisDispo : l.prix;
     l.enRetard = l.reste > 0 && l.signe < Math.floor((l.objectif * moisEcoules) / 12);
     l.statut = l.reste <= 0 ? "fait" : l.pipe >= l.reste ? "couvert" : l.pipe > 0 ? "alimenter" : "vide";
   });
@@ -491,7 +512,8 @@ function resteContrats(prestas, clients, prospects = [], membres = [], bniProspe
   const signe = actives.reduce((s, l) => s + l.signe, 0);
   const reste = actives.reduce((s, l) => s + l.reste, 0);
   const montantReste = actives.reduce((s, l) => s + l.montantReste, 0);
-  return { lignes: actives, objectif, signe, reste, montantReste, moisRestants, horsOffres, avantEx };
+  const amputes = actives.some((l) => l.rec && l.reste > 0 && l.moisDispo < l.duree);
+  return { lignes: actives, objectif, signe, reste, montantReste, moisRestants, horsOffres, avantEx, valeurSignee, reporte, amputes };
 }
 /* « 1,3 par mois » ou « 1 tous les 5,5 mois » */
 function rythmeTexte(parMois) {
@@ -1068,9 +1090,11 @@ function Pilotage({ caSigne, moisSigne, moisContratsActifs, moisNouveaux, cumulS
               ].filter(Boolean);
               return (
                 <div style={{ fontSize: 13.5, color: S.soft, lineHeight: 1.6 }}>
-                  CA : <b style={{ color: S.ink }}>{court(caSigne)} €</b> / {court(objectif)} € ({pctCa} %) · {resteCa > 0 ? <>reste <b style={{ color: S.rust }}>{court(resteCa)} €</b></> : <b style={{ color: S.green }}>atteint</b>}
+                  CA de l'exercice : <b style={{ color: S.ink }}>{court(caSigne)} €</b> / {court(objectif)} € ({pctCa} %) · {resteCa > 0 ? <>reste <b style={{ color: S.rust }}>{court(resteCa)} €</b></> : <b style={{ color: S.green }}>atteint</b>}
+                  <div style={{ fontSize: 12.5 }}>Valeur signée depuis sept. : <b style={{ color: S.ink }}>{court(R.valeurSignee) || 0} €</b> · reporté sur 27/28 : <b style={{ color: S.ink }}>{court(R.reporte) || 0} €</b></div>
                   {extras.length > 0 && <div style={{ fontSize: 11.5 }}>dont {extras.join(" · ")}</div>}
                   {R.reste > 0 && <div><b style={{ color: S.ink }}>{R.reste} contrat{R.reste > 1 ? "s" : ""}</b> à signer en {R.moisRestants} mois</div>}
+                  {R.amputes && <div style={{ marginTop: 6, fontSize: 12, color: S.rust, background: "#F6EDE4", border: `1px solid ${S.rust}`, borderRadius: 8, padding: "6px 9px" }}>Après mars, un nouvel abonnement rapporte moins de 6 mois sur l'exercice : le reste bascule sur 27/28.</div>}
                 </div>
               );
             })()}
@@ -1101,7 +1125,7 @@ function Pilotage({ caSigne, moisSigne, moisContratsActifs, moisNouveaux, cumulS
                               <div style={{ height: "100%", width: `${pct}%`, background: fait ? "linear-gradient(90deg,#7DA07D,#5B7A5B)" : `linear-gradient(90deg,${S.deep},${S.gold})`, borderRadius: 5 }} />
                             </div>
                             <div style={{ display: "flex", justifyContent: "space-between", gap: 8, fontSize: 11.5, color: S.soft, marginTop: 4 }}>
-                              <span>{fait ? "atteint" : <>reste {l.reste} · {rythmeTexte(l.parMois)} · {l.pipe} {l.pipeLabel}</>}</span>
+                              <span>{fait ? "atteint" : <>reste {l.reste} · {rythmeTexte(l.parMois)} · {l.pipe} {l.pipeLabel}</>}{l.rec && !fait && <><br />signé ce mois : <b style={{ color: l.moisDispo < l.duree ? S.rust : S.ink }}>{court(l.valeurCeMois)} €</b> sur l'exercice{l.moisDispo < l.duree ? ` (${l.moisDispo} mois)` : ""}</>}</span>
                               {!fait && <span style={{ color: st.c, fontWeight: 700, whiteSpace: "nowrap" }}>{st.t}</span>}
                             </div>
                           </div>
