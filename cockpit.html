@@ -532,7 +532,7 @@ const RAF_SECTIONS = [
 const RAF_STATUT = {
   fait: { t: "atteint", c: "#5B7A5B" },
   couvert: { t: "couvert", c: "#5B7A5B" },
-  alimenter: { t: "à alimenter", c: "#B08D57" },
+  alimenter: { t: "à relancer", c: "#B08D57" },
   vide: { t: "pipeline vide", c: "#A9683F" },
 };
 
@@ -1084,17 +1084,15 @@ function Pilotage({ caSigne, moisSigne, moisContratsActifs, moisNouveaux, cumulS
               const R = contratsReste;
               const resteCa = Math.max(0, objectif - caSigne);
               const pctCa = objectif > 0 ? Math.round((caSigne / objectif) * 100) : 0;
-              const extras = [
-                R.horsOffres.nb > 0 && `hors offres ${court(R.horsOffres.ca)} €`,
-                R.avantEx.nb > 0 && `contrats d'avant sept. ${court(R.avantEx.ca)} €`,
-              ].filter(Boolean);
               return (
-                <div style={{ fontSize: 13.5, color: S.soft, lineHeight: 1.6 }}>
-                  CA de l'exercice : <b style={{ color: S.ink }}>{court(caSigne)} €</b> / {court(objectif)} € ({pctCa} %) · {resteCa > 0 ? <>reste <b style={{ color: S.rust }}>{court(resteCa)} €</b></> : <b style={{ color: S.green }}>atteint</b>}
-                  <div style={{ fontSize: 12.5 }}>Valeur signée depuis sept. : <b style={{ color: S.ink }}>{court(R.valeurSignee) || 0} €</b> · reporté sur 27/28 : <b style={{ color: S.ink }}>{court(R.reporte) || 0} €</b></div>
-                  {extras.length > 0 && <div style={{ fontSize: 11.5 }}>dont {extras.join(" · ")}</div>}
-                  {R.reste > 0 && <div><b style={{ color: S.ink }}>{R.reste} contrat{R.reste > 1 ? "s" : ""}</b> à signer en {R.moisRestants} mois</div>}
-                  {R.amputes && <div style={{ marginTop: 6, fontSize: 12, color: S.rust, background: "#F6EDE4", border: `1px solid ${S.rust}`, borderRadius: 8, padding: "6px 9px" }}>Après mars, un nouvel abonnement rapporte moins de 6 mois sur l'exercice : le reste bascule sur 27/28.</div>}
+                <div>
+                  <div style={{ ...serif, fontSize: 26, fontWeight: 600, color: resteCa > 0 ? S.rust : S.green, lineHeight: 1.1 }}>
+                    {resteCa > 0 ? <>{court(resteCa)} € <span style={{ fontSize: 15, color: S.soft, fontWeight: 500 }}>à aller chercher</span></> : "Objectif atteint 🎉"}
+                  </div>
+                  <div style={{ fontSize: 12, color: S.soft, marginTop: 3 }}>
+                    {court(caSigne)} € / {court(objectif)} € ({pctCa} %){R.reporte > 0 ? <> · {court(R.reporte)} € reportés sur 27/28</> : null}
+                  </div>
+                  {R.amputes && <div style={{ marginTop: 8, fontSize: 12, color: S.rust, background: "#F6EDE4", border: `1px solid ${S.rust}`, borderRadius: 8, padding: "6px 9px" }}>Un abonnement signé maintenant ne fait plus 6 mois sur l'exercice.</div>}
                 </div>
               );
             })()}
@@ -1114,20 +1112,21 @@ function Pilotage({ caSigne, moisSigne, moisContratsActifs, moisNouveaux, cumulS
                       {ls.map((l) => {
                         const pct = l.objectif > 0 ? Math.min(100, (l.signe / l.objectif) * 100) : 100;
                         const fait = l.reste <= 0;
-                        const st = l.enRetard ? { t: "en retard", c: S.rust } : RAF_STATUT[l.statut];
+                        const st = fait ? { t: "✓", c: S.green } : l.enRetard ? { t: "en retard", c: S.rust } : RAF_STATUT[l.statut];
+                        const coul = fait || l.statut === "couvert" ? "linear-gradient(90deg,#7DA07D,#5B7A5B)" : `linear-gradient(90deg,${S.deep},${S.gold})`;
                         return (
                           <div key={l.id}>
-                            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 8, fontSize: 13, marginBottom: 3 }}>
+                            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 8, fontSize: 13, marginBottom: 4 }}>
                               <span style={{ color: S.ink, fontWeight: 600 }}>{l.nom} <span style={{ color: S.soft, fontWeight: 500, fontSize: 11.5 }}>({court(l.prix)} € HT{l.rec ? "/mois" : ""})</span></span>
-                              <span style={{ color: fait ? S.green : S.ink, fontWeight: 600, whiteSpace: "nowrap" }}>{l.signe} / {l.objectif}</span>
+                              <span style={{ whiteSpace: "nowrap" }}>
+                                <b style={{ color: fait ? S.green : S.ink, fontSize: 14 }}>{l.signe}/{l.objectif}</b>
+                                <span style={{ color: st.c, fontWeight: 700, fontSize: 11, marginLeft: 8 }}>{st.t}</span>
+                              </span>
                             </div>
-                            <div style={{ height: 7, background: S.grid, borderRadius: 5, overflow: "hidden" }}>
-                              <div style={{ height: "100%", width: `${pct}%`, background: fait ? "linear-gradient(90deg,#7DA07D,#5B7A5B)" : `linear-gradient(90deg,${S.deep},${S.gold})`, borderRadius: 5 }} />
+                            <div style={{ height: 8, background: S.grid, borderRadius: 5, overflow: "hidden" }}>
+                              <div style={{ height: "100%", width: `${pct}%`, background: coul, borderRadius: 5 }} />
                             </div>
-                            <div style={{ display: "flex", justifyContent: "space-between", gap: 8, fontSize: 11.5, color: S.soft, marginTop: 4 }}>
-                              <span>{fait ? "atteint" : <>reste {l.reste} · {rythmeTexte(l.parMois)} · {l.pipe} {l.pipeLabel}</>}{l.rec && !fait && <><br />signé ce mois : <b style={{ color: l.moisDispo < l.duree ? S.rust : S.ink }}>{court(l.valeurCeMois)} €</b> sur l'exercice{l.moisDispo < l.duree ? ` (${l.moisDispo} mois)` : ""}</>}</span>
-                              {!fait && <span style={{ color: st.c, fontWeight: 700, whiteSpace: "nowrap" }}>{st.t}</span>}
-                            </div>
+                            {l.rec && !fait && l.moisDispo < l.duree && <div style={{ fontSize: 11, color: S.rust, marginTop: 3 }}>signé maintenant : {l.moisDispo} mois sur l'exercice</div>}
                           </div>
                         );
                       })}
