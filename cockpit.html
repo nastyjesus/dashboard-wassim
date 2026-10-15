@@ -429,15 +429,22 @@ function resteContrats(prestas, clients, prospects = [], membres = [], bniProspe
   const lignes = prestas.map((p) => ({
     id: p.id, nom: (p.nom || "").trim(), objectif: Number(p.qty) || 0, valeur: objValeurMission(p),
     signe: 0, pipe: 0,
-    pipeLabel: objFamille(p) === "bni" && estBniRenouv(p) ? "renouvellement(s) prévu(s)" : objFamille(p) === "bni" ? "en recrutement" : "en pipeline",
+    pipeLabel: objFamille(p) === "bni" && estBniRenouv(p) ? "prévus" : "en cours",
   }));
   const ligneDe = (p) => (p ? lignes.find((l) => l.id === p.id) : null);
-  /* signés : seuls les contrats qui démarrent pendant l'exercice */
+  /* signés : contrats qui démarrent pendant l'exercice. Les autres (hors offres
+     visées, ou démarrés avant le 1er sept.) ne comptent pas en contrats mais leur
+     CA de l'exercice est suivi à part : il compte dans l'objectif de CA. */
+  const caFY = (c) => (c.ech || []).reduce((s, e) => s + e.du, 0);
+  const horsOffres = { nb: 0, ca: 0 };
+  const avantEx = { nb: 0, ca: 0 };
   clients.forEach((c) => {
     const i = idxOf(c.debut || "2000-01");
-    if (i < 0 || i > 11) return;
+    if (i > 11) return;
+    if (i < 0) { if (caFY(c) > 0) { avantEx.nb += 1; avantEx.ca += caFY(c); } return; }
     const l = ligneDe(offreDe(prestas, c.type, c.prix, c.nom));
     if (l) l.signe += contratUnites(c);
+    else { horsOffres.nb += 1; horsOffres.ca += caFY(c); }
   });
   /* pipeline : prospects actifs, typés */
   prospects.filter((p) => p.type && !["signe", "perdu"].includes(p.etape)).forEach((p) => {
@@ -467,18 +474,18 @@ function resteContrats(prestas, clients, prospects = [], membres = [], bniProspe
   const signe = actives.reduce((s, l) => s + l.signe, 0);
   const reste = actives.reduce((s, l) => s + l.reste, 0);
   const montantReste = actives.reduce((s, l) => s + l.montantReste, 0);
-  return { lignes: actives, objectif, signe, reste, montantReste, moisRestants };
+  return { lignes: actives, objectif, signe, reste, montantReste, moisRestants, horsOffres, avantEx };
 }
 /* « 1,3 par mois » ou « 1 tous les 5,5 mois » */
 function rythmeTexte(parMois) {
   if (parMois <= 0) return "";
   const f = (x) => (Math.round(x * 10) / 10).toLocaleString("fr-FR");
-  return parMois >= 0.75 ? `${f(parMois)} par mois` : `1 tous les ${f(1 / parMois)} mois`;
+  return parMois >= 0.75 ? `${f(parMois)}/mois` : `1 tous les ${f(1 / parMois)} mois`;
 }
 const RAF_STATUT = {
   fait: { t: "atteint", c: "#5B7A5B" },
-  couvert: { t: "pipeline suffisant", c: "#5B7A5B" },
-  alimenter: { t: "pipeline à alimenter", c: "#B08D57" },
+  couvert: { t: "couvert", c: "#5B7A5B" },
+  alimenter: { t: "à alimenter", c: "#B08D57" },
   vide: { t: "pipeline vide", c: "#A9683F" },
 };
 
@@ -1015,66 +1022,53 @@ function Pilotage({ caSigne, moisSigne, moisContratsActifs, moisNouveaux, cumulS
         <div style={{ fontSize: 11, color: "#8d857a", marginTop: 8 }}>La zone hachurée montre le pipeline pondéré ajouté au signé.</div>
       </div>
 
-      {/* reste à faire PAR OFFRE : contrats et € restants, rythme à tenir, couverture par le pipeline */}
+      {/* reste à faire PAR OFFRE : objectif CA (tous contrats) puis contrats restants par offre */}
       <div style={{ background: S.paper, border: `1px solid ${S.line}`, borderLeft: `4px solid ${S.deep}`, borderRadius: 14, padding: "15px 17px", marginTop: 12 }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", flexWrap: "wrap", gap: 6, marginBottom: 4 }}>
           <div style={{ ...serif, fontSize: 18, fontWeight: 600, color: S.ink }}>Ce qu'il te reste à signer</div>
           <button onClick={() => setVue("objectifs")} style={{ background: "transparent", border: "none", color: S.deep, fontSize: 11.5, fontWeight: 600, cursor: "pointer", padding: 0 }}>Objectifs →</button>
         </div>
         {contratsReste.objectif <= 0 ? (
-          <p style={{ fontSize: 13, color: S.soft, lineHeight: 1.6, margin: "4px 0 0" }}>Renseigne les quantités visées par offre dans l'onglet <b style={{ color: S.ink }}>Objectifs</b> pour voir ce qu'il te reste à signer.</p>
+          <p style={{ fontSize: 13, color: S.soft, lineHeight: 1.6, margin: "4px 0 0" }}>Renseigne les quantités visées par offre dans l'onglet <b style={{ color: S.ink }}>Objectifs</b>.</p>
         ) : (
           <>
             {(() => {
               const R = contratsReste;
-              if (R.reste <= 0) return <div style={{ fontSize: 13.5, color: S.green, fontWeight: 600, lineHeight: 1.7 }}>Toutes les offres ont atteint leur objectif 🎉</div>;
-              const top = R.lignes.filter((l) => l.montantReste > 0).slice(0, 2);
-              const partTop = R.montantReste > 0 ? Math.round((top.reduce((s, l) => s + l.montantReste, 0) / R.montantReste) * 100) : 0;
+              const resteCa = Math.max(0, objectif - caSigne);
+              const pctCa = objectif > 0 ? Math.round((caSigne / objectif) * 100) : 0;
+              const extras = [
+                R.horsOffres.nb > 0 && `hors offres ${court(R.horsOffres.ca)} €`,
+                R.avantEx.nb > 0 && `contrats d'avant sept. ${court(R.avantEx.ca)} €`,
+              ].filter(Boolean);
               return (
-                <div style={{ fontSize: 13.5, color: S.soft, lineHeight: 1.65 }}>
-                  <b style={{ color: S.ink, fontSize: 15 }}>{court(R.montantReste)} € HT</b> à signer en <b style={{ color: S.ink }}>{R.reste} contrat{R.reste > 1 ? "s" : ""}</b>, sur les {R.moisRestants} mois qui restent.
-                  {top.length > 0 && <> {top.map((l) => l.nom).join(" et ")} {top.length > 1 ? "en portent" : "en porte"} <b style={{ color: S.ink }}>{partTop} %</b>.</>}
+                <div style={{ fontSize: 13.5, color: S.soft, lineHeight: 1.6 }}>
+                  CA : <b style={{ color: S.ink }}>{court(caSigne)} €</b> / {court(objectif)} € ({pctCa} %) · {resteCa > 0 ? <>reste <b style={{ color: S.rust }}>{court(resteCa)} €</b></> : <b style={{ color: S.green }}>atteint</b>}
+                  {extras.length > 0 && <div style={{ fontSize: 11.5 }}>dont {extras.join(" · ")}</div>}
+                  {R.reste > 0 && <div><b style={{ color: S.ink }}>{R.reste} contrat{R.reste > 1 ? "s" : ""}</b> à signer en {R.moisRestants} mois</div>}
                 </div>
               );
             })()}
-            <div style={{ marginTop: 14, display: "flex", flexDirection: "column", gap: 14 }}>
+            <div style={{ marginTop: 12, display: "flex", flexDirection: "column", gap: 11 }}>
               {contratsReste.lignes.map((l) => {
                 const pct = l.objectif > 0 ? Math.min(100, (l.signe / l.objectif) * 100) : 100;
                 const fait = l.reste <= 0;
-                const st = RAF_STATUT[l.statut];
-                const puce = (txt, col) => (
-                  <span style={{ fontSize: 10.5, fontWeight: 700, color: col, border: `1px solid ${col}`, borderRadius: 20, padding: "1px 8px", whiteSpace: "nowrap" }}>{txt}</span>
-                );
+                const st = l.enRetard ? { t: "en retard", c: S.rust } : RAF_STATUT[l.statut];
                 return (
                   <div key={l.id}>
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 8, fontSize: 13, marginBottom: 4 }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 8, fontSize: 13, marginBottom: 3 }}>
                       <span style={{ color: S.ink, fontWeight: 600 }}>{l.nom}</span>
-                      <span style={{ color: fait ? S.green : S.ink, fontWeight: 600, whiteSpace: "nowrap" }}>
-                        {l.signe} / {l.objectif} signé{l.signe > 1 ? "s" : ""}
-                      </span>
+                      <span style={{ color: fait ? S.green : S.ink, fontWeight: 600, whiteSpace: "nowrap" }}>{l.signe} / {l.objectif}</span>
                     </div>
-                    <div style={{ height: 8, background: S.grid, borderRadius: 5, overflow: "hidden" }}>
+                    <div style={{ height: 7, background: S.grid, borderRadius: 5, overflow: "hidden" }}>
                       <div style={{ height: "100%", width: `${pct}%`, background: fait ? "linear-gradient(90deg,#7DA07D,#5B7A5B)" : `linear-gradient(90deg,${S.deep},${S.gold})`, borderRadius: 5 }} />
                     </div>
-                    <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: "4px 10px", fontSize: 12, color: S.soft, marginTop: 6 }}>
-                      {fait ? (
-                        <span>Objectif atteint</span>
-                      ) : (
-                        <>
-                          <span>Reste <b style={{ color: S.ink }}>{l.reste}</b> · <b style={{ color: S.ink }}>{court(l.montantReste)} €</b></span>
-                          <span>Rythme : <b style={{ color: S.ink }}>{rythmeTexte(l.parMois)}</b></span>
-                        </>
-                      )}
-                      <span>{l.pipe} {l.pipeLabel}</span>
-                      {puce(st.t, st.c)}
-                      {l.enRetard && puce("en retard", S.rust)}
+                    <div style={{ display: "flex", justifyContent: "space-between", gap: 8, fontSize: 11.5, color: S.soft, marginTop: 4 }}>
+                      <span>{fait ? "atteint" : <>reste {l.reste} · {rythmeTexte(l.parMois)} · {l.pipe} {l.pipeLabel}</>}</span>
+                      {!fait && <span style={{ color: st.c, fontWeight: 700, whiteSpace: "nowrap" }}>{st.t}</span>}
                     </div>
                   </div>
                 );
               })}
-            </div>
-            <div style={{ fontSize: 11, color: S.soft, opacity: 0.85, marginTop: 12, lineHeight: 1.5 }}>
-              Signés = contrats démarrés depuis le 1ᵉʳ sept. 2026, rattachés à l'offre au prix le plus proche. Pipeline = prospects actifs du même type (sans montant : offre principale). BNI : prospects en recrutement et membres dont l'échéance tombe avant fin août. « En retard » = moins de signatures que le prorata de l'année écoulée.
             </div>
           </>
         )}
