@@ -1,13 +1,13 @@
 {
-  "checkedAt": "2026-10-15T08:09:35Z",
-  "target": "health",
+  "checkedAt": "2026-10-15T08:10:59Z",
+  "target": "geo-history",
   "gscHealth": {
     "ok": true,
     "mock": false,
     "googleKey": {
       "ok": true
     },
-    "ts": "2026-10-15T08:09:34.615Z"
+    "ts": "2026-10-15T08:10:58.616Z"
   },
   "geoHealth": {
     "ok": true,
@@ -17,7 +17,7 @@
       "openai",
       "gemini"
     ],
-    "ts": "2026-10-15T08:09:34.699Z"
+    "ts": "2026-10-15T08:10:58.733Z"
   },
   "gsc": {
     "latest": {
