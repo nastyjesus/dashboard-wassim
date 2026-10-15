@@ -36,6 +36,16 @@
 <script type="text/babel" data-presets="react">
 const { useState, useEffect } = React;
 
+/* ================= VERSION : force le rechargement si une version plus récente est en ligne ================= */
+const BUILD = "2026-10-15-a";
+(async () => {
+  try {
+    const r = await fetch(location.pathname + "?check=" + Date.now(), { cache: "no-store" });
+    const m = (await r.text()).match(/const BUILD = "([^"]+)"/);
+    if (m && m[1] !== BUILD) location.replace(location.pathname + "?v=" + m[1] + location.hash);
+  } catch (e) { /* hors ligne : on garde la version chargée */ }
+})();
+
 /* ================= CONNEXION WORKER ================= */
 const WORKER_URL = "https://pilotage-notion-worker.loumiwassim.workers.dev";
 const PILOT_KEY  = "pilot-6f3a9c2e8b1d47-write"; /* clé d'écriture PUBLIQUE (gate anti-abus) */
@@ -1067,7 +1077,6 @@ function Pilotage({ caSigne, moisSigne, moisContratsActifs, moisNouveaux, cumulS
             </div>
           </div>
         ))}
-        <div style={{ fontSize: 11, color: "#8d857a", marginTop: 8 }}>La zone hachurée montre le pipeline pondéré ajouté au signé.</div>
       </div>
 
       {/* reste à faire PAR OFFRE : objectif CA (tous contrats) puis contrats restants par offre */}
@@ -1147,9 +1156,6 @@ function Pilotage({ caSigne, moisSigne, moisContratsActifs, moisNouveaux, cumulS
             {moisEcoules === 0 ? "exercice pas encore commencé" : ecart >= 0 ? `en avance de ${court(ecart)} €` : `en retard de ${court(-ecart)} € → accélère`}
           </div>
         </div>
-        <div style={{ fontSize: 12, color: "#C9BFAE", marginTop: 4 }}>
-          À ce stade tu devrais avoir signé <b style={{ color: S.cream }}>{court(cibleADate)} €</b> ({moisEcoules}/12 de l'objectif). Cible : <b style={{ color: S.cream }}>{court(cibleMensuelle)} € / mois</b>.
-        </div>
         <div style={{ display: "flex", alignItems: "flex-end", gap: 3, height: 60, marginTop: 12 }}>
           {moisSigne.map((v, i) => {
             const cumul = cumulSigne[i];
@@ -1168,69 +1174,22 @@ function Pilotage({ caSigne, moisSigne, moisContratsActifs, moisNouveaux, cumulS
             );
           })}
         </div>
-        <div style={{ fontSize: 10.5, color: "#8d857a", marginTop: 7 }}>Chaque barre = CA signé cumulé à ce mois. Barre <span style={{ color: "#9DBF9D" }}>verte</span> = au-dessus de la cible, <span style={{ color: "#E0A277" }}>orange</span> = en dessous. Le trait clair = cible cumulée.</div>
-      </div>
-
-      {/* focus du mois courant : contrats (sans notion de paiement) */}
-      <div style={{ display: "flex", gap: 10, marginTop: 12, flexWrap: "wrap" }}>
-        {[
-          { l: `${moisNom} · CA du mois`, v: eur(duFocus), s: `mois ${statutFocus}` },
-          { l: `${moisNom} · contrats actifs`, v: actifsFocus, s: "en cours ce mois" },
-          { l: `${moisNom} · nouveaux`, v: nouveauxFocus, s: "démarrages du mois" },
-        ].map((k, i) => (
-          <button key={i} onClick={() => setVue("contrats")} style={{ flex: "1 1 150px", textAlign: "left", background: S.paper, border: `1px solid ${S.line}`, borderRadius: 12, padding: "11px 13px", cursor: "pointer" }}>
-            <div style={{ fontSize: 10, letterSpacing: "0.05em", textTransform: "uppercase", color: S.deep, fontWeight: 600 }}>{k.l}</div>
-            <div style={{ ...serif, fontSize: 21, color: S.ink, marginTop: 2 }}>{k.v}</div>
-            <div style={{ fontSize: 11.5, color: S.soft }}>{k.s}</div>
-          </button>
-        ))}
-      </div>
-
-      {/* graphe mensuel : CA signé par mois (contrats), cible mensuelle, mois courant surligné */}
-      <div style={{ background: S.paper, border: `1px solid ${S.line}`, borderRadius: 14, padding: "14px 14px 12px", marginTop: 12 }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", flexWrap: "wrap", gap: 6, marginBottom: 4 }}>
-          <div style={{ ...serif, fontSize: 16, fontWeight: 600, color: S.ink }}>Le CA des contrats, mois par mois</div>
-          <div style={{ fontSize: 10.5, color: S.soft }}>trait = cible {court(cibleMensuelle)} € / mois</div>
-        </div>
-        <div style={{ position: "relative", height: 112, marginTop: 10 }}>
-          <div style={{ position: "absolute", left: 0, right: 0, bottom: `${(cibleMensuelle / maxMois) * 112}px`, borderTop: `1px dashed ${S.deep}`, opacity: 0.55, zIndex: 3 }} />
-          <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "flex-end", gap: 3 }}>
-            {FY.map((o, i) => {
-              const du = moisSigne[i];
-              const cur = i === iFocus && enCours;
-              return (
-                <div key={i} style={{ flex: 1, height: "100%", display: "flex", alignItems: "flex-end", justifyContent: "center", background: cur ? "rgba(176,141,87,0.12)" : "transparent", borderRadius: 5, paddingTop: 2 }} title={`${MOIS[o.m - 1]} : ${eur(du)}`}>
-                  <div style={{ width: "62%", height: `${(du / maxMois) * 112}px`, minHeight: du ? 2 : 0, background: `linear-gradient(180deg,${S.gold},${S.deep})`, borderRadius: "2px 2px 0 0" }} />
-                </div>
-              );
-            })}
-          </div>
-        </div>
-        <div style={{ display: "flex", gap: 3, marginTop: 3 }}>
-          {FY.map((o, i) => {
-            const cur = i === iFocus && enCours;
-            return <div key={i} style={{ flex: 1, textAlign: "center", fontSize: 8.5, color: cur ? S.deep : S.soft, fontWeight: cur ? 700 : 400 }}>{MOIS[o.m - 1].slice(0, 1).toUpperCase()}</div>;
-          })}
-        </div>
-        <div style={{ fontSize: 11, color: S.rust, marginTop: 9, display: "flex", alignItems: "center", gap: 5 }}>
-          <AlertTriangle size={12} /> La falaise après décembre, c'est ton vrai chantier : renouvellement et acquisition.
-        </div>
       </div>
 
       {/* radar des renouvellements : combler la falaise avant qu'elle arrive */}
       <div style={{ background: S.paper, border: `1px solid ${S.line}`, borderLeft: `4px solid ${mrrEnJeu > 0 ? S.rust : S.line}`, borderRadius: 14, padding: "15px 17px", marginTop: 12 }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", flexWrap: "wrap", gap: 6, marginBottom: 4 }}>
-          <div style={{ ...serif, fontSize: 18, fontWeight: 600, color: S.ink }}>Radar des renouvellements</div>
+          <div style={{ ...serif, fontSize: 18, fontWeight: 600, color: S.ink }}>Renouvellements</div>
           <button onClick={() => setVue("contrats")} style={{ background: "transparent", border: "none", color: S.deep, fontSize: 11.5, fontWeight: 600, cursor: "pointer", padding: 0 }}>Contrats →</button>
         </div>
         {renouvellements.length === 0 ? (
-          <p style={{ fontSize: 13, color: S.soft, lineHeight: 1.6, margin: "4px 0 0" }}>Aucun contrat récurrent pour l'instant — dès que tu en signes un, sa date de fin apparaîtra ici avec une alerte 2 mois avant.</p>
+          <p style={{ fontSize: 13, color: S.soft, lineHeight: 1.6, margin: "4px 0 0" }}>Aucun abonnement en cours.</p>
         ) : (
           <>
             <div style={{ fontSize: 13.5, color: S.soft, lineHeight: 1.6, marginBottom: 10 }}>
               {mrrEnJeu > 0
-                ? <><b style={{ color: S.rust }}>{renouvellements.filter((r) => r.statut === "urgent").length} contrat{renouvellements.filter((r) => r.statut === "urgent").length > 1 ? "s" : ""}</b> arrive{renouvellements.filter((r) => r.statut === "urgent").length > 1 ? "nt" : ""} à échéance sous 2 mois — <b style={{ color: S.rust }}>{court(mrrEnJeu)} € / mois</b> en jeu. Propose le renouvellement maintenant.</>
-                : <span style={{ color: S.green, fontWeight: 600 }}>Aucun renouvellement urgent 👌</span>}
+                ? <><b style={{ color: S.rust }}>{renouvellements.filter((r) => r.statut === "urgent").length} contrat{renouvellements.filter((r) => r.statut === "urgent").length > 1 ? "s" : ""}</b> à renouveler sous 2 mois · <b style={{ color: S.rust }}>{court(mrrEnJeu)} €/mois</b> en jeu</>
+                : <span style={{ color: S.green, fontWeight: 600 }}>Rien d'urgent</span>}
             </div>
             <div style={{ display: "flex", flexDirection: "column", gap: 7 }}>
               {renouvellements.map((r) => {
@@ -1256,75 +1215,6 @@ function Pilotage({ caSigne, moisSigne, moisContratsActifs, moisNouveaux, cumulS
         )}
       </div>
 
-      {/* d'où vient le CA : sources qui rapportent (signé + pipeline pondéré) */}
-      <div style={{ background: S.paper, border: `1px solid ${S.line}`, borderRadius: 14, padding: "15px 17px", marginTop: 12 }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", flexWrap: "wrap", gap: 6, marginBottom: 4 }}>
-          <div style={{ ...serif, fontSize: 18, fontWeight: 600, color: S.ink }}>D'où vient le CA</div>
-          <div style={{ display: "flex", gap: 12, fontSize: 10.5, color: S.soft }}>
-            <span style={{ display: "flex", alignItems: "center", gap: 4 }}><span style={{ width: 9, height: 9, borderRadius: 2, background: S.gold }} /> signé</span>
-            <span style={{ display: "flex", alignItems: "center", gap: 4 }}><span style={{ width: 9, height: 9, borderRadius: 2, background: "repeating-linear-gradient(45deg,#B8A88E,#B8A88E 2px,transparent 2px,transparent 4px)", border: `1px solid ${S.line}` }} /> pipeline pondéré</span>
-          </div>
-        </div>
-        {parSource.length === 0 ? (
-          <p style={{ fontSize: 13, color: S.soft, lineHeight: 1.6, margin: "4px 0 0" }}>Renseigne la <b style={{ color: S.ink }}>source</b> sur tes contrats et prospects (BNI, LinkedIn, reco…) pour voir quelle source ramène du CA.</p>
-        ) : (
-          <>
-            <div style={{ display: "flex", flexDirection: "column", gap: 9, marginTop: 6 }}>
-              {(() => {
-                const maxSrc = Math.max(1, ...parSource.map((l) => l.caSigne + l.pipe));
-                return parSource.map((l) => (
-                  <div key={l.source}>
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", fontSize: 12.5, marginBottom: 4 }}>
-                      <span style={{ color: S.soft, fontWeight: 600 }}>{l.source}{l.nb > 0 && <span style={{ opacity: 0.7, fontWeight: 400 }}> · {l.nb} contrat{l.nb > 1 ? "s" : ""}</span>}</span>
-                      <span style={{ color: S.ink, fontWeight: 600 }}>{court(l.caSigne)} €{l.pipe > 0 && <span style={{ color: S.soft, fontWeight: 400 }}> + {court(l.pipe)} € pond.</span>}</span>
-                    </div>
-                    <div style={{ height: 9, background: S.grid, borderRadius: 5, overflow: "hidden", display: "flex" }}>
-                      <div style={{ height: "100%", width: `${(l.caSigne / maxSrc) * 100}%`, background: `linear-gradient(90deg,${S.deep},${S.gold})` }} />
-                      <div style={{ height: "100%", width: `${(l.pipe / maxSrc) * 100}%`, background: "repeating-linear-gradient(45deg,#B8A88E,#B8A88E 3px,transparent 3px,transparent 6px)" }} />
-                    </div>
-                  </div>
-                ));
-              })()}
-            </div>
-            <div style={{ fontSize: 11, color: S.soft, opacity: 0.85, marginTop: 10 }}>Ta meilleure source mérite ton temps de prospection — la barre pleine est du CA signé, la hachure du pipeline pondéré par probabilité.</div>
-          </>
-        )}
-      </div>
-
-      {/* ✦ le sablier de l'exercice — compte à rebours + timeline */}
-      <div style={{ background: S.panel, borderRadius: 16, padding: "18px 18px", marginTop: 12, color: S.cream, position: "relative", overflow: "hidden" }}>
-        <div style={{ position: "absolute", right: -30, top: -30, width: 130, height: 130, borderRadius: "50%", background: "radial-gradient(circle, rgba(176,141,87,0.18), transparent 70%)" }} />
-        <div style={{ fontSize: 10, letterSpacing: "0.18em", textTransform: "uppercase", color: S.gold, fontWeight: 600 }}>Le sablier de l'exercice</div>
-        {avantExercice ? (
-          <>
-            <div style={{ ...serif, fontSize: 34, fontWeight: 600, lineHeight: 1.05, marginTop: 6 }}>J‑{joursAvantDebut} <span style={{ fontSize: 14, color: S.gold }}>avant le coup d'envoi</span></div>
-            <div style={{ fontSize: 12.5, color: "#C9BFAE", marginTop: 6 }}>L'exercice s'ouvre le 1ᵉʳ septembre 2026. {contratsReste.objectif > 0 ? <>Ligne de mire : <b style={{ color: S.cream }}>{contratsReste.objectif} contrats</b> sur l'année.</> : <>Cale d'abord tes cibles dans l'onglet Objectifs.</>}</div>
-          </>
-        ) : apresExercice ? (
-          <>
-            <div style={{ ...serif, fontSize: 34, fontWeight: 600, marginTop: 6 }}>Exercice bouclé</div>
-            <div style={{ fontSize: 12.5, color: "#C9BFAE", marginTop: 6 }}><b style={{ color: S.cream }}>{court(caSigne)} €</b> signés · <b style={{ color: S.cream }}>{contratsReste.signe} contrats</b> au compteur. Beau chemin — place au prochain exercice.</div>
-          </>
-        ) : (
-          <>
-            <div style={{ ...serif, fontSize: 34, fontWeight: 600, lineHeight: 1.05, marginTop: 6 }}>{joursAvantFin} <span style={{ fontSize: 14, color: S.gold }}>jours restants</span></div>
-            <div style={{ fontSize: 12.5, color: "#C9BFAE", marginTop: 6 }}>
-              {contratsReste.reste > 0
-                ? <>Encore <b style={{ color: S.cream }}>{contratsReste.reste} contrat{contratsReste.reste > 1 ? "s" : ""}</b> à signer, soit ~<b style={{ color: S.cream }}>{parMoisPourCap}</b> par mois d'ici la fin pour tenir le cap.</>
-                : <>Objectif contrats atteint — continue à signer et à renouveler. 🎯</>}
-            </div>
-          </>
-        )}
-        <div style={{ marginTop: 16 }}>
-          <div style={{ position: "relative", height: 8, background: "#3a352e", borderRadius: 5 }}>
-            <div style={{ position: "absolute", left: 0, top: 0, bottom: 0, width: `${pctTemps}%`, background: `linear-gradient(90deg,${S.deep},${S.gold})`, borderRadius: 5 }} />
-            <div style={{ position: "absolute", left: `${pctTemps}%`, top: "50%", transform: "translate(-50%,-50%)", width: 12, height: 12, borderRadius: "50%", background: S.cream, border: `2px solid ${S.gold}`, boxShadow: "0 0 0 3px rgba(176,141,87,0.35)" }} />
-          </div>
-          <div style={{ display: "flex", justifyContent: "space-between", fontSize: 9.5, color: "#8d857a", marginTop: 7 }}>
-            <span>sept. 26</span><span style={{ color: "#C9BFAE" }}>{pctTemps}% du temps écoulé</span><span>août 27</span>
-          </div>
-        </div>
-      </div>
     </div>
   );
 }
