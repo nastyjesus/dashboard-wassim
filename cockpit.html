@@ -428,6 +428,7 @@ function resteContrats(prestas, clients, prospects = [], membres = [], bniProspe
   const moisRestants = Math.max(1, 12 - Math.max(0, idxNow));
   const lignes = prestas.map((p) => ({
     id: p.id, nom: (p.nom || "").trim(), objectif: Number(p.qty) || 0, valeur: objValeurMission(p),
+    famille: objFamille(p), prix: Number(p.prix) || 0, rec: p.type === "rec",
     signe: 0, pipe: 0,
     pipeLabel: objFamille(p) === "bni" && estBniRenouv(p) ? "prévus" : "en cours",
   }));
@@ -469,7 +470,7 @@ function resteContrats(prestas, clients, prospects = [], membres = [], bniProspe
   });
   const actives = lignes
     .filter((l) => l.objectif > 0 || l.signe > 0)
-    .sort((a, b) => b.montantReste - a.montantReste || b.reste - a.reste);
+    .sort((a, b) => RAF_SECTIONS.findIndex((x) => x.id === a.famille) - RAF_SECTIONS.findIndex((x) => x.id === b.famille));
   const objectif = actives.reduce((s, l) => s + l.objectif, 0);
   const signe = actives.reduce((s, l) => s + l.signe, 0);
   const reste = actives.reduce((s, l) => s + l.reste, 0);
@@ -482,6 +483,14 @@ function rythmeTexte(parMois) {
   const f = (x) => (Math.round(x * 10) / 10).toLocaleString("fr-FR");
   return parMois >= 0.75 ? `${f(parMois)}/mois` : `1 tous les ${f(1 / parMois)} mois`;
 }
+/* sections du « reste à signer », dans l'ordre d'affichage */
+const RAF_SECTIONS = [
+  { id: "prog", nom: "SEO" },
+  { id: "site", nom: "Site web" },
+  { id: "forma", nom: "Formation" },
+  { id: "bni", nom: "BNI" },
+  { id: "ponc", nom: "Autres" },
+];
 const RAF_STATUT = {
   fait: { t: "atteint", c: "#5B7A5B" },
   couvert: { t: "couvert", c: "#5B7A5B" },
@@ -1048,23 +1057,39 @@ function Pilotage({ caSigne, moisSigne, moisContratsActifs, moisNouveaux, cumulS
                 </div>
               );
             })()}
-            <div style={{ marginTop: 12, display: "flex", flexDirection: "column", gap: 11 }}>
-              {contratsReste.lignes.map((l) => {
-                const pct = l.objectif > 0 ? Math.min(100, (l.signe / l.objectif) * 100) : 100;
-                const fait = l.reste <= 0;
-                const st = l.enRetard ? { t: "en retard", c: S.rust } : RAF_STATUT[l.statut];
+            <div style={{ marginTop: 12, display: "flex", flexDirection: "column", gap: 10 }}>
+              {RAF_SECTIONS.map((sec) => {
+                const ls = contratsReste.lignes.filter((l) => l.famille === sec.id);
+                if (!ls.length) return null;
+                const sig = ls.reduce((x, l) => x + l.signe, 0);
+                const obj = ls.reduce((x, l) => x + l.objectif, 0);
                 return (
-                  <div key={l.id}>
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 8, fontSize: 13, marginBottom: 3 }}>
-                      <span style={{ color: S.ink, fontWeight: 600 }}>{l.nom}</span>
-                      <span style={{ color: fait ? S.green : S.ink, fontWeight: 600, whiteSpace: "nowrap" }}>{l.signe} / {l.objectif}</span>
+                  <div key={sec.id} style={{ background: "#fff", border: `1px solid ${S.line}`, borderRadius: 12, padding: "10px 12px" }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", borderBottom: `1px solid ${S.line}`, paddingBottom: 6, marginBottom: 8 }}>
+                      <span style={{ fontSize: 10.5, letterSpacing: "0.16em", textTransform: "uppercase", color: S.deep, fontWeight: 700 }}>{sec.nom}</span>
+                      <span style={{ fontSize: 11.5, color: S.soft, fontWeight: 600 }}>{sig} / {obj}</span>
                     </div>
-                    <div style={{ height: 7, background: S.grid, borderRadius: 5, overflow: "hidden" }}>
-                      <div style={{ height: "100%", width: `${pct}%`, background: fait ? "linear-gradient(90deg,#7DA07D,#5B7A5B)" : `linear-gradient(90deg,${S.deep},${S.gold})`, borderRadius: 5 }} />
-                    </div>
-                    <div style={{ display: "flex", justifyContent: "space-between", gap: 8, fontSize: 11.5, color: S.soft, marginTop: 4 }}>
-                      <span>{fait ? "atteint" : <>reste {l.reste} · {rythmeTexte(l.parMois)} · {l.pipe} {l.pipeLabel}</>}</span>
-                      {!fait && <span style={{ color: st.c, fontWeight: 700, whiteSpace: "nowrap" }}>{st.t}</span>}
+                    <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                      {ls.map((l) => {
+                        const pct = l.objectif > 0 ? Math.min(100, (l.signe / l.objectif) * 100) : 100;
+                        const fait = l.reste <= 0;
+                        const st = l.enRetard ? { t: "en retard", c: S.rust } : RAF_STATUT[l.statut];
+                        return (
+                          <div key={l.id}>
+                            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 8, fontSize: 13, marginBottom: 3 }}>
+                              <span style={{ color: S.ink, fontWeight: 600 }}>{l.nom} <span style={{ color: S.soft, fontWeight: 500, fontSize: 11.5 }}>({court(l.prix)} € HT{l.rec ? "/mois" : ""})</span></span>
+                              <span style={{ color: fait ? S.green : S.ink, fontWeight: 600, whiteSpace: "nowrap" }}>{l.signe} / {l.objectif}</span>
+                            </div>
+                            <div style={{ height: 7, background: S.grid, borderRadius: 5, overflow: "hidden" }}>
+                              <div style={{ height: "100%", width: `${pct}%`, background: fait ? "linear-gradient(90deg,#7DA07D,#5B7A5B)" : `linear-gradient(90deg,${S.deep},${S.gold})`, borderRadius: 5 }} />
+                            </div>
+                            <div style={{ display: "flex", justifyContent: "space-between", gap: 8, fontSize: 11.5, color: S.soft, marginTop: 4 }}>
+                              <span>{fait ? "atteint" : <>reste {l.reste} · {rythmeTexte(l.parMois)} · {l.pipe} {l.pipeLabel}</>}</span>
+                              {!fait && <span style={{ color: st.c, fontWeight: 700, whiteSpace: "nowrap" }}>{st.t}</span>}
+                            </div>
+                          </div>
+                        );
+                      })}
                     </div>
                   </div>
                 );
