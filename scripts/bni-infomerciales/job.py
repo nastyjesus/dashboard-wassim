@@ -12,7 +12,10 @@
 
 Le dépôt GitHub est public : ce script n'affiche jamais de nom, seulement des compteurs.
 """
+import configparser
+import json
 import os
+import subprocess
 import sys
 import tempfile
 import time
@@ -28,6 +31,7 @@ SCOPE = "Files.ReadWrite offline_access"
 TRANCHE = 320 * 1024 * 32  # 10 Mio, multiple de 320 Kio exigé par Graph
 ESSAIS = 3
 PAUSE_ESSAI = int(os.environ.get("PAUSE_ESSAI", "60"))
+RCLONE = os.environ.get("RCLONE", "rclone")
 
 
 class Conflit(Exception):
@@ -51,7 +55,33 @@ class Worker:
         return r.json()
 
 
+def jeton_via_rclone(worker, ms):
+    """rclone (application Microsoft publique, sans inscription Azure) renouvelle
+    le jeton ; on garde le jeton à jour côté worker et on utilise son accès."""
+    with tempfile.TemporaryDirectory() as dossier:
+        conf = Path(dossier) / "rclone.conf"
+        conf.write_text(
+            "[od]\ntype = onedrive\n"
+            f"token = {ms['rclone_token']}\n"
+            f"drive_id = {ms['drive_id']}\ndrive_type = {ms.get('drive_type', 'personal')}\n",
+            "utf-8",
+        )
+        r = subprocess.run([RCLONE, "about", "od:", "--config", str(conf)], capture_output=True, text=True, timeout=120)
+        if r.returncode != 0:
+            # pas de sortie rclone dans les logs : elle peut contenir le jeton
+            raise RuntimeError("rclone n'a pas pu se connecter à OneDrive : relancer connexion_microsoft.py")
+        lecture = configparser.ConfigParser()
+        lecture.read(conf, encoding="utf-8")
+        token = lecture["od"]["token"]
+    if token != ms["rclone_token"]:
+        worker.envoyer("PUT", "/api/job/ms", {"rclone_token": token})
+        ms["rclone_token"] = token
+    return json.loads(token)["access_token"]
+
+
 def jeton_microsoft(worker, ms):
+    if ms.get("rclone_token"):
+        return jeton_via_rclone(worker, ms)
     r = requests.post(f"{LOGIN}/token", data={
         "client_id": ms["client_id"],
         "grant_type": "refresh_token",
@@ -146,7 +176,7 @@ def main():
     worker = Worker(os.environ["WORKER_URL"], os.environ["WASSIM_AUTH_TOKEN"])
     entree = worker.get("/api/job/entree").json()
     ms = entree.get("ms")
-    if not ms or not ms.get("refresh_token") or not ms.get("item_id"):
+    if not ms or not (ms.get("refresh_token") or ms.get("rclone_token")) or not ms.get("item_id"):
         print("OneDrive non connecté : lancer connexion_microsoft.py une fois.")
         return 1
     depots = preparer_depots(worker, entree["depots"])

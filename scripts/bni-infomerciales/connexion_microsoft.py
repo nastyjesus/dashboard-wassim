@@ -1,16 +1,19 @@
 """Connexion unique au compte Microsoft propriétaire du deck (à lancer sur ton PC).
 
-    python connexion_microsoft.py
+    python connexion_microsoft.py           # via rclone : gratuit, sans Azure
+    python connexion_microsoft.py --azure   # via une inscription d'app Azure
 
-Demande : l'ID d'application (inscription Azure), le lien de partage du deck,
-l'URL du worker et le jeton admin. Affiche un code à saisir sur
-microsoft.com/devicelogin, puis enregistre dans le worker (KV, accès admin
-seulement) le jeton de renouvellement et l'emplacement du fichier. Le job
-hebdo s'en sert ensuite tout seul.
+Mode rclone (rclone installé) : ouvre la page Microsoft, tu acceptes l'accès
+pour « rclone ». Mode Azure : code à saisir sur microsoft.com/devicelogin.
+Enregistre ensuite dans le worker (KV, accès admin seulement) le jeton et
+l'emplacement du deck. Lit le .env local (BNI_ADMIN_TOKEN, BNI_DECK_LIEN…).
 """
 import base64
 import getpass
+import json
 import os
+import re
+import subprocess
 import sys
 import time
 
@@ -79,22 +82,46 @@ def charger_env():
                 os.environ.setdefault(cle, valeur)
 
 
+def connexion_rclone():
+    """Autorise l'application publique rclone (pas d'inscription Azure, gratuit)."""
+    rclone = os.environ.get("RCLONE", "rclone")
+    print("Une page Microsoft va s'ouvrir dans ton navigateur : connecte-toi avec le")
+    print("compte propriétaire du deck et accepte l'accès pour « rclone ».\n")
+    r = subprocess.run([rclone, "authorize", "onedrive"], capture_output=True, text=True, timeout=600)
+    m = re.search(r"--->\s*(\{.*?\})\s*<---", r.stdout, re.S)
+    if r.returncode != 0 or not m:
+        sys.exit("Autorisation rclone non obtenue, relance le script.")
+    token = m.group(1).strip()
+    return token, json.loads(token)["access_token"]
+
+
 def main():
     charger_env()
     print("Connexion du deck BNI à OneDrive\n")
-    client_id = demander("ID d'application (client) Azure", "MS_CLIENT_ID")
+    azure = "--azure" in sys.argv
+    client_id = demander("ID d'application (client) Azure", "MS_CLIENT_ID") if azure else None
     lien = demander("Lien de partage OneDrive du deck", "BNI_DECK_LIEN")
     worker = demander("URL du worker", "WORKER_URL", defaut=WORKER_DEFAUT).rstrip("/")
     admin = os.environ.get("BNI_ADMIN_TOKEN") or demander("Jeton admin", "WASSIM_AUTH_TOKEN", secret=True)
 
-    jetons = connexion(client_id)
-    drive_id, item_id, nom, taille = trouver_deck(jetons["access_token"], lien)
+    if azure:
+        jetons = connexion(client_id)
+        acces = jetons["access_token"]
+        config = {"refresh_token": jetons["refresh_token"], "client_id": client_id}
+    else:
+        token, acces = connexion_rclone()
+        drive = requests.get(f"{GRAPH}/me/drive", headers={"Authorization": f"Bearer {acces}"},
+                             params={"$select": "id,driveType"}, timeout=30)
+        drive.raise_for_status()
+        config = {"rclone_token": token, "drive_type": drive.json()["driveType"]}
+
+    drive_id, item_id, nom, taille = trouver_deck(acces, lien)
     print(f"Deck trouvé : {nom} ({round(taille / 1e6)} Mo)")
     if not nom.lower().endswith(".pptx"):
         sys.exit("Ce lien ne pointe pas vers un .pptx.")
 
     r = requests.put(f"{worker}/api/job/ms", headers={"X-Wassim-Auth": admin}, json={
-        "refresh_token": jetons["refresh_token"], "client_id": client_id, "drive_id": drive_id, "item_id": item_id,
+        **config, "drive_id": drive_id, "item_id": item_id,
     }, timeout=30)
     if r.status_code != 200:
         sys.exit(f"Le worker a refusé l'enregistrement ({r.status_code}) : vérifie le jeton admin.")

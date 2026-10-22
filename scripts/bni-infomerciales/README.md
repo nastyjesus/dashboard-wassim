@@ -29,7 +29,8 @@ membre (lien perso) ──► worker bni-infomerciales (KV) ◄──► job Git
    les flux de clients publics » = Oui. Noter l'ID d'application (client).
 2. **Déployer le worker** : push sur la branche de travail (workflow
    `deploy-bni-infomerciales-worker.yml`).
-3. **Connecter OneDrive** : `python connexion_microsoft.py` (ID d'application,
+3. **Connecter OneDrive** : `python connexion_microsoft.py` (via rclone, gratuit, sans Azure ;
+   `--azure` pour une inscription d'app : ID d'application,
    lien de partage du deck, jeton admin) puis saisir le code affiché.
 4. **Lancer le job une fois** (GitHub › Actions › BNI infomerciales › Run) :
    il lit le deck et crée les liens perso.

@@ -141,6 +141,17 @@ describe('admin et job', () => {
     expect(body.ms).toEqual({ refresh_token: 'r2', client_id: 'c', item_id: 'i', drive_id: 'd' });
   });
 
+  it('accepte un jeton rclone (sans inscription Azure)', async () => {
+    const ok = await appel('/api/job/ms', { methode: 'PUT', admin: ADMIN, corps: { rclone_token: '{"access_token":"a"}', drive_id: 'd', item_id: 'i' } });
+    expect(ok.res.status).toBe(200);
+    expect((await appel('/api/admin/etat', { admin: ADMIN })).body.microsoft_connecte).toBe(true);
+  });
+
+  it('refuse une config Microsoft sans jeton', async () => {
+    const { res } = await appel('/api/job/ms', { methode: 'PUT', admin: ADMIN, corps: { drive_id: 'd' } });
+    expect(res.status).toBe(400);
+  });
+
   it('explique quand le bouton n\'est pas configuré', async () => {
     const { res } = await appel('/api/admin/appliquer', { methode: 'POST', admin: ADMIN });
     expect(res.status).toBe(501);

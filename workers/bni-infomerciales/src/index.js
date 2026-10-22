@@ -6,7 +6,7 @@
 //   jetons           { <jeton>: slide_id }                                (liens perso)
 //   depot:<id>       { slide_id, recherche, a_photo, date }
 //   photo:<id>       JPEG (déjà réduit par le téléphone)
-//   ms               { refresh_token, client_id, drive_id, item_id }       (jamais servi aux membres)
+//   ms               { rclone_token | refresh_token+client_id, drive_id, item_id } (jamais servi aux membres)
 //   dernier_run      { date, ok, message, mis_a_jour }
 
 import PAGE_MEMBRE from './membre.html';
@@ -99,7 +99,7 @@ async function etatAdmin(env, origine) {
   })));
   return {
     membres: liste,
-    microsoft_connecte: Boolean(ms?.refresh_token),
+    microsoft_connecte: Boolean(ms?.refresh_token || ms?.rclone_token),
     bouton_dispo: Boolean(env.GH_DISPATCH_TOKEN),
     dernier_run: dernierRun,
   };
@@ -173,7 +173,8 @@ async function routesAdmin(request, env, url) {
     try { corps = await request.json(); } catch { return erreur('Requête illisible.'); }
     const actuel = await lire(env, 'ms', {});
     const suivant = { ...actuel, ...corps };
-    if (!suivant.refresh_token || !suivant.client_id) return erreur('refresh_token et client_id requis.');
+    // deux modes : jeton rclone (sans inscription Azure) ou appli Azure (refresh_token + client_id)
+    if (!suivant.rclone_token && !(suivant.refresh_token && suivant.client_id)) return erreur('rclone_token, ou refresh_token et client_id, requis.');
     await env.KV.put('ms', JSON.stringify(suivant));
     return json({ ok: true });
   }
