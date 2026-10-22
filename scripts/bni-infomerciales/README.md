@@ -12,7 +12,7 @@ membre (lien perso) ──► worker bni-infomerciales (KV) ◄──► job Git
 ```
 
 - Page membre : `https://bni-infomerciales.loumiwassim.workers.dev/?m=<lien perso>`
-- Admin : `/admin` (jeton `WASSIM_AUTH_TOKEN`) : statuts, liens perso, « Appliquer maintenant ».
+- Admin : `/admin` (jeton `BNI_ADMIN_TOKEN` du `.env` local, ou `WASSIM_AUTH_TOKEN`) : statuts, liens perso, « Appliquer maintenant ».
 - Job `.github/workflows/bni-infomerciales-job.yml` : mercredi 18:05 UTC + manuel.
   Ce fichier doit être sur `main` (cron et dispatch ne lisent que la branche par
   défaut) ; il prend le code sur la branche de travail.

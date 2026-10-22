@@ -62,8 +62,12 @@ jobs:
         env:
           WASSIM_AUTH_TOKEN: ${{ secrets.WASSIM_AUTH_TOKEN }}
           GH_DISPATCH_TOKEN: ${{ secrets.BNI_GH_DISPATCH_TOKEN }}
+          BNI_ADMIN_TOKEN: ${{ secrets.BNI_ADMIN_TOKEN }}
         run: |
           printf '%s' "$WASSIM_AUTH_TOKEN" | npx wrangler secret put WASSIM_AUTH_TOKEN
+          if [ -n "$BNI_ADMIN_TOKEN" ]; then
+            printf '%s' "$BNI_ADMIN_TOKEN" | npx wrangler secret put BNI_ADMIN_TOKEN
+          fi
           if [ -n "$GH_DISPATCH_TOKEN" ]; then
             printf '%s' "$GH_DISPATCH_TOKEN" | npx wrangler secret put GH_DISPATCH_TOKEN
           else

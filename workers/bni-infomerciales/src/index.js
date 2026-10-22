@@ -30,9 +30,11 @@ export function nouveauJeton() {
   return btoa(String.fromCharCode(...octets)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 }
 
+// WASSIM_AUTH_TOKEN (partagé avec les autres workers, utilisé par le job) ou
+// BNI_ADMIN_TOKEN (propre à ce module, pour l'admin et connexion_microsoft.py).
 function estAdmin(request, env) {
   const recu = request.headers.get('X-Wassim-Auth');
-  return Boolean(env.WASSIM_AUTH_TOKEN) && recu === env.WASSIM_AUTH_TOKEN;
+  return Boolean(recu) && [env.WASSIM_AUTH_TOKEN, env.BNI_ADMIN_TOKEN].some((t) => Boolean(t) && recu === t);
 }
 
 async function membreParJeton(env, jeton) {

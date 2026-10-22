@@ -96,6 +96,12 @@ describe('admin et job', () => {
     expect((await appel('/api/admin/etat', { admin: 'mauvais' })).res.status).toBe(401);
   });
 
+  it('accepte aussi le jeton admin propre au module', async () => {
+    env.BNI_ADMIN_TOKEN = 'bni-secret';
+    expect((await appel('/api/admin/etat', { admin: 'bni-secret' })).res.status).toBe(200);
+    expect((await appel('/api/admin/etat', { admin: '' })).res.status).toBe(401);
+  });
+
   it('crée un lien perso par membre, stable entre deux synchros', async () => {
     const avant = await lienDe('Céline GUIHO');
     await appel('/api/job/resultat', { methode: 'POST', admin: ADMIN, corps: { ok: true, membres: MEMBRES } });

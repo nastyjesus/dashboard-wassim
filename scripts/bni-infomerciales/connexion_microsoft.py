@@ -69,12 +69,23 @@ def trouver_deck(acces, lien):
     return item["parentReference"]["driveId"], item["id"], item["name"], item.get("size", 0)
 
 
+def charger_env():
+    """Lit le .env local (ignoré par git) à côté du script."""
+    fichier = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".env")
+    if os.path.exists(fichier):
+        for ligne in open(fichier, encoding="utf-8"):
+            if "=" in ligne and not ligne.lstrip().startswith("#"):
+                cle, valeur = ligne.strip().split("=", 1)
+                os.environ.setdefault(cle, valeur)
+
+
 def main():
+    charger_env()
     print("Connexion du deck BNI à OneDrive\n")
     client_id = demander("ID d'application (client) Azure", "MS_CLIENT_ID")
     lien = demander("Lien de partage OneDrive du deck", "BNI_DECK_LIEN")
     worker = demander("URL du worker", "WORKER_URL", defaut=WORKER_DEFAUT).rstrip("/")
-    admin = demander("Jeton admin (WASSIM_AUTH_TOKEN)", "WASSIM_AUTH_TOKEN", secret=True)
+    admin = os.environ.get("BNI_ADMIN_TOKEN") or demander("Jeton admin", "WASSIM_AUTH_TOKEN", secret=True)
 
     jetons = connexion(client_id)
     drive_id, item_id, nom, taille = trouver_deck(jetons["access_token"], lien)
