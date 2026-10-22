@@ -29,8 +29,11 @@ LOGIN = os.environ.get("MS_LOGIN_URL", "https://login.microsoftonline.com/consum
 GRAPH = os.environ.get("MS_GRAPH_URL", "https://graph.microsoft.com/v1.0")
 SCOPE = "Files.ReadWrite offline_access"
 TRANCHE = 320 * 1024 * 32  # 10 Mio, multiple de 320 Kio exigé par Graph
-ESSAIS = 3
+ESSAIS = 5
 PAUSE_ESSAI = int(os.environ.get("PAUSE_ESSAI", "60"))
+CALME = int(os.environ.get("CALME", "120"))  # secondes sans modification avant d'écrire
+SONDAGE = int(os.environ.get("SONDAGE", "20"))
+ATTENTE_MAX = int(os.environ.get("ATTENTE_MAX", str(20 * 60)))
 RCLONE = os.environ.get("RCLONE", "rclone")
 
 
@@ -101,16 +104,51 @@ def element(ms):
     return f"{GRAPH}/drives/{ms['drive_id']}/items/{ms['item_id']}"
 
 
+def metadonnees(acces, ms):
+    r = requests.get(element(ms), headers={"Authorization": f"Bearer {acces}"},
+                     params={"$select": "id,eTag,size"}, timeout=60)
+    r.raise_for_status()
+    return r.json()
+
+
+def attendre_calme(acces, ms):
+    """Attend que personne ne modifie le deck (eTag stable pendant CALME secondes) :
+    tant que des membres l'éditent en ligne, notre envoi serait refusé."""
+    debut = time.time()
+    etag, depuis = metadonnees(acces, ms)["eTag"], time.time()
+    while time.time() - depuis < CALME:
+        if time.time() - debut > ATTENTE_MAX:
+            raise Conflit("deck modifié en continu, pas de moment calme")
+        time.sleep(SONDAGE)
+        actuel = metadonnees(acces, ms)["eTag"]
+        if actuel != etag:
+            etag, depuis = actuel, time.time()
+    return etag
+
+
 def telecharger(acces, ms, destination):
     h = {"Authorization": f"Bearer {acces}"}
-    meta = requests.get(element(ms), headers=h, params={"$select": "id,eTag,size"}, timeout=60)
-    meta.raise_for_status()
-    etag = meta.json()["eTag"]
-    with requests.get(element(ms) + "/content", headers=h, stream=True, timeout=600) as r:
-        r.raise_for_status()
-        with open(destination, "wb") as f:
-            for bloc in r.iter_content(1024 * 1024):
-                f.write(bloc)
+    meta = metadonnees(acces, ms)
+    etag, taille = meta["eTag"], meta["size"]
+    recu = 0
+    with open(destination, "wb") as f:
+        for _ in range(5):
+            try:
+                # reprise là où la connexion a coupé
+                plage = {"Range": f"bytes={recu}-"} if recu else {}
+                with requests.get(element(ms) + "/content", headers={**h, **plage}, stream=True, timeout=600) as r:
+                    r.raise_for_status()
+                    for bloc in r.iter_content(1024 * 1024):
+                        f.write(bloc)
+                        recu += len(bloc)
+                if recu >= taille:
+                    break
+            except (requests.ConnectionError, requests.exceptions.ChunkedEncodingError):
+                time.sleep(5)
+    if recu != taille:
+        raise RuntimeError("téléchargement du deck incomplet")
+    if metadonnees(acces, ms)["eTag"] != etag:
+        raise Conflit("deck modifié pendant le téléchargement")
     return etag
 
 
@@ -158,6 +196,8 @@ def preparer_depots(worker, depots):
 def un_passage(worker, ms, depots, dossier):
     acces = jeton_microsoft(worker, ms)
     source = Path(dossier) / "source.pptx"
+    if depots:
+        attendre_calme(acces, ms)
     etag = telecharger(acces, ms, source)
     membres = deck.lister_membres(source)
     ids_deck = {m["slide_id"] for m in membres}
