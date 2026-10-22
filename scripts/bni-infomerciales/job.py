@@ -253,5 +253,6 @@ def main():
 
 
 if __name__ == "__main__":
-    sys.stdout.reconfigure(encoding="utf-8")
+    # ligne par ligne : les messages restent dans les logs même si le job est annulé
+    sys.stdout.reconfigure(encoding="utf-8", line_buffering=True)
     sys.exit(main())
