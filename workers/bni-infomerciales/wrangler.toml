@@ -1,0 +1,34 @@
+## Worker Cloudflare — bni-infomerciales
+## Les membres du groupe BNI Bruz Envol déposent la photo (+ « Qui peut
+## m'aider à rencontrer ») de leur infomerciale via un lien perso. Le job
+## GitHub Actions « BNI infomerciales » récupère les dépôts, met à jour le
+## deck OneDrive (Microsoft Graph) et renvoie ici la liste des membres.
+## Stockage : KV (dépôts, photos réduites, jeton Microsoft, liens perso).
+
+name = "bni-infomerciales"
+main = "src/index.js"
+compatibility_date = "2025-01-15"
+
+# Les pages HTML sont importées comme texte.
+[[rules]]
+type = "Text"
+globs = ["**/*.html"]
+fallthrough = false
+
+[vars]
+# Workflow déclenché par le bouton « Appliquer maintenant » de l'admin.
+GITHUB_REPO = "nastyjesus/dashboard-wassim"
+GITHUB_WORKFLOW = "bni-infomerciales-job.yml"
+GITHUB_REF = "claude/side-hustle-brainstorm-ykikf8"
+
+# Namespace KV : créé/injecté par le workflow de déploiement.
+[[kv_namespaces]]
+binding = "KV"
+id = "REPLACE_WITH_KV_ID"
+
+# Secrets à provisionner via `wrangler secret put` (fait par le workflow) :
+#   WASSIM_AUTH_TOKEN   (header X-Wassim-Auth : admin + job)
+#   GH_DISPATCH_TOKEN   (optionnel : jeton GitHub « Actions: write » pour le bouton)
+
+[observability]
+enabled = true

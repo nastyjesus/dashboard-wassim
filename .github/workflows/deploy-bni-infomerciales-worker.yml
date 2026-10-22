@@ -1,0 +1,84 @@
+name: Deploy bni-infomerciales worker
+
+on:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: "Branch/ref to deploy from"
+        type: string
+        default: claude/side-hustle-brainstorm-ykikf8
+  # Déploiement automatique quand le code du worker change sur la branche de
+  # travail (la session distante n'a pas le droit de dispatch manuel).
+  push:
+    branches: [claude/side-hustle-brainstorm-ykikf8]
+    paths: ['workers/bni-infomerciales/**', '.github/workflows/deploy-bni-infomerciales-worker.yml']
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: workers/bni-infomerciales
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: workers/bni-infomerciales/package-lock.json
+
+      - run: npm ci
+
+      - run: npm test
+
+      # Crée le namespace KV s'il n'existe pas et injecte son id dans
+      # wrangler.toml — aucune manipulation manuelle Cloudflare nécessaire.
+      - name: Ensure KV namespace and inject id
+        run: |
+          title="bni-infomerciales-KV"
+          get_id() {
+            npx wrangler kv namespace list 2>/dev/null \
+              | node -e "let d='';process.stdin.on('data',c=>d+=c).on('end',()=>{const a=d.indexOf('[');const b=d.lastIndexOf(']');let l=[];try{l=JSON.parse(d.slice(a,b+1))}catch{};const n=l.find(x=>x.title===process.argv[1]);process.stdout.write(n?n.id:'')})" "$title"
+          }
+          id=$(get_id)
+          if [ -z "$id" ]; then
+            npx wrangler kv namespace create KV
+            id=$(get_id)
+          fi
+          if [ -z "$id" ]; then echo "Could not resolve KV namespace id for $title" >&2; exit 1; fi
+          sed -i "s/^id = \".*\"/id = \"$id\"/" wrangler.toml
+          grep '^id = ' wrangler.toml
+
+      - run: npx wrangler deploy
+
+      # Après le deploy : le worker doit exister pour recevoir ses secrets.
+      - name: Provision secrets
+        env:
+          WASSIM_AUTH_TOKEN: ${{ secrets.WASSIM_AUTH_TOKEN }}
+          GH_DISPATCH_TOKEN: ${{ secrets.BNI_GH_DISPATCH_TOKEN }}
+        run: |
+          printf '%s' "$WASSIM_AUTH_TOKEN" | npx wrangler secret put WASSIM_AUTH_TOKEN
+          if [ -n "$GH_DISPATCH_TOKEN" ]; then
+            printf '%s' "$GH_DISPATCH_TOKEN" | npx wrangler secret put GH_DISPATCH_TOKEN
+          else
+            echo "BNI_GH_DISPATCH_TOKEN not set; admin button stays disabled"
+          fi
+
+      - name: Smoke test
+        run: |
+          base="https://bni-infomerciales.loumiwassim.workers.dev"
+          for i in 1 2 3 4 5; do
+            sleep 3
+            curl -fsS "$base/health" | grep -q '"ok":true' && break
+            [ "$i" = 5 ] && { echo "Worker not healthy" >&2; exit 1; }
+          done
+          curl -fsS "$base/" | grep -q "Ton infomerciale de la semaine"
+          code=$(curl -s -o /dev/null -w '%{http_code}' "$base/api/job/entree")
+          [ "$code" = 401 ] || { echo "Job API not protected ($code)" >&2; exit 1; }
+          echo "Smoke OK"

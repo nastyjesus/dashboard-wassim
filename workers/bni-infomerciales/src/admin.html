@@ -1,0 +1,156 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Admin infomerciales — BNI Bruz Envol</title>
+<style>
+  :root { --rouge: #c8102e; --rouge-fonce: #9e0c24; --encre: #1a1a1a; --gris: #6b6b6b; --trait: #e3e3e3; --fond: #f4f4f2; --ok: #1f7a4d; --alerte: #a15c00; }
+  * { box-sizing: border-box; }
+  body { margin: 0; font: 15px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif; color: var(--encre); background: var(--fond); }
+  header { background: var(--encre); color: #fff; padding: 16px; }
+  header .wrap, main { max-width: 1040px; margin: 0 auto; }
+  h1 { margin: 0; font-size: 20px; }
+  h1 b { color: var(--rouge); }
+  main { padding: 18px 16px 48px; }
+  .barre { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; justify-content: space-between; background: #fff; border: 1px solid var(--trait); border-radius: 10px; padding: 14px 16px; margin-bottom: 14px; }
+  .compteur { font-size: 26px; font-weight: 800; }
+  .compteur small { font-size: 14px; color: var(--gris); font-weight: 500; }
+  .info { color: var(--gris); font-size: 13px; }
+  .info .ko { color: var(--rouge-fonce); font-weight: 600; }
+  .info .ok { color: var(--ok); font-weight: 600; }
+  .boutons { display: flex; gap: 8px; flex-wrap: wrap; }
+  button { font: inherit; font-weight: 700; padding: 11px 16px; border: 0; border-radius: 8px; background: var(--rouge); color: #fff; cursor: pointer; }
+  button:hover { background: var(--rouge-fonce); }
+  button.second { background: #fff; color: var(--encre); border: 1px solid #cfcfcf; }
+  button.petit { padding: 5px 10px; font-size: 13px; font-weight: 600; }
+  button:disabled { background: #bdbdbd; cursor: wait; }
+  .resultat { margin: 0 0 14px; padding: 12px 14px; border-radius: 8px; font-weight: 600; display: none; }
+  .resultat.ok { display: block; background: #e8f4ee; color: var(--ok); }
+  .resultat.ko { display: block; background: #fdeced; color: var(--rouge-fonce); }
+  table { width: 100%; border-collapse: collapse; background: #fff; border: 1px solid var(--trait); border-radius: 10px; overflow: hidden; }
+  th, td { text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--trait); vertical-align: middle; }
+  th { font-size: 12px; text-transform: uppercase; letter-spacing: .05em; color: var(--gris); background: #fafafa; }
+  tr:last-child td { border-bottom: 0; }
+  .pastille { display: inline-block; padding: 2px 8px; border-radius: 99px; font-size: 12px; font-weight: 700; white-space: nowrap; }
+  .pastille.ok { background: #e8f4ee; color: var(--ok); }
+  .pastille.non { background: #f1f1f1; color: var(--gris); }
+  .vignette { width: 96px; height: 54px; object-fit: contain; background: #f1f1f1; border-radius: 4px; display: block; }
+  .muet { color: var(--gris); font-size: 13px; }
+  .connexion { max-width: 420px; margin: 40px auto; background: #fff; border: 1px solid var(--trait); border-radius: 10px; padding: 20px; }
+  .connexion input { width: 100%; font: inherit; padding: 11px; border: 1px solid #cfcfcf; border-radius: 8px; margin: 10px 0; }
+  #tableau { display: none; }
+  @media (max-width: 700px) { .cache-mobile { display: none; } th, td { padding: 8px; } }
+</style>
+</head>
+<body>
+<header><div class="wrap"><h1><b>BNI</b> Bruz Envol · Infomerciales (admin)</h1></div></header>
+<main>
+  <form class="connexion" id="connexion">
+    <strong>Jeton admin</strong>
+    <input type="password" id="jeton" autocomplete="current-password" placeholder="WASSIM_AUTH_TOKEN">
+    <button type="submit">Ouvrir</button>
+    <div class="resultat" id="erreur-connexion"></div>
+  </form>
+
+  <div id="tableau">
+    <div class="barre">
+      <div>
+        <div class="compteur" id="compteur">–</div>
+        <div class="info" id="info"></div>
+      </div>
+      <div class="boutons">
+        <button class="second" id="copier-tout">Copier tous les liens</button>
+        <button id="appliquer">Appliquer maintenant</button>
+      </div>
+    </div>
+    <div class="resultat" id="resultat"></div>
+    <table>
+      <thead><tr><th>Membre</th><th>Statut</th><th>Photo</th><th class="cache-mobile">Qui peut m'aider à rencontrer</th><th>Lien perso</th></tr></thead>
+      <tbody id="lignes"></tbody>
+    </table>
+  </div>
+</main>
+<script>
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const quand = (iso) => new Date(iso).toLocaleString("fr-FR", { weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
+let jeton = "";
+try { jeton = localStorage.getItem("bni-admin") || ""; } catch {}
+let membres = [];
+
+const api = (chemin, options = {}) => fetch(chemin, { ...options, headers: { ...(options.headers || {}), "X-Wassim-Auth": jeton } });
+
+async function charger() {
+  const r = await api("/api/admin/etat");
+  if (r.status === 401) {
+    $("connexion").style.display = "block"; $("tableau").style.display = "none";
+    if (jeton) { const e = $("erreur-connexion"); e.className = "resultat ko"; e.textContent = "Jeton refusé."; }
+    return;
+  }
+  const data = await r.json();
+  $("connexion").style.display = "none"; $("tableau").style.display = "block";
+  membres = data.membres;
+  const recus = membres.filter((m) => m.depot).length;
+  $("compteur").innerHTML = `${recus} / ${membres.length} <small>dépôts en attente d'application</small>`;
+  const run = data.dernier_run;
+  $("info").innerHTML = [
+    data.microsoft_connecte ? '<span class="ok">OneDrive connecté</span>' : '<span class="ko">OneDrive non connecté (lancer connexion_microsoft.py)</span>',
+    run ? `Dernière mise à jour du deck : ${esc(quand(run.date))} — <span class="${run.ok ? "ok" : "ko"}">${esc(run.message)}</span>` : "Aucune mise à jour du deck pour l'instant",
+  ].join(" · ");
+  $("appliquer").title = data.bouton_dispo ? "" : "Bouton non configuré (GH_DISPATCH_TOKEN)";
+  $("lignes").innerHTML = membres.length ? membres.map((m, i) => {
+    const d = m.depot;
+    const statut = d ? `<span class="pastille ok">✓ ${esc(quand(d.date))}</span>` : `<span class="pastille non">En attente</span>`;
+    const photo = d && d.a_photo ? `<img class="vignette" data-photo="${m.slide_id}" alt="">` : `<span class="muet">${m.a_une_photo ? "photo actuelle" : "—"}</span>`;
+    const rech = d ? (esc(d.recherche) || '<span class="muet">—</span>') : `<span class="muet">${esc(m.recherche) || "—"}</span>`;
+    const lien = m.lien ? `<button class="second petit" data-copier="${i}">Copier</button>` : '<span class="muet">—</span>';
+    return `<tr><td><strong>${esc(m.nom)}</strong><div class="muet">${esc(m.metier)}</div></td><td>${statut}</td><td>${photo}</td><td class="cache-mobile">${rech}</td><td>${lien}</td></tr>`;
+  }).join("") : '<tr><td colspan="5" class="muet">Aucun membre : lance une première fois le job pour lire le deck.</td></tr>';
+  // vignettes chargées avec le jeton admin (une balise img ne peut pas l'envoyer)
+  for (const img of document.querySelectorAll("img[data-photo]")) {
+    api(`/api/admin/photo/${img.dataset.photo}`).then((r) => r.ok && r.blob()).then((b) => { if (b) img.src = URL.createObjectURL(b); });
+  }
+}
+
+async function copier(texte, bouton) {
+  try { await navigator.clipboard.writeText(texte); const t = bouton.textContent; bouton.textContent = "Copié ✓"; setTimeout(() => (bouton.textContent = t), 1500); }
+  catch { prompt("Copie ce texte :", texte); }
+}
+
+$("connexion").addEventListener("submit", (e) => {
+  e.preventDefault();
+  jeton = $("jeton").value.trim();
+  try { localStorage.setItem("bni-admin", jeton); } catch {}
+  charger();
+});
+$("lignes").addEventListener("click", (e) => {
+  const b = e.target.closest("[data-copier]");
+  if (b) copier(membres[b.dataset.copier].lien, b);
+});
+$("copier-tout").addEventListener("click", (e) => {
+  const texte = membres.filter((m) => m.lien).map((m) => `${m.nom} : ${m.lien}`).join("\n");
+  copier(texte, e.currentTarget);
+});
+$("appliquer").addEventListener("click", async () => {
+  const b = $("appliquer"), res = $("resultat");
+  b.disabled = true;
+  try {
+    const r = await api("/api/admin/appliquer", { method: "POST" });
+    const data = await r.json();
+    if (!r.ok) throw new Error(data.erreur || "Erreur");
+    res.className = "resultat ok";
+    res.textContent = "Mise à jour lancée. Le deck OneDrive sera à jour d'ici 3 à 5 minutes.";
+  } catch (e) {
+    res.className = "resultat ko"; res.textContent = e.message;
+  } finally {
+    b.disabled = false;
+  }
+});
+
+charger();
+setInterval(() => { if ($("tableau").style.display === "block") charger(); }, 30000);
+</script>
+</body>
+</html>

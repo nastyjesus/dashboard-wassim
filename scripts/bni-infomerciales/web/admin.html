@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Admin infomerciales — BNI Bruz Envol</title>
+<style>
+  :root { --rouge: #c8102e; --rouge-fonce: #9e0c24; --encre: #1a1a1a; --gris: #6b6b6b; --trait: #e3e3e3; --fond: #f4f4f2; --ok: #1f7a4d; }
+  * { box-sizing: border-box; }
+  body { margin: 0; font: 15px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif; color: var(--encre); background: var(--fond); }
+  header { background: var(--encre); color: #fff; padding: 16px; }
+  header .wrap, main { max-width: 1000px; margin: 0 auto; }
+  h1 { margin: 0; font-size: 20px; }
+  h1 b { color: var(--rouge); }
+  main { padding: 18px 16px 48px; }
+  .barre { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; justify-content: space-between; background: #fff; border: 1px solid var(--trait); border-radius: 10px; padding: 14px 16px; margin-bottom: 14px; }
+  .compteur { font-size: 26px; font-weight: 800; }
+  .compteur small { font-size: 14px; color: var(--gris); font-weight: 500; }
+  .deck { color: var(--gris); font-size: 13px; }
+  button { font: inherit; font-weight: 700; padding: 12px 18px; border: 0; border-radius: 8px; background: var(--rouge); color: #fff; cursor: pointer; }
+  button:hover { background: var(--rouge-fonce); }
+  button:disabled { background: #bdbdbd; cursor: wait; }
+  .resultat { margin: 0 0 14px; padding: 12px 14px; border-radius: 8px; font-weight: 600; display: none; }
+  .resultat.ok { display: block; background: #e8f4ee; color: var(--ok); }
+  .resultat.ko { display: block; background: #fdeced; color: var(--rouge-fonce); }
+  .resultat a { color: inherit; }
+  table { width: 100%; border-collapse: collapse; background: #fff; border: 1px solid var(--trait); border-radius: 10px; overflow: hidden; }
+  th, td { text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--trait); vertical-align: middle; }
+  th { font-size: 12px; text-transform: uppercase; letter-spacing: .05em; color: var(--gris); background: #fafafa; }
+  tr:last-child td { border-bottom: 0; }
+  .pastille { display: inline-block; padding: 2px 8px; border-radius: 99px; font-size: 12px; font-weight: 700; white-space: nowrap; }
+  .pastille.ok { background: #e8f4ee; color: var(--ok); }
+  .pastille.non { background: #f1f1f1; color: var(--gris); }
+  .vignette { width: 96px; height: 54px; object-fit: contain; background: #f1f1f1; border-radius: 4px; display: block; }
+  .muet { color: var(--gris); font-size: 13px; }
+  .num { color: var(--gris); font-variant-numeric: tabular-nums; }
+  @media (max-width: 640px) { .cache-mobile { display: none; } th, td { padding: 8px; } }
+</style>
+</head>
+<body>
+<header><div class="wrap"><h1><b>BNI</b> Bruz Envol · Infomerciales (admin)</h1></div></header>
+<main>
+  <div class="barre">
+    <div>
+      <div class="compteur" id="compteur">–</div>
+      <div class="deck" id="deck"></div>
+    </div>
+    <button id="generer">Générer le deck à jour</button>
+  </div>
+  <div class="resultat" id="resultat"></div>
+  <table>
+    <thead><tr><th class="cache-mobile">Slide</th><th>Membre</th><th>Statut</th><th>Photo</th><th class="cache-mobile">Qui peut m'aider à rencontrer</th></tr></thead>
+    <tbody id="lignes"></tbody>
+  </table>
+  <p class="muet" id="sorties"></p>
+</main>
+<script>
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const heure = (iso) => new Date(iso).toLocaleString("fr-FR", { weekday: "short", hour: "2-digit", minute: "2-digit" });
+
+async function charger() {
+  const data = await (await fetch("/api/etat")).json();
+  const ms = data.membres;
+  const faits = ms.filter((m) => m.depot).length;
+  $("compteur").innerHTML = `${faits} / ${ms.length} <small>dépôts reçus</small>`;
+  $("deck").textContent = data.deck
+    ? `Deck source : ${data.deck.taille_mo} Mo, modifié le ${new Date(data.deck.modifie).toLocaleString("fr-FR")}`
+    : "Aucun deck source : place-le dans data/deck-source.pptx";
+  $("lignes").innerHTML = ms.map((m) => {
+    const d = m.depot;
+    const statut = d ? `<span class="pastille ok">✓ ${esc(heure(d.date))}</span>` : `<span class="pastille non">En attente</span>`;
+    const img = d && d.a_photo ? `<img class="vignette" src="/api/photo/${m.slide_id}?t=${encodeURIComponent(d.date)}" alt="">` : `<span class="muet">${m.a_une_photo ? "photo actuelle conservée" : "—"}</span>`;
+    const rech = d ? esc(d.recherche) || '<span class="muet">—</span>' : `<span class="muet">${esc(m.recherche) || "—"}</span>`;
+    return `<tr><td class="num cache-mobile">${m.numero}</td><td><strong>${esc(m.nom)}</strong><div class="muet">${esc(m.metier)}</div></td><td>${statut}</td><td>${img}</td><td class="cache-mobile">${rech}</td></tr>`;
+  }).join("");
+  $("sorties").innerHTML = data.sorties.length
+    ? "Derniers decks générés : " + data.sorties.map((n) => `<a href="/sortie/${encodeURIComponent(n)}">${esc(n)}</a>`).join(" · ")
+    : "";
+}
+
+$("generer").addEventListener("click", async () => {
+  const b = $("generer"), res = $("resultat");
+  b.disabled = true; b.textContent = "Génération… (≈1 min)";
+  try {
+    const r = await fetch("/api/generer", { method: "POST", body: "{}" });
+    const data = await r.json();
+    if (!r.ok) throw new Error(data.erreur || "Erreur");
+    res.className = "resultat ok";
+    res.innerHTML = `${data.mis_a_jour} slide(s) mise(s) à jour → <a href="/sortie/${encodeURIComponent(data.fichier)}">${esc(data.fichier)}</a>`;
+  } catch (e) {
+    res.className = "resultat ko"; res.textContent = e.message;
+  } finally {
+    b.disabled = false; b.textContent = "Générer le deck à jour";
+    charger();
+  }
+});
+
+charger();
+setInterval(charger, 15000);
+</script>
+</body>
+</html>

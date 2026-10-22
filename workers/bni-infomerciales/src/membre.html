@@ -1,0 +1,205 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Infomerciale de la semaine — BNI Bruz Envol</title>
+<style>
+  :root {
+    --rouge: #c8102e; --rouge-fonce: #9e0c24; --encre: #1a1a1a; --gris: #6b6b6b;
+    --trait: #e3e3e3; --fond: #f4f4f2; --carte: #fff; --ok: #1f7a4d;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; font: 16px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif; color: var(--encre); background: var(--fond); }
+  header { background: var(--encre); color: #fff; padding: 18px 16px 20px; }
+  header .wrap { max-width: 720px; margin: 0 auto; }
+  .marque { font-weight: 800; letter-spacing: .02em; font-size: 15px; }
+  .marque b { color: var(--rouge); font-size: 20px; }
+  h1 { margin: 6px 0 4px; font-size: 24px; line-height: 1.2; }
+  .limite { display: inline-block; margin-top: 6px; background: var(--rouge); padding: 3px 10px; border-radius: 3px; font-size: 13px; font-weight: 700; letter-spacing: .03em; }
+  main { max-width: 720px; margin: 0 auto; padding: 20px 16px 48px; }
+  .etape { background: var(--carte); border: 1px solid var(--trait); border-radius: 10px; padding: 18px 16px; margin-bottom: 14px; }
+  .etape h2 { margin: 0 0 10px; font-size: 16px; display: flex; gap: 10px; align-items: center; }
+  .num { width: 24px; height: 24px; border-radius: 50%; background: var(--rouge); color: #fff; font-size: 13px; display: grid; place-items: center; flex: none; }
+  input[type=text] { width: 100%; font: inherit; padding: 12px; border: 1px solid #cfcfcf; border-radius: 8px; background: #fff; }
+  input:focus { outline: 2px solid var(--rouge); outline-offset: 1px; }
+  .aide { color: var(--gris); font-size: 13px; margin-top: 6px; }
+  .qui { font-size: 18px; font-weight: 700; }
+  .qui small { display: block; font-size: 14px; font-weight: 500; color: var(--gris); }
+  .depose { display: block; border: 2px dashed #c9c9c9; border-radius: 10px; padding: 26px 14px; text-align: center; cursor: pointer; transition: border-color .15s, background .15s; }
+  .depose:hover, .depose.survol { border-color: var(--rouge); background: #fff6f7; }
+  .depose strong { display: block; font-size: 16px; }
+  .depose span { color: var(--gris); font-size: 13px; }
+  .slide { position: relative; aspect-ratio: 16 / 9; background: #fff; border: 1px solid var(--trait); border-radius: 4px; overflow: hidden; container-type: inline-size; box-shadow: 0 6px 18px rgba(0,0,0,.08); }
+  .slide .rouge { position: absolute; left: 0; bottom: 0; width: 32%; height: 39%; background: var(--rouge); }
+  .slide .bandeau { position: absolute; left: 13%; top: 2.5%; width: 64%; }
+  .slide .bandeau .titre { text-align: center; font-weight: 800; letter-spacing: .3em; font-size: 2.1cqw; }
+  .slide .bandeau .texte { margin-top: .6cqw; background: #111; color: #fff; border-radius: 2cqw; padding: .5cqw 2cqw; font-style: italic; font-weight: 700; font-size: 1.7cqw; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .slide .logo { position: absolute; left: 1.5%; top: 2.5%; color: var(--rouge); font-weight: 900; font-size: 3cqw; }
+  .slide .photo { position: absolute; left: 1.5%; top: 14%; width: 75.2%; height: 83.6%; display: grid; place-items: center; }
+  .slide .photo img { max-width: 100%; max-height: 100%; display: block; }
+  .slide .photo .vide { color: #9a9a9a; font-size: 2cqw; border: 1px dashed #cfcfcf; width: 100%; height: 100%; display: grid; place-items: center; background: rgba(255,255,255,.6); }
+  .slide .col { position: absolute; left: 78.7%; top: 2%; width: 20.3%; height: 45%; background: #111; }
+  .slide .nom { position: absolute; left: 79.6%; top: 33.8%; width: 20.4%; background: var(--rouge); color: #fff; font-weight: 800; text-align: center; font-size: 1.7cqw; padding: .4cqw; }
+  .slide .metier { position: absolute; left: 80.6%; top: 43%; width: 18.5%; background: #fff; text-align: center; font-style: italic; font-weight: 700; font-size: 1.3cqw; }
+  .actions { margin-top: 18px; }
+  button { width: 100%; font: inherit; font-weight: 700; font-size: 17px; padding: 15px; border: 0; border-radius: 10px; background: var(--rouge); color: #fff; cursor: pointer; }
+  button:hover { background: var(--rouge-fonce); }
+  button:disabled { background: #bdbdbd; cursor: wait; }
+  .message { margin-top: 12px; padding: 12px 14px; border-radius: 8px; font-weight: 600; display: none; }
+  .message.ok { display: block; background: #e8f4ee; color: var(--ok); }
+  .message.ko { display: block; background: #fdeced; color: var(--rouge-fonce); }
+  .deja { font-size: 13px; color: var(--ok); margin-top: 8px; display: none; }
+  #formulaire { display: none; }
+</style>
+</head>
+<body>
+<header><div class="wrap">
+  <div class="marque"><b>BNI</b> · Bruz Envol</div>
+  <h1>Ton infomerciale de la semaine</h1>
+  <div>Dépose ta photo ici, elle part directement sur ta slide.</div>
+  <div class="limite">LIMITE : MERCREDI 19H</div>
+</div></header>
+
+<main>
+  <div class="message" id="message"></div>
+  <div id="formulaire">
+    <section class="etape">
+      <div class="qui" id="qui"></div>
+      <div class="deja" id="deja"></div>
+    </section>
+
+    <section class="etape">
+      <h2><span class="num">1</span> Qui peut t'aider à rencontrer ?</h2>
+      <input type="text" id="recherche" maxlength="160" placeholder="Prénom NOM – Fonction – Entreprise (Localité)">
+      <div class="aide">Une seule personne, le plus précis possible.</div>
+    </section>
+
+    <section class="etape">
+      <h2><span class="num">2</span> Ta photo</h2>
+      <label class="depose" id="depose">
+        <input type="file" id="fichier" accept="image/*" hidden>
+        <strong>Touche ici ou glisse ta photo</strong>
+        <span>JPG, PNG… elle sera réduite automatiquement.</span>
+      </label>
+    </section>
+
+    <section class="etape">
+      <h2>Aperçu de ta slide</h2>
+      <div class="slide">
+        <div class="rouge"></div>
+        <div class="logo">BNI</div>
+        <div class="bandeau"><div class="titre">QUI PEUT M'AIDER À RENCONTRER :</div><div class="texte" id="a-texte"></div></div>
+        <div class="photo" id="a-photo"><div class="vide">Ta photo ici</div></div>
+        <div class="col"></div>
+        <div class="nom" id="a-nom"></div>
+        <div class="metier" id="a-metier"></div>
+      </div>
+      <div class="aide">Aperçu simplifié : la mise en page finale est celle du support BNI.</div>
+    </section>
+
+    <div class="actions">
+      <button id="envoyer">Envoyer</button>
+      <div class="message" id="message-envoi"></div>
+    </div>
+  </div>
+</main>
+
+<script>
+const $ = (id) => document.getElementById(id);
+const jeton = new URLSearchParams(location.search).get("m") || "";
+const q = "?m=" + encodeURIComponent(jeton);
+const TEXTE_VIDE = "Prénom NOM – Fonction – Entreprise (Localité)";
+let photo = null; // Blob JPEG redimensionné, pas encore envoyé
+
+function message(el, txt, ok) {
+  el.textContent = txt;
+  el.className = "message" + (ok === true ? " ok" : ok === false ? " ko" : "");
+}
+
+function afficherPhoto(src) {
+  const img = new Image();
+  img.src = src;
+  img.alt = "Ta photo";
+  $("a-photo").replaceChildren(img);
+}
+
+function majTexte() { $("a-texte").textContent = $("recherche").value.trim() || TEXTE_VIDE; }
+
+function afficherDepot(d) {
+  if (!d) return;
+  $("deja").style.display = "block";
+  $("deja").textContent = `✓ Reçu le ${new Date(d.date).toLocaleString("fr-FR", { weekday: "long", hour: "2-digit", minute: "2-digit" })}. Tu peux le remplacer jusqu'à mercredi 19h.`;
+}
+
+async function charger() {
+  const r = await fetch("/api/moi" + q);
+  const data = await r.json();
+  if (!r.ok) return message($("message"), data.erreur, false);
+  $("formulaire").style.display = "block";
+  $("qui").innerHTML = "";
+  $("qui").append(data.nom, Object.assign(document.createElement("small"), { textContent: data.metier }));
+  $("a-nom").textContent = data.nom;
+  $("a-metier").textContent = data.metier;
+  $("recherche").value = data.depot ? data.depot.recherche : data.recherche;
+  majTexte();
+  afficherDepot(data.depot);
+  if (data.depot && data.depot.a_photo) afficherPhoto("/api/photo" + q + "&t=" + Date.now());
+}
+
+function lireImage(fichier) {
+  const el = $("message-envoi");
+  if (!fichier || !fichier.type.startsWith("image/")) return message(el, "Ce fichier n'est pas une image.", false);
+  const url = URL.createObjectURL(fichier);
+  const img = new Image();
+  img.onload = () => {
+    // réduction sur le téléphone : envoi rapide même en 4G
+    const max = 2000, k = Math.min(1, max / Math.max(img.width, img.height));
+    const c = document.createElement("canvas");
+    c.width = Math.round(img.width * k); c.height = Math.round(img.height * k);
+    const ctx = c.getContext("2d");
+    ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, c.width, c.height);
+    ctx.drawImage(img, 0, 0, c.width, c.height);
+    URL.revokeObjectURL(url);
+    c.toBlob((b) => { photo = b; afficherPhoto(URL.createObjectURL(b)); message(el, "", null); }, "image/jpeg", 0.85);
+  };
+  img.onerror = () => message(el, "Impossible de lire cette image. Essaie en JPG.", false);
+  img.src = url;
+}
+
+async function envoyer() {
+  const el = $("message-envoi"), b = $("envoyer");
+  b.disabled = true; b.textContent = "Envoi…";
+  try {
+    if (photo) {
+      const r = await fetch("/api/photo" + q, { method: "PUT", headers: { "Content-Type": "image/jpeg" }, body: photo });
+      if (!r.ok) throw new Error((await r.json()).erreur || "Erreur d'envoi de la photo.");
+      photo = null;
+    }
+    const r = await fetch("/api/depot" + q, {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ recherche: $("recherche").value.trim() }),
+    });
+    const data = await r.json();
+    if (!r.ok) throw new Error(data.erreur || "Erreur");
+    afficherDepot(data);
+    message(el, "C'est envoyé ✓ Ta slide sera à jour pour la réunion.", true);
+  } catch (e) {
+    message(el, e.message, false);
+  } finally {
+    b.disabled = false; b.textContent = "Envoyer";
+  }
+}
+
+$("recherche").addEventListener("input", majTexte);
+$("fichier").addEventListener("change", (e) => lireImage(e.target.files[0]));
+const zone = $("depose");
+zone.addEventListener("dragover", (e) => { e.preventDefault(); zone.classList.add("survol"); });
+zone.addEventListener("dragleave", () => zone.classList.remove("survol"));
+zone.addEventListener("drop", (e) => { e.preventDefault(); zone.classList.remove("survol"); lireImage(e.dataTransfer.files[0]); });
+$("envoyer").addEventListener("click", envoyer);
+if (jeton) charger(); else message($("message"), "Ouvre la page avec ton lien perso (reçu de Wassim).", false);
+</script>
+</body>
+</html>
