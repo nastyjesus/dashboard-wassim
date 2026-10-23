@@ -1,0 +1,31 @@
+## Worker Cloudflare — copilote-papa
+## Le copilote de Papa Parfait : quatre briques (SOS crise, activité maison,
+## histoire du soir, plan du week-end), deux portes d'entrée (WhatsApp, PWA).
+## Conception : docs/superpowers/specs/2026-10-23-copilote-papa-design.md
+## Plan : docs/superpowers/plans/2026-10-23-copilote-papa-plan.md
+## Stockage : Supabase (apps/on-sort/supabase/copilote.sql), via la clé service.
+
+name = "copilote-papa"
+main = "src/index.js"
+compatibility_date = "2025-01-15"
+compatibility_flags = ["nodejs_compat"]
+
+[vars]
+ALLOWED_ORIGINS = "*"
+# SOS crise reste fermé au public tant que l'expert n'a pas validé la
+# bibliothèque des situations (spec § 4.1). Seuls les ADMINS y ont accès.
+SOS_OUVERT = "false"
+
+# Workers AI : transcription des vocaux WhatsApp (Whisper), lot 5.
+[ai]
+binding = "AI"
+
+# Secrets à provisionner via `wrangler secret put` (jamais dans le repo) :
+#   SUPABASE_URL, SUPABASE_SERVICE_KEY   base des papas, enfants, souvenirs, usage
+#   WA_SEL                               sel du hachage des numéros WhatsApp
+#   ANTHROPIC_API_KEY                    lot 2
+#   WHATSAPP_TOKEN, WHATSAPP_PHONE_ID, WHATSAPP_APP_SECRET, WHATSAPP_VERIFY   lot 5
+#   ADMINS                               numéros (hachés) ou ids de papas admins
+
+[observability]
+enabled = true
