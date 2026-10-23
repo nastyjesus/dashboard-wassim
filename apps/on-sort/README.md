@@ -52,5 +52,5 @@ donc l'app fonctionne immédiatement, y compris sur téléphone via Expo Go.
 ## Reste à faire (week-end 3 — monétisation & polish)
 
 - AdMob (bannière discrète) + RevenueCat (premium : illimité, alertes, sans pub)
-- Géolocalisation réelle (expo-location) au lieu des villes en dur
+- ~~Géolocalisation réelle~~ : fait (23/10) — « Me localiser » au démarrage, top « autour de moi » (expo-location, position arrondie ~1 km)
 - Icône + splash + fiche ASO, comptes stores (week-end 4)

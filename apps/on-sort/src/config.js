@@ -87,6 +87,23 @@ export const villesProches = (id, combien = 3) => {
     .slice(0, combien);
 };
 
+/** Au-delà, une position GPS n'est rattachée à aucune ville ouverte : le papa
+ *  est hors zone, on lui propose de demander sa ville plutôt qu'un top creux. */
+export const ZONE_MAX_KM = 60;
+
+/**
+ * Ville ouverte la plus proche d'une position, avec sa distance arrondie.
+ * Au-delà de `maxKm`, le résultat porte `horsZone: true` (la ville reste
+ * donnée pour dire « la plus proche est à N km ») — le worker, lui, rattache
+ * toujours sans distance maximale.
+ */
+export const villeLaPlusProche = (lat, lon, maxKm = ZONE_MAX_KM) => {
+  const [plusProche] = VILLES
+    .map((v) => ({ ville: v, km: Math.round(distanceKm({ lat, lon }, v)) }))
+    .sort((a, b) => a.km - b.km);
+  return plusProche.km <= maxKm ? plusProche : { ...plusProche, horsZone: true };
+};
+
 /** Lien ajouté aux partages : l'URL publique de l'app web (PWA installable).
  *  À remplacer par le lien Play Store quand la beta Android sera en ligne. */
 export const LIEN_APP = 'https://papa-parfait-web.loumiwassim.workers.dev';

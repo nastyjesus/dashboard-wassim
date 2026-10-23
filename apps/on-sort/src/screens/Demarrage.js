@@ -10,8 +10,10 @@ import { useState } from 'react';
 import { ScrollView, Text, View, StyleSheet } from 'react-native';
 import { couleurs, espace, police, typo, cadre, rayon } from '../theme.js';
 import { Chip, Bouton, Champ } from '../components/ui.js';
-import { AGES_ENFANT, DEPARTEMENTS, villesParDept } from '../config.js';
+import { AGES_ENFANT, DEPARTEMENTS, villesParDept, villeLaPlusProche } from '../config.js';
 import { demanderVille } from '../compte-api.js';
+import { localiser } from '../position.js';
+import { mesurer } from '../mesure.js';
 
 const labelAge = (a) => (a === 0 ? '< 1 an' : a === 1 ? '1 an' : `${a} ans`);
 
@@ -32,6 +34,11 @@ export function Demarrage({ profilInitial, session, onValider }) {
   const [erreur, setErreur] = useState(null);
   const [envoiProfil, setEnvoiProfil] = useState(false);
 
+  // « Autour de moi » : la ville est déduite de la position, et l'accueil
+  // partira de la position elle-même. Choisir une ville à la main l'éteint.
+  const [autour, setAutour] = useState(Boolean(profilInitial?.autour));
+  const [localisation, setLocalisation] = useState(null); // { etat, texte }
+
   const villes = deptCode ? villesParDept(deptCode) : [];
   const valide = Boolean(villeId) && (!connecte || prenom.trim());
 
@@ -39,6 +46,48 @@ export function Demarrage({ profilInitial, session, onValider }) {
     setDeptCode(code);
     setVilleId('');
     setDemande(false);
+    setAutour(false);
+  };
+
+  const choisirVille = (id) => {
+    setVilleId(id);
+    setAutour(false);
+  };
+
+  const meLocaliser = async () => {
+    setLocalisation({ etat: 'cours', texte: 'On te cherche sur la carte…' });
+    try {
+      const { lat, lon } = await localiser();
+      const proche = villeLaPlusProche(lat, lon);
+      setDeptCode(proche.ville.code);
+      if (proche.horsZone) {
+        setVilleId('');
+        setAutour(false);
+        setDemande(true);
+        setLocalisation({
+          etat: 'hors',
+          texte: `Pas encore de sorties chez toi : la zone ouverte la plus proche est ${proche.ville.nom}, à ${proche.km} km. Dis-nous ta ville, on la priorise.`,
+        });
+        return;
+      }
+      setVilleId(proche.ville.id);
+      setAutour(true);
+      setDemande(false);
+      mesurer('localise');
+      setLocalisation({
+        etat: 'ok',
+        texte: proche.km <= 3
+          ? `✓ Tu es à ${proche.ville.nom}. Le top partira de là où tu es.`
+          : `✓ Tu es à ${proche.km} km de ${proche.ville.nom}. Le top partira de là où tu es.`,
+      });
+    } catch (e) {
+      setLocalisation({
+        etat: 'echec',
+        texte: e.code === 'refus'
+          ? 'Localisation refusée. Pas de souci : choisis ta ville ci-dessous.'
+          : 'Position introuvable pour le moment. Choisis ta ville ci-dessous.',
+      });
+    }
   };
 
   const envoyerDemande = async () => {
@@ -62,6 +111,7 @@ export function Demarrage({ profilInitial, session, onValider }) {
         age,
         villeId,
         code: deptCode || undefined,
+        autour: autour || undefined,
       });
     } catch (e) {
       setErreur(e.message || 'Enregistrement impossible. Réessaie dans un instant.');
@@ -106,8 +156,20 @@ export function Demarrage({ profilInitial, session, onValider }) {
         ))}
       </View>
 
-      {/* Coin : département → ville */}
-      <Text style={styles.section}>TON DÉPARTEMENT</Text>
+      {/* Coin : la position d'abord (un geste), sinon département → ville */}
+      <Text style={styles.section}>TON COIN</Text>
+      <Bouton
+        variante="secondaire"
+        icone="📍"
+        label={localisation?.etat === 'cours' ? 'Localisation…' : 'Me localiser'}
+        onPress={meLocaliser}
+        disabled={localisation?.etat === 'cours'}
+      />
+      {localisation && localisation.etat !== 'cours' ? (
+        <Text style={localisation.etat === 'ok' ? styles.confirme : styles.aide}>{localisation.texte}</Text>
+      ) : null}
+
+      <Text style={styles.section}>OU TON DÉPARTEMENT</Text>
       <View style={styles.chips}>
         {DEPARTEMENTS.map((d) => (
           <Chip key={d.code} label={d.nom} actif={d.code === deptCode} onPress={() => choisirDept(d.code)} />
@@ -119,7 +181,7 @@ export function Demarrage({ profilInitial, session, onValider }) {
           <Text style={styles.section}>TA VILLE</Text>
           <View style={styles.chips}>
             {villes.map((v) => (
-              <Chip key={v.id} label={v.nom} actif={v.id === villeId} onPress={() => setVilleId(v.id)} />
+              <Chip key={v.id} label={v.nom} actif={v.id === villeId} onPress={() => choisirVille(v.id)} />
             ))}
           </View>
 

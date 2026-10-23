@@ -25,7 +25,13 @@
     "plugins": [
       "expo-font",
       "expo-splash-screen",
-      "expo-web-browser"
+      "expo-web-browser",
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Papa Parfait utilise ta position pour te proposer les sorties les plus proches de toi."
+        }
+      ]
     ]
   }
 }

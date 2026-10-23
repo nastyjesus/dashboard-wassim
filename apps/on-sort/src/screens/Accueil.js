@@ -13,9 +13,13 @@ import { Chip, Section, Strip, Bouton } from '../components/ui.js';
 import { CarteSortie } from '../components/CarteSortie.js';
 import { chargerTop } from '../api.js';
 import { optionsDates, libelleLong } from '../dates.js';
-import { villeParId, villesProches } from '../config.js';
+import { villeParId, villesProches, villeLaPlusProche } from '../config.js';
 import { cleFavori } from '../favoris.js';
 import { mesurer } from '../mesure.js';
+import { localiser } from '../position.js';
+
+// L'accueil n'attend pas un GPS lent : passé ce délai, on part de la ville.
+const DELAI_POSITION_MS = 5000;
 
 function emojiMeteo(meteo) {
   if (!meteo) return '';
@@ -40,17 +44,44 @@ export function Accueil({
 
   useEffect(() => { setVilleVueId(profil.villeId); }, [profil.villeId]);
 
+  // « Autour de moi » : position relue à chaque ouverture, sans fenêtre de
+  // permission (déjà accordée au démarrage). Le top attend cette lecture pour
+  // ne pas partir deux fois ; en cas d'échec ou hors zone, la ville du profil.
+  const [position, setPosition] = useState(null); // { lat, lon, ville }
+  const [positionLue, setPositionLue] = useState(!profil.autour);
+  useEffect(() => {
+    if (!profil.autour) { setPosition(null); setPositionLue(true); return undefined; }
+    let vivant = true;
+    setPositionLue(false);
+    localiser({ demander: false, delaiMs: DELAI_POSITION_MS })
+      .then(({ lat, lon }) => {
+        const proche = villeLaPlusProche(lat, lon);
+        if (vivant && !proche.horsZone) setPosition({ lat, lon, ville: proche.ville });
+      })
+      .catch(() => {})
+      .finally(() => { if (vivant) setPositionLue(true); });
+    return () => { vivant = false; };
+  }, [profil.autour]);
+
   const ville = villeParId(villeVueId);
   const villeProfil = villeParId(profil.villeId);
   const detournee = ville.id !== villeProfil.id;
+  const autour = Boolean(position) && !detournee;
+  // Point de départ du top : la position réelle, rattachée au département de
+  // la ville ouverte la plus proche (OpenAgenda filtre par département).
+  const origine = autour
+    ? { lat: position.lat, lon: position.lon, dept: position.ville.dept, code: position.ville.code }
+    : ville;
+  const villeRepere = autour ? position.ville : ville;
 
   const charger = useCallback(async (date) => {
+    if (!positionLue) return;
     setChargement(true);
     setErreur(null);
     try {
       const reponse = await chargerTop({
-        dateISO: date, lat: ville.lat, lon: ville.lon, age: profil.age,
-        dept: ville.dept, code: ville.code,
+        dateISO: date, lat: origine.lat, lon: origine.lon, age: profil.age,
+        dept: origine.dept, code: origine.code,
       });
       setData(reponse);
       // Un top vide n'est pas la même information qu'un top rempli : c'est la
@@ -61,7 +92,7 @@ export function Accueil({
     } finally {
       setChargement(false);
     }
-  }, [ville.lat, ville.lon, ville.dept, ville.code, profil.age]);
+  }, [positionLue, origine.lat, origine.lon, origine.dept, origine.code, profil.age]);
 
   useEffect(() => { charger(dateISO); }, [dateISO, charger]);
 
@@ -72,7 +103,12 @@ export function Accueil({
   const garder = onGarder ? (ev) => onGarder(ev, dateISO) : undefined;
 
   // Repli : plutôt qu'une page vide, les villes ouvertes les plus proches.
-  const voisines = villesProches(ville.id, 3);
+  // En mode position, la ville du profil n'est pas une « voisine » : y aller
+  // ramènerait au même top, autour de toi.
+  const voisines = villesProches(villeRepere.id, 4)
+    .filter(({ ville: v }) => !(position && v.id === villeProfil.id))
+    .slice(0, 3);
+  const ici = autour ? 'autour de toi' : `à ${ville.nom}`;
 
   return (
     <ScrollView
@@ -82,7 +118,7 @@ export function Accueil({
     >
       <Strip style={styles.strip}>
         <View style={styles.stripRangee}>
-          <Text style={styles.stripQg}>QG · {ville.nom.toUpperCase()}</Text>
+          <Text style={styles.stripQg}>{autour ? '📍 AUTOUR DE MOI' : `QG · ${ville.nom.toUpperCase()}`}</Text>
           {!!meteo && <Text style={styles.stripMeteo}>{emojiMeteo(meteo)} {meteo.resume}</Text>}
         </View>
         <Text style={styles.stripEnfant}>ENFANT · {labelAge(profil.age).toUpperCase()}</Text>
@@ -93,7 +129,7 @@ export function Accueil({
           <Text style={styles.detourTexte}>Tu regardes {ville.nom}.</Text>
           <Bouton
             variante="secondaire"
-            label={`Revenir à ${villeProfil.nom}`}
+            label={position ? 'Revenir autour de moi' : `Revenir à ${villeProfil.nom}`}
             onPress={() => setVilleVueId(villeProfil.id)}
           />
         </View>
@@ -108,7 +144,7 @@ export function Accueil({
         ))}
       </ScrollView>
 
-      {chargement && (
+      {(chargement || !positionLue) && (
         <View style={styles.etat}>
           <ActivityIndicator color={couleurs.accent} size="large" />
           <Text style={styles.etatTexte}>On cherche les pépites du jour…</Text>
@@ -130,7 +166,7 @@ export function Accueil({
           propose la suite au lieu de laisser le papa devant une page blanche. */}
       {!chargement && !erreur && top.length === 0 && (
         <View style={styles.etat}>
-          <Text style={styles.etatTitre}>Rien de référencé à {ville.nom} ce jour-là.</Text>
+          <Text style={styles.etatTitre}>Rien de référencé {ici} ce jour-là.</Text>
           <Text style={styles.etatTexte}>
             Essaie un autre jour avec les onglets du haut, ou va voir juste à côté.
           </Text>
@@ -228,9 +264,10 @@ const styles = StyleSheet.create({
   contenu: { padding: espace.xl, paddingTop: 56, paddingBottom: espace.xxl },
 
   strip: { marginBottom: espace.l },
-  stripRangee: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  stripQg: { color: couleurs.stripTexte, fontSize: 15, letterSpacing: 0.5, fontFamily: police.corpsFort },
-  stripMeteo: { color: couleurs.stripTexte, fontSize: 14, fontFamily: police.corps },
+  // Le lieu garde sa ligne ; la météo, plus longue, se replie à droite.
+  stripRangee: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: espace.m },
+  stripQg: { color: couleurs.stripTexte, fontSize: 15, letterSpacing: 0.5, fontFamily: police.corpsFort, flexShrink: 0 },
+  stripMeteo: { color: couleurs.stripTexte, fontSize: 14, fontFamily: police.corps, flexShrink: 1, textAlign: 'right' },
   stripEnfant: { ...typo.instrument, color: couleurs.accent, fontFamily: police.corpsFort, marginTop: espace.xs, textTransform: 'uppercase' },
 
   detour: { marginBottom: espace.l, gap: espace.s, alignItems: 'flex-start' },

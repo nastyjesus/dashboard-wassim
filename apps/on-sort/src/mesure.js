@@ -14,7 +14,7 @@
 
 import { WORKER_URL } from './config.js';
 
-/** @typedef {'ouverture'|'arrivee-lien'|'top'|'top-vide'|'garde'|'compte'} Etape */
+/** @typedef {'ouverture'|'arrivee-lien'|'top'|'top-vide'|'garde'|'compte'|'localise'} Etape */
 
 /**
  * Compte une étape d'usage. À appeler sans `await`.

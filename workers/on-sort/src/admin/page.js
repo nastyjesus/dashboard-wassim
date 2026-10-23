@@ -576,7 +576,7 @@ const PAGE = String.raw`<!doctype html>
       return;
     }
     var m = etat.stats.mesures, t = m.totaux;
-    var libelles = { ouverture: 'Ouvertures', 'arrivee-lien': 'Arrivées par lien', top: 'Tops affichés', 'top-vide': 'Tops vides', garde: 'Sorties gardées', compte: 'Comptes créés', 'alerte-envoyee': 'Alertes envoyées' };
+    var libelles = { ouverture: 'Ouvertures', 'arrivee-lien': 'Arrivées par lien', top: 'Tops affichés', 'top-vide': 'Tops vides', garde: 'Sorties gardées', compte: 'Comptes créés', 'alerte-envoyee': 'Alertes envoyées', localise: 'Localisations' };
     var pct = function (v) { return v == null ? '—' : v + ' %'; };
     var html = '<h2>Usage — 30 derniers jours</h2><div class="kpis" style="margin:16px 0">'
       + Object.keys(libelles).map(function (k) { return '<div class="panneau kpi"><div class="instr">' + esc(libelles[k]) + '</div><div class="val">' + (t[k] || 0) + '</div></div>'; }).join('')

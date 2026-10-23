@@ -83,8 +83,9 @@ const PILIERS = ['couple', 'moi', 'tribu'];
  *  - top / top-vide: un top a été affiché, avec ou sans résultat
  *  - garde         : une sortie a été mise de côté
  *  - compte        : un compte a été créé
+ *  - localise      : « Me localiser » a rattaché le papa à une ville ouverte
  *  Ces cinq étapes suffisent à lire l'entonnoir site → sortie → compte. */
-const MESURES = ['ouverture', 'arrivee-lien', 'top', 'top-vide', 'garde', 'compte', 'alerte-envoyee'];
+const MESURES = ['ouverture', 'arrivee-lien', 'top', 'top-vide', 'garde', 'compte', 'alerte-envoyee', 'localise'];
 const MESURES_JOURS_MAX = 90;
 
 export default {
