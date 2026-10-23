@@ -39,6 +39,16 @@ d'avis, on met à jour ce fichier.
   `#D95B43` et les cartes molles à ombre grise. On n'y revient pas.
 - **Identifiant d'app** : `com.papaparfait.app` (définitif une fois publié).
 
+## Changement de cap : le copilote papa (23 octobre 2026)
+
+Après l'audit du 23 octobre (63 ouvertures en un mois, 0 compte), l'agrégation
+de sorties est jugée trop banale pour faire revenir un papa. Décision : un
+**copilote** pour quatre moments de la semaine — SOS crise, activité maison,
+histoire du soir, plan du week-end — lancés ensemble en version minimale,
+sur WhatsApp et dans la PWA. Les sorties deviennent la brique « plan du
+week-end ». Cela remplace la règle « une app excellente sur un seul sujet »
+ci-dessous. Conception : `docs/superpowers/specs/2026-10-23-copilote-papa-design.md`.
+
 ## Le produit : 4 piliers, mais UN seul actif au lancement
 
 Stratégie : **les Sorties sont LE produit d'appel**. Les 3 autres piliers sont en
