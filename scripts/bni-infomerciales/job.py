@@ -22,6 +22,8 @@ import time
 from pathlib import Path
 
 import requests
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
 
 import deck
 
@@ -30,7 +32,7 @@ GRAPH = os.environ.get("MS_GRAPH_URL", "https://graph.microsoft.com/v1.0")
 SCOPE = "Files.ReadWrite offline_access"
 TRANCHE = 320 * 1024 * 32  # 10 Mio, multiple de 320 Kio exigé par Graph
 ESSAIS = 5
-PAUSE_ESSAI = int(os.environ.get("PAUSE_ESSAI", "60"))
+PAUSE_ESSAI = int(os.environ.get("PAUSE_ESSAI", "180"))  # un verrou (423) dure tant que le deck est ouvert
 CALME = int(os.environ.get("CALME", "120"))  # secondes sans modification avant d'écrire
 SONDAGE = int(os.environ.get("SONDAGE", "20"))
 ATTENTE_MAX = int(os.environ.get("ATTENTE_MAX", str(20 * 60)))
@@ -46,6 +48,11 @@ class Worker:
         self.url = url.rstrip("/")
         self.s = requests.Session()
         self.s.headers["X-Wassim-Auth"] = jeton
+        # un worker lent ponctuellement ne doit pas faire planter le job :
+        # toutes nos routes sont rejouables sans effet de bord
+        reessai = Retry(total=4, backoff_factor=5, allowed_methods=None, status_forcelist=[500, 502, 503, 504])
+        self.s.mount("https://", HTTPAdapter(max_retries=reessai))
+        self.s.mount("http://", HTTPAdapter(max_retries=reessai))
 
     def get(self, chemin, **kw):
         r = self.s.get(self.url + chemin, timeout=60, **kw)
