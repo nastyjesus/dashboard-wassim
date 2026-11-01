@@ -131,6 +131,24 @@ jobs:
             }
           "
 
+      - name: Historique GEO (dates des relevés + erreurs du dernier)
+        if: env.TARGET == 'geo-history'
+        run: |
+          curl -sS --max-time 120 "$GEO/export" -H "X-Wassim-Auth: $TOKEN" > /tmp/geoexp.json
+          node -e "
+            const d = require('/tmp/geoexp.json');
+            for (const c of d.clients || []) {
+              const hist = (c.history || []).map(h => h.date + (h.summary.answers > 0 ? '(' + h.summary.answers + ' rép.)' : '(VIDE)')).join(', ');
+              console.log(c.client.id.padEnd(18), '→', hist);
+              const last = (c.history || [])[c.history.length - 1];
+              if (last && last.summary.answers === 0) {
+                for (const [n, e] of Object.entries(last.summary.perEngine || {})) {
+                  if (!e.ok) console.log('   ', n, 'KO:', String(e.error || '').slice(0, 160));
+                }
+              }
+            }
+          "
+
       - name: État final (latest des deux workers)
         run: |
           echo "== GET $GSC/latest =="
