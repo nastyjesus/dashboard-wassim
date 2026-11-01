@@ -10,7 +10,7 @@ on:
       target:
         description: "Quoi tester"
         type: choice
-        options: [health, push-config, run-gsc, run-geo, deep-export, reports, all]
+        options: [health, push-config, run-gsc, run-geo, deep-export, reports, geo-history, all]
         default: all
       gsc-period:
         description: "Mois GSC (YYYY-MM, vide = mois précédent)"
