@@ -1,5 +1,5 @@
 {
-  "checkedAt": "2026-11-01T08:10:12Z",
+  "checkedAt": "2026-11-01T08:10:41Z",
   "target": "geo-history",
   "gscHealth": {
     "ok": true,
@@ -7,7 +7,7 @@
     "googleKey": {
       "ok": true
     },
-    "ts": "2026-11-01T08:10:11.501Z"
+    "ts": "2026-11-01T08:10:40.465Z"
   },
   "geoHealth": {
     "ok": true,
@@ -17,7 +17,7 @@
       "openai",
       "gemini"
     ],
-    "ts": "2026-11-01T08:10:11.602Z"
+    "ts": "2026-11-01T08:10:40.558Z"
   },
   "gsc": {
     "latest": {
