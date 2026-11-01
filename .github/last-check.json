@@ -1,13 +1,13 @@
 {
-  "checkedAt": "2026-10-03T08:05:58Z",
-  "target": "reports",
+  "checkedAt": "2026-11-01T08:10:12Z",
+  "target": "geo-history",
   "gscHealth": {
     "ok": true,
     "mock": false,
     "googleKey": {
       "ok": true
     },
-    "ts": "2026-10-03T08:05:57.976Z"
+    "ts": "2026-11-01T08:10:11.501Z"
   },
   "geoHealth": {
     "ok": true,
@@ -17,7 +17,7 @@
       "openai",
       "gemini"
     ],
-    "ts": "2026-10-03T08:05:58.026Z"
+    "ts": "2026-11-01T08:10:11.602Z"
   },
   "gsc": {
     "latest": {
@@ -237,6 +237,50 @@
               "m1": -100,
               "m3": -100,
               "m6": -100
+            }
+          }
+        }
+      },
+      "glazservices": {
+        "clientId": "glazservices",
+        "clientName": "Glaz Services",
+        "property": "https://glazservices.fr/",
+        "period": "2026-09",
+        "periodLabel": "septembre 2026",
+        "generatedAt": "2026-10-07T05:59:22.163Z",
+        "mock": false,
+        "url": "https://gsc-report-wassim.loumiwassim.workers.dev/r/b1c1106561dd1e10169e1d9c918b34aa",
+        "kpis": {
+          "clicks": {
+            "value": 0,
+            "deltas": {
+              "m1": null,
+              "m3": null,
+              "m6": null
+            }
+          },
+          "impressions": {
+            "value": 0,
+            "deltas": {
+              "m1": null,
+              "m3": null,
+              "m6": null
+            }
+          },
+          "ctr": {
+            "value": 0,
+            "deltas": {
+              "m1": null,
+              "m3": null,
+              "m6": null
+            }
+          },
+          "position": {
+            "value": 0,
+            "deltas": {
+              "m1": null,
+              "m3": null,
+              "m6": null
             }
           }
         }
@@ -645,20 +689,20 @@
         "clientId": "simco",
         "clientName": "Agence Simco",
         "domain": "agence-simco.com",
-        "date": "2026-10-01",
+        "date": "2026-11-01",
         "mock": false,
         "summary": {
           "answers": 10,
-          "citationRate": 20,
-          "mentionRate": 20,
-          "cited": 2,
-          "mentioned": 2,
+          "citationRate": 40,
+          "mentionRate": 40,
+          "cited": 4,
+          "mentioned": 4,
           "perEngine": {
             "anthropic": {
               "ok": true,
               "total": 10,
-              "cited": 2,
-              "mentioned": 2
+              "cited": 4,
+              "mentioned": 4
             },
             "openai": {
               "ok": false,
@@ -671,7 +715,7 @@
           },
           "topCompetitors": [
             {
-              "domain": "sortlist.fr",
+              "domain": "retines.fr",
               "count": 4
             },
             {
@@ -679,15 +723,11 @@
               "count": 4
             },
             {
-              "domain": "retines.fr",
+              "domain": "buuyers.com",
               "count": 3
             },
             {
-              "domain": "yumens.fr",
-              "count": 3
-            },
-            {
-              "domain": "boostyourweb.fr",
+              "domain": "voyelle.fr",
               "count": 3
             },
             {
@@ -695,19 +735,23 @@
               "count": 2
             },
             {
-              "domain": "oscar-black.com",
+              "domain": "webmarketing-conseil.fr",
               "count": 2
             },
             {
-              "domain": "voyelle.fr",
+              "domain": "agence-essentiel.fr",
               "count": 2
             },
             {
-              "domain": "jumpstartstudio.fr",
+              "domain": "cometefactory.com",
               "count": 2
             },
             {
-              "domain": "inspy.fr",
+              "domain": "concept-image.fr",
+              "count": 2
+            },
+            {
+              "domain": "agence-coherence.fr",
               "count": 2
             }
           ]
@@ -717,7 +761,7 @@
         "clientId": "david-di2a",
         "clientName": "David DI2A",
         "domain": "alarme-videosurveillance-rennes.fr",
-        "date": "2026-10-01",
+        "date": "2026-11-01",
         "mock": false,
         "summary": {
           "answers": 5,
@@ -743,43 +787,43 @@
           },
           "topCompetitors": [
             {
+              "domain": "sectoralarm.fr",
+              "count": 3
+            },
+            {
               "domain": "groupe-epiwest.fr",
               "count": 3
+            },
+            {
+              "domain": "e-expert.fr",
+              "count": 3
+            },
+            {
+              "domain": "alarmerennes.fr",
+              "count": 2
             },
             {
               "domain": "ouest-digit.fr",
               "count": 2
             },
             {
-              "domain": "dkprotection.fr",
+              "domain": "ccs-elec.fr",
               "count": 2
-            },
-            {
-              "domain": "e-expert.fr",
-              "count": 2
-            },
-            {
-              "domain": "easyhomesecurity.fr",
-              "count": 1
-            },
-            {
-              "domain": "allo-installation-alarme.fr",
-              "count": 1
-            },
-            {
-              "domain": "entreprise-hattais.fr",
-              "count": 1
             },
             {
               "domain": "adrienalarme.com",
+              "count": 2
+            },
+            {
+              "domain": "mieuxchezvous.com",
               "count": 1
             },
             {
-              "domain": "sirixmonitoring.com",
+              "domain": "icseecam.com",
               "count": 1
             },
             {
-              "domain": "techronix.fr",
+              "domain": "qivio.fr",
               "count": 1
             }
           ]
@@ -789,20 +833,20 @@
         "clientId": "delphine",
         "clientName": "Delphine (Courtier sur mesure)",
         "domain": "courtiersurmesure.fr",
-        "date": "2026-10-01",
+        "date": "2026-11-01",
         "mock": false,
         "summary": {
           "answers": 5,
-          "citationRate": 40,
-          "mentionRate": 40,
-          "cited": 2,
-          "mentioned": 2,
+          "citationRate": 0,
+          "mentionRate": 0,
+          "cited": 0,
+          "mentioned": 0,
           "perEngine": {
             "anthropic": {
               "ok": true,
               "total": 5,
-              "cited": 2,
-              "mentioned": 2
+              "cited": 0,
+              "mentioned": 0
             },
             "openai": {
               "ok": false,
@@ -815,6 +859,10 @@
           },
           "topCompetitors": [
             {
+              "domain": "bestin-rennes.fr",
+              "count": 3
+            },
+            {
               "domain": "particuliers.financeconseil.fr",
               "count": 3
             },
@@ -823,36 +871,32 @@
               "count": 3
             },
             {
-              "domain": "lemeilleurcourtier.com",
+              "domain": "equitorne.fr",
               "count": 3
             },
             {
-              "domain": "equitorne.fr",
-              "count": 3
+              "domain": "lemeilleurcourtier.com",
+              "count": 2
             },
             {
               "domain": "prelys-courtage.com",
               "count": 2
             },
             {
-              "domain": "cfp-courtage.fr",
-              "count": 2
-            },
-            {
-              "domain": "emeraudecourtage.fr",
-              "count": 2
-            },
-            {
-              "domain": "immodvisor.com",
-              "count": 2
-            },
-            {
-              "domain": "kg-credit.fr",
+              "domain": "cafpi.fr",
               "count": 2
             },
             {
               "domain": "keracourtage.fr",
               "count": 2
+            },
+            {
+              "domain": "finance-conseil.fr",
+              "count": 2
+            },
+            {
+              "domain": "sogefinances.com",
+              "count": 1
             }
           ]
         }
@@ -860,20 +904,20 @@
       "nicolas-fournials": {
         "clientId": "nicolas-fournials",
         "clientName": "Nicolas Fournials (Ostéopathe)",
-        "date": "2026-10-01",
+        "date": "2026-11-01",
         "mock": false,
         "summary": {
           "answers": 7,
           "citationRate": 0,
-          "mentionRate": 42.9,
+          "mentionRate": 28.6,
           "cited": 0,
-          "mentioned": 3,
+          "mentioned": 2,
           "perEngine": {
             "anthropic": {
               "ok": true,
               "total": 7,
               "cited": 0,
-              "mentioned": 3
+              "mentioned": 2
             },
             "openai": {
               "ok": false,
@@ -894,35 +938,35 @@
               "count": 4
             },
             {
+              "domain": "en.wikipedia.org",
+              "count": 4
+            },
+            {
+              "domain": "lemedecin.fr",
+              "count": 3
+            },
+            {
               "domain": "henri-soulier-osteopathe.com",
               "count": 3
             },
             {
-              "domain": "st-jacques.fr",
+              "domain": "osteorennes.fr",
               "count": 3
             },
             {
-              "domain": "fr.mappy.com",
+              "domain": "osteopathe-lea-meury-rennes.fr",
               "count": 3
             },
             {
-              "domain": "osteopathe.afosteo.org",
+              "domain": "osteopathe.do",
               "count": 3
             },
             {
-              "domain": "en.wikipedia.org",
-              "count": 3
-            },
-            {
-              "domain": "parizet-osteopathe-rennes.com",
+              "domain": "vallais-osteopathe.fr",
               "count": 2
             },
             {
-              "domain": "rennes-osteopathe-osteopole.com",
-              "count": 2
-            },
-            {
-              "domain": "ks-osteopathie.fr",
+              "domain": "rennes.localpartner.fr",
               "count": 2
             }
           ]
@@ -932,7 +976,7 @@
         "clientId": "crezabeille",
         "clientName": "Crezabeille",
         "domain": "crezabeille.fr",
-        "date": "2026-10-01",
+        "date": "2026-11-01",
         "mock": false,
         "summary": {
           "answers": 4,
@@ -959,14 +1003,10 @@
           "topCompetitors": [
             {
               "domain": "ungrandmarche.fr",
-              "count": 2
-            },
-            {
-              "domain": "youtube.com",
               "count": 1
             },
             {
-              "domain": "etsy.com",
+              "domain": "youtube.com",
               "count": 1
             },
             {
@@ -974,11 +1014,11 @@
               "count": 1
             },
             {
-              "domain": "crochet-emoi.fr",
+              "domain": "lekaba.fr",
               "count": 1
             },
             {
-              "domain": "loisir-creatif-fr.buttinette.com",
+              "domain": "laboutiquedemelimelo.com",
               "count": 1
             },
             {
@@ -986,7 +1026,7 @@
               "count": 1
             },
             {
-              "domain": "neva-editions.com",
+              "domain": "katty72.over-blog.com",
               "count": 1
             },
             {
@@ -994,7 +1034,11 @@
               "count": 1
             },
             {
-              "domain": "lesdiydeptitcrabe.home.blog",
+              "domain": "caticoud.wordpress.com",
+              "count": 1
+            },
+            {
+              "domain": "fait2mains.fr",
               "count": 1
             }
           ]
@@ -1004,20 +1048,20 @@
         "clientId": "julien-mcr",
         "clientName": "Julien MCR",
         "domain": "serrurerie-porte-blindee-rennes.fr",
-        "date": "2026-10-01",
+        "date": "2026-11-01",
         "mock": false,
         "summary": {
           "answers": 5,
-          "citationRate": 20,
-          "mentionRate": 20,
-          "cited": 1,
-          "mentioned": 1,
+          "citationRate": 40,
+          "mentionRate": 40,
+          "cited": 2,
+          "mentioned": 2,
           "perEngine": {
             "anthropic": {
               "ok": true,
               "total": 5,
-              "cited": 1,
-              "mentioned": 1
+              "cited": 2,
+              "mentioned": 2
             },
             "openai": {
               "ok": false,
@@ -1030,7 +1074,7 @@
           },
           "topCompetitors": [
             {
-              "domain": "fairfair.com",
+              "domain": "artivisor.com",
               "count": 2
             },
             {
@@ -1038,23 +1082,11 @@
               "count": 2
             },
             {
-              "domain": "chronoserve.fr",
+              "domain": "serrure-et-securite.fr",
               "count": 2
             },
             {
-              "domain": "serrurier-depannage-rennes.fr",
-              "count": 2
-            },
-            {
-              "domain": "starofservice.com",
-              "count": 1
-            },
-            {
-              "domain": "allovoisins.com",
-              "count": 1
-            },
-            {
-              "domain": "petitfute.co.uk",
+              "domain": "pagesjaunes.fr",
               "count": 1
             },
             {
@@ -1062,11 +1094,23 @@
               "count": 1
             },
             {
-              "domain": "startupmagazine.fr",
+              "domain": "bestweb.fr",
               "count": 1
             },
             {
-              "domain": "threebestrated.fr",
+              "domain": "nouveaux-consos.fr",
+              "count": 1
+            },
+            {
+              "domain": "prontopro.fr",
+              "count": 1
+            },
+            {
+              "domain": "petitfute.co.uk",
+              "count": 1
+            },
+            {
+              "domain": "airnews.net",
               "count": 1
             }
           ]
@@ -1076,7 +1120,7 @@
         "clientId": "wassim",
         "clientName": "Wassim Loumi",
         "domain": "wassimloumicorporate.fr",
-        "date": "2026-10-01",
+        "date": "2026-11-01",
         "mock": false,
         "summary": {
           "answers": 6,
@@ -1102,31 +1146,7 @@
           },
           "topCompetitors": [
             {
-              "domain": "kreative-lab.fr",
-              "count": 3
-            },
-            {
-              "domain": "digit-all-consulting.fr",
-              "count": 2
-            },
-            {
-              "domain": "ebullition-communication.fr",
-              "count": 2
-            },
-            {
-              "domain": "mama-seo.fr",
-              "count": 2
-            },
-            {
-              "domain": "geoffrey-royer.com",
-              "count": 2
-            },
-            {
-              "domain": "morganechobelet.com",
-              "count": 2
-            },
-            {
-              "domain": "meilleurs-consultants-seo.fr",
+              "domain": "jesuisnumerique.fr",
               "count": 2
             },
             {
@@ -1134,11 +1154,35 @@
               "count": 2
             },
             {
+              "domain": "pateaweb.fr",
+              "count": 2
+            },
+            {
+              "domain": "rankit.fr",
+              "count": 2
+            },
+            {
+              "domain": "inodia.fr",
+              "count": 2
+            },
+            {
+              "domain": "lafabriquedunet.fr",
+              "count": 2
+            },
+            {
               "domain": "charlesneveu.fr",
               "count": 2
             },
             {
-              "domain": "mediamiu.com",
+              "domain": "kreative-lab.fr",
+              "count": 2
+            },
+            {
+              "domain": "consultant-seo-bretagne.fr",
+              "count": 1
+            },
+            {
+              "domain": "ebullition-communication.fr",
               "count": 1
             }
           ]
@@ -1148,20 +1192,20 @@
         "clientId": "optel",
         "clientName": "SEO EVA (Optel)",
         "domain": "optel-services.fr",
-        "date": "2026-10-01",
+        "date": "2026-11-01",
         "mock": false,
         "summary": {
           "answers": 6,
-          "citationRate": 16.7,
-          "mentionRate": 16.7,
-          "cited": 1,
-          "mentioned": 1,
+          "citationRate": 33.3,
+          "mentionRate": 33.3,
+          "cited": 2,
+          "mentioned": 2,
           "perEngine": {
             "anthropic": {
               "ok": true,
               "total": 6,
-              "cited": 1,
-              "mentioned": 1
+              "cited": 2,
+              "mentioned": 2
             },
             "openai": {
               "ok": false,
@@ -1174,23 +1218,23 @@
           },
           "topCompetitors": [
             {
-              "domain": "clicfone.com",
-              "count": 4
-            },
-            {
               "domain": "officeopro.com",
               "count": 3
             },
             {
-              "domain": "telofis.com",
+              "domain": "telesecretariat-medical.com",
               "count": 2
             },
             {
-              "domain": "contaxium.fr",
+              "domain": "agaphone.com",
               "count": 2
             },
             {
-              "domain": "a3com.fr",
+              "domain": "croissance-mag.com",
+              "count": 2
+            },
+            {
+              "domain": "vetovoice.com",
               "count": 2
             },
             {
@@ -1198,11 +1242,11 @@
               "count": 1
             },
             {
-              "domain": "telesecretariat-medical.com",
+              "domain": "lonasante.com",
               "count": 1
             },
             {
-              "domain": "optilib.com",
+              "domain": "jathenais.be",
               "count": 1
             },
             {
@@ -1210,7 +1254,7 @@
               "count": 1
             },
             {
-              "domain": "medicall.fr",
+              "domain": "itg.fr",
               "count": 1
             }
           ]
