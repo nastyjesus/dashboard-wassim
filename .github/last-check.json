@@ -1,13 +1,13 @@
 {
-  "checkedAt": "2026-11-03T08:08:42Z",
-  "target": "health",
+  "checkedAt": "2026-11-03T08:10:01Z",
+  "target": "run-gsc",
   "gscHealth": {
     "ok": true,
     "mock": false,
     "googleKey": {
       "ok": true
     },
-    "ts": "2026-11-03T08:08:41.159Z"
+    "ts": "2026-11-03T08:10:00.271Z"
   },
   "geoHealth": {
     "ok": true,
@@ -17,7 +17,7 @@
       "openai",
       "gemini"
     ],
-    "ts": "2026-11-03T08:08:41.264Z"
+    "ts": "2026-11-03T08:10:00.334Z"
   },
   "gsc": {
     "latest": {
@@ -27,9 +27,9 @@
         "property": "sc-domain:api.myefarm.net",
         "period": "2026-10",
         "periodLabel": "octobre 2026",
-        "generatedAt": "2026-11-03T06:00:42.992Z",
+        "generatedAt": "2026-11-03T08:09:45.585Z",
         "mock": false,
-        "url": "https://gsc-report-wassim.loumiwassim.workers.dev/r/5633bbf634186c1ede21af8fce996f9d",
+        "url": "https://gsc-report-wassim.loumiwassim.workers.dev/r/24028ae50e1514c7cae4e1234d46abb5",
         "kpis": {
           "clicks": {
             "value": 243,
@@ -71,9 +71,9 @@
         "property": "https://baudzyeux.fr/",
         "period": "2026-10",
         "periodLabel": "octobre 2026",
-        "generatedAt": "2026-11-03T06:00:39.091Z",
+        "generatedAt": "2026-11-03T08:09:42.627Z",
         "mock": false,
-        "url": "https://gsc-report-wassim.loumiwassim.workers.dev/r/b6372c008e3aa3e7ee4cc5a8c6d6a91d",
+        "url": "https://gsc-report-wassim.loumiwassim.workers.dev/r/f11e2f9ce262b9aa05cb0d910fc779da",
         "kpis": {
           "clicks": {
             "value": 17,
@@ -115,9 +115,9 @@
         "property": "https://crezabeille.fr/",
         "period": "2026-10",
         "periodLabel": "octobre 2026",
-        "generatedAt": "2026-11-03T06:00:32.398Z",
+        "generatedAt": "2026-11-03T08:09:35.542Z",
         "mock": false,
-        "url": "https://gsc-report-wassim.loumiwassim.workers.dev/r/37ee9200fab94cad58c0c22ab2d5be6e",
+        "url": "https://gsc-report-wassim.loumiwassim.workers.dev/r/568ee724fa2f8cb4c5bd027b00dc5e5e",
         "kpis": {
           "clicks": {
             "value": 50,
@@ -159,9 +159,9 @@
         "property": "https://www.alarme-videosurveillance-rennes.fr/",
         "period": "2026-10",
         "periodLabel": "octobre 2026",
-        "generatedAt": "2026-11-03T06:00:33.426Z",
+        "generatedAt": "2026-11-03T08:09:36.829Z",
         "mock": false,
-        "url": "https://gsc-report-wassim.loumiwassim.workers.dev/r/df0cd203fcd31d2d6db10fba8b8422f7",
+        "url": "https://gsc-report-wassim.loumiwassim.workers.dev/r/8f5023596b778a8fb1dab3b21b07cc3b",
         "kpis": {
           "clicks": {
             "value": 45,
@@ -203,9 +203,9 @@
         "property": "https://courtiersurmesure.fr/",
         "period": "2026-10",
         "periodLabel": "octobre 2026",
-        "generatedAt": "2026-11-03T06:00:34.509Z",
+        "generatedAt": "2026-11-03T08:09:37.995Z",
         "mock": false,
-        "url": "https://gsc-report-wassim.loumiwassim.workers.dev/r/7e6c3fff45b51bb2610ea272ddbe5c9d",
+        "url": "https://gsc-report-wassim.loumiwassim.workers.dev/r/db8caa4f7de058c0a90dbdb846a8c22c",
         "kpis": {
           "clicks": {
             "value": 190,
@@ -247,9 +247,9 @@
         "property": "https://glazservices.fr/",
         "period": "2026-10",
         "periodLabel": "octobre 2026",
-        "generatedAt": "2026-11-03T06:00:40.119Z",
+        "generatedAt": "2026-11-03T08:09:43.653Z",
         "mock": false,
-        "url": "https://gsc-report-wassim.loumiwassim.workers.dev/r/7dd55ba1722f28497b61d997ebbaac46",
+        "url": "https://gsc-report-wassim.loumiwassim.workers.dev/r/539f3fe481fca3b50aec7d8e012ba9ae",
         "kpis": {
           "clicks": {
             "value": 75,
@@ -335,9 +335,9 @@
         "property": "https://www.serrurerie-porte-blindee-rennes.fr/",
         "period": "2026-10",
         "periodLabel": "octobre 2026",
-        "generatedAt": "2026-11-03T06:00:35.563Z",
+        "generatedAt": "2026-11-03T08:09:39.311Z",
         "mock": false,
-        "url": "https://gsc-report-wassim.loumiwassim.workers.dev/r/a76768a106e68752761a981e706c5d58",
+        "url": "https://gsc-report-wassim.loumiwassim.workers.dev/r/ff8023d1754bc13cd482b81d1f16e3c7",
         "kpis": {
           "clicks": {
             "value": 74,
@@ -379,9 +379,9 @@
         "property": "sc-domain:lissage-bresilien.fr",
         "period": "2026-10",
         "periodLabel": "octobre 2026",
-        "generatedAt": "2026-11-03T06:00:42.154Z",
+        "generatedAt": "2026-11-03T08:09:44.574Z",
         "mock": false,
-        "url": "https://gsc-report-wassim.loumiwassim.workers.dev/r/3ae5e46b290c9b820c9b3c62435f3726",
+        "url": "https://gsc-report-wassim.loumiwassim.workers.dev/r/f41115e269aa792a66504c707e536ee6",
         "kpis": {
           "clicks": {
             "value": 9,
@@ -423,9 +423,9 @@
         "property": "https://www.myefarm.net/",
         "period": "2026-10",
         "periodLabel": "octobre 2026",
-        "generatedAt": "2026-11-03T06:00:31.541Z",
+        "generatedAt": "2026-11-03T08:09:34.572Z",
         "mock": false,
-        "url": "https://gsc-report-wassim.loumiwassim.workers.dev/r/af2abbc600eb9045e7a19ea2b148e763",
+        "url": "https://gsc-report-wassim.loumiwassim.workers.dev/r/c6fd44bb3f426a96e3a3eae8b15b7669",
         "kpis": {
           "clicks": {
             "value": 27,
@@ -467,9 +467,9 @@
         "property": "https://optel-services.fr/",
         "period": "2026-10",
         "periodLabel": "octobre 2026",
-        "generatedAt": "2026-11-03T06:00:36.657Z",
+        "generatedAt": "2026-11-03T08:09:40.623Z",
         "mock": false,
-        "url": "https://gsc-report-wassim.loumiwassim.workers.dev/r/e7de53abbb74001a1fceaf059b9a0e19",
+        "url": "https://gsc-report-wassim.loumiwassim.workers.dev/r/b3f80daf911bfad7f6e1e4524c51109c",
         "kpis": {
           "clicks": {
             "value": 34,
@@ -511,9 +511,9 @@
         "property": "https://papaparfait.fr/",
         "period": "2026-10",
         "periodLabel": "octobre 2026",
-        "generatedAt": "2026-11-03T06:00:44.092Z",
+        "generatedAt": "2026-11-03T08:09:46.469Z",
         "mock": false,
-        "url": "https://gsc-report-wassim.loumiwassim.workers.dev/r/6cfe524463cb5367db682ca27042ad21",
+        "url": "https://gsc-report-wassim.loumiwassim.workers.dev/r/8a60dadfcfe45e6f9c7d18bdacebc9f1",
         "kpis": {
           "clicks": {
             "value": 193,
@@ -555,9 +555,9 @@
         "property": "https://souslacote.eu/",
         "period": "2026-10",
         "periodLabel": "octobre 2026",
-        "generatedAt": "2026-11-03T06:00:45.066Z",
+        "generatedAt": "2026-11-03T08:09:47.402Z",
         "mock": false,
-        "url": "https://gsc-report-wassim.loumiwassim.workers.dev/r/caa63cf58118cda46c2eb83d1d6fa909",
+        "url": "https://gsc-report-wassim.loumiwassim.workers.dev/r/91094ac35b5cec1ef0bbcb1a75957360",
         "kpis": {
           "clicks": {
             "value": 16,
@@ -599,9 +599,9 @@
         "property": "https://www.wassimloumicorporate.fr/",
         "period": "2026-10",
         "periodLabel": "octobre 2026",
-        "generatedAt": "2026-11-03T06:00:37.676Z",
+        "generatedAt": "2026-11-03T08:09:41.598Z",
         "mock": false,
-        "url": "https://gsc-report-wassim.loumiwassim.workers.dev/r/5303ba16b5c9fd62a4c67c2ab23ebdef",
+        "url": "https://gsc-report-wassim.loumiwassim.workers.dev/r/79bec5bc2d9c46f982089311679a821e",
         "kpis": {
           "clicks": {
             "value": 42,
@@ -643,9 +643,9 @@
         "property": "https://www.wassimloumi.fr/",
         "period": "2026-10",
         "periodLabel": "octobre 2026",
-        "generatedAt": "2026-11-03T06:00:46.083Z",
+        "generatedAt": "2026-11-03T08:09:48.240Z",
         "mock": false,
-        "url": "https://gsc-report-wassim.loumiwassim.workers.dev/r/a72e1db60197ffc181fe337e7c8f7361",
+        "url": "https://gsc-report-wassim.loumiwassim.workers.dev/r/19e86ea9fa7890f7fde9815aecc0aef3",
         "kpis": {
           "clicks": {
             "value": 18,
