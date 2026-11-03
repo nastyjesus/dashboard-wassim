@@ -1,5 +1,6 @@
 {
-  "target": "health",
-  "requestedAt": "2026-11-03T08:08:30Z",
-  "note": "Verif post-cron rapports GSC octobre (routine du 3)"
+  "target": "run-gsc",
+  "gsc-period": "2026-10",
+  "requestedAt": "2026-11-03T08:10:00Z",
+  "note": "Re-generation octobre — halteduvolcan manquant au cron du 3/11"
 }
