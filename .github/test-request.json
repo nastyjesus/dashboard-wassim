@@ -1,5 +1,5 @@
 {
-  "target": "geo-history",
-  "requestedAt": "2026-11-01T08:11:30Z",
-  "note": "Verif post-cron GEO du 1er novembre — historique complet"
+  "target": "health",
+  "requestedAt": "2026-11-03T08:08:30Z",
+  "note": "Verif post-cron rapports GSC octobre (routine du 3)"
 }
