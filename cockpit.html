@@ -37,7 +37,7 @@
 const { useState, useEffect } = React;
 
 /* ================= VERSION : force le rechargement si une version plus récente est en ligne ================= */
-const BUILD = "2026-11-06-perf";
+const BUILD = "2026-11-06-effectif";
 (async () => {
   try {
     const r = await fetch(location.pathname + "?check=" + Date.now(), { cache: "no-store" });
@@ -1700,6 +1700,9 @@ function VueBNI({ membres, bniProspects, bniConf, majBniConf, majMembre, clients
         })()}
       </div>
 
+      {/* évolution de l'effectif depuis janvier */}
+      <EffectifGraph actuel={membres.length} />
+
       {/* radar des renouvellements membres */}
       <div style={{ background: S.paper, border: `1px solid ${S.line}`, borderLeft: `4px solid ${enRetard + rens.filter((r) => r.statut === "urgent").length > 0 ? S.rust : S.line}`, borderRadius: 14, padding: "15px 17px", marginTop: 12 }}>
         <div style={{ ...serif, fontSize: 18, fontWeight: 600, color: S.ink, marginBottom: 4 }}>Renouvellements des membres</div>
@@ -1848,6 +1851,80 @@ function VueBNI({ membres, bniProspects, bniConf, majBniConf, majMembre, clients
         <p style={{ fontSize: 11, color: S.soft, marginTop: 8 }}>Chaque renouvellement ou nouveau membre validé te propose de créer la commission correspondante en contrat BNI, directement dans ton CA.</p>
       </div>
       </>)}
+    </div>
+  );
+}
+
+/* ---- Évolution de l'effectif du Groupe depuis janvier ----
+   Points relevés : fiche DC « objectif +1 / trimestre » du 04/11/2026 (IDP Membres fin de trimestre).
+   Dernier point = effectif en direct (membres de la base Notion). Objectif : 20 au 01/01 + 1 net par trimestre. */
+const EFFECTIF_HISTO = [
+  { d: "2026-01-01", n: 20, l: "1er janv." },
+  { d: "2026-03-31", n: 18, l: "fin T1" },
+  { d: "2026-06-30", n: 17, l: "fin T2" },
+  { d: "2026-09-30", n: 12, l: "fin T3" },
+  { d: "2026-11-04", n: 11, l: "04/11" },
+];
+const EFFECTIF_OBJ = [
+  { d: "2026-01-01", n: 20 }, { d: "2026-03-31", n: 21 }, { d: "2026-06-30", n: 22 },
+  { d: "2026-09-30", n: 23 }, { d: "2026-12-31", n: 24 },
+];
+function EffectifGraph({ actuel }) {
+  const today = new Date().toISOString().slice(0, 10);
+  const pts = [...EFFECTIF_HISTO];
+  if (today > pts[pts.length - 1].d) pts.push({ d: today, n: actuel, l: "aujourd'hui", live: true });
+  const t0 = new Date("2026-01-01").getTime(), t1 = new Date("2026-12-31").getTime();
+  const W = 340, H = 170, L = 28, R = 12, T = 16, B = 26;
+  const x = (d) => L + ((new Date(d).getTime() - t0) / (t1 - t0)) * (W - L - R);
+  const yMax = Math.max(26, ...pts.map((p) => p.n + 2));
+  const yMin = Math.min(8, ...pts.map((p) => p.n - 2));
+  const graduations = [0, 5, 10, 15, 20, 25, 30, 35, 40].filter((n) => n > yMin && n < yMax);
+  const y = (n) => T + ((yMax - n) / (yMax - yMin)) * (H - T - B);
+  const ligne = (arr) => arr.map((p, i) => `${i ? "L" : "M"}${x(p.d).toFixed(1)},${y(p.n).toFixed(1)}`).join(" ");
+  const mois = ["J", "F", "M", "A", "M", "J", "J", "A", "S", "O", "N", "D"];
+  const dernier = pts[pts.length - 1];
+  const objDuJour = (() => { /* objectif interpolé à la date du dernier point */
+    const t = new Date(dernier.d).getTime();
+    for (let i = 1; i < EFFECTIF_OBJ.length; i++) {
+      const a = EFFECTIF_OBJ[i - 1], b = EFFECTIF_OBJ[i];
+      const ta = new Date(a.d).getTime(), tb = new Date(b.d).getTime();
+      if (t <= tb) return a.n + ((t - ta) / (tb - ta)) * (b.n - a.n);
+    }
+    return EFFECTIF_OBJ[EFFECTIF_OBJ.length - 1].n;
+  })();
+  const ecart = Math.round(dernier.n - objDuJour);
+  return (
+    <div style={{ background: S.paper, border: `1px solid ${S.line}`, borderRadius: 14, padding: "15px 17px", marginTop: 12 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", flexWrap: "wrap", gap: 6 }}>
+        <div style={{ ...serif, fontSize: 18, fontWeight: 600, color: S.ink }}>Effectif depuis janvier</div>
+        <span style={{ fontSize: 11.5, fontWeight: 700, color: ecart >= 0 ? S.green : S.rust }}>{dernier.n} membres · écart {ecart > 0 ? "+" : ""}{ecart} vs objectif</span>
+      </div>
+      <svg viewBox={`0 0 ${W} ${H}`} style={{ width: "100%", height: "auto", display: "block", marginTop: 6 }} role="img" aria-label={`Effectif du Groupe : ${pts.map((p) => p.l + " " + p.n).join(", ")}`}>
+        {graduations.map((n) => (
+          <g key={n}>
+            <line x1={L} x2={W - R} y1={y(n)} y2={y(n)} stroke={S.grid} strokeWidth="1" />
+            <text x={L - 5} y={y(n) + 3} fontSize="8.5" textAnchor="end" fill={S.soft}>{n}</text>
+          </g>
+        ))}
+        {mois.map((m, i) => (
+          <text key={i} x={x(`2026-${String(i + 1).padStart(2, "0")}-15`)} y={H - 8} fontSize="8.5" textAnchor="middle" fill={S.soft}>{m}</text>
+        ))}
+        <path d={ligne(EFFECTIF_OBJ)} fill="none" stroke={S.gold} strokeWidth="1.5" strokeDasharray="4 3" />
+        <text x={x("2026-12-31") - 2} y={y(24) - 5} fontSize="8.5" textAnchor="end" fill={S.deep}>objectif 24</text>
+        <path d={ligne(pts)} fill="none" stroke={S.ink} strokeWidth="2.2" strokeLinejoin="round" />
+        {pts.map((p) => (
+          <g key={p.d}>
+            <circle cx={x(p.d)} cy={y(p.n)} r={p.live ? 4.5 : 3.2} fill={p.live ? S.green : S.ink} stroke="#fff" strokeWidth="1.2" />
+            <text x={x(p.d)} y={y(p.n) + (p.live ? -8 : 13)} fontSize="9" fontWeight="700" textAnchor="middle" fill={p.live ? S.green : S.ink}>{p.n}</text>
+          </g>
+        ))}
+      </svg>
+      <div style={{ display: "flex", gap: 14, flexWrap: "wrap", fontSize: 10.5, color: S.soft, marginTop: 4 }}>
+        <span><b style={{ color: S.ink }}>—</b> effectif réel</span>
+        <span><b style={{ color: S.gold }}>- -</b> objectif (+1 net / trimestre)</span>
+        <span><b style={{ color: S.green }}>●</b> aujourd'hui (en direct)</span>
+      </div>
+      <p style={{ fontSize: 10.5, color: S.soft, margin: "6px 0 0" }}>Points trimestriels : fiche DC du 04/11/2026 (IDP Membres). Point du jour : membres de la base Notion.</p>
     </div>
   );
 }
