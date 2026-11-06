@@ -37,7 +37,7 @@
 const { useState, useEffect } = React;
 
 /* ================= VERSION : force le rechargement si une version plus récente est en ligne ================= */
-const BUILD = "2026-10-15-b";
+const BUILD = "2026-11-06-perf";
 (async () => {
   try {
     const r = await fetch(location.pathname + "?check=" + Date.now(), { cache: "no-store" });
