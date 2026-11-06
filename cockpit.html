@@ -222,7 +222,11 @@ const PERF_METS = [
   { k: "refR", nom: "Réf. reçues", court: "Réf. reç." },
   { k: "vis", nom: "Visiteurs", court: "Visit.", obj: 1 },
   { k: "o2o", nom: "1-2-1", court: "1-2-1", obj: 2 },
-  { k: "ca", nom: "CA généré", court: "CA €", euro: true },
+  /* absences : plus c'est bas, mieux c'est — alerte à 3 et plus sur 6 mois (0,5 / mois) */
+  { k: "abs", nom: "Absences", court: "Abs.", max: 0.5 },
+  /* CA reçu = export « CA Reçu » (Superset) ; CA donné = merci pour le business donné (PALMS « ca ») */
+  { k: "caR", nom: "CA reçu", court: "CA reçu", euro: true },
+  { k: "ca", nom: "CA donné", court: "CA donné", euro: true },
 ];
 /* fenêtres glissantes : mois = nb de mois de la fenêtre (null = cumul depuis arrivée) */
 const PERF_PERIODES = [
@@ -798,7 +802,7 @@ function Cockpit() {
     "Contact": p.membreNom || "",
     "Début": (p.mkey || perfMoisKey(new Date())) + "-01",
     "Montant HT": Number(p.ca) || 0,
-    "Notes": JSON.stringify({ refD: Number(p.refD) || 0, refR: Number(p.refR) || 0, vis: Number(p.vis) || 0, o2o: Number(p.o2o) || 0, ca: Number(p.ca) || 0 }),
+    "Notes": JSON.stringify({ refD: Number(p.refD) || 0, refR: Number(p.refR) || 0, vis: Number(p.vis) || 0, o2o: Number(p.o2o) || 0, abs: Number(p.abs) || 0, caR: Number(p.caR) || 0, ca: Number(p.ca) || 0 }),
   });
   const majPerf = (p) => {
     const exist = membrePerfs.find((x) => x.membreId === p.membreId && x.mkey === p.mkey);
@@ -1638,7 +1642,7 @@ function VueBNI({ membres, bniProspects, bniConf, majBniConf, majMembre, clients
         ))}
       </div>
 
-      {sousVue === "perf" ? <BNIPerformances {...{ membres, membrePerfs, setFPerf }} /> : (<>
+      {sousVue === "perf" ? <BNIPerformances {...{ membres, membrePerfs, setFPerf, bniConf }} /> : (<>
 
       {/* synthèse */}
       <div style={{ background: S.panel, borderRadius: 16, padding: "18px 18px", marginTop: 12, color: S.cream }}>
@@ -1849,26 +1853,38 @@ function VueBNI({ membres, bniProspects, bniConf, majBniConf, majMembre, clients
 }
 
 /* ---- Performances des membres : vue globale (leaderboard) + individuelle ---- */
-function BNIPerformances({ membres, membrePerfs }) {
+function BNIPerformances({ membres, membrePerfs, bniConf }) {
   const [periode, setPeriode] = useState("w3");
   const [tri, setTri] = useState("refD");
 
   const per = PERF_PERIODES.find((x) => x.id === periode) || PERF_PERIODES[1];
   const N = per.mois; // nb de mois de la fenêtre (null = cumul depuis arrivée)
-  const zero = { refD: 0, refR: 0, vis: 0, o2o: 0, ca: 0 };
+  const zero = { refD: 0, refR: 0, vis: 0, o2o: 0, abs: 0, caR: 0, ca: 0 };
   const perfOf = (m) => membrePerfs.find((p) => p.membreId === m.id || (!p.membreId && p.membreNom && p.membreNom === m.nom));
 
   const parMembre = membres.map((m) => {
     const p = perfOf(m);
     const w = p && p.win && p.win[per.id] ? p.win[per.id] : null;
-    const v = w ? { refD: +w.refD || 0, refR: +w.refR || 0, vis: +w.vis || 0, o2o: +w.o2o || 0, ca: +w.ca || 0 } : { ...zero };
-    return { id: m.id, nom: m.nom, profession: m.profession, ...v, aDonnees: !!w };
+    const v = w ? { refD: +w.refD || 0, refR: +w.refR || 0, vis: +w.vis || 0, o2o: +w.o2o || 0, abs: +w.abs || 0, caR: +w.caR || 0, ca: +w.ca || 0 } : { ...zero };
+    return { id: m.id, nom: m.nom, profession: m.profession, adhesion: m.adhesion, ...v, aDonnees: !!w };
   });
-  const cible = (mt) => (mt.obj && N ? mt.obj * N : null);
+  /* seuil : minimum à atteindre (obj) ou maximum à ne pas dépasser (max) sur la fenêtre */
+  const cible = (mt) => (mt.obj && N ? mt.obj * N : mt.max && N ? Math.max(1, Math.round(mt.max * N)) : null);
+  const atteint = (mt, val, t) => (mt.max ? val < t : val >= t);
   const totaux = { ...zero };
   parMembre.forEach((m) => PERF_METS.forEach((mt) => { totaux[mt.k] += m[mt.k]; }));
-  const nbOk = (mt) => { const t = cible(mt); return t == null ? null : parMembre.filter((m) => m.aDonnees && m[mt.k] >= t).length; };
+  const nbOk = (mt) => { const t = cible(mt); return t == null ? null : parMembre.filter((m) => m.aDonnees && atteint(mt, m[mt.k], t)).length; };
   const trie = [...parMembre].sort((a, b) => (a.aDonnees === b.aDonnees ? b[tri] - a[tri] : a.aDonnees ? -1 : 1));
+  /* intronisation : « intro mars 2026 · 8 mois » */
+  const intro = (iso) => {
+    if (!iso) return "";
+    const d = new Date(iso + "T00:00:00");
+    if (isNaN(d)) return "";
+    const n = new Date();
+    const mois = (n.getFullYear() - d.getFullYear()) * 12 + n.getMonth() - d.getMonth();
+    const anc = mois < 12 ? `${Math.max(0, mois)} mois` : `${Math.floor(mois / 12)} an${mois >= 24 ? "s" : ""}`;
+    return `intro ${d.toLocaleDateString("fr-FR", { month: "short", year: "numeric" })} · ${anc}`;
+  };
   const fmt = (v, mt) => (mt.euro ? (v ? court(v) + " €" : "·") : (v || "·"));
 
   const barre = (
@@ -1883,12 +1899,45 @@ function BNIPerformances({ membres, membrePerfs }) {
     return (<div>{barre}<p style={{ fontSize: 13, color: S.soft, marginTop: 16 }}>Ajoute d'abord des membres (onglet Pilotage) pour suivre leurs performances.</p></div>);
   }
 
+  /* ---- bandeau « santé du Groupe » : effectif, moteur PALMS, CA reçu 12 mois ---- */
+  const avec = (wid) => membres.map(perfOf).filter((p) => p && p.win && p.win[wid]).map((p) => p.win[wid]);
+  const w12 = avec("w12"), w3 = avec("w3");
+  const somme = (arr, k) => arr.reduce((s, w) => s + (+w[k] || 0), 0);
+  const cibleEff = Number(bniConf && bniConf.cibleEffectif) || 0;
+  const ecartEff = cibleEff ? membres.length - cibleEff : null;
+  /* moyennes par membre et par mois sur 12 mois ; invités/semaine du Groupe sur 3 mois (≈ 13 semaines) */
+  const recoMois = w12.length ? somme(w12, "refD") / w12.length / 12 : null;
+  const tatMois = w12.length ? somme(w12, "o2o") / w12.length / 12 : null;
+  const invSem = w3.length ? somme(w3, "vis") / 13 : null;
+  const caGroupe = w12.length ? somme(w12, "caR") : null;
+  const feu = (v, obj) => (v == null ? S.soft : v >= obj ? "#3f6b3f" : v >= obj * 0.75 ? S.deep : "#9c4a26");
+  const arr1 = (v) => (v == null ? "—" : v.toLocaleString("fr-FR", { maximumFractionDigits: 1 }));
+  const tuiles = [
+    { l: "Effectif", v: `${membres.length}${cibleEff ? " / " + cibleEff : ""}`, s: ecartEff == null ? "cible à saisir (Pilotage)" : `écart ${ecartEff > 0 ? "+" : ""}${ecartEff}`, c: ecartEff == null ? S.soft : ecartEff >= 0 ? "#3f6b3f" : "#9c4a26" },
+    { l: "Réf. données / membre / mois", v: arr1(recoMois), s: "obj ≥ 4 (≈ 1 / réunion)", c: feu(recoMois, 4) },
+    { l: "1-2-1 / membre / mois", v: arr1(tatMois), s: "obj ≥ 2", c: feu(tatMois, 2) },
+    { l: "Invités / semaine (Groupe)", v: arr1(invSem), s: "obj ≥ 2 · sur 3 mois", c: feu(invSem, 2) },
+    { l: "CA reçu 12 mois (Groupe)", v: caGroupe == null ? "—" : `${court(caGroupe) || 0} €`, s: "export CA Reçu", c: S.ink },
+  ];
+  const bandeau = (
+    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(130px, 1fr))", gap: 8, marginTop: 12 }}>
+      {tuiles.map((t) => (
+        <div key={t.l} style={{ background: S.paper, border: `1px solid ${S.line}`, borderRadius: 12, padding: "10px 12px" }}>
+          <div style={{ fontSize: 9.5, letterSpacing: "0.08em", textTransform: "uppercase", color: S.soft, fontWeight: 700 }}>{t.l}</div>
+          <div style={{ ...serif, fontSize: 22, fontWeight: 600, color: t.c, lineHeight: 1.15, marginTop: 2 }}>{t.v}</div>
+          <div style={{ fontSize: 10.5, color: S.soft }}>{t.s}</div>
+        </div>
+      ))}
+    </div>
+  );
+
   const objTxt = N
-    ? `Objectif ${per.nom.toLowerCase()} : ${4 * N} réf. données · ${1 * N} invité${N > 1 ? "s" : ""} · ${2 * N} tàt (${4}/${1}/${2} par mois × ${N})`
+    ? `Objectif ${per.nom.toLowerCase()} : ${4 * N} réf. données · ${1 * N} invité${N > 1 ? "s" : ""} · ${2 * N} tàt (${4}/${1}/${2} par mois × ${N}) · alerte à ${Math.max(1, Math.round(0.5 * N))} absence${Math.round(0.5 * N) > 1 ? "s" : ""}`
     : "Cumul depuis l'arrivée — pas d'objectif de période";
 
   return (
     <div>
+      {bandeau}
       {barre}
       <div style={{ fontSize: 11.5, color: S.soft, marginTop: 10, lineHeight: 1.5 }}>
         {objTxt}. <b style={{ color: S.green }}>vert</b> = objectif atteint, <b style={{ color: S.rust }}>rouge</b> = en dessous. Touche une colonne pour trier.
@@ -1904,7 +1953,7 @@ function BNIPerformances({ membres, membrePerfs }) {
                   <th key={mt.k} onClick={() => setTri(mt.k)} title="Trier"
                     style={{ background: tri === mt.k ? S.deep : S.panel, color: tri === mt.k ? "#fff" : S.cream, fontSize: 10, fontWeight: 700, textTransform: "uppercase", padding: "7px 8px", textAlign: "right", cursor: "pointer", whiteSpace: "nowrap" }}>
                     {mt.court}{tri === mt.k ? " ↓" : ""}
-                    {t != null ? <div style={{ fontSize: 8.5, fontWeight: 600, color: "#C9BFAE", textTransform: "none" }}>obj ≥ {t}</div> : null}
+                    {t != null ? <div style={{ fontSize: 8.5, fontWeight: 600, color: "#C9BFAE", textTransform: "none" }}>{mt.max ? `alerte ≥ ${t}` : `obj ≥ ${t}`}</div> : null}
                   </th>
                 );
               })}
@@ -1916,17 +1965,18 @@ function BNIPerformances({ membres, membrePerfs }) {
                 <td style={{ position: "sticky", left: 0, zIndex: 2, background: S.paper, borderRight: `2px solid ${S.line}`, borderBottom: `1px solid ${S.grid}`, padding: "8px 10px" }}>
                   <div style={{ ...serif, fontSize: 13.5, fontWeight: 600, color: S.ink, lineHeight: 1.1 }}>{m.nom}</div>
                   {m.profession && <div style={{ fontSize: 10.5, color: S.soft }}>{m.profession}</div>}
+                  {m.adhesion && <div style={{ fontSize: 10, color: S.soft }}>{intro(m.adhesion)}</div>}
                 </td>
                 {PERF_METS.map((mt) => {
                   const t = cible(mt);
                   const val = m[mt.k];
-                  const ok = (t != null && m.aDonnees) ? val >= t : null;
+                  const ok = (t != null && m.aDonnees) ? atteint(mt, val, t) : null;
                   const bg = ok === null ? (tri === mt.k ? "#FBF6EC" : "#fff") : (ok ? "#EAF2E7" : "#F8E4DA");
                   const col = ok === null ? (val ? S.ink : S.line) : (ok ? "#3f6b3f" : "#9c4a26");
                   return (
                     <td key={mt.k} style={{ borderBottom: `1px solid ${S.grid}`, borderRight: `1px solid ${S.grid}`, padding: "8px 9px", textAlign: "right", background: bg, whiteSpace: "nowrap" }}>
                       <span style={{ fontSize: 12.5, fontWeight: 700, color: col }}>{fmt(val, mt)}</span>
-                      {(t != null && m.aDonnees) ? <span style={{ fontSize: 9.5, fontWeight: 700, color: col, marginLeft: 3 }}>{ok ? "✓" : "−" + (t - val)}</span> : null}
+                      {(t != null && m.aDonnees) ? <span style={{ fontSize: 9.5, fontWeight: 700, color: col, marginLeft: 3 }}>{ok ? "✓" : mt.max ? "!" : "−" + (t - val)}</span> : null}
                     </td>
                   );
                 })}
@@ -1948,7 +1998,7 @@ function BNIPerformances({ membres, membrePerfs }) {
           </tbody>
         </table>
       </div>
-      <p style={{ fontSize: 10.5, color: S.soft, marginTop: 8 }}>Données PALMS par fenêtre glissante (import « Rapport PALMS Récapitulatif »). Réf. reçues et CA affichés sans objectif.</p>
+      <p style={{ fontSize: 10.5, color: S.soft, marginTop: 8 }}>Données PALMS par fenêtre glissante (import « Rapport PALMS Récapitulatif »). CA reçu : export « CA Reçu » (Superset). CA donné : merci pour le business donné. Réf. reçues et CA affichés sans objectif.</p>
     </div>
   );
 }
