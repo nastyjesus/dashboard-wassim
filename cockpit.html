@@ -37,7 +37,7 @@
 const { useState, useEffect } = React;
 
 /* ================= VERSION : force le rechargement si une version plus récente est en ligne ================= */
-const BUILD = "2026-11-06-effectif";
+const BUILD = "2026-11-06-objectifs";
 (async () => {
   try {
     const r = await fetch(location.pathname + "?check=" + Date.now(), { cache: "no-store" });
@@ -1857,7 +1857,8 @@ function VueBNI({ membres, bniProspects, bniConf, majBniConf, majMembre, clients
 
 /* ---- Évolution de l'effectif du Groupe depuis janvier ----
    Points relevés : fiche DC « objectif +1 / trimestre » du 04/11/2026 (IDP Membres fin de trimestre).
-   Dernier point = effectif en direct (membres de la base Notion). Objectif : 20 au 01/01 + 1 net par trimestre. */
+   Dernier point = effectif en direct (membres de la base Notion).
+   Objectif fixé par Wassim le 06/11/2026 : 20 membres fin décembre 2026, 25 fin mars 2027 (départ du 04/11 à 11). */
 const EFFECTIF_HISTO = [
   { d: "2026-01-01", n: 20, l: "1er janv." },
   { d: "2026-03-31", n: 18, l: "fin T1" },
@@ -1866,14 +1867,13 @@ const EFFECTIF_HISTO = [
   { d: "2026-11-04", n: 11, l: "04/11" },
 ];
 const EFFECTIF_OBJ = [
-  { d: "2026-01-01", n: 20 }, { d: "2026-03-31", n: 21 }, { d: "2026-06-30", n: 22 },
-  { d: "2026-09-30", n: 23 }, { d: "2026-12-31", n: 24 },
+  { d: "2026-11-04", n: 11 }, { d: "2026-12-31", n: 20, l: "20 fin déc." }, { d: "2027-03-31", n: 25, l: "25 fin mars" },
 ];
 function EffectifGraph({ actuel }) {
   const today = new Date().toISOString().slice(0, 10);
   const pts = [...EFFECTIF_HISTO];
   if (today > pts[pts.length - 1].d) pts.push({ d: today, n: actuel, l: "aujourd'hui", live: true });
-  const t0 = new Date("2026-01-01").getTime(), t1 = new Date("2026-12-31").getTime();
+  const t0 = new Date("2026-01-01").getTime(), t1 = new Date("2027-03-31").getTime();
   const W = 340, H = 170, L = 28, R = 12, T = 16, B = 26;
   const x = (d) => L + ((new Date(d).getTime() - t0) / (t1 - t0)) * (W - L - R);
   const yMax = Math.max(26, ...pts.map((p) => p.n + 2));
@@ -1881,10 +1881,11 @@ function EffectifGraph({ actuel }) {
   const graduations = [0, 5, 10, 15, 20, 25, 30, 35, 40].filter((n) => n > yMin && n < yMax);
   const y = (n) => T + ((yMax - n) / (yMax - yMin)) * (H - T - B);
   const ligne = (arr) => arr.map((p, i) => `${i ? "L" : "M"}${x(p.d).toFixed(1)},${y(p.n).toFixed(1)}`).join(" ");
-  const mois = ["J", "F", "M", "A", "M", "J", "J", "A", "S", "O", "N", "D"];
+  const mois = ["J", "F", "M", "A", "M", "J", "J", "A", "S", "O", "N", "D", "J", "F", "M"];
   const dernier = pts[pts.length - 1];
   const objDuJour = (() => { /* objectif interpolé à la date du dernier point */
     const t = new Date(dernier.d).getTime();
+    if (t <= new Date(EFFECTIF_OBJ[0].d).getTime()) return EFFECTIF_OBJ[0].n;
     for (let i = 1; i < EFFECTIF_OBJ.length; i++) {
       const a = EFFECTIF_OBJ[i - 1], b = EFFECTIF_OBJ[i];
       const ta = new Date(a.d).getTime(), tb = new Date(b.d).getTime();
@@ -1897,7 +1898,7 @@ function EffectifGraph({ actuel }) {
     <div style={{ background: S.paper, border: `1px solid ${S.line}`, borderRadius: 14, padding: "15px 17px", marginTop: 12 }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", flexWrap: "wrap", gap: 6 }}>
         <div style={{ ...serif, fontSize: 18, fontWeight: 600, color: S.ink }}>Effectif depuis janvier</div>
-        <span style={{ fontSize: 11.5, fontWeight: 700, color: ecart >= 0 ? S.green : S.rust }}>{dernier.n} membres · écart {ecart > 0 ? "+" : ""}{ecart} vs objectif</span>
+        <span style={{ fontSize: 11.5, fontWeight: 700, color: dernier.n >= 20 ? S.green : S.rust }}>{dernier.n} membres · {Math.max(0, 20 - dernier.n)} à trouver d'ici fin déc. · {Math.max(0, 25 - dernier.n)} d'ici fin mars</span>
       </div>
       <svg viewBox={`0 0 ${W} ${H}`} style={{ width: "100%", height: "auto", display: "block", marginTop: 6 }} role="img" aria-label={`Effectif du Groupe : ${pts.map((p) => p.l + " " + p.n).join(", ")}`}>
         {graduations.map((n) => (
@@ -1907,10 +1908,17 @@ function EffectifGraph({ actuel }) {
           </g>
         ))}
         {mois.map((m, i) => (
-          <text key={i} x={x(`2026-${String(i + 1).padStart(2, "0")}-15`)} y={H - 8} fontSize="8.5" textAnchor="middle" fill={S.soft}>{m}</text>
+          <text key={i} x={x(`${2026 + Math.floor(i / 12)}-${String((i % 12) + 1).padStart(2, "0")}-15`)} y={H - 8} fontSize="8.5" textAnchor="middle" fill={i >= 12 ? S.deep : S.soft}>{m}</text>
         ))}
+        <line x1={x("2027-01-01")} x2={x("2027-01-01")} y1={T} y2={H - B} stroke={S.line} strokeWidth="1" />
+        <text x={x("2027-01-01") + 3} y={H - B - 4} fontSize="8" fill={S.soft}>2027</text>
         <path d={ligne(EFFECTIF_OBJ)} fill="none" stroke={S.gold} strokeWidth="1.5" strokeDasharray="4 3" />
-        <text x={x("2026-12-31") - 2} y={y(24) - 5} fontSize="8.5" textAnchor="end" fill={S.deep}>objectif 24</text>
+        {EFFECTIF_OBJ.filter((o) => o.l).map((o) => (
+          <g key={o.d}>
+            <circle cx={x(o.d)} cy={y(o.n)} r="3" fill="#fff" stroke={S.gold} strokeWidth="1.5" />
+            <text x={x(o.d) - 4} y={y(o.n) - 6} fontSize="8.5" fontWeight="700" textAnchor="end" fill={S.deep}>{o.l}</text>
+          </g>
+        ))}
         <path d={ligne(pts)} fill="none" stroke={S.ink} strokeWidth="2.2" strokeLinejoin="round" />
         {pts.map((p) => (
           <g key={p.d}>
@@ -1921,7 +1929,7 @@ function EffectifGraph({ actuel }) {
       </svg>
       <div style={{ display: "flex", gap: 14, flexWrap: "wrap", fontSize: 10.5, color: S.soft, marginTop: 4 }}>
         <span><b style={{ color: S.ink }}>—</b> effectif réel</span>
-        <span><b style={{ color: S.gold }}>- -</b> objectif (+1 net / trimestre)</span>
+        <span><b style={{ color: S.gold }}>- -</b> objectif : 20 fin déc., 25 fin mars</span>
         <span><b style={{ color: S.green }}>●</b> aujourd'hui (en direct)</span>
       </div>
       <p style={{ fontSize: 10.5, color: S.soft, margin: "6px 0 0" }}>Points trimestriels : fiche DC du 04/11/2026 (IDP Membres). Point du jour : membres de la base Notion.</p>
