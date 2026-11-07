@@ -152,6 +152,27 @@ describe('admin et job', () => {
     expect(res.status).toBe(400);
   });
 
+  it('garde le lien perso et le dépôt quand la slide est recréée (nouvel identifiant)', async () => {
+    const m = await lienDe('Céline GUIHO');
+    await appel(`/api/photo?m=${m}`, { methode: 'PUT', corps: new Uint8Array([0xff, 0xd8]) });
+    await appel(`/api/depot?m=${m}`, { methode: 'POST', corps: { recherche: 'Ma demande' } });
+    // la slide de Céline a été supprimée puis recréée : identifiant 909, accents différents
+    const recree = [MEMBRES[0], { ...MEMBRES[1], slide_id: 909, nom: 'Celine  Guiho' }];
+    await appel('/api/job/resultat', { methode: 'POST', admin: ADMIN, corps: { ok: true, membres: recree } });
+
+    expect(await lienDe('Celine  Guiho')).toBe(m);
+    const moi = await appel(`/api/moi?m=${m}`);
+    expect(moi.body.depot).toMatchObject({ slide_id: 909, recherche: 'Ma demande', a_photo: true });
+    expect((await appel(`/api/photo?m=${m}`)).res.status).toBe(200);
+    expect((await appel('/api/job/entree', { admin: ADMIN })).body.depots.map((d) => d.slide_id)).toEqual([909]);
+  });
+
+  it('ne déplace rien si la slide a simplement changé de position', async () => {
+    const avant = await lienDe('Paul JUHEL');
+    await appel('/api/job/resultat', { methode: 'POST', admin: ADMIN, corps: { ok: true, membres: [MEMBRES[1], MEMBRES[0]] } });
+    expect(await lienDe('Paul JUHEL')).toBe(avant);
+  });
+
   it('explique quand le bouton n\'est pas configuré', async () => {
     const { res } = await appel('/api/admin/appliquer', { methode: 'POST', admin: ADMIN });
     expect(res.status).toBe(501);

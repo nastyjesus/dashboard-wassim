@@ -121,26 +121,52 @@ async function declencherJob(env) {
   return json({ ok: true });
 }
 
+export const normaliserNom = (nom) => String(nom).normalize('NFD').replace(/[̀-ͯ]/g, '')
+  .toLowerCase().split(/\s+/).filter(Boolean).join(' ');
+
+// Une slide supprimée puis recréée (ou recopiée) change d'identifiant : on
+// retrouve le membre par son nom pour que son lien perso et son dépôt suivent.
+async function suivreSlidesRecreees(env, anciens, membres, jetons) {
+  const nouveauxIds = new Set(membres.map((m) => m.slide_id));
+  const anciensIds = new Set(anciens.map((m) => m.slide_id));
+  for (const ancien of anciens) {
+    if (nouveauxIds.has(ancien.slide_id)) continue;
+    const cible = membres.find((m) => !anciensIds.has(m.slide_id) && normaliserNom(m.nom) === normaliserNom(ancien.nom));
+    if (!cible) continue;
+    for (const [jeton, id] of Object.entries(jetons)) if (id === ancien.slide_id) jetons[jeton] = cible.slide_id;
+    const depot = await lire(env, `depot:${ancien.slide_id}`, null);
+    if (depot) {
+      await env.KV.put(`depot:${cible.slide_id}`, JSON.stringify({ ...depot, slide_id: cible.slide_id }));
+      const photo = await env.KV.get(`photo:${ancien.slide_id}`, 'arrayBuffer');
+      if (photo) await env.KV.put(`photo:${cible.slide_id}`, photo);
+      await env.KV.delete(`depot:${ancien.slide_id}`);
+      await env.KV.delete(`photo:${ancien.slide_id}`);
+    }
+  }
+}
+
 // Le job envoie la liste des membres lue dans le deck et les dépôts appliqués.
 async function recevoirResultat(env, corps) {
-  if (Array.isArray(corps.membres)) {
-    const membres = corps.membres.map((m) => ({
-      slide_id: Number(m.slide_id), nom: String(m.nom), metier: String(m.metier ?? ''),
-      recherche: String(m.recherche ?? ''), a_une_photo: Boolean(m.a_une_photo),
-    }));
-    const jetons = await lire(env, 'jetons', {});
-    const dejaLies = new Set(Object.values(jetons));
-    for (const m of membres) if (!dejaLies.has(m.slide_id)) jetons[nouveauJeton()] = m.slide_id;
-    await env.KV.put('membres', JSON.stringify(membres));
-    await env.KV.put('jetons', JSON.stringify(jetons));
-  }
   // un dépôt n'est effacé que s'il n'a pas été modifié pendant le job
+  // (identifiants d'origine : traité avant le suivi des slides recréées)
   for (const { slide_id: id, date } of corps.appliques ?? []) {
     const depot = await lire(env, `depot:${id}`, null);
     if (depot && depot.date === date) {
       await env.KV.delete(`depot:${id}`);
       await env.KV.delete(`photo:${id}`);
     }
+  }
+  if (Array.isArray(corps.membres)) {
+    const membres = corps.membres.map((m) => ({
+      slide_id: Number(m.slide_id), nom: String(m.nom), metier: String(m.metier ?? ''),
+      recherche: String(m.recherche ?? ''), a_une_photo: Boolean(m.a_une_photo),
+    }));
+    const jetons = await lire(env, 'jetons', {});
+    await suivreSlidesRecreees(env, await lire(env, 'membres', []), membres, jetons);
+    const dejaLies = new Set(Object.values(jetons));
+    for (const m of membres) if (!dejaLies.has(m.slide_id)) jetons[nouveauJeton()] = m.slide_id;
+    await env.KV.put('membres', JSON.stringify(membres));
+    await env.KV.put('jetons', JSON.stringify(jetons));
   }
   const run = { date: new Date().toISOString(), ok: Boolean(corps.ok), message: String(corps.message ?? ''), mis_a_jour: (corps.appliques ?? []).length };
   await env.KV.put('dernier_run', JSON.stringify(run));
@@ -166,7 +192,7 @@ async function routesAdmin(request, env, url) {
     const ms = await lire(env, 'ms', null);
     const { keys } = await env.KV.list({ prefix: 'depot:' });
     const depots = (await Promise.all(keys.map((k) => lire(env, k.name, null)))).filter(Boolean);
-    return json({ ms, depots, nb_membres: membres.length });
+    return json({ ms, depots, membres });
   }
   if (p === '/api/job/ms' && m === 'PUT') {
     let corps;

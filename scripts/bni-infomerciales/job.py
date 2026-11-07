@@ -19,6 +19,7 @@ import subprocess
 import sys
 import tempfile
 import time
+import unicodedata
 from pathlib import Path
 
 import requests
@@ -200,23 +201,51 @@ def preparer_depots(worker, depots):
     return prets
 
 
-def un_passage(worker, ms, depots, dossier):
+def normaliser_nom(nom):
+    sans_accents = "".join(c for c in unicodedata.normalize("NFD", nom) if unicodedata.category(c) != "Mn")
+    return " ".join(sans_accents.lower().split())
+
+
+def recibler(depots, anciens_membres, membres_deck):
+    """Associe chaque dépôt à sa slide dans le deck téléchargé.
+
+    On suit d'abord l'identifiant interne de la slide (insensible aux
+    déplacements). S'il a disparu (slide supprimée puis recréée, ou recopiée),
+    on retrouve la slide du même membre par son nom. Chaque dépôt reçoit
+    « cible » (slide du deck) ou None, et garde son slide_id d'origine.
+    """
+    ids_deck = {m["slide_id"] for m in membres_deck}
+    nom_avant = {m["slide_id"]: normaliser_nom(m["nom"]) for m in anciens_membres}
+    par_nom = {}
+    for m in membres_deck:
+        par_nom.setdefault(normaliser_nom(m["nom"]), []).append(m["slide_id"])
+    resultat = []
+    for d in depots:
+        cible = d["slide_id"] if d["slide_id"] in ids_deck else None
+        if cible is None and d["slide_id"] in nom_avant:
+            candidats = par_nom.get(nom_avant[d["slide_id"]], [])
+            cible = candidats[0] if len(candidats) == 1 else None  # homonymes : on ne devine pas
+        resultat.append({**d, "cible": cible})
+    return resultat
+
+
+def un_passage(worker, ms, depots, anciens_membres, dossier):
     acces = jeton_microsoft(worker, ms)
     source = Path(dossier) / "source.pptx"
     if depots:
         attendre_calme(acces, ms)
     etag = telecharger(acces, ms, source)
     membres = deck.lister_membres(source)
-    ids_deck = {m["slide_id"] for m in membres}
-    # dépôt d'une slide disparue du deck : on le marque traité pour le purger
-    orphelins = [d for d in depots if d["slide_id"] not in ids_deck]
-    a_faire = [d for d in depots if d["slide_id"] in ids_deck and (d.get("photo") or d.get("recherche"))]
+    depots = recibler(depots, anciens_membres, membres)
+    # membre sorti du deck : son dépôt est marqué traité pour être purgé
+    orphelins = [d for d in depots if d["cible"] is None]
+    a_faire = [d for d in depots if d["cible"] is not None and (d.get("photo") or d.get("recherche"))]
     if not a_faire:
         return membres, orphelins, 0
     sortie = Path(dossier) / "sortie.pptx"
-    faits = set(deck.appliquer(source, sortie, a_faire))
+    faits = set(deck.appliquer(source, sortie, [{**d, "slide_id": d["cible"]} for d in a_faire]))
     envoyer_deck(acces, ms, sortie, etag)
-    return deck.lister_membres(sortie), orphelins + [d for d in a_faire if d["slide_id"] in faits], len(faits)
+    return deck.lister_membres(sortie), orphelins + [d for d in a_faire if d["cible"] in faits], len(faits)
 
 
 def main():
@@ -232,7 +261,7 @@ def main():
     for essai in range(1, ESSAIS + 1):
         try:
             with tempfile.TemporaryDirectory() as dossier:
-                membres, appliques, nb = un_passage(worker, ms, depots, dossier)
+                membres, appliques, nb = un_passage(worker, ms, depots, entree.get("membres", []), dossier)
             worker.envoyer("POST", "/api/job/resultat", {
                 "ok": True,
                 "message": f"{nb} slide(s) mise(s) à jour" if nb else "aucun dépôt, liste des membres synchronisée",
