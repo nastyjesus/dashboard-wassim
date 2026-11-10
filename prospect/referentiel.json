@@ -1,0 +1,1327 @@
+{
+ "_doc": "Metier -> codes NAF + regles de raffinement. Editable sans toucher au code.",
+ "_regles": {
+  "naf": "codes d'activite principale, format pointe (43.21A)",
+  "raffiner": "[regex, metier_reel] appliques sur raison sociale + enseigne, dans l'ordre",
+  "mot_cle_obligatoire": "true = on ne garde QUE les lignes qui matchent une regle 'raffiner'. A mettre sur tout code NAF fourre-tout.",
+  "autorite": "source qui fait foi sur la profession reelle. 'rpps' = registre ANS des professionnels de sante.",
+  "mots_activite": "racines cherchees dans le texte libre `activite` des annonces BODACC de creation. Sans accent, sans pluriel.",
+  "mots_exclus_activite": "racines qui INVALIDENT un match sur mots_activite. Ex : 'cinematographique' contient 'graphique'."
+ },
+ "osteopathe": {
+  "libelle": "Osteopathe",
+  "naf": [
+   "86.90F",
+   "86.90E"
+  ],
+  "autorite": "rpps",
+  "note": "Le NAF ne permet PAS d'identifier un osteopathe. A Bruz, sur 18 osteopathes reels : 9 absents de SIRENE, 8 immatricules kine, 1 seul en 86.90F. Et le bucket 86.90F est rempli de psychologues et sophrologues. Toujours passer par le RPPS.",
+  "mots_activite": [
+   "osteopath"
+  ],
+  "mots_exclus_activite": [
+   "animalier",
+   "animale",
+   "veterinaire",
+   "equin"
+  ]
+ },
+ "kinesitherapeute": {
+  "libelle": "Kinesitherapeute",
+  "naf": [
+   "86.90E"
+  ],
+  "autorite": "rpps",
+  "note": "86.90E contient aussi orthophonistes, orthoptistes, ergotherapeutes, podologues.",
+  "mots_activite": [
+   "kinesither",
+   "masseur"
+  ]
+ },
+ "pedicure-podologue": {
+  "libelle": "Pedicure-podologue",
+  "naf": [
+   "86.90E"
+  ],
+  "autorite": "rpps"
+ },
+ "notaire": {
+  "libelle": "Notaire",
+  "naf": [
+   "69.10Z"
+  ],
+  "mot_cle_obligatoire": true,
+  "raffiner": [
+   [
+    "notai|notarial|office notarial",
+    "Notaire"
+   ]
+  ],
+  "note": "69.10Z ne distingue pas avocat, notaire, huissier et juriste.",
+  "mots_activite": [
+   "notaire",
+   "notarial"
+  ]
+ },
+ "avocat": {
+  "libelle": "Avocat",
+  "naf": [
+   "69.10Z"
+  ],
+  "raffiner": [
+   [
+    "notai|notarial",
+    "__exclure__"
+   ],
+   [
+    "huissier|commissaire de justice",
+    "__exclure__"
+   ],
+   [
+    "avocat|barreau|aarpi",
+    "Avocat"
+   ]
+  ],
+  "note": "La specialite (droit de la famille, fiscal...) n'existe NULLE PART dans SIRENE. Passer par l'annuaire du barreau.",
+  "mots_activite": [
+   "avocat"
+  ]
+ },
+ "commissaire-de-justice": {
+  "libelle": "Commissaire de justice",
+  "naf": [
+   "69.10Z"
+  ],
+  "mot_cle_obligatoire": true,
+  "raffiner": [
+   [
+    "huissier|commissaire de justice",
+    "Commissaire de justice"
+   ]
+  ]
+ },
+ "expert-comptable": {
+  "libelle": "Expert-comptable",
+  "naf": [
+   "69.20Z"
+  ],
+  "raffiner": [
+   [
+    "\\bpaie\\b|payroll",
+    "Gestionnaire de paie"
+   ],
+   [
+    "expert.?comptab|expertise comptab",
+    "Expert-comptable"
+   ]
+  ],
+  "mots_activite": [
+   "comptab"
+  ]
+ },
+ "courtier-assurance": {
+  "libelle": "Courtier en assurance",
+  "naf": [
+   "66.22Z"
+  ],
+  "mots_activite": [
+   "courtage en assurance",
+   "courtier en assurance"
+  ]
+ },
+ "courtier-credit": {
+  "libelle": "Courtier en credit immobilier",
+  "naf": [
+   "66.19B",
+   "64.92Z"
+  ],
+  "mots_activite": [
+   "courtage en credit",
+   "intermediaire en operations de banque"
+  ]
+ },
+ "conseiller-patrimoine": {
+  "libelle": "Conseiller en gestion de patrimoine",
+  "naf": [
+   "66.30Z",
+   "66.19A",
+   "70.22Z"
+  ],
+  "mot_cle_obligatoire": true,
+  "raffiner": [
+   [
+    "patrimoine|patrimonial|gestion privee|\\bcgp\\b|conseil financier",
+    "Conseiller en gestion de patrimoine"
+   ]
+  ],
+  "note": "66.30Z 'gestion de fonds' est rempli de holdings et de SCI, pas de CGP."
+ },
+ "agent-immobilier": {
+  "libelle": "Agent immobilier",
+  "naf": [
+   "68.31Z"
+  ],
+  "mots_activite": [
+   "agence immobiliere",
+   "transaction immobiliere",
+   "transaction sur immeuble",
+   "administration de biens",
+   "gestion locative",
+   "syndic"
+  ],
+  "mots_exclus_activite": [
+   "societe civile",
+   "acquisition, la propriete",
+   "location de tous biens"
+  ]
+ },
+ "diagnostiqueur-immobilier": {
+  "libelle": "Diagnostiqueur immobilier",
+  "naf": [
+   "71.20B",
+   "71.12B"
+  ],
+  "raffiner": [
+   [
+    "diagnostic|diagnostiqueur|\\bdpe\\b|amiante",
+    "Diagnostiqueur immobilier"
+   ]
+  ]
+ },
+ "graphiste": {
+  "libelle": "Graphiste",
+  "naf": [
+   "74.10Z"
+  ],
+  "note": "73.11Z (agences de publicite) est un metier different : agence de com, pas graphiste independant.",
+  "mots_activite": [
+   "graphiste",
+   "graphisme",
+   "identite visuelle",
+   "communication visuelle",
+   "design graphique"
+  ],
+  "mots_exclus_activite": [
+   "cinematograph",
+   "audiovisuel",
+   "photographi",
+   "ceramique",
+   "fabrication"
+  ]
+ },
+ "agence-com": {
+  "libelle": "Agence de communication",
+  "naf": [
+   "73.11Z"
+  ]
+ },
+ "photographe": {
+  "libelle": "Photographe",
+  "naf": [
+   "74.20Z"
+  ],
+  "mots_activite": [
+   "photograph"
+  ]
+ },
+ "videaste": {
+  "libelle": "Videaste",
+  "naf": [
+   "59.11B",
+   "59.12Z",
+   "74.20Z",
+   "59.11C"
+  ],
+  "mots_activite": [
+   "video",
+   "audiovisuel",
+   "film",
+   "montage"
+  ],
+  "note": "59.12Z ajoute le 18/09/2026. Il ne couvre QUE la post-production : a Bruz, 2 fiches et aucun employeur. Le videaste qui tourne pour des entreprises est en 59.11B (films institutionnels et publicitaires), 59.11C etant le cinema. Viser 59.12Z seul, comme le demandait la liste initiale, aurait rendu deux coquilles. 74.20Z ajoute le 30/09/2026 : beaucoup de videastes sont immatricules en activites photographiques. Recouvre `photographe`."
+ },
+ "electricien": {
+  "libelle": "Electricien",
+  "naf": [
+   "43.21A"
+  ],
+  "mots_activite": [
+   "electric"
+  ]
+ },
+ "plombier-chauffagiste": {
+  "libelle": "Plombier-chauffagiste",
+  "naf": [
+   "43.22A",
+   "43.22B"
+  ],
+  "mots_activite": [
+   "plomb",
+   "chauffage",
+   "sanitaire"
+  ]
+ },
+ "couvreur": {
+  "libelle": "Couvreur",
+  "naf": [
+   "43.91B",
+   "43.91A"
+  ],
+  "mots_activite": [
+   "couvertur",
+   "charpent",
+   "zinguer"
+  ]
+ },
+ "menuisier-agenceur": {
+  "libelle": "Menuisier-agenceur",
+  "naf": [
+   "43.32A",
+   "43.32C",
+   "16.23Z"
+  ],
+  "mots_activite": [
+   "menuiser",
+   "agencement"
+  ],
+  "mots_exclus_activite": [
+   "agencement de jardin",
+   "peinture",
+   "assistance",
+   "organisation"
+  ]
+ },
+ "serrurier-metallier": {
+  "libelle": "Serrurier / metallier",
+  "naf": [
+   "43.32B",
+   "25.12Z"
+  ],
+  "mots_activite": [
+   "serrur",
+   "metaller"
+  ]
+ },
+ "paysagiste": {
+  "libelle": "Paysagiste",
+  "naf": [
+   "81.30Z"
+  ],
+  "mots_activite": [
+   "paysagiste",
+   "paysager",
+   "amenagement paysag",
+   "espaces verts",
+   "elagage",
+   "entretien de jardin",
+   "creation de jardin",
+   "jardinage",
+   "debroussaillage",
+   "entretien de jardins",
+   "entretien d espaces verts"
+  ],
+  "mots_exclus_activite": [
+   "service a la personne",
+   "services a la personne",
+   "aide a domicile",
+   "nettoyage",
+   "bricolage",
+   "coursier",
+   "depollution",
+   "commerce"
+  ]
+ },
+ "cuisiniste": {
+  "libelle": "Cuisiniste",
+  "naf": [
+   "47.59A",
+   "43.32C"
+  ],
+  "mot_cle_obligatoire": true,
+  "raffiner": [
+   [
+    "cuisin",
+    "Cuisiniste"
+   ]
+  ],
+  "note": "47.59A = tout le commerce de meubles. Sans mot-cle on ramasse les magasins de literie. Mais le mot-cle se trompe aussi : a Bruz, sur 4 etablissements, il a garde CUISINES PATRICK DAGIER, ecarte a raison META SYSTEM (rayonnage industriel) et a tort PIL CREATION, un vrai cuisiniste immatricule au nom de son gerant. Depuis, les fiches sans mot-cle ne sont plus jetees : elles sont enregistrees et marquees, relisables par `prospect arbitrer`.",
+  "mots_activite": [
+   "cuisiniste",
+   "agencement de cuisine",
+   "vente de cuisine",
+   "pose de cuisine",
+   "amenagement de cuisine"
+  ],
+  "mots_exclus_activite": [
+   "cours de cuisine",
+   "restauration",
+   "restaurant",
+   "traiteur",
+   "boulangerie"
+  ]
+ },
+ "alarme-videosurveillance": {
+  "libelle": "Installateur alarme / videosurveillance",
+  "naf": [
+   "80.20Z"
+  ]
+ },
+ "agence-interim": {
+  "libelle": "Agence d interim",
+  "naf": [
+   "78.20Z"
+  ],
+  "note": "Les grands reseaux (Adecco, Derichebourg, Manpower...) ne sont pas des dirigeants locaux. Voir RESEAUX_NATIONAUX dans matching.py.",
+  "mots_activite": [
+   "interim",
+   "travail temporaire",
+   "mise a disposition de personnel"
+  ]
+ },
+ "consultant-rh": {
+  "libelle": "Consultant RH / recrutement",
+  "naf": [
+   "78.10Z",
+   "78.30Z",
+   "70.22Z"
+  ],
+  "mot_cle_obligatoire": true,
+  "raffiner": [
+   [
+    "\\brh\\b|ressources humaines|recrut|talent|chasse de t",
+    "Consultant RH / recrutement"
+   ]
+  ]
+ },
+ "secretaire-independante": {
+  "libelle": "Secretaire independante",
+  "naf": [
+   "82.19Z",
+   "82.11Z",
+   "82.99Z"
+  ],
+  "mot_cle_obligatoire": true,
+  "raffiner": [
+   [
+    "medical|médical",
+    "Telesecretaire medicale"
+   ],
+   [
+    "secretar|secrétar|telesecret",
+    "Secretaire independante"
+   ],
+   [
+    "office manager",
+    "Office manager freelance"
+   ]
+  ],
+  "note": "82.11Z est majoritairement des holdings. Sans mot-cle, 90 % de faux positifs."
+ },
+ "traiteur": {
+  "libelle": "Traiteur",
+  "naf": [
+   "56.21Z"
+  ],
+  "mots_activite": [
+   "traiteur",
+   "cuisinier a domicile",
+   "chef cuisinier",
+   "plats a emporter",
+   "plats cuisines"
+  ],
+  "note": " Recouvre volontairement le restaurateur : 'plats cuisines' et 'a emporter' sont declares par les deux. La distinction se fait a la vue, pas au mot."
+ },
+ "restaurateur": {
+  "libelle": "Restaurateur",
+  "naf": [
+   "56.10A",
+   "56.10C"
+  ],
+  "mots_activite": [
+   "restaurant",
+   "restauration traditionnelle",
+   "restauration rapide",
+   "brasserie",
+   "pizzeria",
+   "creperie",
+   "carte du jour",
+   "menu du midi",
+   "restauration sur place",
+   "a emporter",
+   "plats cuisines",
+   "sandwich",
+   "wrap",
+   "point de vente d epicerie",
+   "restauration sans vente"
+  ],
+  "mots_exclus_activite": [
+   "conseil pour la gestion"
+  ],
+  "note": "Ne PAS utiliser la racine 'restaurat' comme mot d'activite : elle attrape 'restauration de photographies' et classait cinq photographes de Bruz en restaurateurs. Vocabulaire complete le 18/09/2026 avec les tournures lues au BODACC : les enonces declarent 'restauration sur place et a emporter', pas 'restaurant'."
+ },
+ "opticien": {
+  "libelle": "Opticien",
+  "naf": [
+   "47.78A"
+  ],
+  "mots_activite": [
+   "opticien",
+   "optique",
+   "lunette",
+   "lunetterie",
+   "verres correcteurs",
+   "audioprothes"
+  ]
+ },
+ "caviste": {
+  "libelle": "Caviste",
+  "naf": [
+   "47.25Z"
+  ],
+  "mots_activite": [
+   "caviste",
+   "cave a vin",
+   "vins et spiritueux",
+   "spiritueux",
+   "oenolog"
+  ]
+ },
+ "architecte": {
+  "libelle": "Architecte",
+  "naf": [
+   "71.11Z"
+  ]
+ },
+ "architecte-interieur": {
+  "libelle": "Architecte d interieur",
+  "naf": [
+   "74.10Z"
+  ],
+  "mot_cle_obligatoire": true,
+  "raffiner": [
+   [
+    "architect|interieur|décorat|decorat",
+    "Architecte d interieur"
+   ]
+  ]
+ },
+ "promoteur-immobilier": {
+  "libelle": "Promoteur immobilier",
+  "naf": [
+   "41.10A",
+   "41.10B",
+   "41.10C"
+  ],
+  "mots_activite": [
+   "promotion immobiliere",
+   "promoteur"
+  ],
+  "mots_exclus_activite": [
+   "societe civile",
+   "sccv"
+  ],
+  "note": "Ne PAS ajouter 41.10D (supports juridiques de programmes = SCCV). Profil de reference : Klyma Promotion / Ecluse Invest a Rennes."
+ },
+ "constructeur-maisons": {
+  "libelle": "Constructeur de maisons individuelles",
+  "naf": [
+   "41.20A"
+  ],
+  "mots_activite": [
+   "construction de maison",
+   "maisons individuelles",
+   "constructeur"
+  ],
+  "note": "Metier distinct du promoteur : contrat CCMI, construit sur le terrain du client."
+ },
+ "agence-voyages": {
+  "libelle": "Agence de voyages",
+  "naf": [
+   "79.11Z",
+   "79.12Z"
+  ],
+  "mots_activite": [
+   "voyage",
+   "tourisme",
+   "tour operateur"
+  ],
+  "note": "La majorite des agences font du tourisme grand public. Le profil de reference (Scoop Voyages, Chartres-de-Bretagne) fait du VOYAGE D AFFAIRES : a distinguer fiche par fiche."
+ },
+ "organisateur-evenements": {
+  "libelle": "Organisateur d evenements professionnels",
+  "naf": [
+   "82.30Z"
+  ],
+  "mots_activite": [
+   "evenement",
+   "seminaire",
+   "congres",
+   "salon",
+   "incentive"
+  ],
+  "note": "Deuxieme moitie de l'activite de Scoop Voyages : seminaires et incentive d'entreprise."
+ },
+ "peintre-batiment": {
+  "libelle": "Peintre en batiment",
+  "naf": [
+   "43.34Z"
+  ],
+  "mots_activite": [
+   "peinture",
+   "vitrerie",
+   "ravalement"
+  ],
+  "mots_exclus_activite": [
+   "peinture industrielle",
+   "carrosserie"
+  ],
+  "note": "43.34Z couvre peinture ET vitrerie. Un vitrier n'est pas un peintre."
+ },
+ "concessionnaire-auto": {
+  "libelle": "Concessionnaire automobile",
+  "naf": [
+   "45.11Z"
+  ],
+  "mots_activite": [
+   "vente de vehicules",
+   "concession",
+   "automobile",
+   "voitures d occasion",
+   "vehicules d occasion",
+   "negoce de voitures",
+   "achat et revente de voitures",
+   "achat-vente de vehicules"
+  ],
+  "note": "45.11Z melange concessions, garages-vendeurs et mandataires sans pignon sur rue. A Bruz : 31 etablissements, 5 employeurs. L'effectif separe le concessionnaire du mandataire a domicile."
+ },
+ "fleuriste": {
+  "libelle": "Fleuriste",
+  "naf": [
+   "47.76Z"
+  ],
+  "mots_activite": [
+   "fleur",
+   "fleuriste",
+   "horticulture"
+  ],
+  "mots_exclus_activite": [
+   "animalerie",
+   "animaux",
+   "croquette",
+   "toilettage"
+  ],
+  "note": "Le libelle officiel du 47.76Z est 'fleurs, plantes, graines, engrais, ANIMAUX DE COMPAGNIE et aliments pour ces animaux'. Une animalerie porte le meme code qu'un fleuriste."
+ },
+ "menage-proprete": {
+  "libelle": "Entreprise de proprete",
+  "naf": [
+   "81.21Z",
+   "81.22Z"
+  ],
+  "mots_activite": [
+   "nettoyage",
+   "proprete",
+   "entretien de locaux",
+   "menage",
+   "entretien menager",
+   "debarras"
+  ],
+  "note": "81.21Z = nettoyage courant, 81.22Z = nettoyage industriel et vitres. A Bruz : 32 + 5 etablissements pour 3 employeurs seulement - l'essentiel est du service a la personne en micro-entreprise."
+ },
+ "salle-sport": {
+  "libelle": "Salle de sport",
+  "naf": [
+   "93.13Z"
+  ],
+  "mots_activite": [
+   "salle de sport",
+   "fitness",
+   "culture physique",
+   "musculation"
+  ],
+  "note": "93.13Z = centres de culture physique, donc l'etablissement. Le coach independant est ailleurs, voir `coach-sportif`."
+ },
+ "coach-sportif": {
+  "libelle": "Coach sportif",
+  "naf": [
+   "85.51Z"
+  ],
+  "mots_activite": [
+   "coach sportif",
+   "coaching sportif",
+   "enseignement sportif",
+   "professeur de sport",
+   "educateur sportif",
+   "remise en forme",
+   "natation",
+   "activites physiques"
+  ],
+  "note": "85.51Z = enseignement de disciplines sportives. Couvre aussi les clubs et associations : a Bruz, 16 etablissements pour 1 employeur."
+ },
+ "estheticienne": {
+  "libelle": "Esthetique et soins de beaute",
+  "naf": [
+   "96.02B"
+  ],
+  "mots_activite": [
+   "esthetique",
+   "soins de beaute",
+   "institut de beaute"
+  ],
+  "note": ""
+ },
+ "coiffeur": {
+  "libelle": "Coiffure",
+  "naf": [
+   "96.02A"
+  ],
+  "mots_activite": [
+   "coiffure",
+   "salon de coiffure",
+   "coiffeur"
+  ],
+  "note": "A Bruz : 16 etablissements dont 10 employeurs - le taux le plus sain de la liste, les salons ont pignon sur rue."
+ },
+ "fournitures-bureau": {
+  "libelle": "Fournitures de bureau",
+  "naf": [
+   "47.62Z",
+   "46.49Z"
+  ],
+  "mots_activite": [
+   "fournitures de bureau",
+   "papeterie",
+   "mobilier de bureau",
+   "consommable"
+  ],
+  "note": "46.66Z couvre aussi les copieurs : les deux metiers se recouvrent, voir `copieurs`. 47.62Z ajoute les maisons de la presse."
+ },
+ "nettoyage-industriel": {
+  "libelle": "Nettoyage industriel",
+  "naf": [
+   "81.21Z",
+   "81.22Z"
+  ],
+  "mots_activite": [
+   "nettoyage industriel",
+   "nettoyage de vitres",
+   "remise en etat",
+   "desinfection"
+  ],
+  "note": "Distinct de `menage-proprete` (81.21Z), qui est le nettoyage courant et surtout du service a la personne."
+ },
+ "vehicules-utilitaires": {
+  "libelle": "Vente de vehicules utilitaires",
+  "naf": [
+   "45.11Z",
+   "77.12Z",
+   "45.19Z"
+  ],
+  "mots_activite": [
+   "vehicule utilitaire",
+   "utilitaire",
+   "poids lourd",
+   "fourgon"
+  ],
+  "note": "45.19Z = 'Commerce d AUTRES vehicules automobiles', donc tout ce qui n est pas voiture particuliere. Les VP sont en 45.11Z, voir `concessionnaire-auto`. Zero etablissement a Bruz, 9 dans 15 km. Codes revus le 30/09/2026 : 45.11Z (VP) et 77.12Z (location) ajoutes a 45.19Z. Le metier BNI est le vendeur d utilitaires, qui peut etre concessionnaire VP ou loueur. Recouvre donc `concessionnaire-auto`."
+ },
+ "imprimeur": {
+  "libelle": "Imprimeur",
+  "naf": [
+   "18.12Z",
+   "18.13Z"
+  ],
+  "mots_activite": [
+   "imprimerie",
+   "impression",
+   "serigraphie",
+   "pre-presse",
+   "signaletique"
+  ],
+  "note": "18.13Z est le pre-presse : un studio de pre-presse n imprime pas."
+ },
+ "alarme-securite": {
+  "libelle": "Alarme, securite et integration audiovisuelle",
+  "naf": [
+   "80.20Z",
+   "43.21A",
+   "46.43Z"
+  ],
+  "mots_activite": [
+   "alarme",
+   "audiovisuel",
+   "controle d acces",
+   "salle de reunion",
+   "securite electronique",
+   "sonorisation",
+   "telesurveillance",
+   "video projection",
+   "videosurveillance",
+   "visioconference"
+  ],
+  "note": "Fusionne avec integrateur-av le 30/09/2026 : les deux tenaient sur 43.21A. Recouvre `electricien`, meme code. Le tri se fait sur les mots d activite."
+ },
+ "materiel-info": {
+  "libelle": "Vente de materiel informatique",
+  "naf": [
+   "46.51Z",
+   "47.41Z"
+  ],
+  "mots_activite": [
+   "materiel informatique",
+   "ordinateur",
+   "informatique",
+   "maintenance informatique"
+  ],
+  "note": "Les deux codes incluent les logiciels vendus en boite ; l edition de logiciel est ailleurs, voir `editeur-logiciel`."
+ },
+ "telephonie": {
+  "libelle": "Telephonie d entreprise",
+  "naf": [
+   "61.90Z",
+   "61.20Z",
+   "47.42Z"
+  ],
+  "mots_activite": [
+   "telephonie",
+   "telecom",
+   "standard telephonique",
+   "fibre",
+   "operateur"
+  ],
+  "note": "3 etablissements sur les six communes, 46 dans 15 km mais 40 a Rennes."
+ },
+ "copieurs": {
+  "libelle": "Copieurs et impression bureautique",
+  "naf": [
+   "77.33Z",
+   "46.66Z",
+   "95.11Z"
+  ],
+  "mots_activite": [
+   "copieur",
+   "photocopieur",
+   "impression",
+   "bureautique",
+   "multifonction"
+  ],
+  "note": "46.66Z est partage avec `fournitures-bureau` : meme code, deux metiers BNI distincts. A trancher a la vue des fiches. 33.12Z apporte les reparateurs de machines. Codes revus le 30/09/2026 : 77.33Z (location de machines de bureau) et 95.11Z (reparation) ajoutes a 46.66Z. Le modele du metier est la location-maintenance, pas la vente seche."
+ },
+ "editeur-logiciel": {
+  "libelle": "Editeur de logiciel",
+  "naf": [
+   "58.29A",
+   "58.29C",
+   "62.01Z"
+  ],
+  "mots_activite": [
+   "logiciel",
+   "edition de logiciel",
+   "developpement",
+   "application",
+   "saas"
+  ],
+  "note": "62.01Z = programmation : il ramasse aussi les developpeurs independants, qui ne sont pas des editeurs."
+ },
+ "chasse-de-tete": {
+  "libelle": "Chasse de tete et recrutement",
+  "naf": [
+   "78.10Z"
+  ],
+  "mots_activite": [
+   "recrutement",
+   "chasse de tete",
+   "approche directe",
+   "cabinet de recrutement"
+  ],
+  "note": "ZERO a Bruz. 33 dans 15 km, dont 28 a Rennes. 78.10Z contient aussi les agences de placement, distinctes de `agence-interim` (78.20Z)."
+ },
+ "conseil-management": {
+  "libelle": "Conseil en management et bilan de competences",
+  "naf": [
+   "70.22Z"
+  ],
+  "mots_activite": [
+   "accompagnement du dirigeant",
+   "bilan de competences",
+   "coaching professionnel",
+   "conseil en management",
+   "conseil en organisation",
+   "orientation professionnelle",
+   "outplacement",
+   "strategie",
+   "vae"
+  ],
+  "note": "Fusionne avec bilan-competences le 30/09/2026 : les deux tenaient sur 70.22Z et portaient les memes entreprises. Les centres de bilan reellement certifies Qualiopi sont dans `bilan-competences-certifie`, issus du registre du ministere du Travail."
+ },
+ "formation-hse": {
+  "libelle": "Formation sante et securite",
+  "naf": [
+   "85.59A",
+   "85.59B"
+  ],
+  "mots_activite": [
+   "sauveteur secouriste",
+   "sst",
+   "incendie",
+   "habilitation",
+   "prevention des risques",
+   "caces"
+  ],
+  "note": "85.59B = 'Autres enseignements', le plus large des codes de formation : il contient aussi bien l auto-ecole que le cours de musique. Les mots d activite font le tri."
+ },
+ "massage-bien-etre": {
+  "libelle": "Massage bien-etre",
+  "naf": [
+   "96.04Z"
+  ],
+  "mots_activite": [
+   "massage",
+   "bien-etre",
+   "spa",
+   "modelage",
+   "relaxation"
+  ],
+  "mots_exclus_activite": [
+   "kinesitherapie",
+   "osteopathie"
+  ],
+  "note": "96.04Z = entretien corporel. A ne PAS confondre avec le kine (86.90F) : le masseur bien-etre n est pas un professionnel de sante et n est dans aucun registre."
+ },
+ "bilan-competences-certifie": {
+  "libelle": "Bilan de competences (certifie Qualiopi)",
+  "naf": [
+   "85.59A",
+   "70.22Z",
+   "85.59B"
+  ],
+  "mots_activite": [
+   "bilan de competences",
+   "orientation professionnelle",
+   "reconversion",
+   "vae",
+   "outplacement"
+  ],
+  "autorite": "Liste Publique des Organismes de Formation",
+  "note": "Metier etabli par la CERTIFICATION, pas par le code NAF. Sur 18 fiches 85.59A du lot precedent, aucune n etait certifiee alors que 4253 organismes le sont en France. Les fiches de ce metier viennent du registre du ministere du Travail, filtre sur certifications.bilansDeCompetences = true."
+ },
+ "assureur-iard": {
+  "libelle": "Assureur IARD",
+  "naf": [
+   "66.22Z"
+  ],
+  "mots_activite": [
+   "assurance",
+   "agent general",
+   "courtier en assurance",
+   "iard",
+   "mutuelle",
+   "prevoyance",
+   "patrimoine"
+  ],
+  "mots_exclus_activite": [
+   "expertise",
+   "evaluation des dommages"
+  ],
+  "note": "66.22Z = agents ET courtiers d assurances. Les deux profils sont BNI-valides : l agent general est mandataire exclusif d une compagnie (AXA, Allianz, Generali, MMA, Groupama), le courtier est independant. 71 etablissements sur les 13 communes, 10 employeurs seulement : beaucoup de mandataires sans salarie. L expert en sinistres est ailleurs (66.21Z), ce n est pas le meme metier."
+ },
+ "negociateur-fonds-commerce": {
+  "libelle": "Negociateur fonds de commerce",
+  "naf": [
+   "68.31Z"
+  ],
+  "mots_activite": [
+   "fonds de commerce",
+   "cession de fonds",
+   "cession d entreprise",
+   "transaction commerciale",
+   "immobilier d entreprise",
+   "immobilier commercial",
+   "locaux commerciaux",
+   "bail commercial"
+  ],
+  "note": "Demande des membres (05/10/2026). 68.31Z ne distingue pas l agence residentielle du specialiste des fonds de commerce : on garde la fiche seulement si le nom, l activite declaree au BODACC ou le site parlent de fonds de commerce, de cession ou d immobilier d entreprise."
+ },
+ "gestionnaire-biens": {
+  "libelle": "Gestionnaire de biens immobiliers",
+  "naf": [
+   "68.32A"
+  ],
+  "mots_activite": [
+   "administration de biens",
+   "gestion locative",
+   "syndic",
+   "copropriete",
+   "gerance",
+   "gestion de patrimoine immobilier"
+  ],
+  "note": "Demande des membres (05/10/2026). 68.32A = administration d immeubles : gestion locative, syndic de copropriete, administrateur de biens."
+ },
+ "agence-evenementielle": {
+  "libelle": "Agence evenementielle",
+  "naf": [
+   "82.30Z"
+  ],
+  "mots_activite": [
+   "evenementiel",
+   "evenement",
+   "seminaire",
+   "salon",
+   "congres",
+   "organisation de foires",
+   "soiree",
+   "team building",
+   "incentive"
+  ],
+  "note": "Demande des membres (05/10/2026). 82.30Z = organisation de foires, salons professionnels et congres."
+ },
+ "audioprothesiste": {
+  "libelle": "Audioprothesiste",
+  "naf": [
+   "47.74Z",
+   "86.90F"
+  ],
+  "mots_activite": [
+   "audioprothes",
+   "audition",
+   "aide auditive",
+   "appareils auditifs",
+   "acousticien",
+   "correction auditive"
+  ],
+  "note": "Vague 5 (22/10/2026). 47.74Z = commerce d'articles medicaux et orthopediques : audioprothesistes, mais aussi orthopedistes et materiel medical. Le metier se lit sur le site."
+ },
+ "psychologue": {
+  "libelle": "Psychologue",
+  "naf": [
+   "86.90F"
+  ],
+  "mots_activite": [
+   "psychologue",
+   "psychotherap",
+   "neuropsycholog",
+   "psychologie"
+  ],
+  "mots_exclus_activite": [
+   "sophrolog",
+   "naturopath",
+   "hypnose",
+   "reflexolog",
+   "energeti"
+  ],
+  "note": "Vague 5 (22/10/2026). 86.90F melange psychologues et pratiques non reglementees (sophrologie, hypnose...). On ne garde qu'une fiche dont le nom, le site ou l'activite declaree dit psychologue. Aucun numero ADELI ni donnee de sante n'est conserve."
+ },
+ "integrateur-av": {
+  "libelle": "Integrateur audiovisuel",
+  "naf": [
+   "43.21A",
+   "46.43Z",
+   "47.43Z",
+   "95.21Z",
+   "77.39Z",
+   "90.02Z"
+  ],
+  "mots_activite": [
+   "audiovisuel",
+   "sonorisation",
+   "visioconference",
+   "integrateur",
+   "salle de reunion",
+   "affichage dynamique",
+   "videoprojection",
+   "ecrans interactifs",
+   "son et lumiere"
+  ],
+  "note": "Vague 5 (22/10/2026). Aucun code NAF propre : candidats en 43.21A, 46.43Z, 47.43Z, 95.21Z, 77.39Z, 90.02Z, retenus seulement si le nom, le site ou le BODACC parle d'audiovisuel, de sonorisation ou de visioconference pour entreprises."
+ },
+ "macon": {
+  "libelle": "Maçon",
+  "naf": [
+   "43.99C"
+  ],
+  "mots_activite": [
+   "maconnerie",
+   "gros oeuvre",
+   "macon"
+  ],
+  "note": "Vague 6 (06/11/2026). 43.99C = travaux de maconnerie generale et gros oeuvre."
+ },
+ "menuiserie-exterieure": {
+  "libelle": "Menuiserie exterieure",
+  "naf": [
+   "43.32A",
+   "43.32B",
+   "16.23Z"
+  ],
+  "mots_activite": [
+   "fenetres",
+   "portes",
+   "volets",
+   "menuiseries exterieures",
+   "pvc",
+   "aluminium",
+   "baies"
+  ],
+  "note": "Vague 6 (06/11/2026). 43.32A/B et 16.23Z melangent agencement interieur et serrurerie : on garde ce qui parle de fenetres, portes, volets."
+ },
+ "isolation": {
+  "libelle": "Isolation",
+  "naf": [
+   "43.29A"
+  ],
+  "mots_activite": [
+   "isolation",
+   "combles",
+   "ite",
+   "isolation thermique"
+  ],
+  "note": "Vague 6 (06/11/2026). 43.29A = travaux d'isolation."
+ },
+ "platrier-plaquiste": {
+  "libelle": "Platrier-plaquiste",
+  "naf": [
+   "43.31Z"
+  ],
+  "mots_activite": [
+   "platre",
+   "plaquiste",
+   "cloisons",
+   "plaques de platre",
+   "faux plafonds"
+  ],
+  "note": "Vague 6 (06/11/2026)."
+ },
+ "revetement-sol": {
+  "libelle": "Revetement de sol",
+  "naf": [
+   "43.33Z",
+   "47.53Z"
+  ],
+  "mots_activite": [
+   "carrelage",
+   "parquet",
+   "sols souples",
+   "revetements de sols",
+   "moquette",
+   "lino"
+  ],
+  "note": "Vague 6 (06/11/2026)."
+ },
+ "cheminees-poeles": {
+  "libelle": "Cheminees et poeles",
+  "naf": [
+   "47.59B",
+   "43.22B",
+   "47.78C",
+   "43.39Z",
+   "46.74B"
+  ],
+  "mots_activite": [
+   "poele",
+   "poeles",
+   "cheminee",
+   "insert",
+   "granules",
+   "foyer"
+  ],
+  "note": "Vague 6 (06/11/2026). Aucun code propre : retenu seulement si le nom, le site ou le BODACC parle de poeles ou cheminees."
+ },
+ "piscine-spa": {
+  "libelle": "Piscine, spa, sauna",
+  "naf": [
+   "42.99Z",
+   "43.99D",
+   "47.64Z",
+   "47.78C",
+   "43.22B"
+  ],
+  "mots_activite": [
+   "piscine",
+   "piscines",
+   "spa",
+   "sauna",
+   "jacuzzi",
+   "hammam"
+  ],
+  "note": "Vague 6 (06/11/2026). Aucun code propre : retenu seulement si le nom, le site ou le BODACC parle de piscine, spa ou sauna."
+ },
+ "immobilier-commercial": {
+  "libelle": "Immobilier commercial et d'entreprise",
+  "naf": [
+   "68.31Z"
+  ],
+  "mots_activite": [
+   "immobilier d entreprise",
+   "immobilier commercial",
+   "locaux commerciaux",
+   "bureaux",
+   "fonds de commerce",
+   "cession"
+  ],
+  "note": "Vague 6 (06/11/2026). Meme regle que negociateur-fonds-commerce : la formule carte T ne suffit pas."
+ },
+ "concession-vl": {
+  "libelle": "Concession vehicules legers",
+  "naf": [
+   "45.11Z"
+  ],
+  "mots_activite": [
+   "concession",
+   "concessionnaire",
+   "agent",
+   "vehicules neufs",
+   "voitures"
+  ],
+  "note": "Vague 6 (06/11/2026)."
+ },
+ "concession-vu": {
+  "libelle": "Concession vehicules utilitaires",
+  "naf": [
+   "45.11Z",
+   "45.19Z",
+   "77.12Z"
+  ],
+  "mots_activite": [
+   "utilitaires",
+   "vehicules utilitaires",
+   "poids lourds",
+   "camions",
+   "fourgons"
+  ],
+  "note": "Vague 6 (06/11/2026)."
+ },
+ "carrosserie": {
+  "libelle": "Carrosserie automobile",
+  "naf": [
+   "45.20A",
+   "45.20B"
+  ],
+  "mots_activite": [
+   "carrosserie",
+   "carrossier",
+   "peinture automobile",
+   "debosselage"
+  ],
+  "note": "Vague 6 (06/11/2026). 45.20A est surtout de la mecanique : retenu seulement si carrosserie est prouvee."
+ },
+ "joaillerie": {
+  "libelle": "Joaillerie, bijouterie",
+  "naf": [
+   "47.77Z",
+   "32.12Z"
+  ],
+  "mots_activite": [
+   "bijouterie",
+   "joaillerie",
+   "bijoutier",
+   "joaillier",
+   "horlogerie",
+   "orfevre"
+  ],
+  "note": "Vague 6 (06/11/2026)."
+ },
+ "pompes-funebres": {
+  "libelle": "Pompes funebres",
+  "naf": [
+   "96.03Z"
+  ],
+  "mots_activite": [
+   "pompes funebres",
+   "funeraire",
+   "obseques",
+   "marbrerie"
+  ],
+  "note": "Vague 6 (06/11/2026)."
+ },
+ "veterinaire": {
+  "libelle": "Veterinaire",
+  "naf": [
+   "75.00Z"
+  ],
+  "mots_activite": [
+   "veterinaire",
+   "clinique veterinaire",
+   "cabinet veterinaire"
+  ],
+  "note": "Vague 6 (06/11/2026)."
+ },
+ "geometre-expert": {
+  "libelle": "Geometre-expert",
+  "naf": [
+   "71.12A"
+  ],
+  "mots_activite": [
+   "geometre",
+   "topographie",
+   "bornage",
+   "division",
+   "copropriete"
+  ],
+  "note": "Vague 6 complement (10/11/2026). 71.12A = activite des geometres."
+ },
+ "bureau-etude-thermique": {
+  "libelle": "Bureau d'etude thermique",
+  "naf": [
+   "71.12B"
+  ],
+  "mots_activite": [
+   "thermique",
+   "re2020",
+   "rt2012",
+   "audit energetique",
+   "calcul thermique",
+   "fluides"
+  ],
+  "note": "Vague 6 complement (10/11/2026). 71.12B = ingenierie : preuve thermique exigee, diagnostiqueurs immobiliers purs exclus."
+ },
+ "terrassement-assainissement": {
+  "libelle": "Terrassement / assainissement",
+  "naf": [
+   "43.12A",
+   "43.12B",
+   "42.21Z",
+   "37.00Z"
+  ],
+  "mots_activite": [
+   "terrassement",
+   "assainissement",
+   "vrd",
+   "raccordement",
+   "micro-station"
+  ],
+  "note": "Vague 6 complement (10/11/2026)."
+ },
+ "architecte-interieur-v6": {
+  "libelle": "Architecte / decoratrice d'interieur",
+  "naf": [
+   "74.10Z",
+   "71.11Z"
+  ],
+  "mots_activite": [
+   "architecte d'interieur",
+   "decoration",
+   "decoratrice",
+   "amenagement interieur",
+   "home staging"
+  ],
+  "note": "Vague 6 complement (10/11/2026). 71.11Z garde seulement avec preuve interieur/decoration : architectes DPLG exclus (proches du maitre d'oeuvre du groupe)."
+ },
+ "conciergerie": {
+  "libelle": "Conciergerie / locations courte duree",
+  "naf": [
+   "68.32A",
+   "55.20Z",
+   "96.09Z",
+   "82.99Z",
+   "81.21Z"
+  ],
+  "mots_activite": [
+   "conciergerie",
+   "location saisonniere",
+   "courte duree",
+   "residence secondaire",
+   "airbnb"
+  ],
+  "note": "Vague 6 complement (10/11/2026). Preuve exigee ; plateformes nationales sans gerant local exclues."
+ }
+}

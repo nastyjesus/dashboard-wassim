@@ -25,3 +25,12 @@ Thumbs.db
 .vscode/
 .idea/
 *.swp
+
+# Prospection BNI : donnees nominatives et caches (depot public)
+prospect/prive/
+prospect/cache/
+prospect/*.db
+prospect/apports.json
+prospect/myefarm/
+prospect/__pycache__/
+data/prospection/
