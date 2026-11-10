@@ -66,6 +66,7 @@ import { concoursPublic, lireConcours, pageReglement, participer, purgerConcours
 import { releverVeille } from './veille.js';
 import { enregistrerRetour, listerRetours } from './retours.js';
 import { lieuxDuJour } from './lieux.js';
+import { travailProgramme } from './planning.js';
 import { LIEUX } from './lieux-data.js';
 import { lireSurcouche, appliquerSurcouche } from './admin/surcouche.js';
 import { routeAdmin } from './admin/api.js';
@@ -87,8 +88,6 @@ const RAYON_MAX_KM = 60;
 /** Sorties gardées en réserve derrière le top : elles remplacent celles que
  *  le papa écarte (« pas pour nous ») sans rappeler le worker. */
 const RESERVE = 3;
-/** Cron quotidien des tournées de cirques — identique à wrangler.toml. */
-const CRON_CIRQUES = '0 5 * * *';
 /** Piliers en teaser dont on compte les « Ça m'intéresse ». */
 const PILIERS = ['couple', 'moi', 'tribu'];
 
@@ -246,11 +245,13 @@ export default {
     return jsonResponse({ error: 'not_found' }, 404, request, env);
   },
 
-  // Travaux programmés (voir [triggers] dans wrangler.toml) : CRON_CIRQUES
-  // relit les tournées, l'autre est l'alerte du week-end du vendredi.
+  // Travaux programmés (un seul déclencheur, voir src/planning.js) : à 5 h
+  // UTC les tournées de cirques, le vendredi à 15 h l'alerte du week-end.
   // Le résumé part dans les logs — `npx wrangler tail` pour le lire en direct.
   async scheduled(event, env, ctx) {
-    if (event.cron === CRON_CIRQUES) {
+    const travail = travailProgramme(event.scheduledTime);
+    if (travail === null) return; // 15 h hors vendredi : réveil sans objet
+    if (travail === 'cirques') {
       ctx.waitUntil(
         actualiserTournees(env)
           .then((resume) => console.log('tournées des cirques :', JSON.stringify(resume)))

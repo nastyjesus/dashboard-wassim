@@ -50,9 +50,12 @@ id = "53f9f68cbc5b43f2a2d2072216565d3e"
 # heure d'hiver. On vise la fin d'après-midi du vendredi, le moment où un papa
 # se demande quoi faire demain. Le worker ne fait rien si les secrets
 # SUPABASE_URL / SUPABASE_SERVICE_KEY / RESEND_KEY ne sont pas posés.
+#
+# Un seul déclencheur pour les deux travaux (limite du plan gratuit : 5 crons
+# par compte) : 5 h UTC chaque jour = tournées de cirques ; 15 h UTC = alerte,
+# le vendredi seulement — le tri se fait dans src/planning.js.
 [triggers]
-# + chaque jour 5 h UTC : relecture des tournées de cirques (src/sources/cirques.js).
-crons = ["0 15 * * 5", "0 5 * * *"]
+crons = ["0 5,15 * * *"]
 
 [observability]
 enabled = true

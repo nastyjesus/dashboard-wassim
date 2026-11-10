@@ -51,7 +51,7 @@ d'affichage : mention si `source` est rempli. Sans nom lisible dans la fiche,
 
 ## L'alerte du week-end (cron du vendredi)
 
-`[triggers] crons = ["0 15 * * 5"]` — vendredi 15 h UTC, soit 17 h en heure
+`[triggers] crons = ["0 5,15 * * *"]` (un seul déclencheur, trié dans `src/planning.js`) — pour l'alerte : vendredi 15 h UTC, soit 17 h en heure
 d'été, 16 h en hiver. Le worker prend les papas qui ont coché l'alerte, demande
 son top du samedi à `/top` (un appel par couple ville + âge, pas par personne),
 et envoie l'e-mail via Resend.
