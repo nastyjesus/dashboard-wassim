@@ -247,6 +247,26 @@ Play Store.
   s'appuie sur le compte Supabase, soit les deux identités cohabitent. Sans
   objet tant que la Tribu reste en teaser.
 
+## Qualité du top (10 novembre 2026)
+
+Constat sur le top réel de Bruz (enfant de 3 ans, 11, 14 et 15 novembre) :
+8 sorties mauvaises sur 15 — trop loin, pas de son âge, pas à cette date, ou
+pas une sortie d'enfant. Trois décisions :
+
+- **Mieux vaut 3 vraies sorties que 5 dont 2 qui déçoivent.** Score minimum
+  pour entrer dans le top (`SCORE_PLANCHER`), rayon de **20 km par défaut**
+  réglable sur l'accueil (10 / 20 / 30 / 40), malus net au-delà de 20 km. La
+  page du site (encart) garde ses cinq places : c'est une vitrine.
+- **Le papa peut dire « pas pour nous »** (croix sur chaque carte + motif).
+  La sortie disparaît de son top ; le motif arrive dans l'admin (Stats). C'est
+  la mesure qui manquait pour régler le scoring autrement qu'à l'œil.
+- **Les lieux permanents complètent l'agenda** (parcs, fermes, ludothèques —
+  `workers/on-sort/src/lieux-data.js`). Choisis et vérifiés à la main sur
+  source officielle, jamais devinés ; deux au plus dans le top, davantage
+  seulement s'il n'y a rien d'autre. Pas d'horaires recopiés (ils changent) :
+  la fiche renvoie au site du lieu. Rennes / Bruz d'abord ; les autres villes
+  au fil des retours.
+
 ## Ce qu'on NE fait PAS (pour rester focus)
 
 - Pas de géolocalisation auto au lancement (villes en dur, plus simple ; le GPS

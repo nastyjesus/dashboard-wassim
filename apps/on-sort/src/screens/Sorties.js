@@ -12,7 +12,7 @@ import { mesurer } from '../mesure.js';
 
 const DRAPEAU_INVITE = 'inviteCompteVue';
 
-export function Sorties({ profil, aCompte, onModifierProfil, onDemanderCompte }) {
+export function Sorties({ profil, aCompte, onModifierProfil, onReglerProfil, onDemanderCompte }) {
   const [detail, setDetail] = useState(null);
   const [favoris, setFavoris] = useState([]);
   const [invite, setInvite] = useState(false);
@@ -61,6 +61,7 @@ export function Sorties({ profil, aCompte, onModifierProfil, onDemanderCompte })
       onFermerInvite={fermerInvite}
       onOuvrirDetail={setDetail}
       onModifierProfil={onModifierProfil}
+      onReglerProfil={onReglerProfil}
       onDemanderCompte={onDemanderCompte}
     />
   );

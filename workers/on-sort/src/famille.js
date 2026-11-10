@@ -72,6 +72,10 @@ const EXCLUSIONS = [
   // Lieux et publics seniors : lus aussi dans le nom du lieu (voir LIEUX_ADULTES).
   'senior', 'sénior', 'seniors', 'séniors', 'ehpad', 'maison de retraite',
   'résidence autonomie', 'residence autonomie',
+  // Courses à pied : même avec une « course enfants », ce n'est pas la sortie
+  // d'un petit (« Les Foulées maurepasiennes » au top de Bruz, 10 nov. 2026).
+  'foulées', 'foulees', 'course à pied', 'course a pied', 'trail', 'marathon',
+  'semi-marathon', 'cross',
   // Bénévolat : « accompagner des enfants » y décrit la mission, pas le public.
   'bénévole', 'benevole', 'bénévoles', 'benevoles', 'bénévolat', 'benevolat',
 ];
@@ -89,6 +93,14 @@ const BIEN_ETRE = [
   'naturopathe', 'méditation', 'meditation', 'relaxation', 'hypnose', 'reiki',
   'praticien', 'praticienne', 'thérapeute', 'therapeute',
 ];
+
+/**
+ * Rendez-vous pour les parents SANS les enfants : « un temps aux parents
+ * souhaitant comprendre les jeux vidéos de leurs enfants » (Café Manette, au
+ * top de Bruz le 10 novembre 2026). « vos enfants » y passait pour un public.
+ * Un « atelier parent-enfant » ne matche aucun de ces motifs.
+ */
+const PARENTS_SEULS = /\b(aux|pour les|entre|destin[ée]e?s? aux) parents (souhaitant|qui |d[ée]sireux|d'ados|d'adolescents)|\bcaf[ée][- ](des )?parents\b|\bentre parents\b|\bgroupe de parole\b|\bsoutien [àa] la parentalit[ée]/u;
 
 /**
  * Exclusions sur le titre seul : là où ces mots n'ont qu'un sens.
@@ -116,6 +128,9 @@ const PIEGES = [
   /\bentreprises? familiales?\b/g, /\bexploitations? familiales?\b/g,
   // Comparaison, pas un spectacle : « orphelines comme au début du conte ».
   /\bcomme (dans|au d[ée]but|[àa] la fin) (d'un|du|un) conte\b/g,
+  // Décor, pas une fête foraine : « dans une ambiance de fête foraine »
+  // (expo « Incroyable cerveau », étiquetée « Pensé pour les enfants »).
+  /\b(ambiance|air|allure|esprit|d[ée]cor)s? de f[êe]te foraine\b/g,
 ];
 
 /**
@@ -208,6 +223,7 @@ export function analyseFamille(ev) {
   const avecLieu = `${texte} ${normalise(ev.lieuNom)}`;
   if (compte(avecLieu, EXCLUSIONS) > 0) return { score: -1, specifique: false };
   if (TITRES_EXCLUS.some((re) => re.test(ev.titre || ''))) return { score: -1, specifique: false };
+  if (texte.includes('parent') && PARENTS_SEULS.test(texte)) return { score: -1, specifique: false };
 
   const specifiques = compte(texte, FORTS_SPECIFIQUES);
   const generiques = compte(texte, FORTS_GENERIQUES);
@@ -268,6 +284,11 @@ export function trancheAge(ev) {
   }
   // « 6 ans et plus », « 6 ans et +»
   m = texte.match(/(\d{1,2})\s*ans\s*et\s*(?:plus|\+)/);
+  if (m) return { min: Number(m[1]), max: null };
+  // « Âge minimal : 7 ans », « âge minimum 6 ans », « 7 ans minimum » — les
+  // fiches de sorties nature (LPO) : proposée à un enfant de 3 ans.
+  m = texte.match(/[âa]ge\s*(?:minimal|minimum|mini|min|requis)\.?\s*:?\s*(\d{1,2})\s*ans/)
+    || texte.match(/(\d{1,2})\s*ans\s*(?:minimum|mini\b|min\b)/);
   if (m) return { min: Number(m[1]), max: null };
   if (/tout-petit|tout petit|bébé|bebe|0-3 ans/.test(texte)) return { min: 0, max: 3 };
   // Collège / lycée : l'enfant concerné a 11 ans ou plus, même si le texte dit

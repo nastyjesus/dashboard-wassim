@@ -4,8 +4,8 @@
 // les raisons alimentent directement l'UI (« À l'abri s'il pleut », « À 12 km »).
 
 import { analyseFamille, trancheAge, lieuType } from './famille.js';
-import { jourCompatible, dureeJours } from './jours.js';
-import { verdictHoraire, libelleHoraires } from './horaires.js';
+import { jourCompatible, dureeJours, dateAnnonceeAilleurs } from './jours.js';
+import { verdictHoraire, libelleHoraires, creneauxDuJour } from './horaires.js';
 import { exceptionnel, estLecture } from './genre.js';
 
 const RAYON_DEFAUT_KM = 40;
@@ -30,15 +30,34 @@ const MALUS_LECTURE = 1.5;
  * Distance : paliers francs plutôt qu'une pente douce. Sur données réelles,
  * un atelier à 39 km gagnait le GO devant un équivalent à 10 km parce que la
  * pente (2 points étalés sur 40 km) pesait moins que le bonus « ponctuel ».
- * Au-delà de 30 km, c'est un malus : c'est encore proposé, mais ça ne
- * décide plus pour le papa.
+ * Durci le 10 novembre 2026 (« trop loin de ma zone ») : 38 km à vol
+ * d'oiseau, c'est 55 km de route. Au-delà de 20 km, c'est un malus net :
+ * encore proposé si le papa a élargi son rayon, mais ça ne décide plus.
  */
-function bonusDistance(km) {
+export function bonusDistance(km) {
   if (km <= 12) return { points: 3, raison: 'Tout près' }; // ~10 min de voiture
-  if (km <= 20) return { points: 2, raison: null };
-  if (km <= 30) return { points: 0.5, raison: null };
-  return { points: -1.5, raison: null };
+  if (km <= 20) return { points: 1.5, raison: null };
+  if (km <= 30) return { points: -1, raison: null };
+  return { points: -3, raison: null };
 }
+
+/**
+ * Plage longue sans horaire connu pour le jour demandé : rien ne dit que ça a
+ * lieu aujourd'hui (spectacles équestres de La Gacilly, 64 jours de plage,
+ * aucune séance datée — top de Bruz le 10 novembre 2026). Encore proposable,
+ * mais plus devant une sortie dont on connaît l'heure.
+ */
+const PLAGE_FLOUE_JOURS = 14;
+const MALUS_PLAGE_FLOUE = 2;
+
+/**
+ * Score minimum pour entrer dans le top. Avant, les cinq places étaient
+ * toujours remplies : avec 9 à 16 sorties retenues, les dernières étaient des
+ * fonds de tiroir à 2,5 – 5,5 points quand les bonnes en font 8 à 12. Mieux
+ * vaut trois vraies sorties que cinq dont deux qui déçoivent. Une sortie
+ * épinglée ou ajoutée à la main passe toujours.
+ */
+export const SCORE_PLANCHER = 5;
 
 /** Distance haversine en km. */
 export function distanceKm(lat1, lon1, lat2, lon2) {
@@ -81,6 +100,11 @@ export function evaluer(ev, ctx) {
 
   // Récurrent un autre jour (« les dimanches » un samedi) : hors-jeu.
   if (!jourCompatible(ev, ctx.dateISO)) return { exclu: 'jour-incompatible' };
+  // Plage de dates large, mais le texte annonce une seule date, une autre.
+  // OpenAgenda donne ses créneaux réels : seul le reste est concerné.
+  const plage = dureeJours(ev);
+  if (ev.origine !== 'openagenda' && plage !== null && plage > 3
+    && dateAnnonceeAilleurs(ev, ctx.dateISO)) return { exclu: 'autre-date' };
 
   // Exiger un vrai signal « sortie enfant » : au moins un mot-clé famille
   // (faible ou fort) OU une tranche d'âge enfant détectée. Sans ça, des
@@ -122,6 +146,12 @@ export function evaluer(ev, ctx) {
     raisons.push('À ne pas rater');
   }
   if (lecture) score -= MALUS_LECTURE;
+  // Plage longue sans séance datée ce jour-là (les cirques ont leurs dates
+  // de tournée ; une sortie ajoutée à la main est vérifiée).
+  if (ctx.dateISO && duree !== null && duree > PLAGE_FLOUE_JOURS && !force
+    && ev.origine !== 'cirques' && !ev.horaires && creneauxDuJour(ev, ctx.dateISO).length === 0) {
+    score -= MALUS_PLAGE_FLOUE;
+  }
 
   // Âge : exclusion si l'enfant est trop jeune, bonus si la tranche colle.
   if (age) {
@@ -199,6 +229,9 @@ export function dedoublonner(evenements) {
  * Retourne aussi les comptages bruts pour le diagnostic.
  */
 const MAX_PERMANENTS_AU_TOP = 2;
+/** Deux lieux permanents au plus (src/lieux.js) — davantage seulement pour
+ *  compléter un top qui n’a rien d’autre : l’événement du jour reste devant. */
+const MAX_LIEUX_AU_TOP = 2;
 /** Une seule lecture/conte par top — les autres seulement pour compléter. */
 const MAX_LECTURES_AU_TOP = 1;
 /** Début de description qui signe une série (même texte, lieu différent). */
@@ -227,7 +260,8 @@ export function top(evenements, ctx, n = 5) {
     total: evenements.length,
     uniques: uniques.length,
     retenus: scores.length,
-    top: selectionner(scores, n),
+    // Lieux permanents déjà notés (src/lieux.js) : ils entrent au classement.
+    top: selectionner([...scores, ...(ctx.lieux || [])], n, ctx.plancher),
   };
 }
 
@@ -236,8 +270,8 @@ export function top(evenements, ctx, n = 5) {
  * Séparé de `top` pour que l'admin, qui score déjà tout pour afficher le
  * détail, ne paie pas le scoring deux fois (limite CPU du plan gratuit).
  */
-export function selectionner(scoresBruts, n = 5) {
-  const scores = [...scoresBruts];
+export function selectionner(scoresBruts, n = 5, plancher = SCORE_PLANCHER) {
+  const scores = scoresBruts.filter((ev) => ev.epingle === true || ev.force === true || ev.score >= plancher);
   // Épinglées à la main (admin) d'abord, puis par score.
   scores.sort((a, b) => (b.epingle === true) - (a.epingle === true) || b.score - a.score);
 
@@ -255,12 +289,16 @@ export function selectionner(scoresBruts, n = 5) {
   const series = new Set();
   let permanents = 0;
   let lectures = 0;
+  let lieux = 0;
   for (const ev of scores) {
     const longue = !ev.epingle && ev.dureeJours !== null && ev.dureeJours > 90;
     if (longue && permanents >= MAX_PERMANENTS_AU_TOP) continue;
     const lecture = !ev.epingle && ev.genre === 'lecture';
     const serie = ev.epingle ? null : cleSerie(ev);
-    if ((lecture && lectures >= MAX_LECTURES_AU_TOP) || (serie && series.has(serie))) { enReserve.push(ev); continue; }
+    const lieu = ev.genre === 'lieu';
+    if ((lecture && lectures >= MAX_LECTURES_AU_TOP) || (lieu && lieux >= MAX_LIEUX_AU_TOP)
+      || (serie && series.has(serie))) { enReserve.push(ev); continue; }
+    if (lieu) lieux += 1;
     if (longue) permanents += 1;
     if (lecture) lectures += 1;
     if (serie) series.add(serie);

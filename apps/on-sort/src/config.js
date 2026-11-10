@@ -13,7 +13,11 @@
  *  pour tester un worker local (`npx wrangler dev`) avant de le déployer. */
 export const WORKER_URL = process.env.EXPO_PUBLIC_WORKER_URL || 'https://on-sort-poc.loumiwassim.workers.dev';
 
-export const RAYON_KM = 40;
+/** Rayon du top, à vol d'oiseau. 20 km par défaut depuis le 10 novembre 2026
+ *  (40 avant : 38 km à vol d'oiseau, c'est 55 km de route — « trop loin de ma
+ *  zone »). Le papa le règle sur l'accueil ; son choix vit dans le profil. */
+export const RAYON_DEFAUT_KM = 20;
+export const RAYONS_KM = [10, 20, 30, 40];
 
 /** Points de départ proposés. Bretagne d'abord, puis les zones ouvertes. */
 export const VILLES = [

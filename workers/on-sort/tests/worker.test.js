@@ -124,11 +124,12 @@ describe('/top en mode live (APIs simulées)', () => {
     expect(body.preferee.raisons).toContain('Gratuit');
   });
 
-  it('survit à une panne des sources (réponse vide, pas de 500)', async () => {
+  it('survit à une panne des sources (pas de 500 ; seuls les lieux permanents restent)', async () => {
     vi.stubGlobal('fetch', vi.fn(async () => new Response('boom', { status: 503 })));
     const { res, body } = await appel('/top?date=2026-08-22', envMock({ MOCK_MODE: 'false' }));
     expect(res.status).toBe(200);
-    expect(body.top).toEqual([]);
+    expect(body.stats.retenus).toBe(0);
+    expect(body.top.every((ev) => ev.origine === 'lieux')).toBe(true);
     expect(body.sources.openagenda.ok).toBe(false);
   });
 });

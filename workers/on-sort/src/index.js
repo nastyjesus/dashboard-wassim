@@ -9,7 +9,13 @@
 //                      ?date=YYYY-MM-DD (défaut : samedi prochain)
 //                      &lat=&lon=       (défaut : Rennes)
 //                      &age=            (défaut : 3)
-//                      &rayon=          (km, défaut : 40)
+//                      &rayon=          (km, défaut : 40, borné 5–60 ; l'app
+//                                        envoie le rayon du papa, 20 par défaut)
+//                      Rend `top` (5 au plus, score ≥ plancher), `reserve`
+//                      (3 suivantes, pour remplacer une sortie écartée) ;
+//                      les lieux permanents (src/lieux.js) complètent.
+//   POST /retour     — « pas pour nous » : une sortie écartée et son motif
+//                      (src/retours.js, aucun identifiant de personne)
 //                      &dept=&code=     (défaut : Ille-et-Vilaine / 35)
 //                      &city=           (une ville de l'app, par id ou nom :
 //                                        donne lat/lon/dept/code ; ceux passés
@@ -58,6 +64,9 @@ import { recevoirProposition, servirPhoto } from './propositions.js';
 import { calculerEncart } from './encart.js';
 import { concoursPublic, lireConcours, pageReglement, participer, purgerConcours } from './concours.js';
 import { releverVeille } from './veille.js';
+import { enregistrerRetour, listerRetours } from './retours.js';
+import { lieuxDuJour } from './lieux.js';
+import { LIEUX } from './lieux-data.js';
 import { lireSurcouche, appliquerSurcouche } from './admin/surcouche.js';
 import { routeAdmin } from './admin/api.js';
 
@@ -70,7 +79,14 @@ const CACHE_TTL = 6 * 3600; // les agendas bougent peu en journée
 // Version de clé de cache : bump à chaque changement de scoring (ou de lecture
 // des paramètres, ex. ?city=) pour invalider
 // d'un coup les tops déjà en cache (un redéploiement seul ne purge pas le cache).
-const CACHE_VERSION = 'scoring-2026-10-07-complet';
+const CACHE_VERSION = 'scoring-2026-11-10-plancher';
+/** Rayon accepté par /top : en deçà le top est vide, au-delà ce n'est plus
+ *  « près de chez toi » (et DATAtourisme rend trop de fiches). */
+const RAYON_MIN_KM = 5;
+const RAYON_MAX_KM = 60;
+/** Sorties gardées en réserve derrière le top : elles remplacent celles que
+ *  le papa écarte (« pas pour nous ») sans rappeler le worker. */
+const RESERVE = 3;
 /** Cron quotidien des tournées de cirques — identique à wrangler.toml. */
 const CRON_CIRQUES = '0 5 * * *';
 /** Piliers en teaser dont on compte les « Ça m'intéresse ». */
@@ -102,7 +118,7 @@ export default {
     try {
       if (path === '/admin' || path.startsWith('/admin/')) {
         return await routeAdmin(request, env, url, path, {
-          lireParams, chargerSources, mesures, totauxVotes, villesDemandees,
+          lireParams, chargerSources, mesures, totauxVotes, villesDemandees, listerRetours,
         });
       }
       if (path === '/top' && request.method === 'GET') {
@@ -183,6 +199,13 @@ export default {
       if (path === '/ville-demande' && request.method === 'GET') {
         if (!env.VOTES) return jsonResponse({ error: 'kv_not_bound' }, 503, request, env);
         return jsonResponse({ demandes: await villesDemandees(env) }, 200, request, env);
+      }
+      // Retour « pas pour nous » sur une sortie du top (src/retours.js).
+      if (path === '/retour' && request.method === 'POST') {
+        if (!env.VOTES) return jsonResponse({ error: 'kv_not_bound' }, 503, request, env);
+        const corps = (await request.json().catch(() => null)) || {};
+        const { ok } = await enregistrerRetour(env, corps);
+        return jsonResponse(ok ? { ok: true } : { error: 'bad_request' }, ok ? 201 : 400, request, env);
       }
       // Compteurs d'usage. Une clé par jour et par étape, incrémentée en
       // lecture-écriture : KV n'a pas d'incrément atomique, deux écritures
@@ -362,7 +385,7 @@ function lireParams(url) {
     lat,
     lon,
     age: num('age') ?? DEFAUTS.age,
-    rayonKm: num('rayon') ?? DEFAUTS.rayonKm,
+    rayonKm: Math.min(Math.max(num('rayon') ?? DEFAUTS.rayonKm, RAYON_MIN_KM), RAYON_MAX_KM),
     departement: url.searchParams.get('dept') || zoneBase.departement,
     codeDepartement: url.searchParams.get('code') || zoneBase.codeDepartement,
   };
@@ -424,7 +447,10 @@ async function calculerTop(request, url, env, surcouche) {
   const { evenements: bruts, meteo, sources } = await chargerSources(env, p);
   const evenements = surcouche ? appliquerSurcouche(bruts, surcouche, p.dateISO) : bruts;
 
-  const resultat = top(evenements, { dateISO: p.dateISO, lat: p.lat, lon: p.lon, age: p.age, rayonKm: p.rayonKm, meteo });
+  const ctx = { dateISO: p.dateISO, lat: p.lat, lon: p.lon, age: p.age, rayonKm: p.rayonKm, meteo };
+  // Valeurs sûres (parcs, fermes, ludothèques) : elles complètent l'agenda.
+  const lieux = isMock(env) ? [] : lieuxDuJour(LIEUX, ctx);
+  const resultat = top(evenements, { ...ctx, lieux }, 5 + RESERVE);
   // Les sorties du top portent leur texte complet (la fiche) ; le scoring
   // n'en a lu que l'extrait (texte.js).
   // Photo d'une sortie proposée : l'app reçoit l'adresse complète.
@@ -439,9 +465,10 @@ async function calculerTop(request, url, env, surcouche) {
     rayonKm: p.rayonKm,
     meteo,
     sources,
-    stats: { total: resultat.total, uniques: resultat.uniques, retenus: resultat.retenus },
+    stats: { total: resultat.total, uniques: resultat.uniques, retenus: resultat.retenus, lieux: lieux.length },
     preferee: selection[0] || null,
-    top: selection,
+    top: selection.slice(0, 5),
+    reserve: selection.slice(5),
   };
 }
 

@@ -595,6 +595,14 @@ const PAGE = String.raw`<!doctype html>
       + '<div class="panneau"><h3>Villes demandées</h3>' + (etat.stats.villesDemandees.length ? '<table><tbody>' + etat.stats.villesDemandees.slice(0, 20).map(function (d) {
         return '<tr><td>' + esc(d.ville) + '</td><td class="num"><b>' + d.total + '</b></td></tr>';
       }).join('') + '</tbody></table>' : '<p class="discret">Aucune demande (filet KV). Les demandes principales vivent dans Supabase → demandes_ville_frequence.</p>') + '</div></div>';
+    var r = etat.stats.retours || { total: 0, parMotif: {}, recents: [] };
+    var motifs = { loin: 'Trop loin', age: 'Pas son âge', interet: 'Pas intéressant', deja: 'Déjà fait', autre: 'Autre' };
+    html += '<div class="panneau" style="margin-top:16px"><h3>Retours « Pas pour nous » — ' + r.total + '</h3>'
+      + (r.total ? '<p class="aide">' + Object.keys(motifs).filter(function (k) { return r.parMotif[k]; }).map(function (k) { return esc(motifs[k]) + ' : <b>' + r.parMotif[k] + '</b>'; }).join(' · ') + '</p>'
+        + '<table><thead><tr><th>Sortie</th><th>Motif</th><th>Ville</th><th>Âge</th><th class="num">km</th><th>Jour</th></tr></thead><tbody>' + r.recents.slice(0, 60).map(function (x) {
+          return '<tr><td>' + esc(x.titre) + '</td><td>' + esc(motifs[x.motif] || x.motif) + '</td><td>' + esc(x.ville || '—') + '</td><td>' + (x.age == null ? '—' : x.age) + '</td><td class="num">' + (x.km == null ? '—' : x.km) + '</td><td>' + esc(x.date || '—') + '</td></tr>';
+        }).join('') + '</tbody></table>'
+        : '<p class="discret">Aucun retour pour l’instant. Ils arrivent quand un papa écarte une sortie du top.</p>') + '</div>';
     $('vue').innerHTML = html;
   }
 

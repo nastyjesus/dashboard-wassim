@@ -8,7 +8,8 @@
 //   GET  /admin/api/surcouche  masquées / corrections / épinglées / manuelles
 //   POST /admin/api/action     une modification (voir surcouche.js)
 //   GET  /admin/api/journal    les dernières modifications, annulables
-//   GET  /admin/api/stats      usage (?jours=30), votes, villes demandées
+//   GET  /admin/api/stats      usage (?jours=30), votes, villes demandées,
+//                              retours « pas pour nous »
 //   GET  /admin/api/cirques    état des tournées de cirques (dernière lecture)
 //   POST /admin/api/cirques    relit les sites des cirques tout de suite
 //   GET  /admin/api/propositions   propositions des organisateurs (en attente d'abord)
@@ -176,10 +177,11 @@ export async function routeAdmin(request, env, url, path, deps) {
   if (path === '/admin/api/stats' && request.method === 'GET') {
     const demandes = Number.parseInt(url.searchParams.get('jours') || '30', 10);
     const jours = Math.min(Math.max(Number.isFinite(demandes) ? demandes : 30, 1), 90);
-    const [mesures, votes, villesDemandees] = await Promise.all([
+    const [mesures, votes, villesDemandees, retours] = await Promise.all([
       deps.mesures(env, jours), deps.totauxVotes(env), deps.villesDemandees(env),
+      deps.listerRetours ? deps.listerRetours(env) : { total: 0, parMotif: {}, recents: [] },
     ]);
-    return rep({ mesures, votes, villesDemandees });
+    return rep({ mesures, votes, villesDemandees, retours });
   }
 
   return rep({ error: 'not_found' }, 404);

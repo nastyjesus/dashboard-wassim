@@ -69,3 +69,26 @@ export function dureeJours(ev) {
   const ms = new Date(`${ev.dateFin}T00:00:00Z`) - new Date(`${ev.dateDebut}T00:00:00Z`);
   return Number.isFinite(ms) ? Math.round(ms / 86400000) : null;
 }
+
+const MOIS = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre'];
+const MOIS_SANS_ACCENT = { fevrier: 1, aout: 7, decembre: 11 };
+const DATE_CITEE = new RegExp(`(?<!\\d)(\\d{1,2})(?:er)?\\s+(${MOIS.join('|')}|fevrier|aout|decembre)(?![\\p{L}])`, 'gu');
+
+/**
+ * La description annonce UNE date précise, et ce n'est pas le jour demandé.
+ * Des fiches d'office de tourisme ouvrent une plage d'un an pour un spectacle
+ * d'un jour : « Le jeudi 13 mai, à 14h… », plage du 13 mai au 13 mai suivant,
+ * proposé un 11 novembre (« Bob et Casquette », top de Bruz, 10 nov. 2026).
+ * On ne conclut que si le début du texte cite une seule date : deux dates
+ * (« du 2 janvier au 31 août ») décrivent une plage, pas un rendez-vous.
+ */
+export function dateAnnonceeAilleurs(ev, dateISO) {
+  if (!dateISO) return false;
+  const debut = (ev.description || '').slice(0, 200).toLowerCase();
+  const dates = new Set();
+  for (const m of debut.matchAll(DATE_CITEE)) {
+    const mois = MOIS.indexOf(m[2]) >= 0 ? MOIS.indexOf(m[2]) : MOIS_SANS_ACCENT[m[2]];
+    dates.add(`${String(mois + 1).padStart(2, '0')}-${String(Number(m[1])).padStart(2, '0')}`);
+  }
+  return dates.size === 1 && !dates.has(dateISO.slice(5));
+}

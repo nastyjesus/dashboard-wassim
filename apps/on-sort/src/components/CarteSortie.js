@@ -2,9 +2,11 @@
 // Préférée = panneau GO ambre (relief plein). Les autres = panneaux blancs
 // numérotés (le rang du classement). Raisons = pastilles cadrées à l'encre.
 
+import { useState } from 'react';
 import { Image, Pressable, Text, View, StyleSheet } from 'react-native';
 import { couleurs, espace, rayon, police, typo, cadre, ombre } from '../theme.js';
-import { Pastille } from './ui.js';
+import { Pastille, Chip } from './ui.js';
+import { MOTIFS } from '../retours.js';
 import { mentionSource } from '../mention.js';
 
 function sousTitre(ev) {
@@ -32,13 +34,46 @@ function Etoile({ gardee, onPress }) {
   );
 }
 
-export function CarteSortie({ ev, rang, preferee, onPress, gardee, onGarder }) {
+// Bouton « pas pour nous » — croix cadrée à l'encre. Un appui ouvre les
+// motifs sous la carte ; choisir un motif écarte la sortie du top.
+function Croix({ ouverte, onPress }) {
+  if (!onPress) return null;
+  return (
+    <Pressable
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel="Pas pour nous : écarter cette sortie"
+      accessibilityState={{ expanded: !!ouverte }}
+      hitSlop={8}
+      style={[styles.etoile, ouverte && styles.croixOuverte]}
+    >
+      <Text style={[styles.etoileTexte, ouverte && styles.croixTexteOuverte]}>✕</Text>
+    </Pressable>
+  );
+}
+
+function Motifs({ onChoisir, surAmbre }) {
+  return (
+    <View style={styles.motifs}>
+      <Text style={[styles.motifsTitre, surAmbre && styles.motifsTitreAmbre]}>PAS POUR NOUS, PARCE QUE…</Text>
+      <View style={styles.motifsRangee}>
+        {MOTIFS.map((m) => <Chip key={m.id} label={m.label} onPress={() => onChoisir(m.id)} />)}
+      </View>
+    </View>
+  );
+}
+
+export function CarteSortie({ ev, rang, preferee, onPress, gardee, onGarder, onEcarter }) {
+  const [motifsOuverts, setMotifsOuverts] = useState(false);
+  const basculerMotifs = onEcarter ? () => setMotifsOuverts((o) => !o) : undefined;
+  const choisir = (motif) => { setMotifsOuverts(false); onEcarter(motif); };
   if (preferee) {
     return (
       <Pressable onPress={onPress} style={styles.go} accessibilityRole="button">
         <View style={styles.goEntete}>
           <Text style={styles.goStatut}>STATUT : ON SORT</Text>
           <View style={styles.goActions}>
+            <Croix ouverte={motifsOuverts} onPress={basculerMotifs} />
             <Etoile gardee={gardee} onPress={onGarder} />
             <Text style={styles.goChevron}>›</Text>
           </View>
@@ -54,12 +89,14 @@ export function CarteSortie({ ev, rang, preferee, onPress, gardee, onGarder }) {
           {(ev.raisons || []).slice(0, 4).map((r) => <Pastille key={r} label={r} />)}
         </View>
         {!!mentionSource(ev) && <Text style={styles.goMention}>{mentionSource(ev)}</Text>}
+        {motifsOuverts && <Motifs onChoisir={choisir} surAmbre />}
       </Pressable>
     );
   }
 
   return (
     <Pressable onPress={onPress} style={styles.carte} accessibilityRole="button">
+      <View style={styles.carteLigne}>
       <View style={styles.rangBoite}>
         <Text style={styles.rangTexte}>{String(rang).padStart(2, '0')}</Text>
       </View>
@@ -71,8 +108,11 @@ export function CarteSortie({ ev, rang, preferee, onPress, gardee, onGarder }) {
         </View>
         {!!mentionSource(ev) && <Text style={styles.mention}>{mentionSource(ev)}</Text>}
       </View>
+      <Croix ouverte={motifsOuverts} onPress={basculerMotifs} />
       <Etoile gardee={gardee} onPress={onGarder} />
       <Text style={styles.chevron}>›</Text>
+      </View>
+      {motifsOuverts && <Motifs onChoisir={choisir} />}
     </Pressable>
   );
 }
@@ -98,9 +138,8 @@ const styles = StyleSheet.create({
   goMention: { color: couleurs.encre, fontSize: 12, lineHeight: 16, marginTop: espace.m, fontFamily: police.corps },
 
   // Panneau standard numéroté
+  carteLigne: { flexDirection: 'row', alignItems: 'center' },
   carte: {
-    flexDirection: 'row',
-    alignItems: 'center',
     backgroundColor: couleurs.panneau,
     borderRadius: rayon.m,
     padding: espace.l,
@@ -138,4 +177,12 @@ const styles = StyleSheet.create({
   },
   etoilePleine: { backgroundColor: couleurs.reussiteDoux, borderColor: couleurs.reussite },
   etoileTexte: { fontSize: 16, lineHeight: 20, color: couleurs.encre },
+
+  // Croix « pas pour nous » — même pastille que l'étoile ; pleine encre ouverte.
+  croixOuverte: { backgroundColor: couleurs.encre },
+  croixTexteOuverte: { color: couleurs.panneau },
+  motifs: { marginTop: espace.m, paddingTop: espace.m, borderTopWidth: 1.5, borderTopColor: couleurs.encre },
+  motifsTitre: { ...typo.instrument, color: couleurs.discret, fontFamily: police.corpsFort, marginBottom: espace.s },
+  motifsTitreAmbre: { color: couleurs.encre },
+  motifsRangee: { flexDirection: 'row', flexWrap: 'wrap' },
 });

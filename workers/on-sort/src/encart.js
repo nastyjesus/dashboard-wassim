@@ -143,7 +143,9 @@ export async function calculerEncart(url, env, deps, aujourdhui = new Date().toI
   const retenus = dedoublonner(evenements).map((ev) => scorer(ev, ctx)).filter(Boolean)
     .filter(page.filtre || (() => true))
     .filter((ev) => !ev.masque);
-  const top = selectionner(retenus, 5);
+  // Plancher à 0 : la page du site reste une vitrine remplie ; le score
+  // minimum ne vaut que pour le top de l'app (voir SCORE_PLANCHER).
+  const top = selectionner(retenus, 5, 0);
   if (!top.length) return { statut: 204 };
   return { statut: 200, html: rendre({ ville, page, dateISO, aujourdhui, age, top }) };
 }

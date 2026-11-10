@@ -13,7 +13,8 @@ import { Chip, Section, Strip, Bouton } from '../components/ui.js';
 import { CarteSortie } from '../components/CarteSortie.js';
 import { chargerTop } from '../api.js';
 import { optionsDates, libelleLong } from '../dates.js';
-import { villeParId, villesProches, villeLaPlusProche } from '../config.js';
+import { villeParId, villesProches, villeLaPlusProche, RAYON_DEFAUT_KM, RAYONS_KM } from '../config.js';
+import { lireEcartees, ecarter, reprendre, cleEcartee } from '../retours.js';
 import { cleFavori } from '../favoris.js';
 import { mesurer } from '../mesure.js';
 import { localiser } from '../position.js';
@@ -31,7 +32,7 @@ const labelAge = (a) => (a === 0 ? '< 1 an' : `${a} an${a > 1 ? 's' : ''}`);
 
 export function Accueil({
   profil, favoris = [], invite, aCompte,
-  onOuvrirDetail, onModifierProfil, onGarder, onCreerCompte, onFermerInvite,
+  onOuvrirDetail, onModifierProfil, onReglerProfil, onGarder, onCreerCompte, onFermerInvite,
 }) {
   const dates = optionsDates();
   const [dateISO, setDateISO] = useState(dates[0].dateISO);
@@ -41,6 +42,11 @@ export function Accueil({
   const [chargement, setChargement] = useState(true);
   const [erreur, setErreur] = useState(null);
   const [data, setData] = useState(null);
+  // Sorties écartées (« pas pour nous ») : elles ne reviennent plus dans le top.
+  const [ecartees, setEcartees] = useState([]);
+  const [derniereEcartee, setDerniereEcartee] = useState(null);
+  useEffect(() => { lireEcartees().then(setEcartees); }, []);
+  const rayonKm = RAYONS_KM.includes(profil.rayon) ? profil.rayon : RAYON_DEFAUT_KM;
 
   useEffect(() => { setVilleVueId(profil.villeId); }, [profil.villeId]);
 
@@ -80,7 +86,7 @@ export function Accueil({
     setErreur(null);
     try {
       const reponse = await chargerTop({
-        dateISO: date, lat: origine.lat, lon: origine.lon, age: profil.age,
+        dateISO: date, lat: origine.lat, lon: origine.lon, age: profil.age, rayonKm,
         dept: origine.dept, code: origine.code,
       });
       setData(reponse);
@@ -92,12 +98,18 @@ export function Accueil({
     } finally {
       setChargement(false);
     }
-  }, [positionLue, origine.lat, origine.lon, origine.dept, origine.code, profil.age]);
+  }, [positionLue, origine.lat, origine.lon, origine.dept, origine.code, profil.age, rayonKm]);
 
   useEffect(() => { charger(dateISO); }, [dateISO, charger]);
 
   const meteo = data?.meteo;
-  const top = data?.top || [];
+  // Le top sans les sorties écartées, complété par la réserve du worker.
+  const clesEcartees = new Set(ecartees);
+  const top = [...(data?.top || []), ...(data?.reserve || [])]
+    .filter((ev) => !clesEcartees.has(cleEcartee(ev)))
+    .slice(0, 5);
+  const rayonSuivant = RAYONS_KM.find((r) => r > rayonKm);
+  const reglerRayon = (r) => { if (r !== rayonKm && onReglerProfil) onReglerProfil({ rayon: r }); };
   const clesGardees = new Set(favoris.map(cleFavori));
   const estGardee = (ev) => clesGardees.has(cleFavori(ev));
   const garder = onGarder ? (ev) => onGarder(ev, dateISO) : undefined;
@@ -109,6 +121,16 @@ export function Accueil({
     .filter(({ ville: v }) => !(position && v.id === villeProfil.id))
     .slice(0, 3);
   const ici = autour ? 'autour de toi' : `à ${ville.nom}`;
+
+  const ecarterSortie = async (ev, motif) => {
+    setEcartees(await ecarter(ev, motif, { ville: villeRepere.nom, dateISO, age: profil.age }));
+    setDerniereEcartee(ev);
+  };
+  const annulerEcart = async () => {
+    if (!derniereEcartee) return;
+    setEcartees(await reprendre(derniereEcartee));
+    setDerniereEcartee(null);
+  };
 
   return (
     <ScrollView
@@ -144,6 +166,22 @@ export function Accueil({
         ))}
       </ScrollView>
 
+      {/* Rayon : le papa décide jusqu'où il roule. Vol d'oiseau, donc compter
+          un peu plus par la route. */}
+      <View style={styles.rayonRangee}>
+        <Text style={styles.rayonLabel}>RAYON KM</Text>
+        {RAYONS_KM.map((r) => (
+          <Chip key={r} label={String(r)} actif={r === rayonKm} onPress={() => reglerRayon(r)} />
+        ))}
+      </View>
+
+      {!!derniereEcartee && (
+        <View style={styles.ecart}>
+          <Text style={styles.ecartTexte} numberOfLines={2}>« {derniereEcartee.titre} » écartée. Merci, ça règle le top.</Text>
+          <Bouton variante="secondaire" label="Annuler" onPress={annulerEcart} />
+        </View>
+      )}
+
       {(chargement || !positionLue) && (
         <View style={styles.etat}>
           <ActivityIndicator color={couleurs.accent} size="large" />
@@ -166,11 +204,14 @@ export function Accueil({
           propose la suite au lieu de laisser le papa devant une page blanche. */}
       {!chargement && !erreur && top.length === 0 && (
         <View style={styles.etat}>
-          <Text style={styles.etatTitre}>Rien de référencé {ici} ce jour-là.</Text>
+          <Text style={styles.etatTitre}>Rien de bien {ici} ce jour-là.</Text>
           <Text style={styles.etatTexte}>
-            Essaie un autre jour avec les onglets du haut, ou va voir juste à côté.
+            {rayonSuivant
+              ? `Rien qui vaille le déplacement à moins de ${rayonKm} km. Essaie un autre jour, élargis le rayon, ou va voir juste à côté.`
+              : 'Essaie un autre jour avec les onglets du haut, ou va voir juste à côté.'}
           </Text>
           <View style={styles.voisines}>
+            {!!rayonSuivant && <Chip label={`Élargir à ${rayonSuivant} km`} onPress={() => reglerRayon(rayonSuivant)} />}
             {voisines.map(({ ville: v, km }) => (
               <Chip key={v.id} label={`${v.nom} · ${km} km`} onPress={() => setVilleVueId(v.id)} />
             ))}
@@ -186,6 +227,7 @@ export function Accueil({
             rang={1}
             gardee={estGardee(top[0])}
             onGarder={garder && (() => garder(top[0]))}
+            onEcarter={(motif) => ecarterSortie(top[0], motif)}
             onPress={() => onOuvrirDetail(top[0])}
           />
           {top.length > 1 && <Section>Le reste du top</Section>}
@@ -196,16 +238,18 @@ export function Accueil({
               rang={i + 2}
               gardee={estGardee(ev)}
               onGarder={garder && (() => garder(ev))}
+              onEcarter={(motif) => ecarterSortie(ev, motif)}
               onPress={() => onOuvrirDetail(ev)}
             />
           ))}
           {top.length < 3 && (
             <View style={styles.mince}>
               <Text style={styles.minceTexte}>
-                C'est tout pour ce jour-là par ici — la zone est encore peu couverte.
-                Les villes ouvertes les plus proches :
+                C'est tout ce qui vaut le déplacement à moins de {rayonKm} km ce jour-là.
+                {rayonSuivant ? ' Élargis le rayon, ou regarde les villes voisines :' : ' Les villes ouvertes les plus proches :'}
               </Text>
               <View style={styles.voisines}>
+                {!!rayonSuivant && <Chip label={`Élargir à ${rayonSuivant} km`} onPress={() => reglerRayon(rayonSuivant)} />}
                 {voisines.map(({ ville: v, km }) => (
                   <Chip key={v.id} label={`${v.nom} · ${km} km`} onPress={() => setVilleVueId(v.id)} />
                 ))}
@@ -276,7 +320,14 @@ const styles = StyleSheet.create({
   hero: { ...typo.displayXL, color: couleurs.encre, fontFamily: police.display },
   heroSous: { color: couleurs.texte, fontSize: 15, marginTop: espace.xs, fontFamily: police.corps },
 
-  datesRangee: { marginTop: espace.l, marginBottom: espace.l, flexGrow: 0 },
+  datesRangee: { marginTop: espace.l, marginBottom: espace.m, flexGrow: 0 },
+  rayonRangee: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', marginBottom: espace.l },
+  rayonLabel: { ...typo.instrument, color: couleurs.discret, fontFamily: police.corpsFort, marginRight: espace.m },
+  ecart: {
+    flexDirection: 'row', alignItems: 'center', gap: espace.m, marginBottom: espace.l,
+    backgroundColor: couleurs.panneau, borderRadius: rayon.m, padding: espace.m, ...cadre,
+  },
+  ecartTexte: { flex: 1, color: couleurs.texte, fontSize: 13, lineHeight: 18, fontFamily: police.corps },
 
   etat: { alignItems: 'center', paddingVertical: espace.xxxl },
   etatTitre: { ...typo.displayL, fontSize: 22, color: couleurs.encre, fontFamily: police.display, marginBottom: espace.s, textAlign: 'center' },

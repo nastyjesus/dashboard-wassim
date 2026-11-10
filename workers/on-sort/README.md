@@ -36,6 +36,7 @@ d'événements famille exploitables en open data autour de Rennes ?**
 | `GET /diagnostic?date=...` | **le go/no-go** : comptages réels par source, part « famille », échantillons, verdict |
 | `POST /votes` · `GET /votes` | « Ça m'intéresse » des piliers en teaser |
 | `POST /ville-demande` · `GET /ville-demande` | villes réclamées hors zone (filet si Supabase KO) |
+| `POST /retour` `{motif, titre, cle?, ville?, date?, age?, km?}` | « pas pour nous » : le papa écarte une sortie (`motif` : `loin`, `age`, `interet`, `deja`, `autre`). Lu dans l'admin, onglet Stats |
 | `POST /mesure` `{evt}` | +1 sur un compteur d'usage du jour |
 | `GET /mesures?jours=14` | les compteurs par jour, les totaux et les taux |
 | `GET /desabonnement?jeton=` | coupe l'alerte du week-end, sans compte ni mot de passe |

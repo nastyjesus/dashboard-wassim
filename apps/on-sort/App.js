@@ -102,7 +102,9 @@ export default function App() {
     return <View style={styles.racine}><StatusBar style="dark" /></View>;
   }
 
-  const validerProfil = async (p) => {
+  const validerProfil = async (saisie) => {
+    // Le démarrage ne connaît pas le rayon (réglé sur l'accueil) : on le garde.
+    const p = profil?.rayon ? { ...saisie, rayon: profil.rayon } : saisie;
     setProfil(p);
     setEdition(false);
     await ecrireProfil(p);
@@ -113,6 +115,13 @@ export default function App() {
       setSession(null);
       synchroniserFavoris().catch(() => {});
     }
+  };
+
+  // Réglage fait depuis l'accueil (le rayon) : local, sans repasser par le démarrage.
+  const reglerProfil = (reglage) => {
+    const p = { ...profil, ...reglage };
+    setProfil(p);
+    ecrireProfil(p);
   };
 
   const compteCree = (compte) => {
@@ -156,6 +165,7 @@ export default function App() {
             profil={profil}
             aCompte={Boolean(profil.email)}
             onModifierProfil={() => setEdition(true)}
+            onReglerProfil={reglerProfil}
             onDemanderCompte={(motif) => setMotifCompte(motif || 'menu')}
           />
         )}
