@@ -53,6 +53,17 @@ describe('pages', () => {
     expect((await appel('/admin')).body).toContain('Jeton admin');
     expect((await appel('/health')).body).toEqual({ ok: true });
   });
+
+  it('sert le complément PowerPoint (page, manifeste, icône)', async () => {
+    expect((await appel('/addin')).body).toContain('PowerPoint.run');
+    const { res, body } = await appel('/addin/manifest.xml');
+    expect(res.headers.get('Content-Type')).toContain('xml');
+    expect(body).toContain('<SourceLocation DefaultValue="https://bni.test/addin"/>');
+    expect(body).toContain('<Host Name="Presentation"/>');
+    const icone = await worker.fetch(new Request('https://bni.test/addin/icone.png'), env);
+    const octets = new Uint8Array(await icone.arrayBuffer());
+    expect([...octets.slice(1, 4)].map((c) => String.fromCharCode(c)).join('')).toBe('PNG');
+  });
 });
 
 describe('membres', () => {

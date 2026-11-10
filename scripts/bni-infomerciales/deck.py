@@ -22,6 +22,7 @@ ZONE_PHOTO = (0.015, 0.14, 0.752, 0.836)
 # Tout ce qui commence au-delà de cette abscisse appartient à la colonne de droite.
 DEBUT_COLONNE_DROITE = 0.74
 
+NOM_PHOTO = "Photo de la semaine"
 PHOTO_COTE_MAX = 1920
 PHOTO_QUALITE = 85
 
@@ -64,8 +65,12 @@ def _champ_recherche(slide):
 
 
 def _est_photo_semaine(sh, slide):
-    """Image posée dans la grande zone gauche (photo d'une semaine précédente)."""
-    est_image = sh.shape_type == MSO_SHAPE_TYPE.PICTURE or (
+    """Image posée dans la grande zone gauche (photo d'une semaine précédente).
+
+    Le complément PowerPoint pose la photo comme un rectangle rempli par
+    l'image, nommé « Photo de la semaine » : on le reconnaît par son nom.
+    """
+    est_image = sh.shape_type == MSO_SHAPE_TYPE.PICTURE or sh.name == NOM_PHOTO or (
         sh.is_placeholder and sh.placeholder_format.type == PP_PLACEHOLDER.PICTURE
     )
     if not est_image:
@@ -165,7 +170,7 @@ def appliquer(chemin_source, chemin_sortie, depots):
             gauche = int(zx * W + (boite_l - l) / 2)
             haut = int(zy * H + (boite_h - h) / 2)
             pic = slide.shapes.add_picture(io.BytesIO(d["photo"]), gauche, haut, l, h)
-            pic.name = "Photo de la semaine"
+            pic.name = NOM_PHOTO
         faits.append(d["slide_id"])
     prs.save(chemin_sortie)
     return faits

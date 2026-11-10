@@ -1,0 +1,234 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Infomerciales BNI</title>
+<script src="https://appsforoffice.microsoft.com/lib/1/hosted/office.js"></script>
+<style>
+  :root { --rouge: #c8102e; --rouge-fonce: #9e0c24; --encre: #1a1a1a; --gris: #6b6b6b; --trait: #e3e3e3; --ok: #1f7a4d; }
+  * { box-sizing: border-box; }
+  body { margin: 0; padding: 14px; font: 14px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif; color: var(--encre); background: #fff; }
+  h1 { font-size: 16px; margin: 0 0 4px; }
+  h1 b { color: var(--rouge); }
+  p { margin: 0 0 12px; color: var(--gris); }
+  button { width: 100%; font: inherit; font-weight: 700; padding: 11px; border: 0; border-radius: 8px; background: var(--rouge); color: #fff; cursor: pointer; margin: 6px 0; }
+  button:hover { background: var(--rouge-fonce); }
+  button.second { background: #fff; color: var(--encre); border: 1px solid #cfcfcf; }
+  button:disabled { background: #bdbdbd; cursor: wait; }
+  input { width: 100%; font: inherit; padding: 10px; border: 1px solid #cfcfcf; border-radius: 8px; margin: 6px 0; }
+  ul { list-style: none; padding: 0; margin: 10px 0; }
+  li { border: 1px solid var(--trait); border-radius: 8px; padding: 8px 10px; margin-bottom: 6px; }
+  li small { display: block; color: var(--gris); }
+  li.ok { border-color: #b9dcc8; background: #f1f8f4; }
+  li.ko { border-color: #f1c0c6; background: #fdf3f4; }
+  .msg { padding: 10px; border-radius: 8px; font-weight: 600; margin: 8px 0; display: none; }
+  .msg.ok { display: block; background: #e8f4ee; color: var(--ok); }
+  .msg.ko { display: block; background: #fdeced; color: var(--rouge-fonce); }
+  .cache { display: none; }
+</style>
+</head>
+<body>
+<h1><b>BNI</b> Infomerciales</h1>
+<p>Pose les photos et demandes déposées par les membres sur leur slide, même si la présentation est ouverte par d'autres.</p>
+
+<form id="connexion" class="cache">
+  <strong>Jeton admin</strong>
+  <input type="password" id="jeton" autocomplete="current-password">
+  <button type="submit">Enregistrer</button>
+</form>
+
+<div id="panneau" class="cache">
+  <button id="appliquer" disabled>Appliquer les dépôts</button>
+  <button id="recharger" class="second">Actualiser la liste</button>
+  <div class="msg" id="msg"></div>
+  <ul id="liste"></ul>
+</div>
+
+<script>
+// Le deck BNI est en 16:9 : 12 192 000 × 6 858 000 EMU = 960 × 540 points.
+const W = 960, H = 540;
+const LAYOUT_MEMBRE = "Infomerciale_30s";
+// Mêmes repères que scripts/bni-infomerciales/deck.py (fractions de la slide).
+const ZONE = { x: 0.015, y: 0.14, w: 0.752, h: 0.836 };
+const DROITE = 0.74;
+const NOM_PHOTO = "Photo de la semaine";
+const TYPES_TEXTE = ["GeometricShape", "TextBox", "Placeholder"];
+
+let jeton = "";
+try { jeton = localStorage.getItem("bni-admin") || ""; } catch {}
+let depots = [];
+
+const $ = (id) => document.getElementById(id);
+const echapper = (t) => String(t).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const normaliser = (n) => String(n).normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().split(/\s+/).filter(Boolean).join(" ");
+const api = (chemin, options = {}) => fetch(chemin, { ...options, headers: { ...(options.headers || {}), "X-Wassim-Auth": jeton } });
+
+function message(texte, ok) {
+  const m = $("msg");
+  m.textContent = texte;
+  m.className = "msg " + (ok ? "ok" : "ko");
+}
+
+function afficher(etats = {}) {
+  $("liste").innerHTML = depots.length ? depots.map((d) => {
+    const e = etats[d.slide_id];
+    const quoi = [d.depot.a_photo ? "photo" : "", d.depot.recherche ? `« ${echapper(d.depot.recherche)} »` : ""].filter(Boolean).join(" + ");
+    return `<li class="${e ? (e.ok ? "ok" : "ko") : ""}"><strong>${echapper(d.nom)}</strong><small>${quoi || "dépôt vide"}</small>${e ? `<small>${echapper(e.texte)}</small>` : ""}</li>`;
+  }).join("") : "<li>Aucun dépôt en attente.</li>";
+  $("appliquer").disabled = !depots.length;
+}
+
+async function charger() {
+  const r = await api("/api/admin/etat");
+  if (r.status === 401) { $("panneau").classList.add("cache"); $("connexion").classList.remove("cache"); return; }
+  const etat = await r.json();
+  depots = etat.membres.filter((m) => m.depot);
+  $("connexion").classList.add("cache");
+  $("panneau").classList.remove("cache");
+  afficher();
+}
+
+async function photoDe(slideId) {
+  const r = await api(`/api/admin/photo/${slideId}`);
+  if (!r.ok) throw new Error("photo introuvable sur le serveur");
+  const blob = await r.blob();
+  const image = await createImageBitmap(blob);
+  const base64 = await new Promise((ok, ko) => {
+    const lecteur = new FileReader();
+    lecteur.onload = () => ok(String(lecteur.result).split(",")[1]);
+    lecteur.onerror = ko;
+    lecteur.readAsDataURL(blob);
+  });
+  return { base64, largeur: image.width, hauteur: image.height };
+}
+
+// Charge le texte des formes qui peuvent en contenir (une par une : une forme
+// sans zone de texte ferait échouer tout le lot).
+async function textes(ctx, formes) {
+  const res = new Map();
+  for (const f of formes) {
+    if (!TYPES_TEXTE.includes(f.type)) continue;
+    const tr = f.textFrame.textRange;
+    tr.load("text");
+    try { await ctx.sync(); res.set(f.id, tr.text.split(/\s+/).filter(Boolean).join(" ")); } catch {}
+  }
+  return res;
+}
+
+async function typePlaceholder(ctx, forme) {
+  if (forme.type !== "Placeholder") return null;
+  forme.placeholderFormat.load("type");
+  try { await ctx.sync(); return forme.placeholderFormat.type; } catch { return null; }
+}
+
+// Repère les slides membres : nom (colonne droite, haut entre 30 et 40 %) et
+// bandeau « Qui peut m'aider à rencontrer » (en haut, large).
+async function lireSlides(ctx) {
+  const slides = ctx.presentation.slides;
+  slides.load("items/id,items/layout/name");
+  await ctx.sync();
+  const membres = slides.items.filter((s) => s.layout.name === LAYOUT_MEMBRE);
+  membres.forEach((s) => s.shapes.load("items/id,items/name,items/type,items/left,items/top,items/width,items/height"));
+  await ctx.sync();
+  const infos = [];
+  for (const s of membres) {
+    const formes = s.shapes.items;
+    const champsNom = formes.filter((f) => f.left >= DROITE * W && f.top >= 0.30 * H && f.top <= 0.40 * H);
+    const bandeaux = formes.filter((f) => f.top < 0.15 * H && f.left < DROITE * W && f.width > 0.4 * W);
+    const txt = await textes(ctx, [...champsNom, ...bandeaux]);
+    const nom = champsNom.map((f) => txt.get(f.id)).find(Boolean) || "";
+    const bandeau = bandeaux.find((f) => f.type === "Placeholder" && txt.has(f.id)) || bandeaux.find((f) => txt.has(f.id)) || null;
+    infos.push({ slide: s, idNum: parseInt(s.id, 10), nom, bandeau, formes });
+  }
+  return infos;
+}
+
+// Identifiant d'abord (stable quand la slide bouge), sinon nom unique.
+function trouver(infos, d) {
+  const parId = infos.find((i) => i.idNum === d.slide_id);
+  if (parId) return parId;
+  const memes = infos.filter((i) => i.nom && normaliser(i.nom) === normaliser(d.nom));
+  return memes.length === 1 ? memes[0] : null;
+}
+
+async function poserPhoto(ctx, info, photo) {
+  const zx = ZONE.x * W, zy = ZONE.y * H, zw = ZONE.w * W, zh = ZONE.h * H;
+  for (const f of info.formes) {
+    const cx = f.left + f.width / 2, cy = f.top + f.height / 2;
+    const dansZone = f.left < DROITE * W && cx >= zx && cx <= zx + zw && cy >= zy && cy <= zy + zh;
+    if (!dansZone) continue;
+    const estPhoto = f.type === "Image" || f.name === NOM_PHOTO || (await typePlaceholder(ctx, f)) === "Picture";
+    if (estPhoto) f.delete();
+  }
+  const ratio = Math.min(zw / photo.largeur, zh / photo.hauteur);
+  const l = photo.largeur * ratio, h = photo.hauteur * ratio;
+  const cadre = info.slide.shapes.addGeometricShape("Rectangle", { left: zx + (zw - l) / 2, top: zy + (zh - h) / 2, width: l, height: h });
+  cadre.name = NOM_PHOTO;
+  cadre.fill.setImage(photo.base64);
+  cadre.lineFormat.visible = false;
+  await ctx.sync();
+}
+
+async function appliquer() {
+  $("appliquer").disabled = true;
+  message("Mise à jour en cours…", true);
+  const etats = {};
+  const appliques = [];
+  try {
+    await PowerPoint.run(async (ctx) => {
+      const infos = await lireSlides(ctx);
+      for (const d of depots) {
+        const info = trouver(infos, d);
+        if (!info) { etats[d.slide_id] = { ok: false, texte: "Slide introuvable (ni par identifiant, ni par nom)." }; continue; }
+        try {
+          if (d.depot.recherche) {
+            if (!info.bandeau) throw new Error("bandeau « Qui peut m'aider à rencontrer » introuvable");
+            info.bandeau.textFrame.textRange.text = d.depot.recherche;
+            await ctx.sync();
+          }
+          if (d.depot.a_photo) await poserPhoto(ctx, info, await photoDe(d.slide_id));
+          etats[d.slide_id] = { ok: true, texte: "Posé sur la slide." };
+          appliques.push({ slide_id: d.slide_id, date: d.depot.date });
+        } catch (e) {
+          etats[d.slide_id] = { ok: false, texte: "Erreur : " + (e && e.message || e) };
+        }
+      }
+    });
+  } catch (e) {
+    message("PowerPoint a refusé la modification : " + (e && e.message || e), false);
+    afficher(etats);
+    return;
+  }
+  const r = await api("/api/job/resultat", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ ok: appliques.length === depots.length, message: `${appliques.length} slide(s) mise(s) à jour (bouton PowerPoint)`, appliques }),
+  });
+  const ko = depots.length - appliques.length;
+  message(r.ok ? `${appliques.length} slide(s) mise(s) à jour.` + (ko ? ` ${ko} en échec : voir la liste.` : "") : "Slides mises à jour, mais le serveur n'a pas pu effacer les dépôts.", r.ok && !ko);
+  afficher(etats);
+  depots = depots.filter((d) => !appliques.some((a) => a.slide_id === d.slide_id));
+  $("appliquer").disabled = !depots.length;
+}
+
+$("connexion").addEventListener("submit", (e) => {
+  e.preventDefault();
+  jeton = $("jeton").value.trim();
+  try { localStorage.setItem("bni-admin", jeton); } catch {}
+  charger();
+});
+$("recharger").addEventListener("click", charger);
+$("appliquer").addEventListener("click", appliquer);
+
+Office.onReady(() => {
+  if (!Office.context.requirements.isSetSupported("PowerPointApi", "1.8")) {
+    document.body.insertAdjacentHTML("beforeend", '<div class="msg ko">Cette version de PowerPoint est trop ancienne pour le complément : ouvre la présentation dans PowerPoint en ligne.</div>');
+    return;
+  }
+  charger();
+});
+</script>
+</body>
+</html>

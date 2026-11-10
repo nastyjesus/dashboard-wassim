@@ -11,6 +11,8 @@
 
 import PAGE_MEMBRE from './membre.html';
 import PAGE_ADMIN from './admin.html';
+import PAGE_ADDIN from './addin.html';
+import ICONE_ADDIN from './icone.js';
 
 const PHOTO_MAX = 5 * 1024 * 1024;
 const RECHERCHE_MAX = 160;
@@ -22,6 +24,29 @@ const html = (corps) => new Response(corps, {
   headers: { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store', 'X-Robots-Tag': 'noindex' },
 });
 const erreur = (message, status = 400) => json({ erreur: message }, status);
+
+// Complément PowerPoint : écrit dans la présentation ouverte (co-édition),
+// là où le job, qui remplace le fichier entier, est bloqué par le verrou.
+const ADDIN_ID = '6f1d2c3b-8a47-4e2f-9b1a-5c0d7e3f4a21';
+export function manifesteAddin(origine) {
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<OfficeApp xmlns="http://schemas.microsoft.com/office/appforoffice/1.1" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:type="TaskPaneApp">
+  <Id>${ADDIN_ID}</Id>
+  <Version>1.0.0.0</Version>
+  <ProviderName>BNI Bruz Envol</ProviderName>
+  <DefaultLocale>fr-FR</DefaultLocale>
+  <DisplayName DefaultValue="Infomerciales BNI"/>
+  <Description DefaultValue="Pose les photos et demandes des membres sur leur slide."/>
+  <IconUrl DefaultValue="${origine}/addin/icone.png"/>
+  <HighResolutionIconUrl DefaultValue="${origine}/addin/icone.png"/>
+  <SupportUrl DefaultValue="${origine}/admin"/>
+  <AppDomains><AppDomain>${origine}</AppDomain></AppDomains>
+  <Hosts><Host Name="Presentation"/></Hosts>
+  <DefaultSettings><SourceLocation DefaultValue="${origine}/addin"/></DefaultSettings>
+  <Permissions>ReadWriteDocument</Permissions>
+</OfficeApp>
+`;
+}
 
 const lire = async (env, cle, defaut) => (await env.KV.get(cle, 'json')) ?? defaut;
 
@@ -220,6 +245,13 @@ export default {
       if (p === '/' && request.method === 'GET') return html(PAGE_MEMBRE);
       if (p === '/admin' && request.method === 'GET') return html(PAGE_ADMIN);
       if (p === '/health') return json({ ok: true });
+      if (p === '/addin' && request.method === 'GET') return html(PAGE_ADDIN);
+      if (p === '/addin/manifest.xml') {
+        return new Response(manifesteAddin(url.origin), { headers: { 'Content-Type': 'application/xml; charset=utf-8', 'Content-Disposition': 'attachment; filename="infomerciales-bni.xml"' } });
+      }
+      if (p === '/addin/icone.png') {
+        return new Response(Uint8Array.from(atob(ICONE_ADDIN), (c) => c.charCodeAt(0)), { headers: { 'Content-Type': 'image/png', 'Cache-Control': 'public, max-age=86400' } });
+      }
       if (p.startsWith('/api/admin/') || p.startsWith('/api/job/')) return await routesAdmin(request, env, url);
       if (p.startsWith('/api/')) return await routesMembre(request, env, url);
       return erreur('Introuvable.', 404);
