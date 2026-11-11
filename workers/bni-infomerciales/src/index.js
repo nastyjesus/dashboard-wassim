@@ -179,13 +179,25 @@ async function suivreSlidesRecreees(env, anciens, membres, jetons) {
 async function recevoirResultat(env, corps) {
   // un dépôt n'est effacé que s'il n'a pas été modifié pendant le job
   // (identifiants d'origine : traité avant le suivi des slides recréées)
+  // Le complément PowerPoint n'envoie pas la liste des membres : on reporte
+  // le dépôt appliqué dans la fiche, sinon la page membre réafficherait
+  // l'ancienne demande jusqu'au prochain passage du job.
+  const fiches = await lire(env, 'membres', []);
+  let fichesModifiees = false;
   for (const { slide_id: id, date } of corps.appliques ?? []) {
     const depot = await lire(env, `depot:${id}`, null);
     if (depot && depot.date === date) {
+      const fiche = fiches.find((m) => m.slide_id === id);
+      if (fiche) {
+        if (depot.recherche) fiche.recherche = depot.recherche;
+        if (depot.a_photo) fiche.a_une_photo = true;
+        fichesModifiees = true;
+      }
       await env.KV.delete(`depot:${id}`);
       await env.KV.delete(`photo:${id}`);
     }
   }
+  if (fichesModifiees && !Array.isArray(corps.membres)) await env.KV.put('membres', JSON.stringify(fiches));
   if (Array.isArray(corps.membres)) {
     const membres = corps.membres.map((m) => ({
       slide_id: Number(m.slide_id), nom: String(m.nom), metier: String(m.metier ?? ''),

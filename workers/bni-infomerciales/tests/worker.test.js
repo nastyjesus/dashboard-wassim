@@ -146,6 +146,15 @@ describe('admin et job', () => {
     expect((await appel('/api/admin/etat', { admin: ADMIN })).body.dernier_run).toMatchObject({ ok: true, mis_a_jour: 1 });
   });
 
+  it('reporte la demande appliquée dans la fiche du membre (complément PowerPoint)', async () => {
+    const m = await lienDe('Céline GUIHO');
+    await appel(`/api/depot?m=${m}`, { methode: 'POST', corps: { recherche: 'Nouvelle demande' } });
+    const { body: entree } = await appel('/api/job/entree', { admin: ADMIN });
+    await appel('/api/job/resultat', { methode: 'POST', admin: ADMIN, corps: { ok: true, appliques: [{ slide_id: 202, date: entree.depots[0].date }] } });
+    const moi = await appel(`/api/moi?m=${m}`);
+    expect(moi.body).toMatchObject({ recherche: 'Nouvelle demande', depot: null });
+  });
+
   it('garde un dépôt modifié pendant que le job tournait', async () => {
     const m = await lienDe('Paul JUHEL');
     await appel(`/api/depot?m=${m}`, { methode: 'POST', corps: { recherche: 'v1' } });
