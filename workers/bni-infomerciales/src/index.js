@@ -8,6 +8,8 @@
 //   photo:<id>       JPEG (déjà réduit par le téléphone)
 //   ms               { rclone_token | refresh_token+client_id, drive_id, item_id } (jamais servi aux membres)
 //   dernier_run      { date, ok, message, mis_a_jour }
+//   suppleants       [{ nom, prenom, email, tel }] (visiteurs possibles ; données
+//                    perso : jamais dans le dépôt public, chargées par l'admin)
 
 import PAGE_MEMBRE from './membre.html';
 import PAGE_ADMIN from './admin.html';
@@ -88,6 +90,9 @@ async function routesMembre(request, env, url) {
   if (url.pathname === '/api/moi' && request.method === 'GET') {
     const depot = await lire(env, `depot:${id}`, null);
     return json({ nom: membre.nom, metier: membre.metier, recherche: membre.recherche, depot });
+  }
+  if (url.pathname === '/api/suppleants' && request.method === 'GET') {
+    return json({ suppleants: await lire(env, 'suppleants', []) });
   }
   if (url.pathname === '/api/photo' && request.method === 'GET') {
     const photo = await env.KV.get(`photo:${id}`, 'arrayBuffer');
@@ -205,6 +210,17 @@ async function routesAdmin(request, env, url) {
 
   if (p === '/api/admin/etat' && m === 'GET') return json(await etatAdmin(env, url.origin));
   if (p === '/api/admin/appliquer' && m === 'POST') return declencherJob(env);
+  if (p === '/api/admin/suppleants' && m === 'PUT') {
+    let corps;
+    try { corps = await request.json(); } catch { return erreur('Requête illisible.'); }
+    if (!Array.isArray(corps.suppleants)) return erreur('suppleants (liste) requis.');
+    const propre = (v) => String(v ?? '').split(/\s+/).filter(Boolean).join(' ');
+    const liste = corps.suppleants
+      .map((x) => ({ nom: propre(x.nom), prenom: propre(x.prenom), email: propre(x.email), tel: propre(x.tel) }))
+      .filter((x) => x.nom || x.prenom);
+    await env.KV.put('suppleants', JSON.stringify(liste));
+    return json({ ok: true, nombre: liste.length });
+  }
 
   const photo = p.match(/^\/api\/(?:admin|job)\/photo\/(\d+)$/);
   if (photo && m === 'GET') {

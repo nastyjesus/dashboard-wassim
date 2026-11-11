@@ -101,6 +101,20 @@ describe('membres', () => {
   });
 });
 
+describe('suppléants', () => {
+  it('liste réservée aux membres, chargée par l’admin', async () => {
+    const liste = [{ nom: 'Dupont', prenom: ' Marie ', email: 'm@exemple.fr', tel: '06 00 00 00 00' }, { nom: '', prenom: '' }];
+    expect((await appel('/api/admin/suppleants', { methode: 'PUT', corps: { suppleants: liste } })).res.status).toBe(401);
+    const charge = await appel('/api/admin/suppleants', { methode: 'PUT', admin: ADMIN, corps: { suppleants: liste } });
+    expect(charge.body).toEqual({ ok: true, nombre: 1 });
+
+    expect((await appel('/api/suppleants?m=faux')).res.status).toBe(403);
+    const m = await lienDe('Paul JUHEL');
+    const { body } = await appel(`/api/suppleants?m=${m}`);
+    expect(body.suppleants).toEqual([{ nom: 'Dupont', prenom: 'Marie', email: 'm@exemple.fr', tel: '06 00 00 00 00' }]);
+  });
+});
+
 describe('admin et job', () => {
   it('protège l\'admin par jeton', async () => {
     expect((await appel('/api/admin/etat')).res.status).toBe(401);

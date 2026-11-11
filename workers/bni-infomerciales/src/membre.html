@@ -51,7 +51,23 @@
   .message.ok { display: block; background: #e8f4ee; color: var(--ok); }
   .message.ko { display: block; background: #fdeced; color: var(--rouge-fonce); }
   .deja { font-size: 13px; color: var(--ok); margin-top: 8px; display: none; }
-  #formulaire { display: none; }
+  #formulaire, #suppleer, #ouvrir-suppleer { display: none; }
+  .bouton-second { width: 100%; font: inherit; font-weight: 700; font-size: 16px; padding: 13px; border: 2px solid var(--rouge); border-radius: 10px; background: #fff; color: var(--rouge); cursor: pointer; margin-bottom: 14px; }
+  .bouton-second:hover { background: #fff6f7; color: var(--rouge-fonce); }
+  .rappel { border-left: 4px solid var(--rouge); }
+  .rappel p { margin: 0 0 8px; }
+  .rappel p:last-child { margin-bottom: 0; }
+  .contacts { width: 100%; border-collapse: collapse; font-size: 15px; }
+  .contacts th, .contacts td { text-align: left; padding: 9px 8px; border-bottom: 1px solid var(--trait); vertical-align: top; }
+  .contacts th { font-size: 12px; text-transform: uppercase; letter-spacing: .05em; color: var(--gris); }
+  .contacts a { color: var(--rouge-fonce); text-decoration: none; font-weight: 600; word-break: break-all; }
+  .contacts a:hover { text-decoration: underline; }
+  @media (max-width: 560px) {
+    .contacts thead { display: none; }
+    .contacts tr { display: block; padding: 10px 0; border-bottom: 1px solid var(--trait); }
+    .contacts td { display: block; border: 0; padding: 2px 0; }
+    .contacts td.nom { font-weight: 700; }
+  }
 </style>
 </head>
 <body>
@@ -64,6 +80,25 @@
 
 <main>
   <div class="message" id="message"></div>
+  <button class="bouton-second" id="ouvrir-suppleer" type="button">Je ne peux pas venir : me faire suppléer</button>
+
+  <div id="suppleer">
+    <section class="etape rappel">
+      <h2>Ne laisse pas ta chaise vide</h2>
+      <p>Une chaise vide pénalise tout le groupe, et se faire remplacer fait partie des règles BNI.</p>
+      <p>Le mieux : te faire suppléer par un associé, un salarié, un client, un proche… toute personne majeure prête à bien te représenter.</p>
+      <p>Sinon, contacte une des personnes ci-dessous : elles sont intéressées pour venir visiter la réunion.</p>
+    </section>
+    <section class="etape">
+      <h2>Personnes à contacter</h2>
+      <table class="contacts">
+        <thead><tr><th>Nom</th><th>Email</th><th>Téléphone</th></tr></thead>
+        <tbody id="contacts"></tbody>
+      </table>
+    </section>
+    <button class="bouton-second" id="fermer-suppleer" type="button">← Revenir à mon infomerciale</button>
+  </div>
+
   <div id="formulaire">
     <section class="etape">
       <div class="qui" id="qui"></div>
@@ -138,6 +173,7 @@ async function charger() {
   const data = await r.json();
   if (!r.ok) return message($("message"), data.erreur, false);
   $("formulaire").style.display = "block";
+  $("ouvrir-suppleer").style.display = "block";
   $("qui").innerHTML = "";
   $("qui").append(data.nom, Object.assign(document.createElement("small"), { textContent: data.metier }));
   $("a-nom").textContent = data.nom;
@@ -146,6 +182,43 @@ async function charger() {
   majTexte();
   afficherDepot(data.depot);
   if (data.depot && data.depot.a_photo) afficherPhoto("/api/photo" + q + "&t=" + Date.now());
+}
+
+function lien(href, texte) {
+  return Object.assign(document.createElement("a"), { href, textContent: texte });
+}
+
+async function ouvrirSuppleer() {
+  $("formulaire").style.display = "none";
+  $("ouvrir-suppleer").style.display = "none";
+  $("suppleer").style.display = "block";
+  scrollTo(0, 0);
+  const corps = $("contacts");
+  if (corps.dataset.charge) return;
+  const r = await fetch("/api/suppleants" + q);
+  const data = await r.json();
+  if (!r.ok) return message($("message"), data.erreur, false);
+  corps.dataset.charge = "1";
+  if (!data.suppleants.length) {
+    corps.innerHTML = '<tr><td colspan="3">Liste pas encore disponible : demande à Wassim.</td></tr>';
+    return;
+  }
+  corps.replaceChildren(...data.suppleants.map((p) => {
+    const tr = document.createElement("tr");
+    const nom = Object.assign(document.createElement("td"), { className: "nom", textContent: `${p.prenom} ${p.nom}`.trim() });
+    const email = document.createElement("td");
+    if (p.email) email.append(lien("mailto:" + p.email, p.email));
+    const tel = document.createElement("td");
+    if (p.tel) tel.append(lien("tel:" + p.tel.replace(/[^\d+]/g, ""), p.tel));
+    tr.append(nom, email, tel);
+    return tr;
+  }));
+}
+
+function fermerSuppleer() {
+  $("suppleer").style.display = "none";
+  $("ouvrir-suppleer").style.display = "block";
+  $("formulaire").style.display = "block";
 }
 
 function lireImage(fichier) {
@@ -199,6 +272,8 @@ zone.addEventListener("dragover", (e) => { e.preventDefault(); zone.classList.ad
 zone.addEventListener("dragleave", () => zone.classList.remove("survol"));
 zone.addEventListener("drop", (e) => { e.preventDefault(); zone.classList.remove("survol"); lireImage(e.dataTransfer.files[0]); });
 $("envoyer").addEventListener("click", envoyer);
+$("ouvrir-suppleer").addEventListener("click", ouvrirSuppleer);
+$("fermer-suppleer").addEventListener("click", fermerSuppleer);
 if (jeton) charger(); else message($("message"), "Ouvre la page avec ton lien perso (reçu de Wassim).", false);
 </script>
 </body>
