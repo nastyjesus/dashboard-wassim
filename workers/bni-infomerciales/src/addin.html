@@ -127,9 +127,17 @@ async function typePlaceholder(ctx, forme) {
 // bandeau « Qui peut m'aider à rencontrer » (en haut, large).
 async function lireSlides(ctx) {
   const slides = ctx.presentation.slides;
-  slides.load("items/id,items/layout/name");
+  slides.load("items/id");
   await ctx.sync();
-  const membres = slides.items.filter((s) => s.layout.name === LAYOUT_MEMBRE);
+  // Certaines slides n'ont pas de disposition (« Slide does not have a Layout ») :
+  // un chargement groupé échouerait en entier, on lit donc slide par slide.
+  const membres = [];
+  for (const s of slides.items) {
+    const layout = s.layout;
+    layout.load("name");
+    try { await ctx.sync(); } catch { continue; }
+    if (layout.name === LAYOUT_MEMBRE) membres.push(s);
+  }
   membres.forEach((s) => s.shapes.load("items/id,items/name,items/type,items/left,items/top,items/width,items/height"));
   await ctx.sync();
   const infos = [];
