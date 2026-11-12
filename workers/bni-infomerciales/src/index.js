@@ -8,6 +8,8 @@
 //   photo:<id>       JPEG (déjà réduit par le téléphone)
 //   ms               { rclone_token | refresh_token+client_id, drive_id, item_id } (jamais servi aux membres)
 //   dernier_run      { date, ok, message, mis_a_jour }
+//   applique:<id>    dernier dépôt traité { ...dépôt, statut: pose|introuvable, applique_le }
+//   photo_appliquee:<id>  JPEG de la dernière photo posée sur la slide
 //   suppleants       [{ nom, prenom, email, tel }] (visiteurs possibles ; données
 //                    perso : jamais dans le dépôt public, chargées par l'admin)
 
@@ -126,6 +128,7 @@ async function etatAdmin(env, origine) {
     ...m,
     lien: jetonDe[m.slide_id] ? `${origine}/?m=${jetonDe[m.slide_id]}` : null,
     depot: await lire(env, `depot:${m.slide_id}`, null),
+    applique: await lire(env, `applique:${m.slide_id}`, null),
   })));
   return {
     membres: liste,
@@ -164,13 +167,14 @@ async function suivreSlidesRecreees(env, anciens, membres, jetons) {
     const cible = membres.find((m) => !anciensIds.has(m.slide_id) && normaliserNom(m.nom) === normaliserNom(ancien.nom));
     if (!cible) continue;
     for (const [jeton, id] of Object.entries(jetons)) if (id === ancien.slide_id) jetons[jeton] = cible.slide_id;
-    const depot = await lire(env, `depot:${ancien.slide_id}`, null);
-    if (depot) {
-      await env.KV.put(`depot:${cible.slide_id}`, JSON.stringify({ ...depot, slide_id: cible.slide_id }));
-      const photo = await env.KV.get(`photo:${ancien.slide_id}`, 'arrayBuffer');
-      if (photo) await env.KV.put(`photo:${cible.slide_id}`, photo);
-      await env.KV.delete(`depot:${ancien.slide_id}`);
-      await env.KV.delete(`photo:${ancien.slide_id}`);
+    for (const [cleDepot, clePhoto] of [['depot', 'photo'], ['applique', 'photo_appliquee']]) {
+      const depot = await lire(env, `${cleDepot}:${ancien.slide_id}`, null);
+      if (!depot) continue;
+      await env.KV.put(`${cleDepot}:${cible.slide_id}`, JSON.stringify({ ...depot, slide_id: cible.slide_id }));
+      const photo = await env.KV.get(`${clePhoto}:${ancien.slide_id}`, 'arrayBuffer');
+      if (photo) await env.KV.put(`${clePhoto}:${cible.slide_id}`, photo);
+      await env.KV.delete(`${cleDepot}:${ancien.slide_id}`);
+      await env.KV.delete(`${clePhoto}:${ancien.slide_id}`);
     }
   }
 }
@@ -184,10 +188,18 @@ async function recevoirResultat(env, corps) {
   // l'ancienne demande jusqu'au prochain passage du job.
   const fiches = await lire(env, 'membres', []);
   let fichesModifiees = false;
-  for (const { slide_id: id, date } of corps.appliques ?? []) {
+  const maintenant = new Date().toISOString();
+  for (const { slide_id: id, date, orphelin } of corps.appliques ?? []) {
     const depot = await lire(env, `depot:${id}`, null);
     if (depot && depot.date === date) {
-      const fiche = fiches.find((m) => m.slide_id === id);
+      // historique : ce qui est sur la présentation (ou n'a pas trouvé de slide)
+      const statut = orphelin ? 'introuvable' : 'pose';
+      await env.KV.put(`applique:${id}`, JSON.stringify({ ...depot, statut, applique_le: maintenant }));
+      if (statut === 'pose' && depot.a_photo) {
+        const photo = await env.KV.get(`photo:${id}`, 'arrayBuffer');
+        if (photo) await env.KV.put(`photo_appliquee:${id}`, photo);
+      }
+      const fiche = orphelin ? null : fiches.find((m) => m.slide_id === id);
       if (fiche) {
         if (depot.recherche) fiche.recherche = depot.recherche;
         if (depot.a_photo) fiche.a_une_photo = true;
@@ -210,7 +222,7 @@ async function recevoirResultat(env, corps) {
     await env.KV.put('membres', JSON.stringify(membres));
     await env.KV.put('jetons', JSON.stringify(jetons));
   }
-  const run = { date: new Date().toISOString(), ok: Boolean(corps.ok), message: String(corps.message ?? ''), mis_a_jour: (corps.appliques ?? []).length };
+  const run = { date: new Date().toISOString(), ok: Boolean(corps.ok), message: String(corps.message ?? ''), mis_a_jour: (corps.appliques ?? []).filter((a) => !a.orphelin).length };
   await env.KV.put('dernier_run', JSON.stringify(run));
   return json(run);
 }
@@ -234,9 +246,9 @@ async function routesAdmin(request, env, url) {
     return json({ ok: true, nombre: liste.length });
   }
 
-  const photo = p.match(/^\/api\/(?:admin|job)\/photo\/(\d+)$/);
+  const photo = p.match(/^\/api\/(?:admin|job)\/photo(-appliquee)?\/(\d+)$/);
   if (photo && m === 'GET') {
-    const img = await env.KV.get(`photo:${photo[1]}`, 'arrayBuffer');
+    const img = await env.KV.get(`${photo[1] ? 'photo_appliquee' : 'photo'}:${photo[2]}`, 'arrayBuffer');
     return img ? new Response(img, { headers: { 'Content-Type': 'image/jpeg' } }) : erreur('Pas de photo.', 404);
   }
 

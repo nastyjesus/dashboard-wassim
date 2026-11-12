@@ -38,7 +38,8 @@
   .slide .bandeau .texte { margin-top: .6cqw; background: #111; color: #fff; border-radius: 2cqw; padding: .5cqw 2cqw; font-style: italic; font-weight: 700; font-size: 1.7cqw; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .slide .logo { position: absolute; left: 1.5%; top: 2.5%; color: var(--rouge); font-weight: 900; font-size: 3cqw; }
   .slide .photo { position: absolute; left: 1.5%; top: 14%; width: 75.2%; height: 83.6%; display: grid; place-items: center; }
-  .slide .photo img { max-width: 100%; max-height: 100%; display: block; }
+  /* contenu dans la zone, centré, quel que soit le format (portrait ou paysage) */
+  .slide .photo img { width: 100%; height: 100%; object-fit: contain; display: block; }
   .slide .photo .vide { color: #9a9a9a; font-size: 2cqw; border: 1px dashed #cfcfcf; width: 100%; height: 100%; display: grid; place-items: center; background: rgba(255,255,255,.6); }
   .slide .col { position: absolute; left: 78.7%; top: 2%; width: 20.3%; height: 45%; background: #111; }
   .slide .nom { position: absolute; left: 79.6%; top: 33.8%; width: 20.4%; background: var(--rouge); color: #fff; font-weight: 800; text-align: center; font-size: 1.7cqw; padding: .4cqw; }

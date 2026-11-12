@@ -266,7 +266,9 @@ def main():
                 "ok": True,
                 "message": f"{nb} slide(s) mise(s) à jour" if nb else "aucun dépôt, liste des membres synchronisée",
                 "membres": membres,
-                "appliques": [{"slide_id": d["slide_id"], "date": d["date"]} for d in appliques],
+                # orphelin : slide du membre introuvable, dépôt purgé sans être posé
+                "appliques": [{"slide_id": d["slide_id"], "date": d["date"], "orphelin": d["cible"] is None}
+                              for d in appliques],
             })
             print(f"OK : {nb} slide(s) mise(s) à jour, {len(membres)} membre(s) dans le deck.")
             return 0

@@ -155,6 +155,29 @@ describe('admin et job', () => {
     expect(moi.body).toMatchObject({ recherche: 'Nouvelle demande', depot: null });
   });
 
+  it('garde la trace de ce qui est posé sur la présentation (et des slides introuvables)', async () => {
+    const paul = await lienDe('Paul JUHEL');
+    const celine = await lienDe('Céline GUIHO');
+    await appel(`/api/photo?m=${paul}`, { methode: 'PUT', corps: new Uint8Array([0xff, 0xd8, 7]) });
+    await appel(`/api/depot?m=${paul}`, { methode: 'POST', corps: { recherche: 'Demande Paul' } });
+    await appel(`/api/depot?m=${celine}`, { methode: 'POST', corps: { recherche: 'Demande Céline' } });
+    const { body: entree } = await appel('/api/job/entree', { admin: ADMIN });
+    const date = (id) => entree.depots.find((d) => d.slide_id === id).date;
+    const { body: run } = await appel('/api/job/resultat', { methode: 'POST', admin: ADMIN, corps: { ok: true, appliques: [
+      { slide_id: 101, date: date(101), orphelin: false },
+      { slide_id: 202, date: date(202), orphelin: true },
+    ] } });
+    expect(run.mis_a_jour).toBe(1);
+
+    const { body: etat } = await appel('/api/admin/etat', { admin: ADMIN });
+    const de = (nom) => etat.membres.find((m) => m.nom === nom);
+    expect(de('Paul JUHEL')).toMatchObject({ depot: null, applique: { statut: 'pose', recherche: 'Demande Paul', a_photo: true } });
+    expect(de('Céline GUIHO')).toMatchObject({ depot: null, applique: { statut: 'introuvable' }, recherche: 'Ancien texte' });
+    const photo = await appel('/api/admin/photo-appliquee/101', { admin: ADMIN });
+    expect(photo.res.status).toBe(200);
+    expect((await appel('/api/admin/photo/101', { admin: ADMIN })).res.status).toBe(404);
+  });
+
   it('garde un dépôt modifié pendant que le job tournait', async () => {
     const m = await lienDe('Paul JUHEL');
     await appel(`/api/depot?m=${m}`, { methode: 'POST', corps: { recherche: 'v1' } });
