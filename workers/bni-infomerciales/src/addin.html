@@ -59,7 +59,7 @@ const TYPES_TEXTE = ["GeometricShape", "TextBox", "Placeholder"];
 let jeton = "";
 try { jeton = localStorage.getItem("bni-admin") || ""; } catch {}
 let depots = [];
-let sansDisposition = 0;
+let sansDisposition = 0, illisibles = 0, exempleId = "";
 
 const $ = (id) => document.getElementById(id);
 const echapper = (t) => String(t).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
@@ -143,10 +143,14 @@ async function lireSlides(ctx) {
     try { await ctx.sync(); } catch { sansDisposition++; membres.push(s); continue; }
     if (layout.name === LAYOUT_MEMBRE) membres.push(s);
   }
-  membres.forEach((s) => s.shapes.load("items/id,items/name,items/type,items/left,items/top,items/width,items/height"));
-  await ctx.sync();
+  // Formes lues slide par slide : une slide illisible (GeneralException) est
+  // comptée à part au lieu de faire échouer toute la lecture.
   const infos = [];
+  illisibles = 0;
+  exempleId = slides.items.length ? slides.items[0].id : "";
   for (const s of membres) {
+    s.shapes.load("items/id,items/name,items/type,items/left,items/top,items/width,items/height");
+    try { await ctx.sync(); } catch { illisibles++; continue; }
     const formes = s.shapes.items;
     const champsNom = formes.filter((f) => f.left >= DROITE * W && f.top >= 0.30 * H && f.top <= 0.40 * H);
     const bandeaux = formes.filter((f) => f.top < 0.15 * H && f.left < DROITE * W && f.width > 0.4 * W);
@@ -196,7 +200,7 @@ async function appliquer() {
         const info = trouver(infos, d);
         if (!info) {
           const noms = infos.map((i) => i.nom).filter(Boolean).join(", ") || "aucun";
-          etats[d.slide_id] = { ok: false, texte: `Slide introuvable (ni par identifiant, ni par nom). Noms lus : ${noms}. Slides sans disposition : ${sansDisposition}.` };
+          etats[d.slide_id] = { ok: false, texte: `Slide introuvable (ni par identifiant, ni par nom). Noms lus : ${noms}. Slides sans disposition : ${sansDisposition}, illisibles : ${illisibles}. Exemple d'identifiant : ${exempleId}.` };
           continue;
         }
         try {
