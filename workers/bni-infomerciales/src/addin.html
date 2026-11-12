@@ -170,22 +170,51 @@ function trouver(infos, d) {
   return memes.length === 1 ? memes[0] : null;
 }
 
+// Secours : API commune d'Office (insertion d'image sur la slide sélectionnée),
+// pour les slides où PowerPoint en ligne refuse l'ajout de forme.
+async function insererImageSecours(ctx, info, photo, pos) {
+  const avant = new Set(info.formes.map((f) => f.id));
+  ctx.presentation.setSelectedSlides([info.slide.id]);
+  await ctx.sync();
+  await new Promise((ok, ko) => Office.context.document.setSelectedDataAsync(photo.base64, {
+    coercionType: Office.CoercionType.Image,
+    imageLeft: pos.left, imageTop: pos.top, imageWidth: pos.width, imageHeight: pos.height,
+  }, (r) => (r.status === Office.AsyncResultStatus.Succeeded ? ok() : ko(new Error(r.error.message)))));
+  info.slide.shapes.load("items/id");
+  await ctx.sync();
+  const nouvelle = info.slide.shapes.items.find((f) => !avant.has(f.id));
+  if (nouvelle) { nouvelle.name = NOM_PHOTO; await ctx.sync(); }
+}
+
+const texteErreur = (e) => (e && (e.message || e.code)) || String(e);
+
 async function poserPhoto(ctx, info, photo) {
   const zx = ZONE.x * W, zy = ZONE.y * H, zw = ZONE.w * W, zh = ZONE.h * H;
+  const anciennes = [];
   for (const f of info.formes) {
     const cx = f.left + f.width / 2, cy = f.top + f.height / 2;
     const dansZone = f.left < DROITE * W && cx >= zx && cx <= zx + zw && cy >= zy && cy <= zy + zh;
     if (!dansZone) continue;
-    const estPhoto = f.type === "Image" || f.name === NOM_PHOTO || (await typePlaceholder(ctx, f)) === "Picture";
-    if (estPhoto) f.delete();
+    if (f.type === "Image" || f.name === NOM_PHOTO || (await typePlaceholder(ctx, f)) === "Picture") anciennes.push(f);
   }
   const ratio = Math.min(zw / photo.largeur, zh / photo.hauteur);
   const l = photo.largeur * ratio, h = photo.hauteur * ratio;
-  const cadre = info.slide.shapes.addGeometricShape("Rectangle", { left: zx + (zw - l) / 2, top: zy + (zh - h) / 2, width: l, height: h });
-  cadre.name = NOM_PHOTO;
-  cadre.fill.setImage(photo.base64);
-  cadre.lineFormat.visible = false;
-  await ctx.sync();
+  const pos = { left: zx + (zw - l) / 2, top: zy + (zh - h) / 2, width: l, height: h };
+  // la nouvelle photo d'abord : en cas d'échec, l'ancienne reste en place
+  try {
+    const cadre = info.slide.shapes.addGeometricShape("Rectangle", pos);
+    cadre.name = NOM_PHOTO;
+    cadre.fill.setImage(photo.base64);
+    cadre.lineFormat.visible = false;
+    await ctx.sync();
+  } catch (e1) {
+    try { await insererImageSecours(ctx, info, photo, pos); }
+    catch (e2) { throw new Error(`ajout de la photo refusé (${texteErreur(e1)} ; secours : ${texteErreur(e2)})`); }
+  }
+  if (!anciennes.length) return;
+  anciennes.forEach((f) => f.delete());
+  try { await ctx.sync(); }
+  catch (e) { throw new Error(`nouvelle photo posée, mais l'ancienne n'a pas pu être retirée (${texteErreur(e)}) : supprime-la à la main`); }
 }
 
 async function appliquer() {
@@ -213,7 +242,7 @@ async function appliquer() {
           etats[d.slide_id] = { ok: true, texte: "Posé sur la slide." };
           appliques.push({ slide_id: d.slide_id, date: d.depot.date });
         } catch (e) {
-          etats[d.slide_id] = { ok: false, texte: "Erreur : " + (e && e.message || e) };
+          etats[d.slide_id] = { ok: false, texte: "Erreur : " + texteErreur(e) };
         }
       }
     });
