@@ -59,6 +59,7 @@ const TYPES_TEXTE = ["GeometricShape", "TextBox", "Placeholder"];
 let jeton = "";
 try { jeton = localStorage.getItem("bni-admin") || ""; } catch {}
 let depots = [];
+let sansDisposition = 0;
 
 const $ = (id) => document.getElementById(id);
 const echapper = (t) => String(t).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
@@ -131,11 +132,15 @@ async function lireSlides(ctx) {
   await ctx.sync();
   // Certaines slides n'ont pas de disposition (« Slide does not have a Layout ») :
   // un chargement groupé échouerait en entier, on lit donc slide par slide.
+  // Une slide recopiée d'une autre présentation peut être « sans disposition »
+  // pour PowerPoint en ligne alors qu'elle est bien une slide membre : on la
+  // garde comme candidate, elle sera reconnue par le nom du membre.
   const membres = [];
+  sansDisposition = 0;
   for (const s of slides.items) {
     const layout = s.layout;
     layout.load("name");
-    try { await ctx.sync(); } catch { continue; }
+    try { await ctx.sync(); } catch { sansDisposition++; membres.push(s); continue; }
     if (layout.name === LAYOUT_MEMBRE) membres.push(s);
   }
   membres.forEach((s) => s.shapes.load("items/id,items/name,items/type,items/left,items/top,items/width,items/height"));
@@ -189,7 +194,11 @@ async function appliquer() {
       const infos = await lireSlides(ctx);
       for (const d of depots) {
         const info = trouver(infos, d);
-        if (!info) { etats[d.slide_id] = { ok: false, texte: "Slide introuvable (ni par identifiant, ni par nom)." }; continue; }
+        if (!info) {
+          const noms = infos.map((i) => i.nom).filter(Boolean).join(", ") || "aucun";
+          etats[d.slide_id] = { ok: false, texte: `Slide introuvable (ni par identifiant, ni par nom). Noms lus : ${noms}. Slides sans disposition : ${sansDisposition}.` };
+          continue;
+        }
         try {
           if (d.depot.recherche) {
             if (!info.bandeau) throw new Error("bandeau « Qui peut m'aider à rencontrer » introuvable");
