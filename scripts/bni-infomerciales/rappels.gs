@@ -6,12 +6,11 @@
 //
 // Mise en place (une fois) :
 //   1. script.google.com > Nouveau projet > coller ce fichier.
-//   2. Paramètres du projet > Propriétés du script :
-//        WORKER_URL       https://bni-infomerciales.loumiwassim.workers.dev
-//        BNI_ADMIN_TOKEN  (jeton admin)
+//   2. Paramètres du projet > Propriétés du script : BNI_ADMIN_TOKEN = jeton admin.
 //   3. Exécuter installerDeclencheurs une fois et autoriser le script.
 
 const ZONE = 'Europe/Paris';
+const WORKER_URL = 'https://bni-infomerciales.loumiwassim.workers.dev';
 
 function rappelLundi() { envoyer_('lundi'); }
 function rappelMercredi() { envoyer_('mercredi'); }
@@ -22,7 +21,7 @@ function apercuMercredi() { Logger.log(JSON.stringify(liste_('mercredi'), null, 
 
 function liste_(type) {
   const p = PropertiesService.getScriptProperties();
-  const r = UrlFetchApp.fetch(`${p.getProperty('WORKER_URL')}/api/admin/rappels?type=${type}`, {
+  const r = UrlFetchApp.fetch(`${WORKER_URL}/api/admin/rappels?type=${type}`, {
     headers: { 'X-Wassim-Auth': p.getProperty('BNI_ADMIN_TOKEN') },
     muteHttpExceptions: true,
   });
