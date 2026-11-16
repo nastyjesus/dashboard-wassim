@@ -115,6 +115,47 @@ describe('suppléants', () => {
   });
 });
 
+describe('rappels hebdo', () => {
+  // lundi 16/11/2026 et mercredi 18/11/2026, 9h à Paris (8h UTC)
+  const LUNDI = '2026-11-16T08:00:00Z';
+  const MERCREDI = '2026-11-18T08:00:00Z';
+
+  beforeEach(async () => {
+    await appel('/api/admin/emails', { methode: 'PUT', admin: ADMIN, corps: { emails: { 101: 'paul@exemple.fr', 202: 'celine@exemple.fr', 303: 'pas-un-email' } } });
+  });
+
+  it('calcule le lundi de la semaine à l’heure de Paris', async () => {
+    const { lundiParis } = await import('../src/index.js');
+    expect(lundiParis(new Date(MERCREDI))).toBe('2026-11-16');
+    expect(lundiParis(new Date('2026-11-15T23:30:00Z'))).toBe('2026-11-16'); // lundi 0h30 à Paris
+    expect(lundiParis(new Date('2026-11-22T20:00:00Z'))).toBe('2026-11-16'); // dimanche soir
+  });
+
+  it('lundi : un mail perso à chaque membre avec email, limite mercredi 19h', async () => {
+    expect((await appel(`/api/admin/rappels?type=lundi&maintenant=${LUNDI}`)).res.status).toBe(401);
+    const { body } = await appel(`/api/admin/rappels?type=lundi&maintenant=${LUNDI}`, { admin: ADMIN });
+    expect(body.mails.map((x) => x.email)).toEqual(['paul@exemple.fr', 'celine@exemple.fr']);
+    const paul = body.mails[0];
+    expect(paul.texte).toContain('Bonjour Paul,');
+    expect(paul.texte).toContain('mercredi 19h');
+    expect(paul.texte).toContain(`https://bni.test/?m=${await lienDe('Paul JUHEL')}`);
+  });
+
+  it('mercredi : seulement ceux qui n’ont rien envoyé depuis lundi', async () => {
+    const m = await lienDe('Paul JUHEL');
+    await appel(`/api/depot?m=${m}`, { methode: 'POST', corps: { recherche: 'Ma demande' } });
+    const { body } = await appel(`/api/admin/rappels?type=mercredi&maintenant=${MERCREDI}`, { admin: ADMIN });
+    // le dépôt du test est daté d'aujourd'hui (réel) : il compte pour la semaine du test seulement s'il est après le lundi simulé
+    const attendu = new Date().toISOString().slice(0, 10) >= '2026-11-16' ? ['celine@exemple.fr'] : ['paul@exemple.fr', 'celine@exemple.fr'];
+    expect(body.mails.map((x) => x.email)).toEqual(attendu);
+    expect(body.mails.at(-1).texte).toContain('ce soir, mercredi 19h');
+  });
+
+  it('refuse un type inconnu', async () => {
+    expect((await appel('/api/admin/rappels?type=jeudi', { admin: ADMIN })).res.status).toBe(400);
+  });
+});
+
 describe('admin et job', () => {
   it('protège l\'admin par jeton', async () => {
     expect((await appel('/api/admin/etat')).res.status).toBe(401);

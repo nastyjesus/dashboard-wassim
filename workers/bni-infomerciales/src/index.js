@@ -10,6 +10,7 @@
 //   dernier_run      { date, ok, message, mis_a_jour }
 //   applique:<id>    dernier dépôt traité { ...dépôt, statut: pose|introuvable, applique_le }
 //   photo_appliquee:<id>  JPEG de la dernière photo posée sur la slide
+//   emails           { <slide_id>: email } (rappels ; données perso, chargées par l'admin)
 //   suppleants       [{ nom, prenom, email, tel }] (visiteurs possibles ; données
 //                    perso : jamais dans le dépôt public, chargées par l'admin)
 
@@ -227,6 +228,73 @@ async function recevoirResultat(env, corps) {
   return json(run);
 }
 
+// ---------- rappels hebdo (envoyés par le script Google Apps Script) ----------
+
+const ZONE_PARIS = 'Europe/Paris';
+const jourParis = (date) => new Intl.DateTimeFormat('sv-SE', { timeZone: ZONE_PARIS }).format(date); // AAAA-MM-JJ
+
+// Lundi (heure de Paris) de la semaine de « maintenant », au format AAAA-MM-JJ.
+export function lundiParis(maintenant) {
+  const jour = jourParis(maintenant);
+  const nom = new Intl.DateTimeFormat('en-US', { timeZone: ZONE_PARIS, weekday: 'short' }).format(maintenant);
+  const ecart = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].indexOf(nom);
+  const d = new Date(`${jour}T12:00:00Z`);
+  d.setUTCDate(d.getUTCDate() - ecart);
+  return d.toISOString().slice(0, 10);
+}
+
+function texteRappel(type, prenom, lien) {
+  const lundi = type === 'lundi';
+  const sujet = lundi
+    ? 'Infomerciale BNI : ta photo et ta demande pour cette semaine'
+    : 'Rappel : ton infomerciale BNI avant ce soir 19h';
+  const intro = lundi
+    ? "Petit rappel pour la réunion de cette semaine : pense à envoyer la photo de ton infomerciale et ta demande « Qui peut m'aider à rencontrer »."
+    : "Je n'ai pas encore reçu ta photo ni ta demande « Qui peut m'aider à rencontrer » pour la réunion de cette semaine.";
+  const limite = lundi ? 'Limite : mercredi 19h, au plus tard.' : 'Limite : ce soir, mercredi 19h, au plus tard.';
+  const lignes = [
+    `Bonjour ${prenom},`,
+    '',
+    intro,
+    '',
+    limite,
+    '',
+    'Ton lien perso :',
+    lien,
+    '',
+    'Pour la demande : une seule personne, le plus précis possible (Prénom NOM – Fonction – Entreprise (Localité)).',
+    '',
+    "Tu ne peux pas venir ? En haut de la page, le bouton « Je ne peux pas venir : me faire suppléer » t'aide à trouver quelqu'un pour te remplacer.",
+    '',
+    'Une question ou un doute ? Réponds simplement à ce mail.',
+    '',
+    'Belle semaine,',
+    'Wassim',
+  ];
+  return { sujet, texte: lignes.join('\n') };
+}
+
+// Liste des mails à envoyer. Lundi : tous les membres avec un email.
+// Mercredi : seulement ceux qui n'ont rien envoyé depuis lundi.
+export async function listeRappels(env, origine, type, maintenant) {
+  const [membres, jetons, emails] = await Promise.all([lire(env, 'membres', []), lire(env, 'jetons', {}), lire(env, 'emails', {})]);
+  const jetonDe = Object.fromEntries(Object.entries(jetons).map(([j, id]) => [id, j]));
+  const lundi = lundiParis(maintenant);
+  const envoyeCetteSemaine = async (id) => {
+    const dates = [(await lire(env, `depot:${id}`, null))?.date, (await lire(env, `applique:${id}`, null))?.date];
+    return dates.some((d) => d && jourParis(new Date(d)) >= lundi);
+  };
+  const mails = [];
+  for (const m of membres) {
+    const email = emails[m.slide_id];
+    if (!email || !jetonDe[m.slide_id]) continue;
+    if (type === 'mercredi' && await envoyeCetteSemaine(m.slide_id)) continue;
+    const prenom = String(m.nom).split(/\s+/)[0];
+    mails.push({ nom: m.nom, email, ...texteRappel(type, prenom, `${origine}/?m=${jetonDe[m.slide_id]}`) });
+  }
+  return { type, semaine_du: lundi, mails };
+}
+
 async function routesAdmin(request, env, url) {
   if (!estAdmin(request, env)) return erreur('Accès refusé.', 401);
   const p = url.pathname;
@@ -234,6 +302,22 @@ async function routesAdmin(request, env, url) {
 
   if (p === '/api/admin/etat' && m === 'GET') return json(await etatAdmin(env, url.origin));
   if (p === '/api/admin/appliquer' && m === 'POST') return declencherJob(env);
+  if (p === '/api/admin/emails' && m === 'PUT') {
+    let corps;
+    try { corps = await request.json(); } catch { return erreur('Requête illisible.'); }
+    if (!corps.emails || typeof corps.emails !== 'object') return erreur('emails ({ slide_id: email }) requis.');
+    const propres = Object.fromEntries(Object.entries(corps.emails)
+      .map(([id, e]) => [Number(id), String(e ?? '').trim()])
+      .filter(([id, e]) => id && /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(e)));
+    await env.KV.put('emails', JSON.stringify(propres));
+    return json({ ok: true, nombre: Object.keys(propres).length });
+  }
+  if (p === '/api/admin/rappels' && m === 'GET') {
+    const type = url.searchParams.get('type');
+    if (!['lundi', 'mercredi'].includes(type)) return erreur('type=lundi ou type=mercredi requis.');
+    const maintenant = url.searchParams.get('maintenant') ? new Date(url.searchParams.get('maintenant')) : new Date();
+    return json(await listeRappels(env, url.origin, type, maintenant));
+  }
   if (p === '/api/admin/suppleants' && m === 'PUT') {
     let corps;
     try { corps = await request.json(); } catch { return erreur('Requête illisible.'); }
