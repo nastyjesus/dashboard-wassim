@@ -45,6 +45,11 @@
   .tuile span { color: var(--gris); font-size: 13px; }
   .defile { overflow-x: auto; border-radius: 10px; }
   td.nombre, th.nombre { text-align: right; white-space: nowrap; }
+  .bloc-titre { flex: 1 1 100%; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: var(--gris); margin-top: 4px; }
+  .suivi { background: #fff; border: 1px solid var(--trait); border-radius: 10px; padding: 12px 14px; margin-bottom: 14px; }
+  .suivi summary { font-weight: 700; cursor: pointer; }
+  .table-suivi { border: 0; margin-top: 10px; }
+  .table-suivi tr.mois td { background: #fafafa; }
   .legende { color: var(--gris); font-size: 13px; margin: 0 0 10px; }
   .vignette { width: 96px; height: 54px; object-fit: contain; background: #f1f1f1; border-radius: 4px; display: block; }
   .muet { color: var(--gris); font-size: 13px; }
@@ -77,6 +82,14 @@
     </div>
     <div class="resultat" id="resultat"></div>
     <div class="synthese" id="synthese"></div>
+    <details class="suivi" open>
+      <summary>Suivi semaine par semaine</summary>
+      <div class="defile"><table class="table-suivi">
+        <thead><tr><th>Période</th><th class="nombre">Infomerciales</th><th class="nombre">Demandes spécifiques</th></tr></thead>
+        <tbody id="suivi"></tbody>
+      </table></div>
+      <p class="legende">Chaque semaine repart de zéro le lundi. La ligne du mois donne la moyenne par semaine terminée. Avant le 16/11, chiffres reconstitués à partir des derniers envois connus (incomplets).</p>
+    </details>
     <p class="legende"><b>À poser</b> : reçu, pas encore sur la présentation (passage du mercredi soir ou bouton PowerPoint). <b>Sur la présentation</b> : dernier envoi posé sur la slide. Clique une photo pour l'ouvrir en grand (utile pour la poser à la main).</p>
     <div class="defile"><table>
       <thead><tr><th>Membre</th><th>Statut</th><th>Photo</th><th class="cache-mobile">Qui peut m'aider à rencontrer</th><th class="nombre">Objectif CA HT</th><th class="nombre">Recos transformées</th><th class="nombre cache-mobile">€ HT / reco</th><th>Lien perso</th></tr></thead>
@@ -116,15 +129,32 @@ async function charger() {
   const avecObj = membres.filter((m) => m.objectifs);
   const totalCa = avecObj.reduce((t, m) => t + m.objectifs.ca_ht, 0);
   const totalRecos = avecObj.reduce((t, m) => t + m.objectifs.recos, 0);
-  const avecInfo = membres.filter((m) => m.depot || (m.applique && m.applique.statut === "pose")).length;
-  const avecDemande = membres.filter((m) => (m.depot && m.depot.recherche) || (m.applique && m.applique.recherche)).length;
-  $("synthese").innerHTML = [
-    [`${avecInfo} / ${membres.length}`, "infomerciales reçues (dernier envoi)"],
-    [`${avecDemande} / ${membres.length}`, "demandes spécifiques reçues"],
-    [`${avecObj.length} / ${membres.length}`, "objectifs annuels remplis"],
-    [euros(totalCa), "objectif CA HT cumulé du groupe"],
-    [String(totalRecos), "recommandations transformées visées"],
-  ].map(([v, t]) => `<div class="tuile"><b>${esc(v)}</b><span>${esc(t)}</span></div>`).join("");
+  const n = membres.length;
+  const suivi = data.suivi || [];
+  const cette = suivi.find((x) => x.lundi === data.semaine_en_cours) || { infomerciales: 0, demandes: 0 };
+  const jour = (iso) => new Date(`${iso}T12:00:00Z`).toLocaleDateString("fr-FR", { day: "numeric", month: "short" });
+  const moisDe = (iso) => new Date(`${iso}T12:00:00Z`).toLocaleDateString("fr-FR", { month: "long", year: "numeric" });
+  const tuile = (v, t) => `<div class="tuile"><b>${esc(v)}</b><span>${esc(t)}</span></div>`;
+  $("synthese").innerHTML =
+    `<div class="bloc-titre">Cette semaine (depuis lundi ${esc(jour(data.semaine_en_cours))})</div>` +
+    tuile(`${cette.infomerciales} / ${n}`, "infomerciales reçues") +
+    tuile(`${cette.demandes} / ${n}`, "demandes spécifiques reçues") +
+    tuile(`${n - cette.infomerciales}`, "membres sans infomerciale") +
+    `<div class="bloc-titre">Objectifs annuels</div>` +
+    tuile(`${avecObj.length} / ${n}`, "objectifs remplis") +
+    tuile(euros(totalCa), "objectif CA HT cumulé du groupe") +
+    tuile(String(totalRecos), "recommandations transformées visées");
+  // suivi : semaines regroupées par mois, avec la moyenne du mois
+  const parMois = {};
+  for (const x of suivi) (parMois[moisDe(x.lundi)] ??= []).push(x);
+  $("suivi").innerHTML = Object.entries(parMois).map(([mois, semaines]) => {
+    // moyenne sur les semaines terminées (la semaine en cours fausserait le chiffre)
+    const finies = semaines.filter((x) => x.lundi !== data.semaine_en_cours);
+    const base = finies.length ? finies : semaines;
+    const moy = (cle) => (base.reduce((t, x) => t + x[cle], 0) / base.length).toFixed(1).replace(".", ",");
+    const lignes = semaines.map((x) => `<tr><td>Semaine du ${esc(jour(x.lundi))}${x.lundi === data.semaine_en_cours ? ' <span class="pastille attente">en cours</span>' : ""}</td><td class="nombre">${x.infomerciales} / ${n}</td><td class="nombre">${x.demandes} / ${n}</td></tr>`).join("");
+    return `<tr class="mois"><td><strong>${esc(mois)}</strong></td><td class="nombre"><strong>${moy("infomerciales")}</strong> <span class="muet">/ sem.</span></td><td class="nombre"><strong>${moy("demandes")}</strong> <span class="muet">/ sem.</span></td></tr>${lignes}`;
+  }).join("") || '<tr><td colspan="3" class="muet">Pas encore de données.</td></tr>';
   $("appliquer").title = data.bouton_dispo ? "" : "Bouton non configuré (GH_DISPATCH_TOKEN)";
   $("lignes").innerHTML = membres.length ? membres.map((m, i) => {
     const d = m.depot, a = m.applique;

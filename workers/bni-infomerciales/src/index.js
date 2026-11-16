@@ -12,6 +12,7 @@
 //   photo_appliquee:<id>  JPEG de la dernière photo posée sur la slide
 //   emails           { <slide_id>: email } (rappels ; données perso, chargées par l'admin)
 //   objectifs:<id>   { ca_ht, recos, date } (objectif annuel BNI déclaré par le membre)
+//   envois:<lundi>   { <slide_id>: { photo, demande, date } } (suivi hebdo, lundi = AAAA-MM-JJ Paris)
 //   suppleants       [{ nom, prenom, email, tel }] (visiteurs possibles ; données
 //                    perso : jamais dans le dépôt public, chargées par l'admin)
 
@@ -77,11 +78,44 @@ async function membreParJeton(env, jeton) {
   return membres.find((m) => m.slide_id === id) ?? null;
 }
 
-async function enregistrerDepot(env, slideId, modif) {
+async function enregistrerDepot(env, slideId, modif, rechercheActuelle = '') {
   const precedent = await lire(env, `depot:${slideId}`, { slide_id: slideId, recherche: '', a_photo: false });
-  const depot = { ...precedent, ...modif, date: new Date().toISOString() };
+  const maintenant = new Date();
+  const depot = { ...precedent, ...modif, date: maintenant.toISOString() };
   await env.KV.put(`depot:${slideId}`, JSON.stringify(depot));
+  // suivi hebdo : la page pré-remplit la demande avec le texte déjà sur la
+  // slide, on ne compte donc une demande que si elle est nouvelle
+  const cle = `envois:${lundiParis(maintenant)}`;
+  const semaine = await lire(env, cle, {});
+  const avant = semaine[slideId] ?? { photo: false, demande: false };
+  const demandeNeuve = Boolean(modif.recherche) && normaliserNom(modif.recherche) !== normaliserNom(rechercheActuelle);
+  semaine[slideId] = { photo: avant.photo || Boolean(modif.a_photo), demande: avant.demande || demandeNeuve, date: depot.date };
+  await env.KV.put(cle, JSON.stringify(semaine));
   return depot;
+}
+
+// Suivi des dernières semaines : nombre de membres ayant envoyé une photo /
+// une demande. Les semaines d'avant le journal sont reconstituées à partir
+// des derniers dépôts connus (incomplet pour ces semaines-là).
+async function suiviHebdo(env, membres) {
+  const semaines = {};
+  const { keys } = await env.KV.list({ prefix: 'envois:' });
+  for (const { name } of keys) semaines[name.slice('envois:'.length)] = { ...(await lire(env, name, {})) };
+  const journal = new Set(Object.keys(semaines));
+  for (const m of membres) {
+    for (const d of [m.depot, m.applique]) {
+      if (!d?.date || (m.applique && d === m.applique && m.applique.statut !== 'pose')) continue;
+      const lundi = lundiParis(new Date(d.date));
+      if (journal.has(lundi)) continue; // semaine déjà suivie par le journal
+      const s = (semaines[lundi] ??= {});
+      const avant = s[m.slide_id] ?? { photo: false, demande: false };
+      s[m.slide_id] = { photo: avant.photo || Boolean(d.a_photo), demande: avant.demande || Boolean(d.recherche) };
+    }
+  }
+  return Object.entries(semaines)
+    .map(([lundi, s]) => ({ lundi, infomerciales: Object.values(s).filter((x) => x.photo).length, demandes: Object.values(s).filter((x) => x.demande).length }))
+    .sort((a, b) => b.lundi.localeCompare(a.lundi))
+    .slice(0, 26);
 }
 
 // ---------- membres ----------
@@ -130,7 +164,7 @@ async function routesMembre(request, env, url) {
     let corps;
     try { corps = await request.json(); } catch { return erreur('Requête illisible.'); }
     const recherche = String(corps.recherche ?? '').split(/\s+/).filter(Boolean).join(' ').slice(0, RECHERCHE_MAX);
-    return json(await enregistrerDepot(env, id, { recherche }));
+    return json(await enregistrerDepot(env, id, { recherche }, membre.recherche));
   }
   return erreur('Introuvable.', 404);
 }
@@ -151,6 +185,8 @@ async function etatAdmin(env, origine) {
   })));
   return {
     membres: liste,
+    semaine_en_cours: lundiParis(new Date()),
+    suivi: await suiviHebdo(env, liste),
     microsoft_connecte: Boolean(ms?.refresh_token || ms?.rclone_token),
     bouton_dispo: Boolean(env.GH_DISPATCH_TOKEN),
     dernier_run: dernierRun,

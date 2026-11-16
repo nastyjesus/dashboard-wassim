@@ -142,6 +142,24 @@ describe('objectifs annuels', () => {
   });
 });
 
+describe('suivi hebdo', () => {
+  it('compte les infomerciales et les vraies nouvelles demandes de la semaine', async () => {
+    const paul = await lienDe('Paul JUHEL');
+    const celine = await lienDe('Céline GUIHO');
+    await appel(`/api/photo?m=${paul}`, { methode: 'PUT', corps: new Uint8Array([0xff, 0xd8]) });
+    // Céline renvoie le texte déjà sur sa slide (pré-rempli) : pas une nouvelle demande
+    await appel(`/api/depot?m=${celine}`, { methode: 'POST', corps: { recherche: 'Ancien texte' } });
+    let { body } = await appel('/api/admin/etat', { admin: ADMIN });
+    let semaine = body.suivi.find((x) => x.lundi === body.semaine_en_cours);
+    expect(semaine).toEqual({ lundi: body.semaine_en_cours, infomerciales: 1, demandes: 0 });
+
+    await appel(`/api/depot?m=${celine}`, { methode: 'POST', corps: { recherche: 'Nouvelle demande' } });
+    ({ body } = await appel('/api/admin/etat', { admin: ADMIN }));
+    semaine = body.suivi.find((x) => x.lundi === body.semaine_en_cours);
+    expect(semaine).toMatchObject({ infomerciales: 1, demandes: 1 });
+  });
+});
+
 describe('rappels hebdo', () => {
   // lundi 16/11/2026 et mercredi 18/11/2026, 9h à Paris (8h UTC)
   const LUNDI = '2026-11-16T08:00:00Z';
