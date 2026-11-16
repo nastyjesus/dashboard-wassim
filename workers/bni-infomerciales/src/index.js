@@ -11,7 +11,7 @@
 //   applique:<id>    dernier dépôt traité { ...dépôt, statut: pose|introuvable, applique_le }
 //   photo_appliquee:<id>  JPEG de la dernière photo posée sur la slide
 //   emails           { <slide_id>: email } (rappels ; données perso, chargées par l'admin)
-//   objectifs:<id>   { ca_ht, recos, date } (objectif annuel BNI déclaré par le membre)
+//   objectifs:<id>   { ca_ht, recos, metiers, date } (objectif annuel BNI + métiers prescripteurs/recherchés)
 //   envois:<lundi>   { <slide_id>: { photo, demande, date } } (suivi hebdo, lundi = AAAA-MM-JJ Paris)
 //   suppleants       [{ nom, prenom, email, tel }] (visiteurs possibles ; données
 //                    perso : jamais dans le dépôt public, chargées par l'admin)
@@ -23,6 +23,7 @@ import ICONE_ADDIN from './icone.js';
 
 const PHOTO_MAX = 5 * 1024 * 1024;
 const RECHERCHE_MAX = 160;
+const METIERS_MAX = 600;
 
 const json = (data, status = 200) => new Response(JSON.stringify(data), {
   status, headers: { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' },
@@ -137,11 +138,16 @@ async function routesMembre(request, env, url) {
       const n = Number(String(v ?? '').replace(/[\s ]/g, '').replace(',', '.'));
       return Number.isFinite(n) && n > 0 && n <= max ? Math.round(n) : null;
     };
-    const ca = entier(corps.ca_ht, 100_000_000);
-    const recos = entier(corps.recos, 10_000);
-    if (ca === null) return erreur("Indique ton objectif de chiffre d'affaires HT (un nombre en euros).");
-    if (recos === null) return erreur('Indique le nombre de recommandations transformées (un nombre).');
-    const objectifs = { ca_ht: ca, recos, date: new Date().toISOString() };
+    // chaque champ est facultatif, mais un nombre saisi doit être valide
+    const vide = (v) => String(v ?? '').trim() === '';
+    const ca = vide(corps.ca_ht) ? null : entier(corps.ca_ht, 100_000_000);
+    const recos = vide(corps.recos) ? null : entier(corps.recos, 10_000);
+    if (!vide(corps.ca_ht) && ca === null) return erreur("Objectif de chiffre d'affaires HT : indique un nombre en euros.");
+    if (!vide(corps.recos) && recos === null) return erreur('Recommandations transformées : indique un nombre.');
+    const metiers = String(corps.metiers ?? '').split(/\r?\n/)
+      .map((l) => l.split(/\s+/).filter(Boolean).join(' ')).filter(Boolean).join('\n').slice(0, METIERS_MAX);
+    if (ca === null && recos === null && !metiers) return erreur('Remplis au moins un champ.');
+    const objectifs = { ca_ht: ca, recos, metiers, date: new Date().toISOString() };
     await env.KV.put(`objectifs:${id}`, JSON.stringify(objectifs));
     return json(objectifs);
   }

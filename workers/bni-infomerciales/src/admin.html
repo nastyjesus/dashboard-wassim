@@ -50,6 +50,11 @@
   .suivi summary { font-weight: 700; cursor: pointer; }
   .table-suivi { border: 0; margin-top: 10px; }
   .table-suivi tr.mois td { background: #fafafa; }
+  .titre-section { font-size: 17px; margin: 26px 0 10px; }
+  .carte-metiers { background: #fff; border: 1px solid var(--trait); border-radius: 10px; padding: 12px 14px; }
+  .carte-metiers ul { margin: 0; padding-left: 18px; columns: 2 220px; }
+  .carte-metiers li { margin-bottom: 4px; }
+  .metiers-cellule { white-space: pre-line; }
   .legende { color: var(--gris); font-size: 13px; margin: 0 0 10px; }
   .vignette { width: 96px; height: 54px; object-fit: contain; background: #f1f1f1; border-radius: 4px; display: block; }
   .muet { color: var(--gris); font-size: 13px; }
@@ -92,9 +97,18 @@
     </details>
     <p class="legende"><b>À poser</b> : reçu, pas encore sur la présentation (passage du mercredi soir ou bouton PowerPoint). <b>Sur la présentation</b> : dernier envoi posé sur la slide. Clique une photo pour l'ouvrir en grand (utile pour la poser à la main).</p>
     <div class="defile"><table>
-      <thead><tr><th>Membre</th><th>Statut</th><th>Photo</th><th class="cache-mobile">Qui peut m'aider à rencontrer</th><th class="nombre">Objectif CA HT</th><th class="nombre">Recos transformées</th><th class="nombre cache-mobile">€ HT / reco</th><th>Lien perso</th></tr></thead>
+      <thead><tr><th>Membre</th><th>Statut</th><th>Photo</th><th class="cache-mobile">Qui peut m'aider à rencontrer</th><th>Lien perso</th></tr></thead>
       <tbody id="lignes"></tbody>
     </table></div>
+
+    <h2 class="titre-section">Objectifs et métiers, membre par membre</h2>
+    <div class="defile"><table>
+      <thead><tr><th>Membre</th><th class="nombre">Objectif CA HT (année)</th><th class="nombre">Recos transformées (clients facturés)</th><th class="nombre">€ HT / reco</th><th>Métiers prescripteurs / recherchés</th><th class="cache-mobile">Mis à jour</th></tr></thead>
+      <tbody id="objectifs"></tbody>
+    </table></div>
+
+    <h2 class="titre-section">Métiers demandés par le groupe</h2>
+    <div class="carte-metiers" id="metiers-groupe"></div>
   </div>
 </main>
 <script>
@@ -127,8 +141,8 @@ async function charger() {
     run ? `Dernière mise à jour du deck : ${esc(quand(run.date))} — <span class="${run.ok ? "ok" : "ko"}">${esc(run.message)}</span>` : "Aucune mise à jour du deck pour l'instant",
   ].join(" · ");
   const avecObj = membres.filter((m) => m.objectifs);
-  const totalCa = avecObj.reduce((t, m) => t + m.objectifs.ca_ht, 0);
-  const totalRecos = avecObj.reduce((t, m) => t + m.objectifs.recos, 0);
+  const totalCa = avecObj.reduce((t, m) => t + (m.objectifs.ca_ht || 0), 0);
+  const totalRecos = avecObj.reduce((t, m) => t + (m.objectifs.recos || 0), 0);
   const n = membres.length;
   const suivi = data.suivi || [];
   const cette = suivi.find((x) => x.lundi === data.semaine_en_cours) || { infomerciales: 0, demandes: 0 };
@@ -177,12 +191,27 @@ async function charger() {
       rech = `<span class="muet">${esc(m.recherche) || "—"}</span>`;
     }
     const lien = m.lien ? `<button class="second petit" data-copier="${i}">Copier</button>` : '<span class="muet">—</span>';
+    return `<tr><td><strong>${esc(m.nom)}</strong><div class="muet">${esc(m.metier)}</div></td><td>${statut}</td><td>${photo}</td><td class="cache-mobile">${rech}</td><td>${lien}</td></tr>`;
+  }).join("") : '<tr><td colspan="5" class="muet">Aucun membre : lance une première fois le job pour lire le deck.</td></tr>';
+  // objectifs et métiers, membre par membre (ceux qui ont rempli d'abord, par CA décroissant)
+  const tries = [...membres].sort((a, b) => ((b.objectifs && b.objectifs.ca_ht) || -1) - ((a.objectifs && a.objectifs.ca_ht) || -1));
+  $("objectifs").innerHTML = tries.map((m) => {
     const o = m.objectifs;
-    const obj = o
-      ? `<td class="nombre"><strong>${euros(o.ca_ht)}</strong></td><td class="nombre">${o.recos}</td><td class="nombre cache-mobile">${euros(o.ca_ht / o.recos)}</td>`
-      : '<td class="nombre"><span class="pastille non">Pas rempli</span></td><td class="nombre muet">—</td><td class="nombre cache-mobile muet">—</td>';
-    return `<tr><td><strong>${esc(m.nom)}</strong><div class="muet">${esc(m.metier)}</div></td><td>${statut}</td><td>${photo}</td><td class="cache-mobile">${rech}</td>${obj}<td>${lien}</td></tr>`;
-  }).join("") : '<tr><td colspan="8" class="muet">Aucun membre : lance une première fois le job pour lire le deck.</td></tr>';
+    const qui = `<td><strong>${esc(m.nom)}</strong><div class="muet">${esc(m.metier)}</div></td>`;
+    if (!o) return `<tr>${qui}<td class="nombre"><span class="pastille non">Pas rempli</span></td><td class="nombre muet">—</td><td class="nombre muet">—</td><td class="muet">—</td><td class="cache-mobile muet">—</td></tr>`;
+    const parReco = o.ca_ht && o.recos ? euros(o.ca_ht / o.recos) : "—";
+    return `<tr>${qui}<td class="nombre"><strong>${o.ca_ht ? euros(o.ca_ht) : "—"}</strong></td><td class="nombre">${o.recos ?? "—"}</td><td class="nombre">${parReco}</td><td class="metiers-cellule">${esc(o.metiers) || '<span class="muet">—</span>'}</td><td class="cache-mobile muet">${esc(quand(o.date))}</td></tr>`;
+  }).join("");
+  // métiers cités, regroupés (même libellé à la casse et aux accents près)
+  const cle = (t) => t.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().trim();
+  const metiers = {};
+  for (const m of membres) for (const ligne of ((m.objectifs && m.objectifs.metiers) || "").split("\n").filter(Boolean)) {
+    (metiers[cle(ligne)] ??= { libelle: ligne, qui: [] }).qui.push(m.nom);
+  }
+  const listeMetiers = Object.values(metiers).sort((a, b) => b.qui.length - a.qui.length || a.libelle.localeCompare(b.libelle));
+  $("metiers-groupe").innerHTML = listeMetiers.length
+    ? `<ul>${listeMetiers.map((x) => `<li><strong>${esc(x.libelle)}</strong> <span class="muet">(${x.qui.length} : ${esc(x.qui.join(", "))})</span></li>`).join("")}</ul>`
+    : '<span class="muet">Aucun métier renseigné pour l’instant.</span>';
   // vignettes chargées avec le jeton admin (une balise img ne peut pas l'envoyer)
   for (const img of document.querySelectorAll("img[data-photo]")) {
     api(`/api/admin/${img.dataset.photo}`).then((r) => r.ok && r.blob()).then((b) => { if (b) img.src = URL.createObjectURL(b); });

@@ -60,6 +60,7 @@
   .champ-unite span { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); color: var(--gris); font-weight: 600; }
   .calcul { margin-top: 12px; padding: 10px 12px; background: var(--fond); border-radius: 8px; font-size: 14px; display: none; }
   .bouton-objectifs { margin-top: 14px; }
+  .objectifs textarea { width: 100%; font: inherit; padding: 12px; border: 1px solid #cfcfcf; border-radius: 8px; background: #fff; resize: vertical; }
   .bouton-second { width: 100%; font: inherit; font-weight: 700; font-size: 16px; padding: 13px; border: 2px solid var(--rouge); border-radius: 10px; background: #fff; color: var(--rouge); cursor: pointer; margin-bottom: 14px; }
   .bouton-second:hover { background: #fff6f7; color: var(--rouge-fonce); }
   .rappel { border-left: 4px solid var(--rouge); }
@@ -155,7 +156,10 @@
       <label for="recos">Nombre de recommandations transformées (clients facturés) pour l'atteindre</label>
       <div class="champ-unite"><input type="text" id="recos" inputmode="numeric" placeholder="ex. 10" autocomplete="off"><span>recos</span></div>
       <div class="calcul" id="calcul"></div>
-      <button class="bouton-objectifs" id="enregistrer-objectifs">Enregistrer mon objectif</button>
+      <label for="metiers">Métiers prescripteurs, ou métiers dont j'ai besoin dans le groupe</label>
+      <textarea id="metiers" rows="4" maxlength="600" placeholder="Un métier par ligne, ex. :&#10;Notaire&#10;Agent immobilier&#10;Expert-comptable"></textarea>
+      <div class="aide">Les métiers qui t'envoient naturellement des clients, ou qui te manquent dans le groupe.</div>
+      <button class="bouton-objectifs" id="enregistrer-objectifs">Enregistrer</button>
       <div class="message" id="message-objectifs"></div>
     </section>
   </div>
@@ -206,14 +210,15 @@ async function enregistrerObjectifs() {
   try {
     const r = await fetch("/api/objectifs" + q, {
       method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ca_ht: $("ca").value, recos: $("recos").value }),
+      body: JSON.stringify({ ca_ht: $("ca").value, recos: $("recos").value, metiers: $("metiers").value }),
     });
     const data = await r.json();
     if (!r.ok) throw new Error(data.erreur || "Erreur");
-    $("ca").value = formatNombre(data.ca_ht);
-    $("recos").value = data.recos;
+    $("ca").value = data.ca_ht ? formatNombre(data.ca_ht) : "";
+    $("recos").value = data.recos ?? "";
+    $("metiers").value = data.metiers || "";
     majCalcul();
-    message(el, "Objectif enregistré ✓", true);
+    message(el, "Enregistré ✓", true);
   } catch (e) {
     message(el, e.message, false);
   } finally {
@@ -235,8 +240,9 @@ async function charger() {
   majTexte();
   afficherDepot(data.depot);
   if (data.objectifs) {
-    $("ca").value = formatNombre(data.objectifs.ca_ht);
-    $("recos").value = data.objectifs.recos;
+    $("ca").value = data.objectifs.ca_ht ? formatNombre(data.objectifs.ca_ht) : "";
+    $("recos").value = data.objectifs.recos ?? "";
+    $("metiers").value = data.objectifs.metiers || "";
     majCalcul();
   }
   if (data.depot && data.depot.a_photo) afficherPhoto("/api/photo" + q + "&t=" + Date.now());

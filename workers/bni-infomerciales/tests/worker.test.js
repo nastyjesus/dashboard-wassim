@@ -133,6 +133,13 @@ describe('objectifs annuels', () => {
     expect(body.membres.find((x) => x.nom === 'Céline GUIHO').objectifs).toBeNull();
   });
 
+  it('enregistre les métiers prescripteurs seuls, refuse un formulaire vide', async () => {
+    const m = await lienDe('Paul JUHEL');
+    expect((await appel(`/api/objectifs?m=${m}`, { methode: 'POST', corps: { ca_ht: '', recos: '', metiers: '  ' } })).res.status).toBe(400);
+    const ok = await appel(`/api/objectifs?m=${m}`, { methode: 'POST', corps: { ca_ht: '', recos: '', metiers: ' Notaire \n\n Expert-comptable  ' } });
+    expect(ok.body).toMatchObject({ ca_ht: null, recos: null, metiers: 'Notaire\nExpert-comptable' });
+  });
+
   it('suit le membre quand sa slide est recréée', async () => {
     const m = await lienDe('Céline GUIHO');
     await appel(`/api/objectifs?m=${m}`, { methode: 'POST', corps: { ca_ht: 30000, recos: 6 } });
