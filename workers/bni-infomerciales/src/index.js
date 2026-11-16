@@ -11,6 +11,7 @@
 //   applique:<id>    dernier dépôt traité { ...dépôt, statut: pose|introuvable, applique_le }
 //   photo_appliquee:<id>  JPEG de la dernière photo posée sur la slide
 //   emails           { <slide_id>: email } (rappels ; données perso, chargées par l'admin)
+//   objectifs:<id>   { ca_ht, recos, date } (objectif annuel BNI déclaré par le membre)
 //   suppleants       [{ nom, prenom, email, tel }] (visiteurs possibles ; données
 //                    perso : jamais dans le dépôt public, chargées par l'admin)
 
@@ -92,7 +93,23 @@ async function routesMembre(request, env, url) {
 
   if (url.pathname === '/api/moi' && request.method === 'GET') {
     const depot = await lire(env, `depot:${id}`, null);
-    return json({ nom: membre.nom, metier: membre.metier, recherche: membre.recherche, depot });
+    const objectifs = await lire(env, `objectifs:${id}`, null);
+    return json({ nom: membre.nom, metier: membre.metier, recherche: membre.recherche, depot, objectifs });
+  }
+  if (url.pathname === '/api/objectifs' && request.method === 'POST') {
+    let corps;
+    try { corps = await request.json(); } catch { return erreur('Requête illisible.'); }
+    const entier = (v, max) => {
+      const n = Number(String(v ?? '').replace(/[\s ]/g, '').replace(',', '.'));
+      return Number.isFinite(n) && n > 0 && n <= max ? Math.round(n) : null;
+    };
+    const ca = entier(corps.ca_ht, 100_000_000);
+    const recos = entier(corps.recos, 10_000);
+    if (ca === null) return erreur("Indique ton objectif de chiffre d'affaires HT (un nombre en euros).");
+    if (recos === null) return erreur('Indique le nombre de recommandations transformées (un nombre).');
+    const objectifs = { ca_ht: ca, recos, date: new Date().toISOString() };
+    await env.KV.put(`objectifs:${id}`, JSON.stringify(objectifs));
+    return json(objectifs);
   }
   if (url.pathname === '/api/suppleants' && request.method === 'GET') {
     return json({ suppleants: await lire(env, 'suppleants', []) });
@@ -130,6 +147,7 @@ async function etatAdmin(env, origine) {
     lien: jetonDe[m.slide_id] ? `${origine}/?m=${jetonDe[m.slide_id]}` : null,
     depot: await lire(env, `depot:${m.slide_id}`, null),
     applique: await lire(env, `applique:${m.slide_id}`, null),
+    objectifs: await lire(env, `objectifs:${m.slide_id}`, null),
   })));
   return {
     membres: liste,
@@ -168,6 +186,11 @@ async function suivreSlidesRecreees(env, anciens, membres, jetons) {
     const cible = membres.find((m) => !anciensIds.has(m.slide_id) && normaliserNom(m.nom) === normaliserNom(ancien.nom));
     if (!cible) continue;
     for (const [jeton, id] of Object.entries(jetons)) if (id === ancien.slide_id) jetons[jeton] = cible.slide_id;
+    const objectifs = await lire(env, `objectifs:${ancien.slide_id}`, null);
+    if (objectifs) {
+      await env.KV.put(`objectifs:${cible.slide_id}`, JSON.stringify(objectifs));
+      await env.KV.delete(`objectifs:${ancien.slide_id}`);
+    }
     for (const [cleDepot, clePhoto] of [['depot', 'photo'], ['applique', 'photo_appliquee']]) {
       const depot = await lire(env, `${cleDepot}:${ancien.slide_id}`, null);
       if (!depot) continue;

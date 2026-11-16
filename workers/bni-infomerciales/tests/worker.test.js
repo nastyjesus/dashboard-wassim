@@ -115,6 +115,33 @@ describe('suppléants', () => {
   });
 });
 
+describe('objectifs annuels', () => {
+  it('le membre enregistre son objectif, l’admin le voit', async () => {
+    const m = await lienDe('Paul JUHEL');
+    expect((await appel(`/api/moi?m=${m}`)).body.objectifs).toBeNull();
+
+    const ko = await appel(`/api/objectifs?m=${m}`, { methode: 'POST', corps: { ca_ht: 'beaucoup', recos: 5 } });
+    expect(ko.res.status).toBe(400);
+    expect((await appel(`/api/objectifs?m=${m}`, { methode: 'POST', corps: { ca_ht: 50000, recos: 0 } })).res.status).toBe(400);
+
+    const ok = await appel(`/api/objectifs?m=${m}`, { methode: 'POST', corps: { ca_ht: '45 000', recos: '12' } });
+    expect(ok.body).toMatchObject({ ca_ht: 45000, recos: 12 });
+    expect((await appel(`/api/moi?m=${m}`)).body.objectifs).toMatchObject({ ca_ht: 45000, recos: 12 });
+
+    const { body } = await appel('/api/admin/etat', { admin: ADMIN });
+    expect(body.membres.find((x) => x.nom === 'Paul JUHEL').objectifs).toMatchObject({ ca_ht: 45000, recos: 12 });
+    expect(body.membres.find((x) => x.nom === 'Céline GUIHO').objectifs).toBeNull();
+  });
+
+  it('suit le membre quand sa slide est recréée', async () => {
+    const m = await lienDe('Céline GUIHO');
+    await appel(`/api/objectifs?m=${m}`, { methode: 'POST', corps: { ca_ht: 30000, recos: 6 } });
+    const recree = [MEMBRES[0], { ...MEMBRES[1], slide_id: 909 }];
+    await appel('/api/job/resultat', { methode: 'POST', admin: ADMIN, corps: { ok: true, membres: recree } });
+    expect((await appel(`/api/moi?m=${m}`)).body.objectifs).toMatchObject({ ca_ht: 30000, recos: 6 });
+  });
+});
+
 describe('rappels hebdo', () => {
   // lundi 16/11/2026 et mercredi 18/11/2026, 9h à Paris (8h UTC)
   const LUNDI = '2026-11-16T08:00:00Z';

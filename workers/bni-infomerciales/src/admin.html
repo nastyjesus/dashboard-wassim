@@ -10,7 +10,7 @@
   * { box-sizing: border-box; }
   body { margin: 0; font: 15px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif; color: var(--encre); background: var(--fond); }
   header { background: var(--encre); color: #fff; padding: 16px; }
-  header .wrap, main { max-width: 1040px; margin: 0 auto; }
+  header .wrap, main { max-width: 1280px; margin: 0 auto; }
   h1 { margin: 0; font-size: 20px; }
   h1 b { color: var(--rouge); }
   main { padding: 18px 16px 48px; }
@@ -39,6 +39,12 @@
   .pastille.attente { background: #fff3e0; color: var(--alerte); }
   .pastille.ko { background: #fdeced; color: var(--rouge-fonce); }
   .vignette[src] { cursor: zoom-in; }
+  .synthese { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 14px; }
+  .tuile { flex: 1 1 180px; background: #fff; border: 1px solid var(--trait); border-radius: 10px; padding: 12px 14px; }
+  .tuile b { display: block; font-size: 22px; }
+  .tuile span { color: var(--gris); font-size: 13px; }
+  .defile { overflow-x: auto; border-radius: 10px; }
+  td.nombre, th.nombre { text-align: right; white-space: nowrap; }
   .legende { color: var(--gris); font-size: 13px; margin: 0 0 10px; }
   .vignette { width: 96px; height: 54px; object-fit: contain; background: #f1f1f1; border-radius: 4px; display: block; }
   .muet { color: var(--gris); font-size: 13px; }
@@ -70,16 +76,18 @@
       </div>
     </div>
     <div class="resultat" id="resultat"></div>
+    <div class="synthese" id="synthese"></div>
     <p class="legende"><b>À poser</b> : reçu, pas encore sur la présentation (passage du mercredi soir ou bouton PowerPoint). <b>Sur la présentation</b> : dernier envoi posé sur la slide. Clique une photo pour l'ouvrir en grand (utile pour la poser à la main).</p>
-    <table>
-      <thead><tr><th>Membre</th><th>Statut</th><th>Photo</th><th class="cache-mobile">Qui peut m'aider à rencontrer</th><th>Lien perso</th></tr></thead>
+    <div class="defile"><table>
+      <thead><tr><th>Membre</th><th>Statut</th><th>Photo</th><th class="cache-mobile">Qui peut m'aider à rencontrer</th><th class="nombre">Objectif CA HT</th><th class="nombre">Recos transformées</th><th class="nombre cache-mobile">€ HT / reco</th><th>Lien perso</th></tr></thead>
       <tbody id="lignes"></tbody>
-    </table>
+    </table></div>
   </div>
 </main>
 <script>
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const euros = (n) => `${Math.round(n).toLocaleString("fr-FR")} €`;
 const quand = (iso) => new Date(iso).toLocaleString("fr-FR", { weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
 let jeton = "";
 try { jeton = localStorage.getItem("bni-admin") || ""; } catch {}
@@ -105,6 +113,18 @@ async function charger() {
     data.microsoft_connecte ? '<span class="ok">OneDrive connecté</span>' : '<span class="ko">OneDrive non connecté (lancer connexion_microsoft.py)</span>',
     run ? `Dernière mise à jour du deck : ${esc(quand(run.date))} — <span class="${run.ok ? "ok" : "ko"}">${esc(run.message)}</span>` : "Aucune mise à jour du deck pour l'instant",
   ].join(" · ");
+  const avecObj = membres.filter((m) => m.objectifs);
+  const totalCa = avecObj.reduce((t, m) => t + m.objectifs.ca_ht, 0);
+  const totalRecos = avecObj.reduce((t, m) => t + m.objectifs.recos, 0);
+  const avecInfo = membres.filter((m) => m.depot || (m.applique && m.applique.statut === "pose")).length;
+  const avecDemande = membres.filter((m) => (m.depot && m.depot.recherche) || (m.applique && m.applique.recherche)).length;
+  $("synthese").innerHTML = [
+    [`${avecInfo} / ${membres.length}`, "infomerciales reçues (dernier envoi)"],
+    [`${avecDemande} / ${membres.length}`, "demandes spécifiques reçues"],
+    [`${avecObj.length} / ${membres.length}`, "objectifs annuels remplis"],
+    [euros(totalCa), "objectif CA HT cumulé du groupe"],
+    [String(totalRecos), "recommandations transformées visées"],
+  ].map(([v, t]) => `<div class="tuile"><b>${esc(v)}</b><span>${esc(t)}</span></div>`).join("");
   $("appliquer").title = data.bouton_dispo ? "" : "Bouton non configuré (GH_DISPATCH_TOKEN)";
   $("lignes").innerHTML = membres.length ? membres.map((m, i) => {
     const d = m.depot, a = m.applique;
@@ -127,8 +147,12 @@ async function charger() {
       rech = `<span class="muet">${esc(m.recherche) || "—"}</span>`;
     }
     const lien = m.lien ? `<button class="second petit" data-copier="${i}">Copier</button>` : '<span class="muet">—</span>';
-    return `<tr><td><strong>${esc(m.nom)}</strong><div class="muet">${esc(m.metier)}</div></td><td>${statut}</td><td>${photo}</td><td class="cache-mobile">${rech}</td><td>${lien}</td></tr>`;
-  }).join("") : '<tr><td colspan="5" class="muet">Aucun membre : lance une première fois le job pour lire le deck.</td></tr>';
+    const o = m.objectifs;
+    const obj = o
+      ? `<td class="nombre"><strong>${euros(o.ca_ht)}</strong></td><td class="nombre">${o.recos}</td><td class="nombre cache-mobile">${euros(o.ca_ht / o.recos)}</td>`
+      : '<td class="nombre"><span class="pastille non">Pas rempli</span></td><td class="nombre muet">—</td><td class="nombre cache-mobile muet">—</td>';
+    return `<tr><td><strong>${esc(m.nom)}</strong><div class="muet">${esc(m.metier)}</div></td><td>${statut}</td><td>${photo}</td><td class="cache-mobile">${rech}</td>${obj}<td>${lien}</td></tr>`;
+  }).join("") : '<tr><td colspan="8" class="muet">Aucun membre : lance une première fois le job pour lire le deck.</td></tr>';
   // vignettes chargées avec le jeton admin (une balise img ne peut pas l'envoyer)
   for (const img of document.querySelectorAll("img[data-photo]")) {
     api(`/api/admin/${img.dataset.photo}`).then((r) => r.ok && r.blob()).then((b) => { if (b) img.src = URL.createObjectURL(b); });
