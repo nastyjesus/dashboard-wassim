@@ -308,7 +308,7 @@ export function lundiParis(maintenant) {
   return d.toISOString().slice(0, 10);
 }
 
-function texteRappel(type, prenom, lien) {
+function texteRappel(type, prenom, lien, objectifsARemplir = false) {
   const lundi = type === 'lundi';
   const sujet = lundi
     ? 'Infomerciale BNI : ta photo et ta demande pour cette semaine'
@@ -329,6 +329,10 @@ function texteRappel(type, prenom, lien) {
     '',
     'Pour la demande : une seule personne, le plus précis possible (Prénom NOM – Fonction – Entreprise (Localité)).',
     '',
+    ...(lundi && objectifsARemplir ? [
+      "Pense aussi à remplir ton objectif BNI de l'année (chiffre d'affaires HT et nombre de recommandations transformées) ainsi que les métiers prescripteurs ou dont tu as besoin dans le groupe : c'est en bas de la même page, une seule fois.",
+      '',
+    ] : []),
     "Tu ne peux pas venir ? En haut de la page, le bouton « Je ne peux pas venir : me faire suppléer » t'aide à trouver quelqu'un pour te remplacer.",
     '',
     'Une question ou un doute ? Réponds simplement à ce mail.',
@@ -355,7 +359,8 @@ export async function listeRappels(env, origine, type, maintenant) {
     if (!email || !jetonDe[m.slide_id]) continue;
     if (type === 'mercredi' && await envoyeCetteSemaine(m.slide_id)) continue;
     const prenom = String(m.nom).split(/\s+/)[0];
-    mails.push({ nom: m.nom, email, ...texteRappel(type, prenom, `${origine}/?m=${jetonDe[m.slide_id]}`) });
+    const objectifsARemplir = !(await lire(env, `objectifs:${m.slide_id}`, null));
+    mails.push({ nom: m.nom, email, ...texteRappel(type, prenom, `${origine}/?m=${jetonDe[m.slide_id]}`, objectifsARemplir) });
   }
   return { type, semaine_du: lundi, mails };
 }

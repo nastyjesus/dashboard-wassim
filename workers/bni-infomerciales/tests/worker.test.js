@@ -191,6 +191,11 @@ describe('rappels hebdo', () => {
     expect(paul.texte).toContain('Bonjour Paul,');
     expect(paul.texte).toContain('mercredi 19h');
     expect(paul.texte).toContain(`https://bni.test/?m=${await lienDe('Paul JUHEL')}`);
+    expect(paul.texte).toContain('objectif BNI de l');
+    // une fois l'objectif rempli, la ligne disparaît
+    await appel(`/api/objectifs?m=${await lienDe('Paul JUHEL')}`, { methode: 'POST', corps: { ca_ht: 1000, recos: 1 } });
+    const { body: apres } = await appel(`/api/admin/rappels?type=lundi&maintenant=${LUNDI}`, { admin: ADMIN });
+    expect(apres.mails[0].texte).not.toContain('objectif BNI de l');
   });
 
   it('mercredi : seulement ceux qui n’ont rien envoyé depuis lundi', async () => {
