@@ -1,6 +1,6 @@
 // Rappels infomerciales BNI Bruz Envol — Google Apps Script (compte Gmail de Wassim).
 //
-// Lundi 9h : tous les membres. Mercredi 9h : ceux qui n'ont rien envoyé depuis lundi.
+// Lundi 9h : tous les membres. Mercredi 14h : ceux qui n'ont rien envoyé depuis lundi.
 // La liste, les liens perso et le texte viennent du serveur (/api/admin/rappels) :
 // ce script ne fait qu'envoyer.
 //
@@ -38,6 +38,6 @@ function envoyer_(type) {
 function installerDeclencheurs() {
   ScriptApp.getProjectTriggers().forEach((t) => ScriptApp.deleteTrigger(t));
   ScriptApp.newTrigger('rappelLundi').timeBased().onWeekDay(ScriptApp.WeekDay.MONDAY).atHour(9).nearMinute(0).inTimezone(ZONE).create();
-  ScriptApp.newTrigger('rappelMercredi').timeBased().onWeekDay(ScriptApp.WeekDay.WEDNESDAY).atHour(9).nearMinute(0).inTimezone(ZONE).create();
-  console.log('Déclencheurs installés : lundi et mercredi vers 9h (heure de Paris).');
+  ScriptApp.newTrigger('rappelMercredi').timeBased().onWeekDay(ScriptApp.WeekDay.WEDNESDAY).atHour(14).nearMinute(0).inTimezone(ZONE).create();
+  console.log('Déclencheurs installés : lundi vers 9h et mercredi vers 14h (heure de Paris).');
 }
