@@ -31,6 +31,15 @@ function liste_(type) {
 
 function envoyer_(type) {
   const mails = liste_(type);
+  if (!mails.length) { console.log(`${type} : personne à relancer`); return; }
+  // Garde-fou : si ce rappel est déjà parti aujourd'hui (changement d'heure du
+  // déclencheur, exécution manuelle…), on n'envoie pas une seconde fois.
+  const jour = Utilities.formatDate(new Date(), ZONE, 'yyyy-MM-dd');
+  const minuit = Math.floor(Utilities.parseDate(jour, ZONE, 'yyyy-MM-dd').getTime() / 1000);
+  if (GmailApp.search(`in:sent subject:"${mails[0].sujet}" after:${minuit}`, 0, 1).length) {
+    console.log(`${type} : déjà envoyé aujourd'hui, rien à faire`);
+    return;
+  }
   mails.forEach((m) => GmailApp.sendEmail(m.email, m.sujet, m.texte, { name: 'Wassim Loumi' }));
   console.log(`${type} : ${mails.length} mail(s) envoyé(s)`);
 }
