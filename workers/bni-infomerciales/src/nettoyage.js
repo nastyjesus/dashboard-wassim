@@ -14,6 +14,7 @@
 // L'historique envois:<lundi> n'est jamais touché.
 
 import { lundiParis } from './index.js';
+import { purgerConferencesPassees } from './conference.js';
 
 const ZONE_PARIS = 'Europe/Paris';
 // Coupure : vendredi 12:00 (heure de Paris), réunion du matin terminée. Un
@@ -65,7 +66,9 @@ export async function planNettoyage(env, maintenant = new Date()) {
   const preserver = (await valeurs(env, 'applique:'))
     .filter(({ valeur }) => valeur?.statut === 'pose' && !avantCoupure(valeur.date, coupure))
     .map(({ id }) => Number(id));
-  return { semaine, coupure, deja_fait: Boolean(fait?.ok), nettoyage: fait, preserver, membres, ms };
+  // slides de conférence posées pour cette réunion (ou une plus ancienne) :
+  // retirées ; celles d'une réunion à venir restent
+  return { semaine, coupure, deja_fait: Boolean(fait?.ok), nettoyage: fait, preserver, conference_jusqu_au: decaler(semaine, JOUR_COUPURE), membres, ms };
 }
 
 const ids = (liste) => (Array.isArray(liste) ? liste : []).map((x) => Number(typeof x === 'object' && x ? x.slide_id : x)).filter(Number.isFinite);
@@ -90,6 +93,8 @@ export async function enregistrerNettoyage(env, corps, maintenant = new Date()) 
     sauvegarde: String(corps.sauvegarde ?? '').slice(0, 200),
     statuts_remis_a_zero: 0,
     depots_perimes: 0,
+    conference: Number(corps.conference) || 0,
+    fichiers_conference_effaces: 0,
   };
   if (resultat.ok) {
     // statuts « posé » (ou « introuvable ») de la semaine écoulée
@@ -113,6 +118,8 @@ export async function enregistrerNettoyage(env, corps, maintenant = new Date()) 
       for (const m of membres) if (vides.has(m.slide_id)) Object.assign(m, { recherche: '', a_une_photo: false });
       await env.KV.put('membres', JSON.stringify(membres));
     }
+    // fichiers des conférences passées : plus utiles une fois retirées du deck
+    resultat.fichiers_conference_effaces = await purgerConferencesPassees(env, decaler(semaine, JOUR_COUPURE));
     await env.KV.put(`nettoyage:${semaine}`, JSON.stringify(resultat));
   }
   await env.KV.put('dernier_nettoyage', JSON.stringify(resultat));

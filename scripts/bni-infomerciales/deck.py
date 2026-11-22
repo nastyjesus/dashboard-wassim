@@ -14,6 +14,8 @@ from PIL import Image, ImageOps
 from pptx import Presentation
 from pptx.enum.shapes import MSO_SHAPE_TYPE, PP_PLACEHOLDER
 
+import conference
+
 LAYOUT_MEMBRE = "Infomerciale_30s"
 
 # Zone de la photo de la semaine, en fraction de la slide (x, y, largeur, hauteur).
@@ -81,12 +83,18 @@ def _est_photo_semaine(sh, slide):
     return x < DEBUT_COLONNE_DROITE and zx <= cx <= zx + zw and zy <= cy <= zy + zh
 
 
+def _est_slide_membre(slide):
+    # une slide de conférence recopiée d'un deck BNI peut avoir la même
+    # disposition : elle n'est jamais une slide membre
+    return slide.slide_layout.name == LAYOUT_MEMBRE and not conference.est_conference(slide)
+
+
 def lister_membres(chemin_deck):
     """Liste les slides infomerciales nominatives du deck, dans l'ordre."""
     prs = Presentation(chemin_deck)
     membres = []
     for numero, slide in enumerate(prs.slides, 1):
-        if slide.slide_layout.name != LAYOUT_MEMBRE:
+        if not _est_slide_membre(slide):
             continue
         nom = _champ_texte(slide, 0.30, 0.40)
         metier = _champ_texte(slide, 0.40, 0.48)
@@ -154,7 +162,7 @@ def appliquer(chemin_source, chemin_sortie, depots):
     faits = []
     for d in depots:
         slide = par_id.get(d["slide_id"])
-        if slide is None or slide.slide_layout.name != LAYOUT_MEMBRE:
+        if slide is None or not _est_slide_membre(slide):
             continue
         if d.get("recherche"):
             champ = _champ_recherche(slide)
@@ -219,21 +227,24 @@ def _vider_slide(slide):
     return len(photos), bandeau is not None
 
 
-def nettoyer(chemin_source, chemin_sortie=None, preserver=(), essai=False):
+def nettoyer(chemin_source, chemin_sortie=None, preserver=(), essai=False, conference_jusqu_au=None):
     """Vide la photo et la demande de la semaine de chaque slide membre reconnue.
 
     Slide reconnue : disposition « Infomerciale_30s » avec un nom (comme
     lister_membres). Les autres slides ne sont jamais modifiées ; celles qui
     ont la disposition membre sans nom sont comptées dans « non_reconnues ».
     preserver : slide_id à laisser (dépôt de la semaine suivante déjà posé).
+    conference_jusqu_au : vendredi (AAAA-MM-JJ) ; les slides de conférence
+    posées par le module pour cette réunion ou une plus ancienne sont retirées
+    (celles d'une réunion à venir restent).
     essai : rien n'est écrit, le rapport dit ce qui serait effacé.
     Le deck n'est enregistré (chemin_sortie) que si une slide a changé.
     """
     prs = Presentation(chemin_source)
     preserver = set(preserver)
-    rapport = {"nettoyees": [], "deja_vides": [], "preservees": [], "non_reconnues": 0}
+    rapport = {"nettoyees": [], "deja_vides": [], "preservees": [], "non_reconnues": 0, "conference": 0}
     for numero, slide in enumerate(prs.slides, 1):
-        if slide.slide_layout.name != LAYOUT_MEMBRE:
+        if not _est_slide_membre(slide):
             continue
         nom = _champ_texte(slide, 0.30, 0.40)
         if not (nom and _texte(nom)):
@@ -251,6 +262,8 @@ def nettoyer(chemin_source, chemin_sortie=None, preserver=(), essai=False):
             rapport["nettoyees"].append({"slide_id": slide.slide_id, "numero": numero, "photos": nb, "texte": texte})
         else:
             rapport["deja_vides"].append(slide.slide_id)
-    if rapport["nettoyees"] and not essai and chemin_sortie:
+    if conference_jusqu_au:
+        rapport["conference"] = conference.retirer(prs, jusqu_au=conference_jusqu_au, essai=essai)
+    if (rapport["nettoyees"] or rapport["conference"]) and not essai and chemin_sortie:
         prs.save(chemin_sortie)
     return rapport

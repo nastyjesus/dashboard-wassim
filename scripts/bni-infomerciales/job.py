@@ -14,6 +14,11 @@ Deux passages programmés par semaine (heure de Paris) : mercredi soir après la
 limite de 19h, puis jeudi midi pour les retardataires. Le second ne repose que
 les dépôts arrivés depuis : le worker efface ceux déjà appliqués.
 
+Conférence de la semaine (conference.py) : aux mêmes passages, les slides
+déposées par le conférencier sont insérées dans la partie « Conférence » du
+deck. Une conférence impossible à poser (fichier illisible…) n'empêche pas la
+pose des infomerciales : l'erreur est remontée à l'admin.
+
 Le dépôt GitHub est public : ce script n'affiche jamais de nom, seulement des compteurs.
 
 `python job.py nettoyage [--essai] [--forcer]` : nettoyage du samedi (nettoyage.py).
@@ -34,6 +39,7 @@ import requests
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 
+import conference
 import deck
 
 LOGIN = os.environ.get("MS_LOGIN_URL", "https://login.microsoftonline.com/consumers/oauth2/v2.0")
@@ -269,6 +275,38 @@ def preparer_depots(worker, depots):
     return prets
 
 
+def preparer_conference(worker, conf):
+    """Télécharge, morceau par morceau, le fichier de la conférence à poser.
+    Renvoie la conférence avec ses octets, ou None (rien à poser / échec réseau :
+    on réessaiera au passage suivant)."""
+    if not conf:
+        return None
+    morceaux = []
+    for n in range(conf["morceaux"]):
+        r = worker.s.get(f"{worker.url}/api/job/conference/morceau/{conf['envoi']}/{n}", timeout=120)
+        if r.status_code != 200:
+            print(f"Conférence : fichier indisponible (HTTP {r.status_code}), pas posée ce passage-ci.")
+            return None
+        morceaux.append(r.content)
+    octets = b"".join(morceaux)
+    if len(octets) != conf["taille"]:
+        print("Conférence : fichier incomplet, pas posée ce passage-ci.")
+        return None
+    return {**conf, "octets": octets}
+
+
+def poser_conference(chemin, sortie, conf):
+    """Insère la conférence ; renvoie (chemin du deck à jour ou None, résultat pour le worker)."""
+    ident = {"vendredi": conf["vendredi"], "valide_le": conf["valide_le"]}
+    try:
+        r = conference.inserer(chemin, sortie, conf["vendredi"], conf["type"], conf["octets"])
+    except conference.ConferenceImpossible as e:
+        return None, {**ident, "ok": False, "message": str(e)}
+    except Exception as e:  # noqa: BLE001 — une conférence ratée ne bloque pas les infomerciales
+        return None, {**ident, "ok": False, "message": f"erreur inattendue ({type(e).__name__})"}
+    return sortie, {**ident, "ok": True, "slides": r["slides"], "message": r["avertissement"]}
+
+
 def normaliser_nom(nom):
     sans_accents = "".join(c for c in unicodedata.normalize("NFD", nom) if unicodedata.category(c) != "Mn")
     return " ".join(sans_accents.lower().split())
@@ -297,10 +335,12 @@ def recibler(depots, anciens_membres, membres_deck):
     return resultat
 
 
-def un_passage(worker, ms, depots, anciens_membres, dossier):
+def un_passage(worker, ms, depots, anciens_membres, dossier, conf=None):
+    """Renvoie (membres, dépôts traités, nb de slides membres mises à jour,
+    résultat de la conférence ou None)."""
     acces = jeton_microsoft(worker, ms)
     source = Path(dossier) / "source.pptx"
-    if depots:
+    if depots or conf:
         attendre_calme(acces, ms)
     etag = telecharger(acces, ms, source)
     membres = deck.lister_membres(source)
@@ -308,12 +348,17 @@ def un_passage(worker, ms, depots, anciens_membres, dossier):
     # membre sorti du deck : son dépôt est marqué traité pour être purgé
     orphelins = [d for d in depots if d["cible"] is None]
     a_faire = [d for d in depots if d["cible"] is not None and (d.get("photo") or d.get("recherche"))]
-    if not a_faire:
-        return membres, orphelins, 0
-    sortie = Path(dossier) / "sortie.pptx"
-    faits = set(deck.appliquer(source, sortie, [{**d, "slide_id": d["cible"]} for d in a_faire]))
-    envoyer_deck(acces, ms, sortie, etag)
-    return deck.lister_membres(sortie), orphelins + [d for d in a_faire if d["cible"] in faits], len(faits)
+    courant, faits, resultat_conf = None, set(), None
+    if a_faire:
+        courant = Path(dossier) / "sortie.pptx"
+        faits = set(deck.appliquer(source, courant, [{**d, "slide_id": d["cible"]} for d in a_faire]))
+    if conf:
+        pose, resultat_conf = poser_conference(courant or source, Path(dossier) / "conference.pptx", conf)
+        courant = pose or courant
+    if courant is None:
+        return membres, orphelins, 0, resultat_conf
+    envoyer_deck(acces, ms, courant, etag)
+    return deck.lister_membres(courant), orphelins + [d for d in a_faire if d["cible"] in faits], len(faits), resultat_conf
 
 
 def decrire(e):
@@ -342,17 +387,25 @@ def main(worker=None, maintenant=None, environ=os.environ):
         print("OneDrive non connecté : lancer connexion_microsoft.py une fois.")
         return 1
     depots = preparer_depots(worker, entree["depots"])
-    print(f"{len(depots)} dépôt(s) à traiter.")
+    conf = preparer_conference(worker, entree.get("conference"))
+    print(f"{len(depots)} dépôt(s) à traiter" + (", et une conférence à poser." if conf else "."))
     trace = {"source": "job", "creneau": creneau}
     erreur = None
     for essai in range(1, ESSAIS + 1):
         try:
             with tempfile.TemporaryDirectory() as dossier:
-                membres, appliques, nb = un_passage(worker, ms, depots, entree.get("membres", []), dossier)
+                membres, appliques, nb, resultat_conf = un_passage(worker, ms, depots, entree.get("membres", []), dossier, conf)
+            message = f"{nb} slide(s) mise(s) à jour" if nb else "aucun nouveau dépôt, liste des membres synchronisée"
+            if resultat_conf:
+                message += (f" ; conférence : {resultat_conf['slides']} slide(s) posée(s)" if resultat_conf["ok"]
+                            else f" ; conférence non posée : {resultat_conf['message']}")
+                print(f"Conférence : {'posée, ' + str(resultat_conf['slides']) + ' slide(s)' if resultat_conf['ok'] else 'non posée (' + resultat_conf['message'] + ')'}.")
             worker.envoyer("POST", "/api/job/resultat", {
                 **trace,
                 "ok": True,
-                "message": f"{nb} slide(s) mise(s) à jour" if nb else "aucun nouveau dépôt, liste des membres synchronisée",
+                "message": message[:300],
+                # vendredi, valide_le, ok, slides, message : jamais de contacts
+                "conference": resultat_conf,
                 "membres": membres,
                 # orphelin : slide du membre introuvable, dépôt purgé sans être posé
                 "appliques": [{"slide_id": d["slide_id"], "date": d["date"], "orphelin": d["cible"] is None}

@@ -1,0 +1,190 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Ma conférence — BNI Bruz Envol</title>
+<style>
+  :root { --rouge: #c8102e; --rouge-fonce: #9e0c24; --encre: #1a1a1a; --gris: #6b6b6b; --trait: #e3e3e3; --fond: #f4f4f2; --ok: #1f7a4d; }
+  * { box-sizing: border-box; }
+  body { margin: 0; font: 16px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif; color: var(--encre); background: var(--fond); }
+  header { background: var(--encre); color: #fff; padding: 18px 16px 20px; }
+  header .wrap, main { max-width: 720px; margin: 0 auto; }
+  .marque { font-weight: 800; font-size: 15px; }
+  .marque b { color: var(--rouge); font-size: 20px; }
+  h1 { margin: 6px 0 4px; font-size: 24px; line-height: 1.2; }
+  .limite { display: inline-block; margin-top: 6px; background: var(--rouge); padding: 3px 10px; border-radius: 3px; font-size: 13px; font-weight: 700; letter-spacing: .03em; text-transform: uppercase; }
+  main { padding: 20px 16px 48px; }
+  .etape { background: #fff; border: 1px solid var(--trait); border-radius: 10px; padding: 18px 16px; margin-bottom: 14px; }
+  .etape h2 { margin: 0 0 10px; font-size: 16px; display: flex; gap: 10px; align-items: center; }
+  .num { width: 24px; height: 24px; border-radius: 50%; background: var(--rouge); color: #fff; font-size: 13px; display: grid; place-items: center; flex: none; }
+  .depose { display: block; border: 2px dashed #c9c9c9; border-radius: 10px; padding: 26px 14px; text-align: center; cursor: pointer; }
+  .depose:hover, .depose.survol { border-color: var(--rouge); background: #fff6f7; }
+  .depose strong { display: block; }
+  .depose span { color: var(--gris); font-size: 13px; }
+  .fichier { margin-top: 10px; font-weight: 600; }
+  input[type=text] { width: 100%; font: inherit; padding: 12px; border: 1px solid #cfcfcf; border-radius: 8px; background: #fff; margin-bottom: 8px; }
+  input:focus { outline: 2px solid var(--rouge); outline-offset: 1px; }
+  .aide { color: var(--gris); font-size: 13px; margin-top: 6px; }
+  .rappel { border-left: 4px solid var(--rouge); }
+  .rappel p { margin: 0 0 8px; }
+  .rappel p:last-child { margin-bottom: 0; }
+  progress { width: 100%; height: 10px; margin-top: 10px; display: none; }
+  button { width: 100%; font: inherit; font-weight: 700; font-size: 17px; padding: 15px; border: 0; border-radius: 10px; background: var(--rouge); color: #fff; cursor: pointer; }
+  button:hover { background: var(--rouge-fonce); }
+  button:disabled { background: #bdbdbd; cursor: wait; }
+  .message { margin-top: 12px; padding: 12px 14px; border-radius: 8px; font-weight: 600; display: none; }
+  .message.ok { display: block; background: #e8f4ee; color: var(--ok); }
+  .message.ko { display: block; background: #fdeced; color: var(--rouge-fonce); }
+  .recu { color: var(--ok); font-weight: 600; }
+  #contenu { display: none; }
+</style>
+</head>
+<body>
+<header><div class="wrap">
+  <div class="marque"><b>BNI</b> · Bruz Envol</div>
+  <h1 id="titre">Ta conférence</h1>
+  <div id="sous-titre"></div>
+  <div class="limite" id="limite"></div>
+</div></header>
+<main>
+  <div class="message" id="message"></div>
+  <div id="contenu">
+    <section class="etape rappel">
+      <p id="role"></p>
+      <p id="cadeau"></p>
+      <p>Tes slides seront ajoutées à la partie conférence de la présentation de la réunion.</p>
+    </section>
+
+    <section class="etape">
+      <h2><span class="num">1</span> Tes slides</h2>
+      <label class="depose" id="depose">
+        <input type="file" id="choix" accept=".pptx,.pdf,application/pdf,application/vnd.openxmlformats-officedocument.presentationml.presentation" hidden>
+        <strong>Touche ici ou glisse ton fichier</strong>
+        <span>PowerPoint (.pptx) ou PDF, toutes tes slides dans un seul fichier.</span>
+      </label>
+      <div class="fichier" id="fichier"></div>
+      <div class="recu" id="deja"></div>
+      <progress id="progression" max="100" value="0"></progress>
+    </section>
+
+    <section class="etape">
+      <h2><span class="num">2</span> Tes contacts spécifiques (1 à 3)</h2>
+      <input type="text" class="contact" maxlength="200" placeholder="Prénom NOM – Fonction – Entreprise (Localité)">
+      <input type="text" class="contact" maxlength="200" placeholder="Contact 2 (facultatif)">
+      <input type="text" class="contact" maxlength="200" placeholder="Contact 3 (facultatif)">
+      <div class="aide">À la fin de ta conférence, Wassim t'aidera à rencontrer ces contacts grâce aux personnes présentes. Ils restent entre vous : ils n'apparaissent pas sur la présentation.</div>
+      <div class="recu" id="contacts-recus"></div>
+    </section>
+
+    <button id="valider">Valider</button>
+    <div class="message" id="resultat"></div>
+  </div>
+</main>
+<script>
+const $ = (id) => document.getElementById(id);
+const c = new URLSearchParams(location.search).get("c") || "";
+const url = (chemin, extra = "") => `${chemin}?c=${encodeURIComponent(c)}${extra}`;
+async function api(chemin, options, extra) {
+  const r = await fetch(url(chemin, extra), options);
+  const data = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(data.erreur || "Erreur, réessaie.");
+  return data;
+}
+const taille = (n) => n >= 1048576 ? `${(n / 1048576).toFixed(1).replace(".", ",")} Mo` : `${Math.max(1, Math.round(n / 1024))} Ko`;
+const quand = (iso) => new Date(iso).toLocaleString("fr-FR", { weekday: "long", day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" });
+let moi = null;
+let fichier = null;
+
+function afficher() {
+  const g = moi.genre;
+  $("titre").textContent = `Bonjour ${moi.prenom}`;
+  $("sous-titre").textContent = g === "f" ? `Le ${moi.vendredi_libelle}, c'est toi la conférencière.` : g === "m" ? `Le ${moi.vendredi_libelle}, c'est toi le conférencier.` : `Le ${moi.vendredi_libelle}, c'est toi qui fais la conférence.`;
+  $("limite").textContent = `Limite : ${moi.limite}`;
+  $("role").textContent = "Dépose tes slides et indique 1 à 3 contacts que tu aimerais rencontrer, puis valide.";
+  $("cadeau").textContent = `Pense aussi à préparer ${g === "f" ? "ton cadeau de la conférencière" : g === "m" ? "ton cadeau du conférencier" : "ton cadeau du membre à l'honneur"}.`;
+  const d = moi.depot;
+  $("deja").textContent = d ? `✓ Reçu le ${quand(d.valide_le)} : ${d.nom_fichier} (${taille(d.taille)})` + (moi.sur_la_presentation ? ` · sur la présentation (${moi.sur_la_presentation.slides} slide(s))` : "") + ". Tu peux le remplacer en déposant un autre fichier." : "";
+  $("contacts-recus").textContent = d ? `✓ ${d.nb_contacts} contact(s) reçu(s). Pour les modifier, ressaisis-les ci-dessus et valide.` : "";
+  if (moi.passee) {
+    $("valider").disabled = true;
+    const m = $("message"); m.className = "message ko"; m.textContent = "Cette conférence est passée : plus de dépôt possible.";
+  }
+}
+
+function choisir(f) {
+  if (!f) return;
+  const res = $("resultat");
+  if (!/\.(pptx|pdf)$/i.test(f.name)) { res.className = "message ko"; res.textContent = "Fichier attendu : PowerPoint (.pptx) ou PDF. Un ancien .ppt : enregistre-le en .pptx ou exporte-le en PDF."; return; }
+  if (f.size > moi.taille_max) { res.className = "message ko"; res.textContent = `Fichier trop lourd (${taille(f.size)}, ${taille(moi.taille_max)} max) : exporte-le en PDF ou réduis les images.`; return; }
+  fichier = f;
+  res.className = "message";
+  $("fichier").textContent = `Fichier choisi : ${f.name} (${taille(f.size)})`;
+}
+
+async function envoyerFichier() {
+  const e = await api("/api/conference/envoi", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ nom_fichier: fichier.name, taille: fichier.size }) });
+  const barre = $("progression");
+  barre.style.display = "block";
+  for (let n = 0; n < e.morceaux; n += 1) {
+    const morceau = fichier.slice(n * e.taille_morceau, Math.min(fichier.size, (n + 1) * e.taille_morceau));
+    for (let essai = 1; ; essai += 1) {
+      try {
+        await api("/api/conference/morceau", { method: "PUT", headers: { "Content-Type": "application/octet-stream" }, body: morceau }, `&envoi=${encodeURIComponent(e.envoi)}&n=${n}`);
+        break;
+      } catch (err) {
+        if (essai >= 3) throw err;
+        await new Promise((ok) => setTimeout(ok, 2000 * essai));
+      }
+    }
+    barre.value = Math.round(((n + 1) / e.morceaux) * 100);
+  }
+  return e.envoi;
+}
+
+async function charger() {
+  try {
+    moi = await api("/api/conference/moi");
+    $("contenu").style.display = "block";
+    afficher();
+  } catch (e) {
+    const m = $("message"); m.className = "message ko"; m.textContent = e.message;
+  }
+}
+
+$("choix").addEventListener("change", (e) => choisir(e.target.files[0]));
+const zone = $("depose");
+zone.addEventListener("dragover", (e) => { e.preventDefault(); zone.classList.add("survol"); });
+zone.addEventListener("dragleave", () => zone.classList.remove("survol"));
+zone.addEventListener("drop", (e) => { e.preventDefault(); zone.classList.remove("survol"); choisir(e.dataTransfer.files[0]); });
+
+$("valider").addEventListener("click", async () => {
+  const res = $("resultat");
+  const contacts = [...document.querySelectorAll(".contact")].map((i) => i.value.trim()).filter(Boolean);
+  if (!fichier && !moi.depot) { res.className = "message ko"; res.textContent = "Dépose d'abord tes slides (PowerPoint ou PDF)."; return; }
+  if (!contacts.length) { res.className = "message ko"; res.textContent = "Indique au moins un contact spécifique."; return; }
+  const b = $("valider");
+  b.disabled = true;
+  try {
+    const envoi = fichier ? await envoyerFichier() : null;
+    await api("/api/conference/valider", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ envoi, contacts }) });
+    fichier = null;
+    $("fichier").textContent = "";
+    for (const i of document.querySelectorAll(".contact")) i.value = "";
+    res.className = "message ok";
+    res.textContent = "Merci, c'est validé ! Wassim est prévenu, et tes slides seront ajoutées à la présentation.";
+    moi = await api("/api/conference/moi");
+    afficher();
+  } catch (e) {
+    res.className = "message ko"; res.textContent = e.message;
+  } finally {
+    b.disabled = Boolean(moi && moi.passee);
+    $("progression").style.display = "none";
+  }
+});
+
+charger();
+</script>
+</body>
+</html>

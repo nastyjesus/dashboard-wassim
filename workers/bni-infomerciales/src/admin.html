@@ -61,6 +61,12 @@
   .connexion { max-width: 420px; margin: 40px auto; background: #fff; border: 1px solid var(--trait); border-radius: 10px; padding: 20px; }
   .connexion input { width: 100%; font: inherit; padding: 11px; border: 1px solid #cfcfcf; border-radius: 8px; margin: 10px 0; }
   #tableau { display: none; }
+  .carte { background: #fff; border: 1px solid var(--trait); border-radius: 10px; padding: 14px 16px; margin-bottom: 14px; }
+  .carte h3 { margin: 0 0 8px; font-size: 15px; }
+  .carte select, .carte input[type=email], .carte input[type=date] { font: inherit; padding: 8px; border: 1px solid #cfcfcf; border-radius: 8px; background: #fff; }
+  .ligne-form { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 8px; }
+  .contacts-conf { margin: 6px 0 0; padding-left: 20px; }
+  .conf + .conf { border-top: 1px solid var(--trait); margin-top: 12px; padding-top: 12px; }
   @media (max-width: 700px) { .cache-mobile { display: none; } th, td { padding: 8px; } }
 </style>
 </head>
@@ -95,6 +101,16 @@
       </table></div>
       <p class="legende">Chaque semaine repart de zéro le lundi. La ligne du mois donne la moyenne par semaine terminée. Avant le 16/11, chiffres reconstitués à partir des derniers envois connus (incomplets).</p>
     </details>
+    <h2 class="titre-section">Conférence de la semaine</h2>
+    <div class="carte" id="conference"></div>
+    <h2 class="titre-section">Secrétaire trésorier</h2>
+    <div class="carte" id="secretaire"></div>
+    <details class="suivi">
+      <summary>Accord des mails de conférence, membre par membre</summary>
+      <p class="legende">Pour accorder les mails (« le conférencier » / « la conférencière », « secrétaire trésorier / trésorière »). Sans choix, le mail utilise une tournure neutre (« c'est toi qui fais la conférence »).</p>
+      <div class="defile"><table class="table-suivi"><tbody id="genres"></tbody></table></div>
+    </details>
+
     <p class="legende"><b>À poser</b> : reçu, pas encore sur la présentation (passage du mercredi soir, rattrapage du jeudi midi, ou bouton PowerPoint). <b>Sur la présentation</b> : dernier envoi posé sur la slide (effacé le samedi matin, après la réunion, sauf envoi déjà fait pour la semaine suivante). Clique une photo pour l'ouvrir en grand (utile pour la poser à la main).</p>
     <div class="defile"><table>
       <thead><tr><th>Membre</th><th>Statut</th><th>Photo</th><th class="cache-mobile">Qui peut m'aider à rencontrer</th><th>Lien perso</th></tr></thead>
@@ -232,11 +248,115 @@ async function charger() {
   $("metiers-groupe").innerHTML = listeMetiers.length
     ? `<ul>${listeMetiers.map((x) => `<li><strong>${esc(x.libelle)}</strong> <span class="muet">(${x.qui.length} : ${esc(x.qui.join(", "))})</span></li>`).join("")}</ul>`
     : '<span class="muet">Aucun métier renseigné pour l’instant.</span>';
+  if (data.conference) afficherConference(data.conference);
   // vignettes chargées avec le jeton admin (une balise img ne peut pas l'envoyer)
   for (const img of document.querySelectorAll("img[data-photo]")) {
     api(`/api/admin/${img.dataset.photo}`).then((r) => r.ok && r.blob()).then((b) => { if (b) img.src = URL.createObjectURL(b); });
   }
 }
+
+// ---------- conférence de la semaine + secrétaire trésorier ----------
+const jourCourt = (iso) => new Date(`${iso}T12:00:00Z`).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric", timeZone: "UTC" });
+const optionsMembres = (choisi) => '<option value="">— Choisir un membre —</option>' + membres.map((m) =>
+  `<option value="${m.slide_id}"${m.slide_id === choisi ? " selected" : ""}>${esc(m.nom)}${m.metier ? ` — ${esc(m.metier)}` : ""}</option>`).join("");
+const taille = (n) => n >= 1048576 ? `${(n / 1048576).toFixed(1).replace(".", ",")} Mo` : `${Math.max(1, Math.round(n / 1024))} Ko`;
+let conf = null;
+
+function afficherConference(c) {
+  conf = c;
+  const cible = c.conferences.find((x) => x.vendredi === c.vendredi);
+  const blocs = c.conferences.map((x) => {
+    const d = x.depot, a = x.applique;
+    const mail = x.mail_designation ? `mail envoyé ${esc(quand(x.mail_designation))}` : x.email ? "mail en attente (envoi dans le quart d'heure)" : '<span class="pastille ko">pas d\'email : envoie-lui le lien</span>';
+    let depot = '<span class="pastille non">Rien déposé</span>';
+    if (d) {
+      const fichier = d.fichier_efface ? `${esc(d.nom_fichier)} (effacé après la réunion)` : `<a href="#" data-fichier="${x.vendredi}">${esc(d.nom_fichier)}</a>`;
+      depot = `<span class="pastille ok">Déposé ${esc(quand(d.valide_le))}</span> ${fichier} · ${d.type === "pdf" ? "PDF" : "PowerPoint"}, ${taille(d.taille)}` +
+        `<div><b>Demandes spécifiques</b> (jamais sur la présentation) :<ol class="contacts-conf">${d.contacts.map((k) => `<li>${esc(k)}</li>`).join("")}</ol></div>`;
+    } else if (x.envoi_en_cours) depot = '<span class="pastille attente">Envoi commencé, pas encore validé</span>';
+    let pose = "";
+    if (d && a && a.valide_le === d.valide_le) {
+      pose = a.ok ? `<span class="pastille ok">✓ Sur la présentation · ${a.slides} slide(s) · ${esc(quand(a.date))}</span>` : `<span class="pastille ko">Échec de la pose : ${esc(a.message)}</span>`;
+      if (a.ok && a.message) pose += ` <span class="muet">${esc(a.message)}</span>`;
+    } else if (d) pose = '<span class="pastille attente">À poser (mercredi soir, jeudi midi, ou « Appliquer maintenant »)</span>';
+    return `<div class="conf"><h3>${esc(x.vendredi_libelle)}${x.vendredi === c.vendredi ? ' <span class="pastille attente">prochaine réunion</span>' : ""} : ${esc(x.nom)}</h3>` +
+      `<div class="muet">Désigné ${esc(quand(x.designe_le))} par ${x.designe_par === "admin" ? "toi (admin)" : "le secrétaire trésorier"} · ${mail} · <button class="second petit" data-lien="${esc(x.lien)}">Copier son lien</button></div>` +
+      `<div style="margin-top:6px">${depot}</div>${pose ? `<div style="margin-top:6px">${pose}</div>` : ""}</div>`;
+  }).join("");
+  $("conference").innerHTML =
+    `<div><b>Prochaine réunion : ${esc(c.vendredi_libelle)}</b> — ${cible ? `conférence : <b>${esc(cible.nom)}</b>` : '<span class="pastille attente">conférencier pas encore désigné</span>'}</div>` +
+    `<div class="ligne-form"><select id="conf-membre">${optionsMembres(cible ? cible.slide_id : null)}</select><button class="second petit" id="conf-designer">Désigner (à la place du secrétaire)</button></div>` +
+    (blocs ? `<div style="margin-top:12px">${blocs}</div>` : "");
+  const s = c.secretaire;
+  const histo = c.secretaires.map((x) => `<tr><td><strong>${esc(x.nom)}</strong></td><td>${esc(x.email) || '<span class="muet">pas d\'email</span>'}</td><td>${esc(jourCourt(x.debut))} → ${esc(jourCourt(x.fin))}</td><td class="muet">${x.remplace_le ? `remplacé ${esc(quand(x.remplace_le))}` : x.fin >= new Date().toISOString().slice(0, 10) ? "en cours" : "terminé"}</td></tr>`).join("");
+  $("secretaire").innerHTML =
+    (s ? `<div>Mandat en cours : <b>${esc(s.nom)}</b> (${esc(s.email) || '<span class="pastille ko">pas d\'email : pas de mail du vendredi ni du lundi</span>'}), jusqu'au ${esc(jourCourt(s.fin))} · <button class="second petit" data-lien="${esc(s.lien)}">Copier son lien</button></div>`
+      : '<div><span class="pastille attente">Aucun mandat en cours</span> : désigne le secrétaire trésorier pour lancer les mails du vendredi 14h et du lundi 9h.</div>') +
+    `<div class="ligne-form"><select id="sec-membre">${optionsMembres(null)}</select><input type="email" id="sec-email" placeholder="email (vide = celui des rappels)"><label>fin du mandat <input type="date" id="sec-fin" value="${esc(c.fin_mandat_defaut)}"></label><button class="petit" id="sec-nommer">Désigner pour le mandat</button></div>` +
+    (histo ? `<div class="defile" style="margin-top:10px"><table class="table-suivi"><thead><tr><th>Secrétaire trésorier</th><th>Email</th><th>Mandat</th><th></th></tr></thead><tbody>${histo}</tbody></table></div>` : "");
+  $("genres").innerHTML = membres.map((m) => {
+    const g = c.genres[m.slide_id] || "";
+    return `<tr><td>${esc(m.nom)}</td><td><select data-genre="${m.slide_id}"><option value=""${g ? "" : " selected"}>— (tournure neutre)</option><option value="m"${g === "m" ? " selected" : ""}>le conférencier</option><option value="f"${g === "f" ? " selected" : ""}>la conférencière</option></select></td></tr>`;
+  }).join("");
+}
+
+async function envoyerJson(chemin, methode, corps) {
+  const r = await api(chemin, { method: methode, headers: { "Content-Type": "application/json" }, body: JSON.stringify(corps) });
+  const data = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(data.erreur || "Erreur");
+  return data;
+}
+function signaler(e, ok) {
+  const res = $("resultat");
+  res.className = ok ? "resultat ok" : "resultat ko";
+  res.textContent = ok || e.message;
+  res.scrollIntoView({ behavior: "smooth", block: "center" });
+}
+
+document.addEventListener("click", async (e) => {
+  const lien = e.target.closest("[data-lien]");
+  if (lien) { copier(lien.dataset.lien, lien); return; }
+  const f = e.target.closest("[data-fichier]");
+  if (f) {
+    e.preventDefault();
+    const r = await api(`/api/admin/conference/fichier?vendredi=${encodeURIComponent(f.dataset.fichier)}`);
+    if (!r.ok) { signaler(new Error("Fichier indisponible.")); return; }
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(await r.blob());
+    a.download = f.textContent;
+    a.click();
+    return;
+  }
+  if (e.target.id === "conf-designer") {
+    const id = Number($("conf-membre").value);
+    if (!id) return;
+    const actuel = conf.conferences.find((x) => x.vendredi === conf.vendredi);
+    if (actuel && actuel.slide_id !== id && !confirm(`Remplacer ${actuel.nom} ?` + (actuel.depot ? " Ses slides déposées seront supprimées." : ""))) return;
+    try { const r = await envoyerJson("/api/admin/conference/designer", "POST", { slide_id: id }); signaler(null, `${r.nom} fera la conférence. Le mail part dans le quart d'heure.`); charger(); }
+    catch (err) { signaler(err); }
+  }
+  if (e.target.id === "sec-nommer") {
+    const id = Number($("sec-membre").value);
+    if (!id) { signaler(new Error("Choisis le membre.")); return; }
+    try {
+      const r = await envoyerJson("/api/admin/secretaire", "PUT", { slide_id: id, email: $("sec-email").value.trim(), fin: $("sec-fin").value });
+      signaler(null, `${r.nom} est secrétaire trésorier jusqu'au ${jourCourt(r.fin)}.` + (r.email ? "" : " Attention : pas d'email, pas de mail du vendredi ni du lundi."));
+      charger();
+    } catch (err) { signaler(err); }
+  }
+});
+document.addEventListener("change", async (e) => {
+  if (e.target.id === "sec-membre") {
+    // email repris de la liste des rappels si on l'a
+    const m = membres.find((x) => x.slide_id === Number(e.target.value));
+    if (m && m.email) $("sec-email").value = m.email;
+  }
+  const g = e.target.closest("[data-genre]");
+  if (g) {
+    try { await envoyerJson("/api/admin/genres", "PUT", { genres: { [g.dataset.genre]: g.value } }); conf.genres[g.dataset.genre] = g.value; }
+    catch (err) { signaler(err); }
+  }
+});
 
 async function copier(texte, bouton) {
   try { await navigator.clipboard.writeText(texte); const t = bouton.textContent; bouton.textContent = "Copié ✓"; setTimeout(() => (bouton.textContent = t), 1500); }
@@ -276,7 +396,8 @@ $("appliquer").addEventListener("click", async () => {
 });
 
 charger();
-setInterval(() => { if ($("tableau").style.display === "block") charger(); }, 30000);
+// pas de rechargement automatique pendant une saisie (secrétaire, accord)
+setInterval(() => { if ($("tableau").style.display === "block" && !document.activeElement.closest("#secretaire, #conference, #genres")) charger(); }, 30000);
 </script>
 </body>
 </html>
