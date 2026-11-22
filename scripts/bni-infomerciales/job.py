@@ -10,9 +10,14 @@
    sinon on recommence avec la nouvelle version, pour ne jamais écraser une modif ;
 5. renvoie au worker la liste des membres et les dépôts appliqués.
 
+Deux passages programmés par semaine (heure de Paris) : mercredi soir après la
+limite de 19h, puis jeudi midi pour les retardataires. Le second ne repose que
+les dépôts arrivés depuis : le worker efface ceux déjà appliqués.
+
 Le dépôt GitHub est public : ce script n'affiche jamais de nom, seulement des compteurs.
 """
 import configparser
+import datetime as dt
 import json
 import os
 import subprocess
@@ -21,6 +26,7 @@ import tempfile
 import time
 import unicodedata
 from pathlib import Path
+from zoneinfo import ZoneInfo
 
 import requests
 from requests.adapters import HTTPAdapter
@@ -37,11 +43,71 @@ PAUSE_ESSAI = int(os.environ.get("PAUSE_ESSAI", "180"))  # un verrou (423) dure 
 CALME = int(os.environ.get("CALME", "120"))  # secondes sans modification avant d'écrire
 SONDAGE = int(os.environ.get("SONDAGE", "20"))
 ATTENTE_MAX = int(os.environ.get("ATTENTE_MAX", str(20 * 60)))
+PAUSE_RESEAU = int(os.environ.get("PAUSE_RESEAU", "60"))  # × n° d'essai : 1, 2, 3, 4 min
 RCLONE = os.environ.get("RCLONE", "rclone")
+
+# ---------- créneaux de publication (heure de Paris) ----------
+PARIS = ZoneInfo("Europe/Paris")
+# (jour ISO, heure, minute, nom) : mercredi = 3, jeudi = 4
+CRENEAUX = [(3, 19, 0, "mercredi soir"), (4, 12, 0, "jeudi midi")]
+# Un passage retardé (cron GitHub en retard, échec) reste dû pendant ce délai.
+RATTRAPAGE = dt.timedelta(hours=18)
+# Crons UTC du workflow qui publient le deck, doublés pour l'heure d'été et
+# d'hiver, plus une heure de rattrapage ; un cron hors de cette liste (autre
+# tâche du même workflow) n'est pas filtré ici.
+CRONS_PUBLICATION = {
+    "5 17 * * 3", "5 18 * * 3", "5 19 * * 3",
+    "0 10 * * 4", "0 11 * * 4", "0 12 * * 4",
+}
+
+
+def creneau_du(maintenant):
+    """Dernier créneau de publication commencé depuis moins de RATTRAPAGE,
+    ou None. Identifiant stable : « AAAA-MM-JJ <nom> » (date de Paris)."""
+    ici = maintenant.astimezone(PARIS)
+    meilleur = None
+    for recul in range(8):
+        jour = (ici - dt.timedelta(days=recul)).date()
+        for iso, h, mi, nom in CRENEAUX:
+            if jour.isoweekday() != iso:
+                continue
+            debut = dt.datetime(jour.year, jour.month, jour.day, h, mi, tzinfo=PARIS)
+            if debut <= ici and (meilleur is None or debut > meilleur[0]):
+                meilleur = (debut, f"{jour.isoformat()} {nom}")
+    if meilleur and ici - meilleur[0] < RATTRAPAGE:
+        return meilleur[1]
+    return None
+
+
+def creneau_a_lancer(cron, passages, maintenant):
+    """Pour un lancement programmé : le créneau à publier, ou None s'il n'y a
+    rien à faire (pas encore l'heure à Paris, ou passage déjà réussi).
+    Chaque créneau a plusieurs crons (été, hiver, rattrapage) : le premier
+    qui tombe après l'heure de Paris publie, les suivants voient qu'il a réussi."""
+    creneau = creneau_du(maintenant)
+    if creneau is None:
+        return None
+    if any(p.get("ok") and p.get("creneau") == creneau for p in passages or []):
+        return None
+    return creneau
 
 
 class Conflit(Exception):
     """Le deck a changé (412) ou est verrouillé (423) : on recommence."""
+
+
+class Transitoire(Exception):
+    """Coupure réseau ou erreur serveur passagère : on recommence plus tard."""
+
+
+def est_transitoire(e):
+    if isinstance(e, Transitoire):
+        return True
+    if isinstance(e, (requests.ConnectionError, requests.Timeout, requests.exceptions.ChunkedEncodingError)):
+        return True
+    if isinstance(e, requests.HTTPError) and e.response is not None:
+        return e.response.status_code == 429 or e.response.status_code >= 500
+    return False
 
 
 class Worker:
@@ -151,10 +217,10 @@ def telecharger(acces, ms, destination):
                         recu += len(bloc)
                 if recu >= taille:
                     break
-            except (requests.ConnectionError, requests.exceptions.ChunkedEncodingError):
+            except (requests.ConnectionError, requests.Timeout, requests.exceptions.ChunkedEncodingError):
                 time.sleep(5)
     if recu != taille:
-        raise RuntimeError("téléchargement du deck incomplet")
+        raise Transitoire("téléchargement du deck incomplet")
     if metadonnees(acces, ms)["eTag"] != etag:
         raise Conflit("deck modifié pendant le téléchargement")
     return etag
@@ -248,23 +314,43 @@ def un_passage(worker, ms, depots, anciens_membres, dossier):
     return deck.lister_membres(sortie), orphelins + [d for d in a_faire if d["cible"] in faits], len(faits)
 
 
-def main():
-    worker = Worker(os.environ["WORKER_URL"], os.environ["WASSIM_AUTH_TOKEN"])
+def decrire(e):
+    """Message d'erreur sans URL : elle contient les identifiants OneDrive."""
+    if isinstance(e, requests.HTTPError) and e.response is not None:
+        return f"HTTP {e.response.status_code} sur {e.response.request.method}"
+    if isinstance(e, requests.RequestException):
+        return type(e).__name__
+    return f"{type(e).__name__} : {e}"
+
+
+def main(worker=None, maintenant=None, environ=os.environ):
+    worker = worker or Worker(environ["WORKER_URL"], environ["WASSIM_AUTH_TOKEN"])
     entree = worker.get("/api/job/entree").json()
+    cron = environ.get("CRON", "").strip()  # github.event.schedule, vide si lancé à la main
+    creneau = None
+    if cron in CRONS_PUBLICATION:
+        # lancement programmé : seulement à l'heure de Paris, et une fois par créneau
+        creneau = creneau_a_lancer(cron, entree.get("passages"), maintenant or dt.datetime.now(dt.timezone.utc))
+        if creneau is None:
+            print("Pas de passage à faire à cette heure-ci (heure de Paris), ou déjà fait : rien à faire.")
+            return 0
+        print(f"Passage programmé : {creneau}.")
     ms = entree.get("ms")
     if not ms or not (ms.get("refresh_token") or ms.get("rclone_token")) or not ms.get("item_id"):
         print("OneDrive non connecté : lancer connexion_microsoft.py une fois.")
         return 1
     depots = preparer_depots(worker, entree["depots"])
     print(f"{len(depots)} dépôt(s) à traiter.")
+    trace = {"source": "job", "creneau": creneau}
     erreur = None
     for essai in range(1, ESSAIS + 1):
         try:
             with tempfile.TemporaryDirectory() as dossier:
                 membres, appliques, nb = un_passage(worker, ms, depots, entree.get("membres", []), dossier)
             worker.envoyer("POST", "/api/job/resultat", {
+                **trace,
                 "ok": True,
-                "message": f"{nb} slide(s) mise(s) à jour" if nb else "aucun dépôt, liste des membres synchronisée",
+                "message": f"{nb} slide(s) mise(s) à jour" if nb else "aucun nouveau dépôt, liste des membres synchronisée",
                 "membres": membres,
                 # orphelin : slide du membre introuvable, dépôt purgé sans être posé
                 "appliques": [{"slide_id": d["slide_id"], "date": d["date"], "orphelin": d["cible"] is None}
@@ -272,21 +358,29 @@ def main():
             })
             print(f"OK : {nb} slide(s) mise(s) à jour, {len(membres)} membre(s) dans le deck.")
             return 0
-        except Conflit as e:
-            erreur = f"deck modifié ou ouvert pendant la mise à jour ({e})"
-            print(f"Essai {essai}/{ESSAIS} : {erreur}")
-            if essai < ESSAIS:
-                time.sleep(PAUSE_ESSAI)
-            ms = worker.get("/api/job/entree").json()["ms"]  # jeton renouvelé entre-temps
-        except requests.HTTPError as e:
-            # pas d'URL dans le message : elle contient les identifiants OneDrive
-            erreur = f"HTTP {e.response.status_code} sur {e.response.request.method}"
-            break
         except Exception as e:
-            erreur = f"{type(e).__name__} : {e}"
-            break
-    worker.envoyer("POST", "/api/job/resultat", {"ok": False, "message": f"échec : {erreur}"[:300]})
+            if isinstance(e, Conflit):
+                erreur, pause = f"deck modifié ou ouvert pendant la mise à jour ({e})", PAUSE_ESSAI
+            elif est_transitoire(e):
+                erreur, pause = f"erreur réseau passagère ({decrire(e)})", PAUSE_RESEAU * essai
+            else:
+                erreur = decrire(e)
+                break
+            print(f"Essai {essai}/{ESSAIS} : {erreur}")
+            if essai == ESSAIS:
+                break
+            time.sleep(pause)
+            try:
+                ms = worker.get("/api/job/entree").json()["ms"]  # jeton renouvelé entre-temps
+            except Exception:
+                pass  # on retente avec l'ancien : l'essai suivant dira si ça bloque
+    message = f"échec : {erreur}"[:300]
     print(f"ÉCHEC : {erreur}")
+    try:
+        # les dépôts restent sur le worker : le passage suivant les reprendra tous
+        worker.envoyer("POST", "/api/job/resultat", {**trace, "ok": False, "message": message})
+    except Exception as e:
+        print(f"Résultat non enregistré sur le worker ({decrire(e)}).")
     return 1
 
 
