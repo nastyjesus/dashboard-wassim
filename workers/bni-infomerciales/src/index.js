@@ -8,6 +8,7 @@
 //   photo:<id>       JPEG (déjà réduit par le téléphone)
 //   ms               { rclone_token | refresh_token+client_id, drive_id, item_id } (jamais servi aux membres)
 //   dernier_run      { date, ok, message, mis_a_jour }
+//   passages         [{ date, ok, message, mis_a_jour, source: job|complement, creneau }] (20 derniers, récent d'abord)
 //   applique:<id>    dernier dépôt traité { ...dépôt, statut: pose|introuvable, applique_le }
 //   photo_appliquee:<id>  JPEG de la dernière photo posée sur la slide
 //   emails           { <slide_id>: email } (rappels ; données perso, chargées par l'admin)
@@ -200,6 +201,7 @@ async function etatAdmin(env, origine) {
     microsoft_connecte: Boolean(ms?.refresh_token || ms?.rclone_token),
     bouton_dispo: Boolean(env.GH_DISPATCH_TOKEN),
     dernier_run: dernierRun,
+    passages_job: (await lire(env, 'passages', [])).filter((x) => x.source === 'job').slice(0, 2),
   };
 }
 
@@ -314,7 +316,20 @@ async function recevoirResultat(env, corps) {
   }
   const run = { date: new Date().toISOString(), ok: Boolean(corps.ok), message: String(corps.message ?? ''), mis_a_jour: (corps.appliques ?? []).filter((a) => !a.orphelin).length };
   await env.KV.put('dernier_run', JSON.stringify(run));
+  await noterPassage(env, run, corps);
   return json(run);
+}
+
+// Historique des passages (job programmé, lancement manuel, complément) : le
+// job y lit si le créneau du mercredi soir / jeudi midi est déjà fait, l'admin
+// y affiche les deux derniers passages du job.
+const PASSAGES_MAX = 20;
+async function noterPassage(env, run, corps) {
+  const source = corps.source === 'job' ? 'job' : 'complement';
+  const creneau = typeof corps.creneau === 'string' && corps.creneau ? corps.creneau.slice(0, 40) : null;
+  const passages = await lire(env, 'passages', []);
+  passages.unshift({ ...run, source, creneau });
+  await env.KV.put('passages', JSON.stringify(passages.slice(0, PASSAGES_MAX)));
 }
 
 // ---------- rappels hebdo (envoyés par le script Google Apps Script) ----------
@@ -470,7 +485,7 @@ async function routesAdmin(request, env, url) {
     const ms = await lire(env, 'ms', null);
     const { keys } = await env.KV.list({ prefix: 'depot:' });
     const depots = (await Promise.all(keys.map((k) => lire(env, k.name, null)))).filter(Boolean);
-    return json({ ms, depots, membres });
+    return json({ ms, depots, membres, passages: await lire(env, 'passages', []) });
   }
   if (p === '/api/job/ms' && m === 'PUT') {
     let corps;

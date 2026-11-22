@@ -95,7 +95,7 @@
       </table></div>
       <p class="legende">Chaque semaine repart de zéro le lundi. La ligne du mois donne la moyenne par semaine terminée. Avant le 16/11, chiffres reconstitués à partir des derniers envois connus (incomplets).</p>
     </details>
-    <p class="legende"><b>À poser</b> : reçu, pas encore sur la présentation (passage du mercredi soir ou bouton PowerPoint). <b>Sur la présentation</b> : dernier envoi posé sur la slide. Clique une photo pour l'ouvrir en grand (utile pour la poser à la main).</p>
+    <p class="legende"><b>À poser</b> : reçu, pas encore sur la présentation (passage du mercredi soir, rattrapage du jeudi midi, ou bouton PowerPoint). <b>Sur la présentation</b> : dernier envoi posé sur la slide. Clique une photo pour l'ouvrir en grand (utile pour la poser à la main).</p>
     <div class="defile"><table>
       <thead><tr><th>Membre</th><th>Statut</th><th>Photo</th><th class="cache-mobile">Qui peut m'aider à rencontrer</th><th>Lien perso</th></tr></thead>
       <tbody id="lignes"></tbody>
@@ -120,6 +120,11 @@ let jeton = "";
 try { jeton = localStorage.getItem("bni-admin") || ""; } catch {}
 let membres = [];
 
+// deux derniers passages du job (mercredi soir, jeudi midi, ou lancement manuel)
+const passagesJob = (liste) => liste.length ? `<br>Passages du job : ` + liste.map((x) =>
+  `${esc(quand(x.date))} (${esc(x.creneau || "manuel")}) — <span class="${x.ok ? "ok" : "ko"}">${x.ok ? `OK, ${x.mis_a_jour} slide(s)` : esc(x.message)}</span>`
+).join(" · ") : "";
+
 const api = (chemin, options = {}) => fetch(chemin, { ...options, headers: { ...(options.headers || {}), "X-Wassim-Auth": jeton } });
 
 async function charger() {
@@ -139,7 +144,7 @@ async function charger() {
   $("info").innerHTML = [
     data.microsoft_connecte ? '<span class="ok">OneDrive connecté</span>' : '<span class="ko">OneDrive non connecté (lancer connexion_microsoft.py)</span>',
     run ? `Dernière mise à jour du deck : ${esc(quand(run.date))} — <span class="${run.ok ? "ok" : "ko"}">${esc(run.message)}</span>` : "Aucune mise à jour du deck pour l'instant",
-  ].join(" · ");
+  ].join(" · ") + passagesJob(data.passages_job || []);
   const avecObj = membres.filter((m) => m.objectifs);
   const totalCa = avecObj.reduce((t, m) => t + (m.objectifs.ca_ht || 0), 0);
   const totalRecos = avecObj.reduce((t, m) => t + (m.objectifs.recos || 0), 0);

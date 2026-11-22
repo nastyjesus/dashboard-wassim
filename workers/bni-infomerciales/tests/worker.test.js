@@ -446,6 +446,47 @@ describe('admin et job', () => {
     expect(await lienDe('Paul JUHEL')).toBe(avant);
   });
 
+  it('garde l\'historique des passages et le sert au job et à l\'admin', async () => {
+    await appel('/api/job/resultat', { methode: 'POST', admin: ADMIN, corps: { ok: false, message: 'échec : réseau', source: 'job', creneau: '2026-11-25 mercredi soir' } });
+    await appel('/api/job/resultat', { methode: 'POST', admin: ADMIN, corps: { ok: true, message: '0 slide', source: 'job', creneau: '2026-11-25 mercredi soir' } });
+    await appel('/api/job/resultat', { methode: 'POST', admin: ADMIN, corps: { ok: true, message: 'complément' } });
+
+    const { body: entree } = await appel('/api/job/entree', { admin: ADMIN });
+    expect(entree.passages.map((p) => [p.source, p.ok, p.creneau])).toEqual([
+      ['complement', true, null],
+      ['job', true, '2026-11-25 mercredi soir'],
+      ['job', false, '2026-11-25 mercredi soir'],
+      ['complement', true, null], // synchro du beforeEach
+    ]);
+    const { body: etat } = await appel('/api/admin/etat', { admin: ADMIN });
+    expect(etat.passages_job).toHaveLength(2);
+    expect(etat.passages_job.every((p) => p.source === 'job')).toBe(true);
+    expect(etat.passages_job[0]).toMatchObject({ ok: true, creneau: '2026-11-25 mercredi soir' });
+    expect(etat.dernier_run.message).toBe('complément');
+  });
+
+  it('limite l\'historique des passages à 20', async () => {
+    for (let i = 0; i < 25; i++) {
+      await appel('/api/job/resultat', { methode: 'POST', admin: ADMIN, corps: { ok: true, message: `n${i}`, source: 'job' } });
+    }
+    const { passages } = (await appel('/api/job/entree', { admin: ADMIN })).body;
+    expect(passages).toHaveLength(20);
+    expect(passages[0].message).toBe('n24');
+  });
+
+  it('second passage (jeudi midi) : ne sert que les dépôts arrivés depuis', async () => {
+    const paul = await lienDe('Paul JUHEL');
+    const celine = await lienDe('Céline GUIHO');
+    await appel(`/api/depot?m=${paul}`, { methode: 'POST', corps: { recherche: 'Paul mercredi' } });
+    let { body: entree } = await appel('/api/job/entree', { admin: ADMIN });
+    await appel('/api/job/resultat', { methode: 'POST', admin: ADMIN, corps: { ok: true, source: 'job', creneau: '2026-11-25 mercredi soir', appliques: [{ slide_id: 101, date: entree.depots[0].date }] } });
+
+    await appel(`/api/depot?m=${celine}`, { methode: 'POST', corps: { recherche: 'Céline jeudi' } });
+    ({ body: entree } = await appel('/api/job/entree', { admin: ADMIN }));
+    expect(entree.depots.map((d) => d.slide_id)).toEqual([202]);
+    expect(entree.passages[0]).toMatchObject({ ok: true, source: 'job', creneau: '2026-11-25 mercredi soir', mis_a_jour: 1 });
+  });
+
   it('explique quand le bouton n\'est pas configuré', async () => {
     const { res } = await appel('/api/admin/appliquer', { methode: 'POST', admin: ADMIN });
     expect(res.status).toBe(501);
