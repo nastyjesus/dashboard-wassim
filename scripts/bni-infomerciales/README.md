@@ -106,6 +106,45 @@ les slides non reconnues (disposition membre sans nom) sont laissées et compté
 - Texte : espace réservé du bandeau du haut ; laissé tel quel si le champ est vide.
 - Photo réduite à 1920 px, JPEG 85 (certaines photos du deck pèsent 25 Mo).
 
+## Conférence de la semaine
+
+Parcours : secrétaire trésorier → conférencier → slides sur le deck.
+
+1. **Admin › Secrétaire trésorier** : Wassim désigne le membre pour un mandat
+   (fin proposée : prochain 30 mars / 30 septembre). L'email vient de la liste
+   des rappels (ou saisi). Historique des mandats avec leurs emails. Un nouveau
+   mandat invalide le lien de l'ancien.
+2. **Mails au secrétaire** (`rappels.gs`) : vendredi 14h (toujours) et lundi 9h
+   (seulement si personne n'est désigné), avec son lien `/secretaire?s=…`.
+3. **Page secrétaire** : liste de tous les membres, pour la prochaine réunion
+   (le vendredi de la semaine jusqu'à vendredi 12h, puis le suivant). Note :
+   conférence de sphère → un seul membre de la sphère. L'admin peut aussi
+   désigner à sa place.
+4. **Mail au conférencier** (relevé toutes les 15 min par `notificationsConference`) :
+   cadeau, slides avant mercredi 19h, 1 à 3 contacts spécifiques, lien
+   `/conference?c=…`. Relance mercredi 14h s'il n'a rien déposé. Accord
+   « le conférencier / la conférencière » réglé dans Admin › Accord des mails ;
+   sans réglage, tournure neutre (« c'est toi qui fais la conférence »), jamais
+   d'écriture inclusive.
+5. **Page conférencier** : un fichier .pptx ou .pdf (80 Mo max, envoyé par
+   morceaux de 8 Mio : le KV limite une valeur à 25 Mio) + 1 à 3 contacts, puis
+   « Valider ». Les contacts ne sont jamais renvoyés par les pages publiques ni
+   au job : seulement l'admin et le mail à Wassim.
+6. **Mail à Wassim** à chaque validation, à l'adresse du compte Gmail qui
+   exécute le script (`Session.getEffectiveUser()`), avec les demandes spécifiques.
+7. **Pose** (`conference.py`, mêmes passages que les infomerciales) : juste
+   après la dernière slide de disposition « Membre à l'honneur » (début de la
+   partie conférence, dans sa section). PDF : une page = une image plein cadre
+   sur une slide « Page vide ». PowerPoint : slides recopiées avec leur propre
+   masque et dispositions (notes de l'orateur non reprises). Chaque slide posée
+   s'appelle en interne « Conférence du AAAA-MM-JJ (i/n) » : un nouveau dépôt
+   remplace la conférence déjà posée. Les slides posées à la main (sans ce nom)
+   ne sont jamais touchées. Une conférence impossible à poser n'empêche pas les
+   infomerciales : l'erreur s'affiche dans l'admin, le passage suivant réessaie.
+8. **Nettoyage du samedi** : retire les slides de la conférence de la réunion
+   passée (et le masque recopié), garde celles d'une réunion à venir, puis
+   efface le fichier déposé du KV (la fiche reste dans l'admin).
+
 ## Limites connues
 
 - Une nouvelle slide membre n'apparaît qu'une fois son nom rempli dans le deck.

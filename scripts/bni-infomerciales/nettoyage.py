@@ -8,7 +8,9 @@ Pour chaque slide membre reconnue (deck.nettoyer) : retire la photo de la
 semaine et vide le bandeau « Qui peut m'aider à rencontrer », pour qu'une
 infomerciale ne réapparaisse pas la semaine suivante si le membre n'en
 renvoie pas. Les slides où un dépôt de la nouvelle semaine est déjà posé
-(plan du worker : « preserver ») ne sont pas touchées.
+(plan du worker : « preserver ») ne sont pas touchées. Les slides de la
+conférence de la réunion passée (posées par conference.py) sont retirées ;
+celles d'une réunion à venir restent (plan : « conference_jusqu_au »).
 
 Sûreté :
 - copie datée du deck à côté de l'original (copie côté OneDrive, sans
@@ -134,9 +136,10 @@ def un_passage(worker, ms, plan, dossier, essai):
     source = Path(dossier) / "source.pptx"
     etag = telecharger(acces, ms, source)
     sortie = Path(dossier) / "sortie.pptx"
-    rapport = deck.nettoyer(source, sortie, preserver=plan.get("preserver", []), essai=essai)
+    rapport = deck.nettoyer(source, sortie, preserver=plan.get("preserver", []), essai=essai,
+                            conference_jusqu_au=plan.get("conference_jusqu_au"))
     rapport["sauvegarde"] = ""
-    if rapport["nettoyees"] and not essai:
+    if (rapport["nettoyees"] or rapport["conference"]) and not essai:
         rapport["sauvegarde"] = sauvegarder(acces, ms, etag, plan["semaine"])
         envoyer_deck(acces, ms, sortie, etag)
     return rapport
@@ -144,7 +147,8 @@ def un_passage(worker, ms, plan, dossier, essai):
 
 def resume(rapport):
     return (f"{len(rapport['nettoyees'])} slide(s) vidée(s), {len(rapport['deja_vides'])} déjà vide(s), "
-            f"{len(rapport['preservees'])} gardée(s), {rapport['non_reconnues']} non reconnue(s) laissée(s)")
+            f"{len(rapport['preservees'])} gardée(s), {rapport['non_reconnues']} non reconnue(s) laissée(s), "
+            f"{rapport['conference']} slide(s) de conférence retirée(s)")
 
 
 def main(args):
@@ -179,6 +183,7 @@ def main(args):
                 "ok": True, "semaine": plan["semaine"], "message": resume(rapport),
                 "nettoyees": rapport["nettoyees"], "deja_vides": rapport["deja_vides"],
                 "preservees": rapport["preservees"], "non_reconnues": rapport["non_reconnues"],
+                "conference": rapport["conference"],
                 "sauvegarde": rapport["sauvegarde"],
             })
             return 0

@@ -17,12 +17,20 @@
 //   nettoyage:<lundi>, dernier_nettoyage  nettoyage hebdo du samedi (voir nettoyage.js)
 //   suppleants       [{ nom, prenom, email, tel }] (visiteurs possibles ; données
 //                    perso : jamais dans le dépôt public, chargées par l'admin)
+//   secretaires, genres, conference:<vendredi>, jetons_conference, conf_morceau:*
+//                    conférencier de la semaine (voir conference.js)
 
 import PAGE_MEMBRE from './membre.html';
 import PAGE_ADMIN from './admin.html';
 import PAGE_ADDIN from './addin.html';
+import PAGE_SECRETAIRE from './secretaire.html';
+import PAGE_CONFERENCE from './conference.html';
 import ICONE_ADDIN from './icone.js';
 import { routesNettoyage } from './nettoyage.js';
+import {
+  routesPubliques, etatConference, nommerSecretaire, designer, vendrediCible, listeRappelsConference,
+  notificationsAEnvoyer, accuserNotifications, fichierConference, conferenceAPoser, morceauPourJob, enregistrerPose,
+} from './conference.js';
 
 const PHOTO_MAX = 5 * 1024 * 1024;
 const RECHERCHE_MAX = 160;
@@ -180,7 +188,7 @@ async function routesMembre(request, env, url) {
 
 // ---------- admin + job (X-Wassim-Auth) ----------
 
-async function etatAdmin(env, origine) {
+async function etatAdmin(env, origine, maintenant = new Date()) {
   const [membres, jetons, ms, dernierRun] = await Promise.all([
     lire(env, 'membres', []), lire(env, 'jetons', {}), lire(env, 'ms', null), lire(env, 'dernier_run', null),
   ]);
@@ -206,6 +214,7 @@ async function etatAdmin(env, origine) {
     dernier_run: dernierRun,
     passages_job: (await lire(env, 'passages', [])).filter((x) => x.source === 'job').slice(0, 2),
     dernier_nettoyage: dernierNettoyage,
+    conference: await etatConference(env, origine, maintenant),
   };
 }
 
@@ -236,8 +245,9 @@ async function suivreSlidesRecreees(env, anciens, membres, jetons) {
   // l'email (rappels) et la trace de la semaine suivent aussi, sinon le membre
   // ne reçoit plus de rappel, ou est relancé alors qu'il a envoyé
   const cleSemaine = `envois:${lundiParis(new Date())}`;
-  const [emails, semaine] = await Promise.all([lire(env, 'emails', {}), lire(env, cleSemaine, {})]);
+  const [emails, semaine, genres] = await Promise.all([lire(env, 'emails', {}), lire(env, cleSemaine, {}), lire(env, 'genres', {})]);
   let emailsModifies = false;
+  let genresModifies = false;
   let semaineModifiee = false;
   for (const ancien of anciens) {
     if (nouveauxIds.has(ancien.slide_id)) continue;
@@ -247,6 +257,11 @@ async function suivreSlidesRecreees(env, anciens, membres, jetons) {
       emails[cible.slide_id] = emails[ancien.slide_id];
       delete emails[ancien.slide_id];
       emailsModifies = true;
+    }
+    if (genres[ancien.slide_id] && !genres[cible.slide_id]) {
+      genres[cible.slide_id] = genres[ancien.slide_id];
+      delete genres[ancien.slide_id];
+      genresModifies = true;
     }
     if (semaine[ancien.slide_id]) {
       const avant = semaine[cible.slide_id] ?? { photo: false, demande: false };
@@ -272,6 +287,7 @@ async function suivreSlidesRecreees(env, anciens, membres, jetons) {
     }
   }
   if (emailsModifies) await env.KV.put('emails', JSON.stringify(emails));
+  if (genresModifies) await env.KV.put('genres', JSON.stringify(genres));
   if (semaineModifiee) await env.KV.put(cleSemaine, JSON.stringify(semaine));
 }
 
@@ -318,6 +334,7 @@ async function recevoirResultat(env, corps) {
     await env.KV.put('membres', JSON.stringify(membres));
     await env.KV.put('jetons', JSON.stringify(jetons));
   }
+  if (corps.conference) await enregistrerPose(env, corps.conference, new Date());
   const run = { date: new Date().toISOString(), ok: Boolean(corps.ok), message: String(corps.message ?? ''), mis_a_jour: (corps.appliques ?? []).filter((a) => !a.orphelin).length };
   await env.KV.put('dernier_run', JSON.stringify(run));
   await noterPassage(env, run, corps);
@@ -447,7 +464,12 @@ async function routesAdmin(request, env, url) {
   const p = url.pathname;
   const m = request.method;
 
-  if (p === '/api/admin/etat' && m === 'GET') return json(await etatAdmin(env, url.origin));
+  // ?maintenant= (date ISO) : simulation d'une date, pour vérifier les rappels
+  const maintenant = url.searchParams.get('maintenant') ? new Date(url.searchParams.get('maintenant')) : new Date();
+  if (Number.isNaN(maintenant.getTime())) return erreur('maintenant : date ISO attendue.');
+  const corpsJson = async () => { try { return await request.json(); } catch { return null; } };
+
+  if (p === '/api/admin/etat' && m === 'GET') return json(await etatAdmin(env, url.origin, maintenant));
   if (p === '/api/admin/appliquer' && m === 'POST') return declencherJob(env);
   if (p === '/api/admin/emails' && m === 'PUT') {
     let corps;
@@ -461,10 +483,39 @@ async function routesAdmin(request, env, url) {
   }
   if (p === '/api/admin/rappels' && m === 'GET') {
     const type = url.searchParams.get('type');
-    if (!['lundi', 'mercredi'].includes(type)) return erreur('type=lundi ou type=mercredi requis.');
-    const maintenant = url.searchParams.get('maintenant') ? new Date(url.searchParams.get('maintenant')) : new Date();
-    if (Number.isNaN(maintenant.getTime())) return erreur('maintenant : date ISO attendue.');
+    if (['secretaire_vendredi', 'secretaire_lundi', 'conferencier_mercredi'].includes(type)) {
+      return json(await listeRappelsConference(env, url.origin, type, maintenant));
+    }
+    if (!['lundi', 'mercredi'].includes(type)) return erreur('type=lundi, mercredi, secretaire_vendredi, secretaire_lundi ou conferencier_mercredi requis.');
     return json(await listeRappels(env, url.origin, type, maintenant));
+  }
+  if (p === '/api/admin/secretaire' && m === 'PUT') {
+    const corps = await corpsJson();
+    if (!corps) return erreur('Requête illisible.');
+    return nommerSecretaire(env, corps, maintenant, url.origin);
+  }
+  if (p === '/api/admin/genres' && m === 'PUT') {
+    const corps = await corpsJson();
+    if (!corps?.genres || typeof corps.genres !== 'object') return erreur('genres ({ slide_id: f | m | vide }) requis.');
+    const genres = await lire(env, 'genres', {});
+    for (const [id, g] of Object.entries(corps.genres)) {
+      if (!Number(id)) continue;
+      if (g === 'f' || g === 'm') genres[Number(id)] = g; else delete genres[Number(id)];
+    }
+    await env.KV.put('genres', JSON.stringify(genres));
+    return json({ ok: true, genres });
+  }
+  if (p === '/api/admin/conference/designer' && m === 'POST') {
+    const corps = await corpsJson();
+    if (!corps) return erreur('Requête illisible.');
+    return designer(env, vendrediCible(maintenant), corps.slide_id, 'admin', maintenant);
+  }
+  if (p === '/api/admin/conference/fichier' && m === 'GET') return fichierConference(env, String(url.searchParams.get('vendredi') ?? ''));
+  if (p === '/api/admin/conference/notifications' && m === 'GET') return json(await notificationsAEnvoyer(env, url.origin, maintenant));
+  if (p === '/api/admin/conference/notifications' && m === 'POST') {
+    const corps = await corpsJson();
+    if (!corps) return erreur('Requête illisible.');
+    return json(await accuserNotifications(env, corps.ids, maintenant));
   }
   if (p === '/api/admin/suppleants' && m === 'PUT') {
     let corps;
@@ -489,8 +540,10 @@ async function routesAdmin(request, env, url) {
     const ms = await lire(env, 'ms', null);
     const { keys } = await env.KV.list({ prefix: 'depot:' });
     const depots = (await Promise.all(keys.map((k) => lire(env, k.name, null)))).filter(Boolean);
-    return json({ ms, depots, membres, passages: await lire(env, 'passages', []) });
+    return json({ ms, depots, membres, passages: await lire(env, 'passages', []), conference: await conferenceAPoser(env, maintenant) });
   }
+  const morceau = p.match(/^\/api\/job\/conference\/morceau\/([\w-]+)\/(\d+)$/);
+  if (morceau && m === 'GET') return morceauPourJob(env, morceau[1], Number(morceau[2]));
   if (p === '/api/job/ms' && m === 'PUT') {
     let corps;
     try { corps = await request.json(); } catch { return erreur('Requête illisible.'); }
@@ -520,6 +573,8 @@ export default {
     try {
       if (p === '/' && request.method === 'GET') return html(PAGE_MEMBRE);
       if (p === '/admin' && request.method === 'GET') return html(PAGE_ADMIN);
+      if (p === '/secretaire' && request.method === 'GET') return html(PAGE_SECRETAIRE);
+      if (p === '/conference' && request.method === 'GET') return html(PAGE_CONFERENCE);
       if (p === '/health') return json({ ok: true });
       if (p === '/addin' && request.method === 'GET') return html(PAGE_ADDIN);
       if (p === '/addin/manifest.xml') {
@@ -529,6 +584,7 @@ export default {
         return new Response(Uint8Array.from(atob(ICONE_ADDIN), (c) => c.charCodeAt(0)), { headers: { 'Content-Type': 'image/png', 'Cache-Control': 'public, max-age=86400' } });
       }
       if (p.startsWith('/api/admin/') || p.startsWith('/api/job/')) return await routesAdmin(request, env, url);
+      if (p.startsWith('/api/secretaire/') || p.startsWith('/api/conference/')) return await routesPubliques(request, env, url);
       if (p.startsWith('/api/')) return await routesMembre(request, env, url);
       return erreur('Introuvable.', 404);
     } catch (e) {
