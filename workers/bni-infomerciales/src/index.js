@@ -14,6 +14,7 @@
 //   emails           { <slide_id>: email } (rappels ; données perso, chargées par l'admin)
 //   objectifs:<id>   { ca_ht, recos, metiers, date } (objectif annuel BNI + métiers prescripteurs/recherchés)
 //   envois:<lundi>   { <slide_id>: { photo, demande, date } } (suivi hebdo, lundi = AAAA-MM-JJ Paris)
+//   nettoyage:<lundi>, dernier_nettoyage  nettoyage hebdo du samedi (voir nettoyage.js)
 //   suppleants       [{ nom, prenom, email, tel }] (visiteurs possibles ; données
 //                    perso : jamais dans le dépôt public, chargées par l'admin)
 
@@ -21,6 +22,7 @@ import PAGE_MEMBRE from './membre.html';
 import PAGE_ADMIN from './admin.html';
 import PAGE_ADDIN from './addin.html';
 import ICONE_ADDIN from './icone.js';
+import { routesNettoyage } from './nettoyage.js';
 
 const PHOTO_MAX = 5 * 1024 * 1024;
 const RECHERCHE_MAX = 160;
@@ -182,6 +184,7 @@ async function etatAdmin(env, origine) {
   const [membres, jetons, ms, dernierRun] = await Promise.all([
     lire(env, 'membres', []), lire(env, 'jetons', {}), lire(env, 'ms', null), lire(env, 'dernier_run', null),
   ]);
+  const dernierNettoyage = await lire(env, 'dernier_nettoyage', null);
   const jetonDe = Object.fromEntries(Object.entries(jetons).map(([j, id]) => [id, j]));
   const liste = await Promise.all(membres.map(async (m) => ({
     ...m,
@@ -202,6 +205,7 @@ async function etatAdmin(env, origine) {
     bouton_dispo: Boolean(env.GH_DISPATCH_TOKEN),
     dernier_run: dernierRun,
     passages_job: (await lire(env, 'passages', [])).filter((x) => x.source === 'job').slice(0, 2),
+    dernier_nettoyage: dernierNettoyage,
   };
 }
 
@@ -496,6 +500,10 @@ async function routesAdmin(request, env, url) {
     if (!suivant.rclone_token && !(suivant.refresh_token && suivant.client_id)) return erreur('rclone_token, ou refresh_token et client_id, requis.');
     await env.KV.put('ms', JSON.stringify(suivant));
     return json({ ok: true });
+  }
+  if (p === '/api/job/nettoyage') {
+    const r = await routesNettoyage(request, env, url);
+    if (r) return r;
   }
   if (p === '/api/job/resultat' && m === 'POST') {
     let corps;

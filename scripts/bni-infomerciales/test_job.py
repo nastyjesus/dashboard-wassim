@@ -10,8 +10,8 @@ from job import creneau_a_lancer, creneau_du, recibler
 
 ANCIENS = [
     {"slide_id": 1, "nom": "Wassim LOUMI"},
-    {"slide_id": 2, "nom": "Céline GUIHO"},
-    {"slide_id": 3, "nom": "Paul JUHEL"},
+    {"slide_id": 2, "nom": "Céline DURAND"},
+    {"slide_id": 3, "nom": "Paul MARTIN"},
 ]
 
 
@@ -22,17 +22,17 @@ def depot(slide_id):
 class TestRecibler(unittest.TestCase):
     def test_slide_deplacee_suivie_par_identifiant(self):
         # des slides ont été ajoutées avant : la position change, pas l'identifiant
-        deck = [{"slide_id": 9, "nom": "Nouveau"}, {"slide_id": 3, "nom": "Paul JUHEL"}, {"slide_id": 1, "nom": "Wassim LOUMI"}]
+        deck = [{"slide_id": 9, "nom": "Nouveau"}, {"slide_id": 3, "nom": "Paul MARTIN"}, {"slide_id": 1, "nom": "Wassim LOUMI"}]
         [d] = recibler([depot(1)], ANCIENS, deck)
         self.assertEqual(d["cible"], 1)
 
     def test_slide_recreee_retrouvee_par_nom(self):
-        deck = [{"slide_id": 77, "nom": "Celine  Guiho"}, {"slide_id": 1, "nom": "Wassim LOUMI"}]
+        deck = [{"slide_id": 77, "nom": "Celine  Durand"}, {"slide_id": 1, "nom": "Wassim LOUMI"}]
         [d] = recibler([depot(2)], ANCIENS, deck)
         self.assertEqual((d["cible"], d["slide_id"]), (77, 2))
 
     def test_homonymes_pas_de_devinette(self):
-        deck = [{"slide_id": 77, "nom": "Paul JUHEL"}, {"slide_id": 78, "nom": "Paul Juhel"}]
+        deck = [{"slide_id": 77, "nom": "Paul MARTIN"}, {"slide_id": 78, "nom": "Paul Martin"}]
         [d] = recibler([depot(3)], ANCIENS, deck)
         self.assertIsNone(d["cible"])
 
@@ -73,7 +73,7 @@ class TestCreneaux(unittest.TestCase):
 
 
 MS = {"rclone_token": "x", "drive_id": "d", "item_id": "i"}
-DECK = [{"slide_id": 1, "nom": "Wassim LOUMI"}, {"slide_id": 2, "nom": "Céline GUIHO"}]
+DECK = [{"slide_id": 1, "nom": "Wassim LOUMI"}, {"slide_id": 2, "nom": "Céline DURAND"}]
 
 
 class FauxWorker:

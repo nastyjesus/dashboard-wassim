@@ -15,6 +15,8 @@ limite de 19h, puis jeudi midi pour les retardataires. Le second ne repose que
 les dépôts arrivés depuis : le worker efface ceux déjà appliqués.
 
 Le dépôt GitHub est public : ce script n'affiche jamais de nom, seulement des compteurs.
+
+`python job.py nettoyage [--essai] [--forcer]` : nettoyage du samedi (nettoyage.py).
 """
 import configparser
 import datetime as dt
@@ -387,4 +389,8 @@ def main(worker=None, maintenant=None, environ=os.environ):
 if __name__ == "__main__":
     # ligne par ligne : les messages restent dans les logs même si le job est annulé
     sys.stdout.reconfigure(encoding="utf-8", line_buffering=True)
+    if sys.argv[1:2] == ["nettoyage"]:
+        # nettoyage hebdo du samedi (nettoyage.py) : `python job.py nettoyage [--essai] [--forcer]`
+        import nettoyage
+        sys.exit(nettoyage.main(sys.argv[2:]))
     sys.exit(main())

@@ -95,7 +95,7 @@
       </table></div>
       <p class="legende">Chaque semaine repart de zéro le lundi. La ligne du mois donne la moyenne par semaine terminée. Avant le 16/11, chiffres reconstitués à partir des derniers envois connus (incomplets).</p>
     </details>
-    <p class="legende"><b>À poser</b> : reçu, pas encore sur la présentation (passage du mercredi soir, rattrapage du jeudi midi, ou bouton PowerPoint). <b>Sur la présentation</b> : dernier envoi posé sur la slide. Clique une photo pour l'ouvrir en grand (utile pour la poser à la main).</p>
+    <p class="legende"><b>À poser</b> : reçu, pas encore sur la présentation (passage du mercredi soir, rattrapage du jeudi midi, ou bouton PowerPoint). <b>Sur la présentation</b> : dernier envoi posé sur la slide (effacé le samedi matin, après la réunion, sauf envoi déjà fait pour la semaine suivante). Clique une photo pour l'ouvrir en grand (utile pour la poser à la main).</p>
     <div class="defile"><table>
       <thead><tr><th>Membre</th><th>Statut</th><th>Photo</th><th class="cache-mobile">Qui peut m'aider à rencontrer</th><th>Lien perso</th></tr></thead>
       <tbody id="lignes"></tbody>
@@ -127,6 +127,17 @@ const passagesJob = (liste) => liste.length ? `<br>Passages du job : ` + liste.m
 
 const api = (chemin, options = {}) => fetch(chemin, { ...options, headers: { ...(options.headers || {}), "X-Wassim-Auth": jeton } });
 
+// Nettoyage du samedi matin : photos et demandes de la semaine effacées du deck.
+function texteNettoyage(n) {
+  if (!n) return "Aucun nettoyage du samedi pour l'instant";
+  const detail = n.ok
+    ? `${n.nettoyees} slide(s) vidée(s), ${n.deja_vides} déjà vide(s)` +
+      (n.preservees ? `, ${n.preservees} gardée(s) (dépôt de la nouvelle semaine)` : "") +
+      (n.non_reconnues ? `, ${n.non_reconnues} slide(s) non reconnue(s) laissée(s)` : "")
+    : n.message;
+  return `Dernier nettoyage : ${esc(quand(n.date))} — <span class="${n.ok ? "ok" : "ko"}">${esc(detail)}</span>`;
+}
+
 async function charger() {
   const r = await api("/api/admin/etat");
   if (r.status === 401) {
@@ -144,6 +155,7 @@ async function charger() {
   $("info").innerHTML = [
     data.microsoft_connecte ? '<span class="ok">OneDrive connecté</span>' : '<span class="ko">OneDrive non connecté (lancer connexion_microsoft.py)</span>',
     run ? `Dernière mise à jour du deck : ${esc(quand(run.date))} — <span class="${run.ok ? "ok" : "ko"}">${esc(run.message)}</span>` : "Aucune mise à jour du deck pour l'instant",
+    texteNettoyage(data.dernier_nettoyage),
   ].join(" · ") + passagesJob(data.passages_job || []);
   const avecObj = membres.filter((m) => m.objectifs);
   const totalCa = avecObj.reduce((t, m) => t + (m.objectifs.ca_ht || 0), 0);

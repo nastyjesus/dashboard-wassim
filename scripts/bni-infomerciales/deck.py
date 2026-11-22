@@ -174,3 +174,83 @@ def appliquer(chemin_source, chemin_sortie, depots):
         faits.append(d["slide_id"])
     prs.save(chemin_sortie)
     return faits
+
+
+# ---------- nettoyage hebdo (samedi matin, après la réunion) ----------
+
+def _photos_posees(slide):
+    """Photos de la semaine réellement présentes (avec une image) dans la zone gauche."""
+    return [sh for sh in slide.shapes if _est_photo_semaine(sh, slide) and sh._element.xpath(".//a:blip")]
+
+
+def _espace_image_modele(slide):
+    """Espace réservé image « Infomerciale » de la disposition (zone gauche)."""
+    for ph in slide.slide_layout.placeholders:
+        if ph.placeholder_format.type == PP_PLACEHOLDER.PICTURE and _est_photo_semaine(ph, slide):
+            return ph
+    return None
+
+
+def _a_effacer(slide):
+    bandeau = _champ_recherche(slide)
+    return _photos_posees(slide), bandeau if bandeau is not None and bandeau.text_frame.text.strip() else None
+
+
+def _vider_slide(slide):
+    """Remet la slide dans son état vierge : zone photo vide (espace réservé de
+    la disposition), bandeau vide (le texte d'invite réapparaît dans
+    PowerPoint, rien en diaporama). Nom, métier, portrait, logo et toute autre
+    forme restent intacts. Renvoie (nombre de photos retirées, texte effacé ?)."""
+    photos, bandeau = _a_effacer(slide)
+    arbre = slide.shapes._spTree
+    position = min((arbre.index(sh._element) for sh in photos), default=None)
+    for sh in photos:
+        _supprimer(sh, slide)
+    modele = _espace_image_modele(slide) if photos else None
+    if modele is not None and not any(
+        sh.is_placeholder and sh.placeholder_format.idx == modele.placeholder_format.idx for sh in slide.shapes
+    ):
+        slide.shapes.clone_placeholder(modele)
+        nouveau = arbre[-1]
+        arbre.remove(nouveau)
+        arbre.insert(position, nouveau)  # même profondeur que la photo retirée
+    if bandeau is not None:
+        bandeau.text_frame.clear()  # garde un paragraphe vide et sa mise en forme
+    return len(photos), bandeau is not None
+
+
+def nettoyer(chemin_source, chemin_sortie=None, preserver=(), essai=False):
+    """Vide la photo et la demande de la semaine de chaque slide membre reconnue.
+
+    Slide reconnue : disposition « Infomerciale_30s » avec un nom (comme
+    lister_membres). Les autres slides ne sont jamais modifiées ; celles qui
+    ont la disposition membre sans nom sont comptées dans « non_reconnues ».
+    preserver : slide_id à laisser (dépôt de la semaine suivante déjà posé).
+    essai : rien n'est écrit, le rapport dit ce qui serait effacé.
+    Le deck n'est enregistré (chemin_sortie) que si une slide a changé.
+    """
+    prs = Presentation(chemin_source)
+    preserver = set(preserver)
+    rapport = {"nettoyees": [], "deja_vides": [], "preservees": [], "non_reconnues": 0}
+    for numero, slide in enumerate(prs.slides, 1):
+        if slide.slide_layout.name != LAYOUT_MEMBRE:
+            continue
+        nom = _champ_texte(slide, 0.30, 0.40)
+        if not (nom and _texte(nom)):
+            rapport["non_reconnues"] += 1
+            continue
+        if slide.slide_id in preserver:
+            rapport["preservees"].append(slide.slide_id)
+            continue
+        if essai:
+            photos, bandeau = _a_effacer(slide)
+            nb, texte = len(photos), bandeau is not None
+        else:
+            nb, texte = _vider_slide(slide)
+        if nb or texte:
+            rapport["nettoyees"].append({"slide_id": slide.slide_id, "numero": numero, "photos": nb, "texte": texte})
+        else:
+            rapport["deja_vides"].append(slide.slide_id)
+    if rapport["nettoyees"] and not essai and chemin_sortie:
+        prs.save(chemin_sortie)
+    return rapport

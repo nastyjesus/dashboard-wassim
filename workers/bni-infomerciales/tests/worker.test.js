@@ -32,8 +32,8 @@ async function appel(path, { methode = 'GET', corps, admin, type } = {}) {
 }
 
 const MEMBRES = [
-  { slide_id: 101, nom: 'Paul JUHEL', metier: 'C.G.P', recherche: '', a_une_photo: false },
-  { slide_id: 202, nom: 'Céline GUIHO', metier: 'Prévoyance', recherche: 'Ancien texte', a_une_photo: true },
+  { slide_id: 101, nom: 'Paul MARTIN', metier: 'C.G.P', recherche: '', a_une_photo: false },
+  { slide_id: 202, nom: 'Céline DURAND', metier: 'Prévoyance', recherche: 'Ancien texte', a_une_photo: true },
 ];
 
 async function lienDe(nom) {
@@ -73,9 +73,9 @@ describe('membres', () => {
   });
 
   it('dépose photo + recherche avec son lien perso', async () => {
-    const m = await lienDe('Paul JUHEL');
+    const m = await lienDe('Paul MARTIN');
     const moi = await appel(`/api/moi?m=${m}`);
-    expect(moi.body).toMatchObject({ nom: 'Paul JUHEL', metier: 'C.G.P', depot: null });
+    expect(moi.body).toMatchObject({ nom: 'Paul MARTIN', metier: 'C.G.P', depot: null });
 
     const photo = await appel(`/api/photo?m=${m}`, { methode: 'PUT', corps: new Uint8Array([0xff, 0xd8, 0xff, 1, 2, 3]) });
     expect(photo.res.status).toBe(200);
@@ -87,14 +87,14 @@ describe('membres', () => {
   });
 
   it('refuse une photo qui n\'est pas un JPEG', async () => {
-    const m = await lienDe('Paul JUHEL');
+    const m = await lienDe('Paul MARTIN');
     const { res } = await appel(`/api/photo?m=${m}`, { methode: 'PUT', corps: new Uint8Array([1]), type: 'image/png' });
     expect(res.status).toBe(400);
   });
 
   it('ne donne jamais accès au jeton Microsoft', async () => {
     await appel('/api/job/ms', { methode: 'PUT', admin: ADMIN, corps: { refresh_token: 'secret-ms', client_id: 'c' } });
-    const m = await lienDe('Paul JUHEL');
+    const m = await lienDe('Paul MARTIN');
     const { body } = await appel(`/api/moi?m=${m}`);
     expect(JSON.stringify(body)).not.toContain('secret-ms');
     expect((await appel('/api/job/entree')).res.status).toBe(401);
@@ -109,7 +109,7 @@ describe('suppléants', () => {
     expect(charge.body).toEqual({ ok: true, nombre: 1 });
 
     expect((await appel('/api/suppleants?m=faux')).res.status).toBe(403);
-    const m = await lienDe('Paul JUHEL');
+    const m = await lienDe('Paul MARTIN');
     const { body } = await appel(`/api/suppleants?m=${m}`);
     expect(body.suppleants).toEqual([{ nom: 'Dupont', prenom: 'Marie', email: 'm@exemple.fr', tel: '06 00 00 00 00' }]);
   });
@@ -117,7 +117,7 @@ describe('suppléants', () => {
 
 describe('objectifs annuels', () => {
   it('le membre enregistre son objectif, l’admin le voit', async () => {
-    const m = await lienDe('Paul JUHEL');
+    const m = await lienDe('Paul MARTIN');
     expect((await appel(`/api/moi?m=${m}`)).body.objectifs).toBeNull();
 
     const ko = await appel(`/api/objectifs?m=${m}`, { methode: 'POST', corps: { ca_ht: 'beaucoup', recos: 5 } });
@@ -129,19 +129,19 @@ describe('objectifs annuels', () => {
     expect((await appel(`/api/moi?m=${m}`)).body.objectifs).toMatchObject({ ca_ht: 45000, recos: 12 });
 
     const { body } = await appel('/api/admin/etat', { admin: ADMIN });
-    expect(body.membres.find((x) => x.nom === 'Paul JUHEL').objectifs).toMatchObject({ ca_ht: 45000, recos: 12 });
-    expect(body.membres.find((x) => x.nom === 'Céline GUIHO').objectifs).toBeNull();
+    expect(body.membres.find((x) => x.nom === 'Paul MARTIN').objectifs).toMatchObject({ ca_ht: 45000, recos: 12 });
+    expect(body.membres.find((x) => x.nom === 'Céline DURAND').objectifs).toBeNull();
   });
 
   it('enregistre les métiers prescripteurs seuls, refuse un formulaire vide', async () => {
-    const m = await lienDe('Paul JUHEL');
+    const m = await lienDe('Paul MARTIN');
     expect((await appel(`/api/objectifs?m=${m}`, { methode: 'POST', corps: { ca_ht: '', recos: '', metiers: '  ' } })).res.status).toBe(400);
     const ok = await appel(`/api/objectifs?m=${m}`, { methode: 'POST', corps: { ca_ht: '', recos: '', metiers: ' Notaire \n\n Expert-comptable  ' } });
     expect(ok.body).toMatchObject({ ca_ht: null, recos: null, metiers: 'Notaire\nExpert-comptable' });
   });
 
   it('suit le membre quand sa slide est recréée', async () => {
-    const m = await lienDe('Céline GUIHO');
+    const m = await lienDe('Céline DURAND');
     await appel(`/api/objectifs?m=${m}`, { methode: 'POST', corps: { ca_ht: 30000, recos: 6 } });
     const recree = [MEMBRES[0], { ...MEMBRES[1], slide_id: 909 }];
     await appel('/api/job/resultat', { methode: 'POST', admin: ADMIN, corps: { ok: true, membres: recree } });
@@ -151,8 +151,8 @@ describe('objectifs annuels', () => {
 
 describe('suivi hebdo', () => {
   it('compte les infomerciales et les vraies nouvelles demandes de la semaine', async () => {
-    const paul = await lienDe('Paul JUHEL');
-    const celine = await lienDe('Céline GUIHO');
+    const paul = await lienDe('Paul MARTIN');
+    const celine = await lienDe('Céline DURAND');
     await appel(`/api/photo?m=${paul}`, { methode: 'PUT', corps: new Uint8Array([0xff, 0xd8]) });
     // Céline renvoie le texte déjà sur sa slide (pré-rempli) : pas une nouvelle demande
     await appel(`/api/depot?m=${celine}`, { methode: 'POST', corps: { recherche: 'Ancien texte' } });
@@ -190,16 +190,16 @@ describe('rappels hebdo', () => {
     const paul = body.mails[0];
     expect(paul.texte).toContain('Bonjour Paul,');
     expect(paul.texte).toContain('mercredi 19h');
-    expect(paul.texte).toContain(`https://bni.test/?m=${await lienDe('Paul JUHEL')}`);
+    expect(paul.texte).toContain(`https://bni.test/?m=${await lienDe('Paul MARTIN')}`);
     expect(paul.texte).toContain('objectif BNI de l');
     // une fois l'objectif rempli, la ligne disparaît
-    await appel(`/api/objectifs?m=${await lienDe('Paul JUHEL')}`, { methode: 'POST', corps: { ca_ht: 1000, recos: 1 } });
+    await appel(`/api/objectifs?m=${await lienDe('Paul MARTIN')}`, { methode: 'POST', corps: { ca_ht: 1000, recos: 1 } });
     const { body: apres } = await appel(`/api/admin/rappels?type=lundi&maintenant=${LUNDI}`, { admin: ADMIN });
     expect(apres.mails[0].texte).not.toContain('objectif BNI de l');
   });
 
   it('mercredi : seulement ceux qui n’ont rien envoyé depuis lundi', async () => {
-    const m = await lienDe('Paul JUHEL');
+    const m = await lienDe('Paul MARTIN');
     await appel(`/api/depot?m=${m}`, { methode: 'POST', corps: { recherche: 'Ma demande' } });
     const { body } = await appel(`/api/admin/rappels?type=mercredi&maintenant=${MERCREDI}`, { admin: ADMIN });
     // le dépôt du test est daté d'aujourd'hui (réel) : il compte pour la semaine du test seulement s'il est après le lundi simulé
@@ -240,7 +240,7 @@ describe('relance du mercredi : qui a déjà envoyé', () => {
   const destinataires = async (maintenant) => (await relance(maintenant)).mails.map((x) => x.email);
 
   it('dépôt en attente (photo + demande) : pas relancé, récapitulatif sans email', async () => {
-    const m = await lienDe('Paul JUHEL');
+    const m = await lienDe('Paul MARTIN');
     await aLaDate('2026-11-17T09:00:00Z', async () => { await photo(m); await demande(m, 'Une demande'); });
     const body = await relance();
     expect(body.mails.map((x) => x.email)).toEqual([CELINE]);
@@ -249,7 +249,7 @@ describe('relance du mercredi : qui a déjà envoyé', () => {
   });
 
   it('dépôt appliqué (depot effacé par le job) : pas relancé', async () => {
-    const m = await lienDe('Paul JUHEL');
+    const m = await lienDe('Paul MARTIN');
     const depot = await aLaDate('2026-11-16T10:00:00Z', async () => (await demande(m, 'Une demande')).body);
     await aLaDate('2026-11-17T00:30:00Z', () => appel('/api/job/resultat', { methode: 'POST', admin: ADMIN, corps: { ok: true, appliques: [{ slide_id: 101, date: depot.date }] } }));
     expect(env.KV.donnees.has('depot:101')).toBe(false);
@@ -257,31 +257,31 @@ describe('relance du mercredi : qui a déjà envoyé', () => {
   });
 
   it('demande seule : pas relancé', async () => {
-    const m = await lienDe('Céline GUIHO');
+    const m = await lienDe('Céline DURAND');
     await aLaDate('2026-11-17T18:00:00Z', () => demande(m, 'Nouvelle demande'));
     expect(await destinataires()).toEqual([PAUL]);
   });
 
   it('photo seule : pas relancé', async () => {
-    const m = await lienDe('Céline GUIHO');
+    const m = await lienDe('Céline DURAND');
     await aLaDate('2026-11-18T07:00:00Z', () => photo(m));
     expect(await destinataires()).toEqual([PAUL]);
   });
 
   it('dépôt du dimanche soir (semaine précédente) : relancé', async () => {
-    const m = await lienDe('Paul JUHEL');
+    const m = await lienDe('Paul MARTIN');
     await aLaDate('2026-11-15T22:30:00Z', () => photo(m)); // dimanche 15/11 23h30 à Paris
     expect(await destinataires()).toEqual([PAUL, CELINE]);
   });
 
   it('dépôt le lundi à 0h30 à Paris (heure d’hiver, encore dimanche en UTC) : pas relancé', async () => {
-    const m = await lienDe('Paul JUHEL');
+    const m = await lienDe('Paul MARTIN');
     await aLaDate('2026-11-15T23:30:00Z', () => photo(m));
     expect(await destinataires()).toEqual([CELINE]);
   });
 
   it('slide recréée après le dépôt (nouvel identifiant) : pas relancé, l’email suit', async () => {
-    const m = await lienDe('Céline GUIHO');
+    const m = await lienDe('Céline DURAND');
     await aLaDate('2026-11-17T09:00:00Z', async () => {
       const depot = (await photo(m)).body;
       await appel('/api/job/resultat', { methode: 'POST', admin: ADMIN, corps: { ok: true, appliques: [{ slide_id: 202, date: depot.date }] } });
@@ -294,25 +294,25 @@ describe('relance du mercredi : qui a déjà envoyé', () => {
   });
 
   it('trace dans le journal de la semaine seule (dépôt et historique effacés) : pas relancé', async () => {
-    const m = await lienDe('Paul JUHEL');
+    const m = await lienDe('Paul MARTIN');
     await aLaDate('2026-11-16T12:00:00Z', () => photo(m));
     await env.KV.delete('depot:101');
     expect(await destinataires()).toEqual([CELINE]);
   });
 
   it('le lundi aussi, un membre qui a déjà envoyé n’est pas relancé', async () => {
-    const m = await lienDe('Paul JUHEL');
+    const m = await lienDe('Paul MARTIN');
     await aLaDate('2026-11-16T07:00:00Z', () => photo(m));
     const body = (await appel('/api/admin/rappels?type=lundi&maintenant=2026-11-18T11:38:00Z', { admin: ADMIN })).body;
     expect(body.mails.map((x) => x.email)).toEqual([CELINE]);
   });
 
   it('l’admin dit la même chose que la relance', async () => {
-    const m = await lienDe('Paul JUHEL');
+    const m = await lienDe('Paul MARTIN');
     await demande(m, 'Une demande'); // horloge réelle : semaine en cours pour l'admin
     const { body } = await appel('/api/admin/etat', { admin: ADMIN });
     const parNom = Object.fromEntries(body.membres.map((x) => [x.nom, x.envoye_cette_semaine]));
-    expect(parNom).toEqual({ 'Paul JUHEL': true, 'Céline GUIHO': false });
+    expect(parNom).toEqual({ 'Paul MARTIN': true, 'Céline DURAND': false });
     const { body: r } = await appel('/api/admin/rappels?type=mercredi', { admin: ADMIN });
     expect(r.mails.map((x) => x.email)).toEqual([CELINE]);
   });
@@ -344,14 +344,14 @@ describe('admin et job', () => {
   });
 
   it('crée un lien perso par membre, stable entre deux synchros', async () => {
-    const avant = await lienDe('Céline GUIHO');
+    const avant = await lienDe('Céline DURAND');
     await appel('/api/job/resultat', { methode: 'POST', admin: ADMIN, corps: { ok: true, membres: MEMBRES } });
-    expect(await lienDe('Céline GUIHO')).toBe(avant);
-    expect(avant).not.toBe(await lienDe('Paul JUHEL'));
+    expect(await lienDe('Céline DURAND')).toBe(avant);
+    expect(avant).not.toBe(await lienDe('Paul MARTIN'));
   });
 
   it('donne les dépôts au job puis efface ceux appliqués', async () => {
-    const m = await lienDe('Paul JUHEL');
+    const m = await lienDe('Paul MARTIN');
     await appel(`/api/photo?m=${m}`, { methode: 'PUT', corps: new Uint8Array([0xff, 0xd8]) });
     const { body: entree } = await appel('/api/job/entree', { admin: ADMIN });
     expect(entree.depots).toHaveLength(1);
@@ -363,7 +363,7 @@ describe('admin et job', () => {
   });
 
   it('reporte la demande appliquée dans la fiche du membre (complément PowerPoint)', async () => {
-    const m = await lienDe('Céline GUIHO');
+    const m = await lienDe('Céline DURAND');
     await appel(`/api/depot?m=${m}`, { methode: 'POST', corps: { recherche: 'Nouvelle demande' } });
     const { body: entree } = await appel('/api/job/entree', { admin: ADMIN });
     await appel('/api/job/resultat', { methode: 'POST', admin: ADMIN, corps: { ok: true, appliques: [{ slide_id: 202, date: entree.depots[0].date }] } });
@@ -372,8 +372,8 @@ describe('admin et job', () => {
   });
 
   it('garde la trace de ce qui est posé sur la présentation (et des slides introuvables)', async () => {
-    const paul = await lienDe('Paul JUHEL');
-    const celine = await lienDe('Céline GUIHO');
+    const paul = await lienDe('Paul MARTIN');
+    const celine = await lienDe('Céline DURAND');
     await appel(`/api/photo?m=${paul}`, { methode: 'PUT', corps: new Uint8Array([0xff, 0xd8, 7]) });
     await appel(`/api/depot?m=${paul}`, { methode: 'POST', corps: { recherche: 'Demande Paul' } });
     await appel(`/api/depot?m=${celine}`, { methode: 'POST', corps: { recherche: 'Demande Céline' } });
@@ -387,15 +387,15 @@ describe('admin et job', () => {
 
     const { body: etat } = await appel('/api/admin/etat', { admin: ADMIN });
     const de = (nom) => etat.membres.find((m) => m.nom === nom);
-    expect(de('Paul JUHEL')).toMatchObject({ depot: null, applique: { statut: 'pose', recherche: 'Demande Paul', a_photo: true } });
-    expect(de('Céline GUIHO')).toMatchObject({ depot: null, applique: { statut: 'introuvable' }, recherche: 'Ancien texte' });
+    expect(de('Paul MARTIN')).toMatchObject({ depot: null, applique: { statut: 'pose', recherche: 'Demande Paul', a_photo: true } });
+    expect(de('Céline DURAND')).toMatchObject({ depot: null, applique: { statut: 'introuvable' }, recherche: 'Ancien texte' });
     const photo = await appel('/api/admin/photo-appliquee/101', { admin: ADMIN });
     expect(photo.res.status).toBe(200);
     expect((await appel('/api/admin/photo/101', { admin: ADMIN })).res.status).toBe(404);
   });
 
   it('garde un dépôt modifié pendant que le job tournait', async () => {
-    const m = await lienDe('Paul JUHEL');
+    const m = await lienDe('Paul MARTIN');
     await appel(`/api/depot?m=${m}`, { methode: 'POST', corps: { recherche: 'v1' } });
     const { body: entree } = await appel('/api/job/entree', { admin: ADMIN });
     await new Promise((r) => setTimeout(r, 5));
@@ -426,14 +426,14 @@ describe('admin et job', () => {
   });
 
   it('garde le lien perso et le dépôt quand la slide est recréée (nouvel identifiant)', async () => {
-    const m = await lienDe('Céline GUIHO');
+    const m = await lienDe('Céline DURAND');
     await appel(`/api/photo?m=${m}`, { methode: 'PUT', corps: new Uint8Array([0xff, 0xd8]) });
     await appel(`/api/depot?m=${m}`, { methode: 'POST', corps: { recherche: 'Ma demande' } });
     // la slide de Céline a été supprimée puis recréée : identifiant 909, accents différents
-    const recree = [MEMBRES[0], { ...MEMBRES[1], slide_id: 909, nom: 'Celine  Guiho' }];
+    const recree = [MEMBRES[0], { ...MEMBRES[1], slide_id: 909, nom: 'Celine  Durand' }];
     await appel('/api/job/resultat', { methode: 'POST', admin: ADMIN, corps: { ok: true, membres: recree } });
 
-    expect(await lienDe('Celine  Guiho')).toBe(m);
+    expect(await lienDe('Celine  Durand')).toBe(m);
     const moi = await appel(`/api/moi?m=${m}`);
     expect(moi.body.depot).toMatchObject({ slide_id: 909, recherche: 'Ma demande', a_photo: true });
     expect((await appel(`/api/photo?m=${m}`)).res.status).toBe(200);
@@ -441,9 +441,9 @@ describe('admin et job', () => {
   });
 
   it('ne déplace rien si la slide a simplement changé de position', async () => {
-    const avant = await lienDe('Paul JUHEL');
+    const avant = await lienDe('Paul MARTIN');
     await appel('/api/job/resultat', { methode: 'POST', admin: ADMIN, corps: { ok: true, membres: [MEMBRES[1], MEMBRES[0]] } });
-    expect(await lienDe('Paul JUHEL')).toBe(avant);
+    expect(await lienDe('Paul MARTIN')).toBe(avant);
   });
 
   it('garde l\'historique des passages et le sert au job et à l\'admin', async () => {
@@ -475,8 +475,8 @@ describe('admin et job', () => {
   });
 
   it('second passage (jeudi midi) : ne sert que les dépôts arrivés depuis', async () => {
-    const paul = await lienDe('Paul JUHEL');
-    const celine = await lienDe('Céline GUIHO');
+    const paul = await lienDe('Paul MARTIN');
+    const celine = await lienDe('Céline DURAND');
     await appel(`/api/depot?m=${paul}`, { methode: 'POST', corps: { recherche: 'Paul mercredi' } });
     let { body: entree } = await appel('/api/job/entree', { admin: ADMIN });
     await appel('/api/job/resultat', { methode: 'POST', admin: ADMIN, corps: { ok: true, source: 'job', creneau: '2026-11-25 mercredi soir', appliques: [{ slide_id: 101, date: entree.depots[0].date }] } });
