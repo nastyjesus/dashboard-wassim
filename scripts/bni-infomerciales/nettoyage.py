@@ -43,6 +43,7 @@ HEURE_MIN = 7  # les crons UTC tombent à 06:00 ou 07:00 Paris selon l'heure d'�
 SAUVEGARDES_GARDEES = 2  # le deck pèse plusieurs centaines de Mo
 SUFFIXE_SAUVEGARDE = " - sauvegarde avant nettoyage "
 ATTENTE_COPIE = 20 * 60
+COPIE_DATEE = False  # copie datée désactivée : refusée par OneDrive perso (voir sauvegarder)
 
 
 def dans_le_creneau(maintenant):
@@ -69,6 +70,14 @@ def _h(acces):
 def sauvegarder(acces, ms, etag, jour):
     """Copie datée du deck dans son dossier (copie faite par OneDrive). Renvoie
     un libellé pour le rapport. Lève RuntimeError si aucune sauvegarde n'est sûre."""
+    if not COPIE_DATEE:
+        # OneDrive perso refuse la copie du deck par l'API (notSupported /
+        # quotaLimitReached, constaté le 22/11/2026) : on s'appuie sur
+        # l'historique des versions, vérifié avant chaque nettoyage.
+        r = requests.get(element(ms) + "/versions", headers=_h(acces), params={"$top": "1"}, timeout=60)
+        if r.status_code == 200:
+            return "historique des versions OneDrive"
+        raise RuntimeError(f"aucune sauvegarde possible (historique des versions : {r.status_code})")
     try:
         r = requests.get(element(ms), headers=_h(acces), params={"$select": "name,eTag,parentReference"}, timeout=60)
         r.raise_for_status()

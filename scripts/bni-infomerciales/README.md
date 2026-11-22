@@ -84,12 +84,10 @@ les slides non reconnues (disposition membre sans nom) sont laissées et compté
   posés d'avant la coupure sont purgés ; les statuts « posé »
   (`applique:<id>`, `photo_appliquee:<id>`) de la semaine écoulée sont remis à
   zéro. Le suivi `envois:<lundi>` est gardé.
-- **Sauvegarde** : avant l'envoi, copie datée faite par OneDrive dans le dossier
-  du deck (« … - sauvegarde avant nettoyage AAAA-MM-JJ.pptx », sans transfert) ;
-  les 2 plus récentes sont gardées, les plus anciennes vont à la corbeille
-  OneDrive (le deck pèse plusieurs centaines de Mo). Si la copie est refusée, le
-  nettoyage ne continue que si l'historique des versions OneDrive répond : la
-  version d'avant l'envoi y reste restaurable (Fichier › Historique des versions).
+- **Sauvegarde** : l'historique des versions OneDrive (Fichier > Infos >
+  Historique des versions) ; le nettoyage ne tourne que s'il répond. La copie
+  datée du deck est désactivée (`COPIE_DATEE`) : OneDrive perso la refuse par
+  l'API (notSupported / quotaLimitReached, constaté le 22/11/2026).
 - **Manuel** (GitHub › Actions › « BNI infomerciales — nettoyage du samedi ») :
   `essai` (défaut) liste les slides qui seraient vidées sans rien écrire ;
   `forcer` nettoie tout de suite, même hors créneau ou déjà fait. En local :
