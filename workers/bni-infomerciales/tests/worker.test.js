@@ -1,6 +1,6 @@
 // Tests des routes avec un KV simulé en mémoire. Le vrai KV est vérifié par
 // le smoke test du workflow de déploiement.
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import worker from '../src/index.js';
 
 class KVMemoire {
@@ -210,6 +210,124 @@ describe('rappels hebdo', () => {
 
   it('refuse un type inconnu', async () => {
     expect((await appel('/api/admin/rappels?type=jeudi', { admin: ADMIN })).res.status).toBe(400);
+  });
+
+  it('refuse une date « maintenant » illisible', async () => {
+    expect((await appel('/api/admin/rappels?type=mercredi&maintenant=pas-une-date', { admin: ADMIN })).res.status).toBe(400);
+  });
+});
+
+describe('relance du mercredi : qui a déjà envoyé', () => {
+  // semaine du lundi 16/11/2026 (heure d'hiver, Paris = UTC+1) ; relance mercredi 18/11 14h
+  const RELANCE = '2026-11-18T13:00:00Z';
+  const PAUL = 'paul@exemple.fr';
+  const CELINE = 'celine@exemple.fr';
+
+  beforeEach(async () => {
+    await appel('/api/admin/emails', { methode: 'PUT', admin: ADMIN, corps: { emails: { 101: PAUL, 202: CELINE } } });
+  });
+  afterEach(() => vi.useRealTimers());
+
+  // fait agir le membre à une date donnée (horloge simulée)
+  async function aLaDate(iso, action) {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date(iso));
+    try { return await action(); } finally { vi.useRealTimers(); }
+  }
+  const photo = (m) => appel(`/api/photo?m=${m}`, { methode: 'PUT', corps: new Uint8Array([0xff, 0xd8]) });
+  const demande = (m, recherche) => appel(`/api/depot?m=${m}`, { methode: 'POST', corps: { recherche } });
+  const relance = async (maintenant = RELANCE) => (await appel(`/api/admin/rappels?type=mercredi&maintenant=${maintenant}`, { admin: ADMIN })).body;
+  const destinataires = async (maintenant) => (await relance(maintenant)).mails.map((x) => x.email);
+
+  it('dépôt en attente (photo + demande) : pas relancé, récapitulatif sans email', async () => {
+    const m = await lienDe('Paul JUHEL');
+    await aLaDate('2026-11-17T09:00:00Z', async () => { await photo(m); await demande(m, 'Une demande'); });
+    const body = await relance();
+    expect(body.mails.map((x) => x.email)).toEqual([CELINE]);
+    expect(body.recap).toEqual({ membres: 2, sans_email_ou_lien: 0, exclus_deja_envoye: 1, a_envoyer: 1 });
+    expect(JSON.stringify(body.recap)).not.toContain('@');
+  });
+
+  it('dépôt appliqué (depot effacé par le job) : pas relancé', async () => {
+    const m = await lienDe('Paul JUHEL');
+    const depot = await aLaDate('2026-11-16T10:00:00Z', async () => (await demande(m, 'Une demande')).body);
+    await aLaDate('2026-11-17T00:30:00Z', () => appel('/api/job/resultat', { methode: 'POST', admin: ADMIN, corps: { ok: true, appliques: [{ slide_id: 101, date: depot.date }] } }));
+    expect(env.KV.donnees.has('depot:101')).toBe(false);
+    expect(await destinataires()).toEqual([CELINE]);
+  });
+
+  it('demande seule : pas relancé', async () => {
+    const m = await lienDe('Céline GUIHO');
+    await aLaDate('2026-11-17T18:00:00Z', () => demande(m, 'Nouvelle demande'));
+    expect(await destinataires()).toEqual([PAUL]);
+  });
+
+  it('photo seule : pas relancé', async () => {
+    const m = await lienDe('Céline GUIHO');
+    await aLaDate('2026-11-18T07:00:00Z', () => photo(m));
+    expect(await destinataires()).toEqual([PAUL]);
+  });
+
+  it('dépôt du dimanche soir (semaine précédente) : relancé', async () => {
+    const m = await lienDe('Paul JUHEL');
+    await aLaDate('2026-11-15T22:30:00Z', () => photo(m)); // dimanche 15/11 23h30 à Paris
+    expect(await destinataires()).toEqual([PAUL, CELINE]);
+  });
+
+  it('dépôt le lundi à 0h30 à Paris (heure d’hiver, encore dimanche en UTC) : pas relancé', async () => {
+    const m = await lienDe('Paul JUHEL');
+    await aLaDate('2026-11-15T23:30:00Z', () => photo(m));
+    expect(await destinataires()).toEqual([CELINE]);
+  });
+
+  it('slide recréée après le dépôt (nouvel identifiant) : pas relancé, l’email suit', async () => {
+    const m = await lienDe('Céline GUIHO');
+    await aLaDate('2026-11-17T09:00:00Z', async () => {
+      const depot = (await photo(m)).body;
+      await appel('/api/job/resultat', { methode: 'POST', admin: ADMIN, corps: { ok: true, appliques: [{ slide_id: 202, date: depot.date }] } });
+      const recree = [MEMBRES[0], { ...MEMBRES[1], slide_id: 909 }];
+      await appel('/api/job/resultat', { methode: 'POST', admin: ADMIN, corps: { ok: true, membres: recree } });
+    });
+    expect(await destinataires()).toEqual([PAUL]);
+    // la semaine suivante, elle reçoit bien le rappel sur sa nouvelle slide
+    expect(await destinataires('2026-11-25T13:00:00Z')).toEqual([PAUL, CELINE]);
+  });
+
+  it('trace dans le journal de la semaine seule (dépôt et historique effacés) : pas relancé', async () => {
+    const m = await lienDe('Paul JUHEL');
+    await aLaDate('2026-11-16T12:00:00Z', () => photo(m));
+    await env.KV.delete('depot:101');
+    expect(await destinataires()).toEqual([CELINE]);
+  });
+
+  it('le lundi aussi, un membre qui a déjà envoyé n’est pas relancé', async () => {
+    const m = await lienDe('Paul JUHEL');
+    await aLaDate('2026-11-16T07:00:00Z', () => photo(m));
+    const body = (await appel('/api/admin/rappels?type=lundi&maintenant=2026-11-18T11:38:00Z', { admin: ADMIN })).body;
+    expect(body.mails.map((x) => x.email)).toEqual([CELINE]);
+  });
+
+  it('l’admin dit la même chose que la relance', async () => {
+    const m = await lienDe('Paul JUHEL');
+    await demande(m, 'Une demande'); // horloge réelle : semaine en cours pour l'admin
+    const { body } = await appel('/api/admin/etat', { admin: ADMIN });
+    const parNom = Object.fromEntries(body.membres.map((x) => [x.nom, x.envoye_cette_semaine]));
+    expect(parNom).toEqual({ 'Paul JUHEL': true, 'Céline GUIHO': false });
+    const { body: r } = await appel('/api/admin/rappels?type=mercredi', { admin: ADMIN });
+    expect(r.mails.map((x) => x.email)).toEqual([CELINE]);
+  });
+});
+
+describe('règle « a envoyé cette semaine »', () => {
+  it('borne la semaine du lundi 0h au dimanche 23h59, heure de Paris', async () => {
+    const { dansLaSemaine, aEnvoyeCetteSemaine } = await import('../src/index.js');
+    expect(dansLaSemaine('2026-11-15T22:59:59Z', '2026-11-16')).toBe(false); // dimanche 23h59 Paris
+    expect(dansLaSemaine('2026-11-15T23:00:00Z', '2026-11-16')).toBe(true); // lundi 0h Paris
+    expect(dansLaSemaine('2026-11-22T22:59:59Z', '2026-11-16')).toBe(true); // dimanche suivant 23h59
+    expect(dansLaSemaine('2026-11-22T23:00:00Z', '2026-11-16')).toBe(false); // lundi suivant
+    expect(dansLaSemaine('pas-une-date', '2026-11-16')).toBe(false);
+    expect(aEnvoyeCetteSemaine({ trace: { photo: false, demande: false } }, '2026-11-16')).toBe(false);
+    expect(aEnvoyeCetteSemaine({ applique: { date: '2026-11-17T08:00:00Z', statut: 'introuvable' } }, '2026-11-16')).toBe(true);
   });
 });
 

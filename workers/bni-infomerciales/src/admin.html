@@ -154,6 +154,7 @@ async function charger() {
     tuile(`${cette.infomerciales} / ${n}`, "infomerciales reçues") +
     tuile(`${cette.demandes} / ${n}`, "demandes spécifiques reçues") +
     tuile(`${n - cette.infomerciales}`, "membres sans infomerciale") +
+    tuile(`${membres.filter((m) => !m.envoye_cette_semaine).length}`, "rien envoyé cette semaine (relance du mercredi)") +
     `<div class="bloc-titre">Objectifs annuels</div>` +
     tuile(`${avecObj.length} / ${n}`, "objectifs remplis") +
     tuile(euros(totalCa), "objectif CA HT cumulé du groupe") +
@@ -190,6 +191,8 @@ async function charger() {
       photo = `<span class="muet">${m.a_une_photo ? "photo actuelle" : "—"}</span>`;
       rech = `<span class="muet">${esc(m.recherche) || "—"}</span>`;
     }
+    // même règle que la relance du mercredi : un « ✓ » d'une semaine passée ne compte pas
+    if (!m.envoye_cette_semaine) statut += '<div class="muet">rien envoyé cette semaine</div>';
     const lien = m.lien ? `<button class="second petit" data-copier="${i}">Copier</button>` : '<span class="muet">—</span>';
     return `<tr><td><strong>${esc(m.nom)}</strong><div class="muet">${esc(m.metier)}</div></td><td>${statut}</td><td>${photo}</td><td class="cache-mobile">${rech}</td><td>${lien}</td></tr>`;
   }).join("") : '<tr><td colspan="5" class="muet">Aucun membre : lance une première fois le job pour lire le deck.</td></tr>';

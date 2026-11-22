@@ -189,9 +189,13 @@ async function etatAdmin(env, origine) {
     applique: await lire(env, `applique:${m.slide_id}`, null),
     objectifs: await lire(env, `objectifs:${m.slide_id}`, null),
   })));
+  // même règle que la relance du mercredi
+  const semaineEnCours = lundiParis(new Date());
+  const journal = await lire(env, `envois:${semaineEnCours}`, {});
+  for (const m of liste) m.envoye_cette_semaine = aEnvoyeCetteSemaine({ depot: m.depot, applique: m.applique, trace: journal[m.slide_id] }, semaineEnCours);
   return {
     membres: liste,
-    semaine_en_cours: lundiParis(new Date()),
+    semaine_en_cours: semaineEnCours,
     suivi: await suiviHebdo(env, liste),
     microsoft_connecte: Boolean(ms?.refresh_token || ms?.rclone_token),
     bouton_dispo: Boolean(env.GH_DISPATCH_TOKEN),
@@ -223,10 +227,28 @@ export const normaliserNom = (nom) => String(nom).normalize('NFD').replace(/[̀-
 async function suivreSlidesRecreees(env, anciens, membres, jetons) {
   const nouveauxIds = new Set(membres.map((m) => m.slide_id));
   const anciensIds = new Set(anciens.map((m) => m.slide_id));
+  // l'email (rappels) et la trace de la semaine suivent aussi, sinon le membre
+  // ne reçoit plus de rappel, ou est relancé alors qu'il a envoyé
+  const cleSemaine = `envois:${lundiParis(new Date())}`;
+  const [emails, semaine] = await Promise.all([lire(env, 'emails', {}), lire(env, cleSemaine, {})]);
+  let emailsModifies = false;
+  let semaineModifiee = false;
   for (const ancien of anciens) {
     if (nouveauxIds.has(ancien.slide_id)) continue;
     const cible = membres.find((m) => !anciensIds.has(m.slide_id) && normaliserNom(m.nom) === normaliserNom(ancien.nom));
     if (!cible) continue;
+    if (emails[ancien.slide_id] && !emails[cible.slide_id]) {
+      emails[cible.slide_id] = emails[ancien.slide_id];
+      delete emails[ancien.slide_id];
+      emailsModifies = true;
+    }
+    if (semaine[ancien.slide_id]) {
+      const avant = semaine[cible.slide_id] ?? { photo: false, demande: false };
+      const trace = semaine[ancien.slide_id];
+      semaine[cible.slide_id] = { ...trace, photo: avant.photo || trace.photo, demande: avant.demande || trace.demande };
+      delete semaine[ancien.slide_id];
+      semaineModifiee = true;
+    }
     for (const [jeton, id] of Object.entries(jetons)) if (id === ancien.slide_id) jetons[jeton] = cible.slide_id;
     const objectifs = await lire(env, `objectifs:${ancien.slide_id}`, null);
     if (objectifs) {
@@ -243,6 +265,8 @@ async function suivreSlidesRecreees(env, anciens, membres, jetons) {
       await env.KV.delete(`${clePhoto}:${ancien.slide_id}`);
     }
   }
+  if (emailsModifies) await env.KV.put('emails', JSON.stringify(emails));
+  if (semaineModifiee) await env.KV.put(cleSemaine, JSON.stringify(semaine));
 }
 
 // Le job envoie la liste des membres lue dans le deck et les dépôts appliqués.
@@ -343,26 +367,60 @@ function texteRappel(type, prenom, lien, objectifsARemplir = false) {
   return { sujet, texte: lignes.join('\n') };
 }
 
-// Liste des mails à envoyer. Lundi : tous les membres avec un email.
-// Mercredi : seulement ceux qui n'ont rien envoyé depuis lundi.
+// Une date ISO tombe-t-elle dans la semaine (lundi 00:00 → dimanche 23:59,
+// heure de Paris) qui commence le jour « lundi » (AAAA-MM-JJ) ? Une date
+// absente ou illisible ne compte pas (et ne fait pas planter la liste).
+export function dansLaSemaine(iso, lundi) {
+  const d = iso ? new Date(iso) : null;
+  if (!d || Number.isNaN(d.getTime())) return false;
+  const fin = new Date(`${lundi}T12:00:00Z`);
+  fin.setUTCDate(fin.getUTCDate() + 7);
+  const jour = jourParis(d);
+  return jour >= lundi && jour < fin.toISOString().slice(0, 10);
+}
+
+// Règle unique « a envoyé cette semaine », partagée par la relance du
+// mercredi et l'admin : dépôt en attente, dépôt appliqué (même slide
+// introuvable) ou trace dans le journal envois:<lundi> (photo ou demande).
+export function aEnvoyeCetteSemaine({ depot, applique, trace }, lundi) {
+  return dansLaSemaine(depot?.date, lundi)
+    || dansLaSemaine(applique?.date, lundi)
+    || Boolean(trace && (trace.photo || trace.demande));
+}
+
+// Lit, pour une liste de slide_id, ce qu'il faut pour appliquer la règle.
+async function envoisDeLaSemaine(env, ids, lundi) {
+  const journal = await lire(env, `envois:${lundi}`, {});
+  const resultat = new Map();
+  for (const id of ids) {
+    const [depot, applique] = await Promise.all([lire(env, `depot:${id}`, null), lire(env, `applique:${id}`, null)]);
+    resultat.set(id, aEnvoyeCetteSemaine({ depot, applique, trace: journal[id] }, lundi));
+  }
+  return resultat;
+}
+
+// Liste des mails à envoyer : les membres avec un email et un lien perso,
+// sauf ceux qui ont déjà envoyé leur infomerciale cette semaine. Le mercredi
+// c'est la relance ; le lundi (9h) personne n'a en général encore envoyé,
+// mais l'exclusion évite de relancer un membre en cas d'envoi tardif ou
+// manuel du rappel du lundi.
 export async function listeRappels(env, origine, type, maintenant) {
   const [membres, jetons, emails] = await Promise.all([lire(env, 'membres', []), lire(env, 'jetons', {}), lire(env, 'emails', {})]);
   const jetonDe = Object.fromEntries(Object.entries(jetons).map(([j, id]) => [id, j]));
   const lundi = lundiParis(maintenant);
-  const envoyeCetteSemaine = async (id) => {
-    const dates = [(await lire(env, `depot:${id}`, null))?.date, (await lire(env, `applique:${id}`, null))?.date];
-    return dates.some((d) => d && jourParis(new Date(d)) >= lundi);
-  };
+  const envoye = await envoisDeLaSemaine(env, membres.map((m) => m.slide_id), lundi);
+  const recap = { membres: membres.length, sans_email_ou_lien: 0, exclus_deja_envoye: 0, a_envoyer: 0 };
   const mails = [];
   for (const m of membres) {
     const email = emails[m.slide_id];
-    if (!email || !jetonDe[m.slide_id]) continue;
-    if (type === 'mercredi' && await envoyeCetteSemaine(m.slide_id)) continue;
+    if (!email || !jetonDe[m.slide_id]) { recap.sans_email_ou_lien += 1; continue; }
+    if (envoye.get(m.slide_id)) { recap.exclus_deja_envoye += 1; continue; }
     const prenom = String(m.nom).split(/\s+/)[0];
     const objectifsARemplir = !(await lire(env, `objectifs:${m.slide_id}`, null));
     mails.push({ nom: m.nom, email, ...texteRappel(type, prenom, `${origine}/?m=${jetonDe[m.slide_id]}`, objectifsARemplir) });
   }
-  return { type, semaine_du: lundi, mails };
+  recap.a_envoyer = mails.length;
+  return { type, semaine_du: lundi, recap, mails };
 }
 
 async function routesAdmin(request, env, url) {
@@ -386,6 +444,7 @@ async function routesAdmin(request, env, url) {
     const type = url.searchParams.get('type');
     if (!['lundi', 'mercredi'].includes(type)) return erreur('type=lundi ou type=mercredi requis.');
     const maintenant = url.searchParams.get('maintenant') ? new Date(url.searchParams.get('maintenant')) : new Date();
+    if (Number.isNaN(maintenant.getTime())) return erreur('maintenant : date ISO attendue.');
     return json(await listeRappels(env, url.origin, type, maintenant));
   }
   if (p === '/api/admin/suppleants' && m === 'PUT') {
