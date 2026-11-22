@@ -1,0 +1,65 @@
+name: BNI infomerciales — nettoyage du samedi
+
+# Après la réunion du vendredi, efface des slides membres la photo et la
+# demande de la semaine (python job.py nettoyage), pour qu'une infomerciale
+# ne réapparaisse pas si le membre n'en renvoie pas.
+# Ce fichier doit vivre sur main (seule branche lue par cron et
+# workflow_dispatch) ; le code, lui, est pris sur la branche de travail.
+# Dépôt public : le script n'affiche que des compteurs, jamais de noms.
+
+on:
+  schedule:
+    # Créneaux visés : 07:00, 10:00 et 14:00 à Paris. Les crons sont en UTC :
+    # hiver (UTC+1) 06:00/09:00/13:00, été (UTC+2) 05:00 = 07:00 Paris.
+    # Le script ignore un passage avant 07:00 Paris (05:00 UTC l'hiver) et ne
+    # refait rien si la semaine est déjà nettoyée : les passages en trop sont
+    # des rattrapages gratuits (deck ouvert, verrouillé...).
+    - cron: "0 5,6,9,13 * * 6"
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "essai = liste ce qui serait effacé sans rien écrire ; forcer = nettoie maintenant, même hors créneau ou déjà fait"
+        type: choice
+        options: [essai, forcer]
+        default: essai
+
+# même groupe que le job du mercredi : jamais deux écritures du deck en même temps
+concurrency:
+  group: bni-infomerciales
+  cancel-in-progress: false
+
+jobs:
+  nettoyer:
+    runs-on: ubuntu-latest
+    timeout-minutes: 150
+    defaults:
+      run:
+        working-directory: scripts/bni-infomerciales
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: claude/side-hustle-brainstorm-ykikf8
+          sparse-checkout: scripts/bni-infomerciales
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: scripts/bni-infomerciales/requirements.txt
+
+      - run: pip install -r requirements.txt
+
+      # rclone renouvelle le jeton Microsoft (pas d'inscription Azure)
+      - run: sudo apt-get update -qq && sudo apt-get install -y -qq rclone
+
+      - name: Nettoyer le deck
+        env:
+          WORKER_URL: https://bni-infomerciales.loumiwassim.workers.dev
+          WASSIM_AUTH_TOKEN: ${{ secrets.WASSIM_AUTH_TOKEN }}
+          MODE: ${{ github.event_name == 'workflow_dispatch' && inputs.mode || 'auto' }}
+        run: |
+          case "$MODE" in
+            essai)  python job.py nettoyage --essai ;;
+            forcer) python job.py nettoyage --forcer ;;
+            *)      python job.py nettoyage ;;
+          esac

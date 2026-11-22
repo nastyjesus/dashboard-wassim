@@ -7,8 +7,16 @@ name: BNI infomerciales
 
 on:
   schedule:
-    # mercredi 18:05 UTC = 19:05 à Paris l'hiver, 20:05 l'été (limite : 19h)
+    # Deux passages à l'heure de Paris : mercredi 19h (limite des dépôts),
+    # jeudi 12h (retardataires). Chaque passage a trois crons UTC (été, hiver,
+    # rattrapage) : job.py publie au premier qui tombe après l'heure de Paris
+    # et sort sans rien faire aux suivants (créneau déjà réussi).
+    - cron: "5 17 * * 3"
     - cron: "5 18 * * 3"
+    - cron: "5 19 * * 3"
+    - cron: "0 10 * * 4"
+    - cron: "0 11 * * 4"
+    - cron: "0 12 * * 4"
   workflow_dispatch:
 
 concurrency:
@@ -43,4 +51,6 @@ jobs:
         env:
           WORKER_URL: https://bni-infomerciales.loumiwassim.workers.dev
           WASSIM_AUTH_TOKEN: ${{ secrets.WASSIM_AUTH_TOKEN }}
+          # vide pour un lancement manuel : pas de contrôle de créneau
+          CRON: ${{ github.event.schedule }}
         run: python job.py
