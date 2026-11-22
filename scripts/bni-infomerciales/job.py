@@ -11,6 +11,8 @@
 5. renvoie au worker la liste des membres et les dépôts appliqués.
 
 Le dépôt GitHub est public : ce script n'affiche jamais de nom, seulement des compteurs.
+
+`python job.py nettoyage [--essai] [--forcer]` : nettoyage du samedi (nettoyage.py).
 """
 import configparser
 import json
@@ -293,4 +295,8 @@ def main():
 if __name__ == "__main__":
     # ligne par ligne : les messages restent dans les logs même si le job est annulé
     sys.stdout.reconfigure(encoding="utf-8", line_buffering=True)
+    if sys.argv[1:2] == ["nettoyage"]:
+        # nettoyage hebdo du samedi (nettoyage.py) : `python job.py nettoyage [--essai] [--forcer]`
+        import nettoyage
+        sys.exit(nettoyage.main(sys.argv[2:]))
     sys.exit(main())

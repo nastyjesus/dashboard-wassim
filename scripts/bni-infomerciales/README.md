@@ -13,7 +13,8 @@ membre (lien perso) ──► worker bni-infomerciales (KV) ◄──► job Git
 
 - Page membre : `https://bni-infomerciales.loumiwassim.workers.dev/?m=<lien perso>`
 - Admin : `/admin` (jeton `BNI_ADMIN_TOKEN` du `.env` local, ou `WASSIM_AUTH_TOKEN`) : statuts, liens perso, « Appliquer maintenant ».
-- Job `.github/workflows/bni-infomerciales-job.yml` : mercredi 18:05 UTC + manuel.
+- Job `.github/workflows/bni-infomerciales-job.yml` : mercredi 18:05 UTC + manuel ;
+  nettoyage du samedi : `bni-infomerciales-nettoyage.yml` (voir plus bas).
   Ce fichier doit être sur `main` (cron et dispatch ne lisent que la branche par
   défaut) ; il prend le code sur la branche de travail.
 - Le deck n'est renvoyé que s'il n'a pas changé depuis son téléchargement
@@ -61,6 +62,39 @@ jamais versionné (photos des membres).
 1. Les membres déposent avant **mercredi 19h** (limite affichée slide 24 du deck).
 2. Admin › « Générer le deck à jour » → `data/sortie/BNI-support-<date>.pptx`.
 3. Les dépôts appliqués partent dans `data/archives/<date>/`.
+
+## Nettoyage du samedi matin
+
+Après la réunion du vendredi, le workflow `bni-infomerciales-nettoyage.yml`
+(`python job.py nettoyage`, code dans `nettoyage.py` + `deck.nettoyer`) vide
+chaque slide membre reconnue : photo de la semaine retirée (l'espace réservé
+« Infomerciale » de la disposition revient, vide) et bandeau « Qui peut m'aider
+à rencontrer » vidé (le texte d'invite réapparaît dans PowerPoint, rien en
+diaporama). Nom, métier, portrait, logo et autres formes ne sont pas touchés ;
+les slides non reconnues (disposition membre sans nom) sont laissées et comptées.
+
+- **Créneaux** : samedi 07:00, 10:00, 14:00 heure de Paris (crons UTC
+  `0 5,6,9,13 * * 6`, le script ignore un passage avant 07:00 Paris). Le worker
+  mémorise la semaine nettoyée (`nettoyage:<lundi>`) : les créneaux suivants ne
+  font rien. Deck ouvert/verrouillé (409/423) : 5 essais espacés, puis créneau
+  suivant.
+- **Coupure** : vendredi 12:00 Paris (constante dans `workers/.../src/nettoyage.js`).
+  Un dépôt plus récent vise la semaine suivante : il reste en attente, et s'il
+  est déjà posé sur la slide, cette slide n'est pas vidée. Les dépôts jamais
+  posés d'avant la coupure sont purgés ; les statuts « posé »
+  (`applique:<id>`, `photo_appliquee:<id>`) de la semaine écoulée sont remis à
+  zéro. Le suivi `envois:<lundi>` est gardé.
+- **Sauvegarde** : avant l'envoi, copie datée faite par OneDrive dans le dossier
+  du deck (« … - sauvegarde avant nettoyage AAAA-MM-JJ.pptx », sans transfert) ;
+  les 2 plus récentes sont gardées, les plus anciennes vont à la corbeille
+  OneDrive (le deck pèse plusieurs centaines de Mo). Si la copie est refusée, le
+  nettoyage ne continue que si l'historique des versions OneDrive répond : la
+  version d'avant l'envoi y reste restaurable (Fichier › Historique des versions).
+- **Manuel** (GitHub › Actions › « BNI infomerciales — nettoyage du samedi ») :
+  `essai` (défaut) liste les slides qui seraient vidées sans rien écrire ;
+  `forcer` nettoie tout de suite, même hors créneau ou déjà fait. En local :
+  `python job.py nettoyage --essai`.
+- L'admin affiche la date et le résultat du dernier nettoyage.
 
 ## Comment une slide membre est reconnue
 
