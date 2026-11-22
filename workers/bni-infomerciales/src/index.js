@@ -388,6 +388,7 @@ function texteRappel(type, prenom, lien, objectifsARemplir = false) {
     lien,
     '',
     'Pour la demande : une seule personne, le plus précis possible (Prénom NOM – Fonction – Entreprise (Localité)).',
+    "Tu travailles avec des particuliers ? Vise plutôt un prescripteur de ton activité : un professionnel qui conseille tes futurs clients (ex. notaire, agent immobilier, expert-comptable).",
     '',
     ...(lundi && objectifsARemplir ? [
       "Pense aussi à remplir ton objectif BNI de l'année (chiffre d'affaires HT et nombre de recommandations transformées) ainsi que les métiers prescripteurs ou dont tu as besoin dans le groupe : c'est en bas de la même page, une seule fois.",

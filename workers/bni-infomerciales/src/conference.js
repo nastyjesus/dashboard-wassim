@@ -286,7 +286,7 @@ function texteDesignation(conf, genre, lien, relance) {
     '',
     `- Pense à préparer ${cadeau}.`,
     `- Dépose tes slides (PowerPoint ou PDF) sur ta page, avant ${limite} : elles seront ajoutées à la présentation de la réunion.`,
-    `- Indique-moi aussi 1 à 3 contacts spécifiques que tu aimerais rencontrer (Prénom NOM – Fonction – Entreprise). À la fin de ta conférence, je t'aiderai à les rencontrer grâce aux personnes présentes, pour développer ton business. Ces contacts restent entre nous : ils n'apparaissent pas sur la présentation.`,
+    `- Indique-moi aussi 1 à 3 contacts spécifiques que tu aimerais rencontrer (Prénom NOM – Fonction – Entreprise). À la fin de ta conférence, je t'aiderai à les rencontrer grâce aux personnes présentes, pour développer ton business. Tu travailles avec des particuliers ? Vise plutôt des prescripteurs de ton activité : des professionnels qui conseillent tes futurs clients. Ces contacts restent entre nous : ils n'apparaissent pas sur la présentation.`,
     '',
     'Ta page :',
     lien, '',
