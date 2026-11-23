@@ -143,6 +143,45 @@ Parcours : secrétaire trésorier → conférencier → slides sur le deck.
    passée (et le masque recopié), garde celles d'une réunion à venir, puis
    efface le fichier déposé du KV (la fiche reste dans l'admin).
 
+## Réseaux sociaux de la semaine
+
+Parcours : responsable réseaux sociaux → fichiers → slides sur le deck.
+
+1. **Admin › Réseaux sociaux** : Wassim désigne le responsable (sans date de
+   fin, jusqu'à remplacement ; historique gardé ; un nouveau responsable
+   invalide le lien de l'ancien).
+2. **Mails** (`rappels.gs`, textes fournis par le worker) : mercredi 9h
+   (invitation à déposer), jeudi 9h (relance seulement si rien n'est validé).
+3. **Page `/reseaux?r=…`** : 1 à 10 fichiers .pptx, .pdf, .jpg, .png (type
+   vérifié par signature, 80 Mo au total, envoi par morceaux de 8 Mio), pour
+   la réunion du vendredi ; limite jeudi 12h heure de Paris. « Valider »
+   remplace tout le dépôt précédent de la semaine.
+4. **Pose** (`reseaux.py`, mêmes passages que les infomerciales, après elles
+   et après la conférence) : juste après la slide repère « RÉSEAUX SOCIAUX »,
+   dans sa section, dans l'ordre des fichiers puis des pages.
+   - Repère : `slide_id` 3854 ; à défaut, l'unique slide non système dont un
+     texte (majuscules, sans accents) commence par « RESEAUX SOCIAUX ». Aucune
+     ou plusieurs : « repère Réseaux sociaux introuvable », rien n'est posé.
+   - Image : une slide « Page vide », image centrée sans recadrage (2400 px
+     max, JPEG 88, transparence sur blanc, orientation EXIF respectée).
+   - PDF : une page = une image. PowerPoint : slides recopiées avec leur
+     masque (« Réseaux sociaux du AAAA-MM-JJ (modèle i) »), retiré quand plus
+     aucune slide ne l'utilise.
+   - Chaque slide posée s'appelle en interne « Réseaux sociaux du AAAA-MM-JJ
+     (i/n) » : un nouveau dépôt retire d'abord les slides réseaux de ce
+     vendredi ou d'avant. Les slides sans ce nom ne sont jamais touchées.
+   - Une erreur (fichier illisible, repère introuvable) ne bloque ni les
+     infomerciales ni la conférence : elle s'affiche dans l'admin
+     (`reseaux` dans `/api/job/resultat`), le passage suivant réessaie.
+5. **Nettoyage du samedi** : retire les slides réseaux d'un vendredi <=
+   `reseaux_jusqu_au` (plan du worker), puis le worker efface les fichiers du
+   KV (compteur `reseaux` dans le POST). Retrait unique
+   (`reseaux_retrait_unique`, seulement la semaine du 2026-11-23, ignoré par le
+   job après le 2026-11-29) des 2 slides posées à la main : seulement si la
+   slide n'a pas de nom système, est en « Page vide » et suit la repère sans
+   interruption (au besoin après des slides réseaux) ; sinon elle reste et le
+   rapport le dit. `python job.py nettoyage --essai` liste ce qui serait retiré.
+
 ## Limites connues
 
 - Une nouvelle slide membre n'apparaît qu'une fois son nom rempli dans le deck.

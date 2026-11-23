@@ -13,6 +13,9 @@ Chaque slide insérée porte un nom interne « Conférence du AAAA-MM-JJ (i/n) �
 (date du vendredi de la réunion) : c'est ce qui permet de la retirer au
 nettoyage du samedi ou de la remplacer si le conférencier redépose. Les slides
 posées à la main (sans ce nom) ne sont jamais touchées.
+
+Les fonctions génériques (retrait par motif, images plein cadre, recopie d'un
+.pptx) servent aussi aux slides « Réseaux sociaux » (reseaux.py).
 """
 import io
 import re
@@ -30,8 +33,12 @@ PREFIXE = "Conférence du "
 MOTIF = re.compile(r"^Conférence du (\d{4}-\d{2}-\d{2}) \(\d+/\d+\)$")
 PREFIXE_MASQUE = "Conférence du "  # masque recopié avec un .pptx
 PAGES_MAX = 80
-LARGEUR_IMAGE = 2400  # px, pages PDF
+LARGEUR_IMAGE = 2400  # px, plus grand côté d'une page PDF rendue
+PIXELS_MAX = LARGEUR_IMAGE * LARGEUR_IMAGE  # plafond mémoire par page (~17 Mo en RVB)
 QUALITE = 88
+# Nom interne de toute slide posée par le système (conférence ou réseaux
+# sociaux) : jamais prise pour une slide membre ni pour une repère.
+MOTIF_SYSTEME = re.compile(r"^(Conférence du|Réseaux sociaux du) \d{4}-\d{2}-\d{2} \(\d+/\d+\)$")
 
 NS = {
     "p": "http://schemas.openxmlformats.org/presentationml/2006/main",
@@ -59,6 +66,11 @@ def est_conference(slide):
     return vendredi_de(slide) is not None
 
 
+def est_systeme(slide):
+    """Slide posée par le système (conférence ou réseaux sociaux)."""
+    return bool(MOTIF_SYSTEME.match(slide._element.cSld.get("name") or ""))
+
+
 # ---------- structure du deck ----------
 
 def _sld_id_lst(prs):
@@ -70,11 +82,18 @@ def _sections(prs):
     return prs.part._element.findall(".//p14:sectionLst/p14:section/p14:sldIdLst", NS)
 
 
+def _racine(partie):
+    """XML d'une partie : objet chargé par python-pptx, ou partie brute recopiée
+    d'un autre .pptx (seulement des octets jusqu'au rechargement du deck)."""
+    el = getattr(partie, "_element", None)
+    return el if el is not None else etree.fromstring(partie.blob)
+
+
 def _ancre(prs):
-    """Dernière slide « Membre à l'honneur » (hors slides de conférence)."""
+    """Dernière slide « Membre à l'honneur » (hors slides posées par le système)."""
     ancre = None
     for s in prs.slides:
-        if s.slide_layout.name == LAYOUT_ANCRE and not est_conference(s):
+        if s.slide_layout.name == LAYOUT_ANCRE and not est_systeme(s):
             ancre = s
     return ancre
 
@@ -91,33 +110,39 @@ def _supprimer_slide(prs, sld_id):
     prs.part.drop_rel(rid)
 
 
-def _masques_orphelins(prs):
+def _masques_orphelins(prs, prefixe_masque=PREFIXE_MASQUE):
     """Masques recopiés avec un .pptx que plus aucune slide n'utilise : retirés."""
     utilises = {id(s.slide_layout.slide_master.part) for s in prs.slides}
     lst = prs.part._element.find("p:sldMasterIdLst", NS)
     for e in list(lst):
         partie = prs.part.related_part(e.get(R_ID))
         nom = partie._element.cSld.get("name") or ""
-        if nom.startswith(PREFIXE_MASQUE) and id(partie) not in utilises:
+        if nom.startswith(prefixe_masque) and id(partie) not in utilises:
             lst.remove(e)
             prs.part.drop_rel(e.get(R_ID))
+
+
+def retirer_posees(prs, date_de, prefixe_masque, jusqu_au=None, essai=False):
+    """Retire les slides dont `date_de(slide)` (vendredi AAAA-MM-JJ, ou None
+    pour une slide à ne pas toucher) est <= jusqu_au (toutes si None), puis les
+    masques recopiés devenus orphelins. Renvoie [(numéro, slide_id)] retirées."""
+    a_retirer = []
+    for numero, (e, s) in enumerate(zip(list(_sld_id_lst(prs)), list(prs.slides)), 1):
+        v = date_de(s)
+        if v is not None and (jusqu_au is None or v <= jusqu_au):
+            a_retirer.append((numero, s.slide_id, e))
+    if not essai:
+        for _, _, e in a_retirer:
+            _supprimer_slide(prs, e)
+        if a_retirer:
+            _masques_orphelins(prs, prefixe_masque)
+    return [(numero, sid) for numero, sid, _ in a_retirer]
 
 
 def retirer(prs, jusqu_au=None, essai=False):
     """Retire les slides de conférence posées par ce module dont le vendredi
     est <= jusqu_au (toutes si None). Renvoie le nombre de slides retirées."""
-    a_retirer = []
-    for e, s in zip(list(_sld_id_lst(prs)), list(prs.slides)):
-        v = vendredi_de(s)
-        if v is not None and (jusqu_au is None or v <= jusqu_au):
-            a_retirer.append(e)
-    if essai:
-        return len(a_retirer)
-    for e in a_retirer:
-        _supprimer_slide(prs, e)
-    if a_retirer:
-        _masques_orphelins(prs)
-    return len(a_retirer)
+    return len(retirer_posees(prs, vendredi_de, PREFIXE_MASQUE, jusqu_au, essai))
 
 
 def _placer_apres(prs, ancre_el, nouveaux):
@@ -142,23 +167,28 @@ def _placer_apres(prs, ancre_el, nouveaux):
 
 # ---------- PDF : une page = une image ----------
 
-def pages_pdf(octets):
-    """Rend chaque page du PDF en JPEG. Renvoie [(jpeg, largeur, hauteur)]."""
+def pages_pdf(octets, erreur=None):
+    """Rend chaque page du PDF en JPEG. Renvoie [(jpeg, largeur, hauteur)].
+    erreur : exception levée si le PDF est inutilisable (ConferenceImpossible par défaut)."""
     import pymupdf  # dépendance lourde : seulement si un PDF est déposé
 
+    erreur = erreur or ConferenceImpossible
     try:
         doc = pymupdf.open(stream=octets, filetype="pdf")
     except Exception as e:  # noqa: BLE001
-        raise ConferenceImpossible("PDF illisible") from e
+        raise erreur("PDF illisible") from e
     if doc.needs_pass:
-        raise ConferenceImpossible("PDF protégé par mot de passe")
+        raise erreur("PDF protégé par mot de passe")
     if doc.page_count == 0:
-        raise ConferenceImpossible("PDF sans page")
+        raise erreur("PDF sans page")
     if doc.page_count > PAGES_MAX:
-        raise ConferenceImpossible(f"PDF trop long ({doc.page_count} pages, {PAGES_MAX} max)")
+        raise erreur(f"PDF trop long ({doc.page_count} pages, {PAGES_MAX} max)")
     pages = []
     for page in doc:
-        zoom = LARGEUR_IMAGE / max(page.rect.width, 1)
+        # borné sur les deux côtés : une page très haute (ou très large) ne
+        # doit pas produire une image géante qui ferait tomber tout le passage
+        w, h = max(page.rect.width, 1), max(page.rect.height, 1)
+        zoom = min(LARGEUR_IMAGE / w, LARGEUR_IMAGE / h, (PIXELS_MAX / (w * h)) ** 0.5)
         pix = page.get_pixmap(matrix=pymupdf.Matrix(zoom, zoom), alpha=False)
         img = Image.frombytes("RGB", (pix.width, pix.height), pix.samples)
         sortie = io.BytesIO()
@@ -174,21 +204,34 @@ def _layout_vide(prs):
     return min(prs.slide_layouts, key=lambda l: len(l.placeholders))
 
 
-def _ajouter_images(prs, pages, vendredi):
+def ajouter_images(prs, pages, noms, nom_image):
+    """Une image par slide « Page vide », centrée et ajustée sans recadrage.
+    pages : [(jpeg, largeur, hauteur)] ; noms : nom interne de chaque slide ;
+    nom_image(i) : nom de la forme image. Renvoie les p:sldId créés (en fin de deck).
+    À appeler avant toute recopie .pptx (prs.slides doit rester lisible)."""
     W, H = prs.slide_width, prs.slide_height
     layout = _layout_vide(prs)
+    # python-pptx nomme la nouvelle partie « slide<nb de slides + 1>.xml » : après
+    # un retrait au milieu du deck, ce nom peut déjà exister (deux entrées
+    # identiques dans le zip, une slide écrasée). On renumérote d'abord.
+    prs.part.rename_slide_parts([e.get(R_ID) for e in _sld_id_lst(prs)])
     nouveaux = []
-    for i, (jpeg, l, h) in enumerate(pages, 1):
+    for i, ((jpeg, l, h), nom) in enumerate(zip(pages, noms), 1):
         s = prs.slides.add_slide(layout)
         for ph in list(s.placeholders):
             ph._element.getparent().remove(ph._element)
         ratio = min(W / l, H / h)
         lw, lh = int(l * ratio), int(h * ratio)
         pic = s.shapes.add_picture(io.BytesIO(jpeg), int((W - lw) / 2), int((H - lh) / 2), lw, lh)
-        pic.name = f"Conférence page {i}"
-        s._element.cSld.set("name", nom_slide(vendredi, i, len(pages)))
+        pic.name = nom_image(i)
+        s._element.cSld.set("name", nom)
         nouveaux.append(_sld_id_lst(prs)[-1])
     return nouveaux
+
+
+def _ajouter_images(prs, pages, vendredi):
+    noms = [nom_slide(vendredi, i, len(pages)) for i in range(1, len(pages) + 1)]
+    return ajouter_images(prs, pages, noms, lambda i: f"Conférence page {i}")
 
 
 # ---------- PowerPoint : slides recopiées ----------
@@ -240,16 +283,35 @@ def _xml(partie, modifier):
     partie.blob = etree.tostring(racine, xml_declaration=True, encoding="UTF-8", standalone=True)
 
 
-def _ajouter_pptx(prs, octets, vendredi):
+def ouvrir_pptx(octets, erreur=None):
+    """Ouvre un .pptx déposé et vérifie son nombre de slides. Renvoie la Presentation."""
+    erreur = erreur or ConferenceImpossible
     try:
         source = Presentation(io.BytesIO(octets))
     except Exception as e:  # noqa: BLE001
-        raise ConferenceImpossible("PowerPoint illisible") from e
+        raise erreur("PowerPoint illisible") from e
+    n = len(source.slides)
+    if not n:
+        raise erreur("PowerPoint sans slide")
+    if n > PAGES_MAX:
+        raise erreur(f"PowerPoint trop long ({n} slides, {PAGES_MAX} max)")
+    return source
+
+
+def _ajouter_pptx(prs, octets, vendredi):
+    source = ouvrir_pptx(octets)
+    n = len(source.slides)
+    return recopier_pptx(prs, source, [nom_slide(vendredi, i, n) for i in range(1, n + 1)],
+                         lambda i: f"{PREFIXE_MASQUE}{vendredi} (modèle {i})")
+
+
+def recopier_pptx(prs, source, noms, nom_masque):
+    """Recopie toutes les slides de `source` (Presentation) en fin de deck, avec
+    leurs masques et dispositions. noms : nom interne de chaque slide ;
+    nom_masque(i) : nom donné au i-ème masque recopié (1, 2…).
+    Renvoie (p:sldId créés, avertissement). Peut être appelée plusieurs fois
+    de suite ; après elle, prs.slides n'est plus lisible avant rechargement."""
     slides = list(source.slides)
-    if not slides:
-        raise ConferenceImpossible("PowerPoint sans slide")
-    if len(slides) > PAGES_MAX:
-        raise ConferenceImpossible(f"PowerPoint trop long ({len(slides)} slides, {PAGES_MAX} max)")
     avertissement = ""
     if (source.slide_width, source.slide_height) != (prs.slide_width, prs.slide_height):
         avertissement = "format de slide différent du deck : vérifier la mise en page"
@@ -266,13 +328,13 @@ def _ajouter_pptx(prs, octets, vendredi):
     ids_masques = [int(e.get("id")) for e in p.findall("p:sldMasterIdLst/p:sldMasterId", NS)]
     for rel in prs.part.rels.values():
         if rel.reltype == RT.SLIDE_MASTER:
-            ids_masques += [int(x) for x in rel.target_part._element.xpath("./p:sldLayoutIdLst/p:sldLayoutId/@id")]
+            ids_masques += [int(e.get("id")) for e in _racine(rel.target_part).findall("p:sldLayoutIdLst/p:sldLayoutId", NS)]
     prochain = max(ids_masques + [2147483647]) + 1
     lst_masques = p.find("p:sldMasterIdLst", NS)
     for i, m in enumerate(masques, 1):
         def renumeroter(racine, i=i):
             nonlocal prochain
-            racine.find("p:cSld", NS).set("name", f"{PREFIXE_MASQUE}{vendredi} (modèle {i})")
+            racine.find("p:cSld", NS).set("name", nom_masque(i))
             # identifiants uniques parmi tous les masques et dispositions du deck
             for e in racine.findall("p:sldLayoutIdLst/p:sldLayoutId", NS):
                 e.set("id", str(prochain))
@@ -287,7 +349,7 @@ def _ajouter_pptx(prs, octets, vendredi):
     prochain_slide = max([int(e.get("id")) for e in lst] + [255]) + 1
     nouveaux = []
     for i, partie in enumerate(neuves, 1):
-        _xml(partie, lambda racine, i=i: racine.find("p:cSld", NS).set("name", nom_slide(vendredi, i, len(neuves))))
+        _xml(partie, lambda racine, nom=noms[i - 1]: racine.find("p:cSld", NS).set("name", nom))
         el = etree.SubElement(lst, f"{{{NS['p']}}}sldId")
         el.set("id", str(prochain_slide))
         el.set(R_ID, prs.part.relate_to(partie, RT.SLIDE))

@@ -1,0 +1,233 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Réseaux sociaux — BNI Bruz Envol</title>
+<style>
+  :root { --rouge: #c8102e; --rouge-fonce: #9e0c24; --encre: #1a1a1a; --gris: #6b6b6b; --trait: #e3e3e3; --fond: #f4f4f2; --ok: #1f7a4d; }
+  * { box-sizing: border-box; }
+  body { margin: 0; font: 16px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif; color: var(--encre); background: var(--fond); }
+  header { background: var(--encre); color: #fff; padding: 18px 16px 20px; }
+  header .wrap, main { max-width: 720px; margin: 0 auto; }
+  .marque { font-weight: 800; font-size: 15px; }
+  .marque b { color: var(--rouge); font-size: 20px; }
+  h1 { margin: 6px 0 4px; font-size: 24px; line-height: 1.2; }
+  .limite { display: inline-block; margin-top: 6px; background: var(--rouge); padding: 3px 10px; border-radius: 3px; font-size: 13px; font-weight: 700; letter-spacing: .03em; text-transform: uppercase; }
+  main { padding: 20px 16px 48px; }
+  .etape { background: #fff; border: 1px solid var(--trait); border-radius: 10px; padding: 18px 16px; margin-bottom: 14px; }
+  .etape h2 { margin: 0 0 10px; font-size: 16px; }
+  .depose { display: block; border: 2px dashed #c9c9c9; border-radius: 10px; padding: 26px 14px; text-align: center; cursor: pointer; }
+  .depose:hover, .depose.survol { border-color: var(--rouge); background: #fff6f7; }
+  .depose strong { display: block; }
+  .depose span { color: var(--gris); font-size: 13px; }
+  ol.liste { margin: 12px 0 0; padding-left: 22px; }
+  ol.liste li { padding: 6px 0; border-bottom: 1px solid var(--trait); }
+  ol.liste li:last-child { border-bottom: 0; }
+  .ligne { display: flex; gap: 8px; align-items: center; }
+  .ligne .nom { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+  .ligne .poids { color: var(--gris); font-size: 13px; white-space: nowrap; }
+  .mini { width: auto; font-size: 14px; padding: 4px 9px; border-radius: 6px; background: #fff; color: var(--encre); border: 1px solid #cfcfcf; font-weight: 600; }
+  .mini:hover { background: #f1f1f1; }
+  .aide { color: var(--gris); font-size: 13px; margin-top: 8px; }
+  .rappel { border-left: 4px solid var(--rouge); }
+  .rappel p { margin: 0 0 8px; }
+  .rappel p:last-child { margin-bottom: 0; }
+  progress { width: 100%; height: 10px; margin-top: 10px; display: none; }
+  button { width: 100%; font: inherit; font-weight: 700; font-size: 17px; padding: 15px; border: 0; border-radius: 10px; background: var(--rouge); color: #fff; cursor: pointer; }
+  button:hover { background: var(--rouge-fonce); }
+  button:disabled { background: #bdbdbd; cursor: wait; }
+  .message { margin-top: 12px; padding: 12px 14px; border-radius: 8px; font-weight: 600; display: none; }
+  .message.ok { display: block; background: #e8f4ee; color: var(--ok); }
+  .message.ko { display: block; background: #fdeced; color: var(--rouge-fonce); }
+  .recu { color: var(--ok); font-weight: 600; }
+  #contenu { display: none; }
+</style>
+</head>
+<body>
+<header><div class="wrap">
+  <div class="marque"><b>BNI</b> · Bruz Envol</div>
+  <h1 id="titre">Réseaux sociaux</h1>
+  <div id="sous-titre"></div>
+  <div class="limite" id="limite"></div>
+</div></header>
+<main>
+  <div class="message" id="message"></div>
+  <div id="contenu">
+    <section class="etape rappel">
+      <p>Dépose tes contenus réseaux sociaux, puis valide : ils seront ajoutés à la présentation de la réunion, juste après la slide « Réseaux sociaux ».</p>
+      <p>Un nouvel envoi remplace entièrement le précédent.</p>
+    </section>
+
+    <section class="etape" id="deja-bloc" hidden>
+      <h2>Déjà reçu</h2>
+      <div class="recu" id="deja"></div>
+      <ol class="liste" id="deja-liste"></ol>
+    </section>
+
+    <section class="etape">
+      <h2>Tes fichiers</h2>
+      <label class="depose" id="depose">
+        <input type="file" id="choix" multiple accept=".pptx,.pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png,application/vnd.openxmlformats-officedocument.presentationml.presentation" hidden>
+        <strong>Touche ici ou glisse tes fichiers</strong>
+        <span>PowerPoint (.pptx), PDF, images JPG ou PNG. Plusieurs fichiers possibles.</span>
+      </label>
+      <ol class="liste" id="liste"></ol>
+      <div class="aide" id="aide-ordre" hidden>Les fichiers passeront dans cet ordre : utilise ↑ ↓ pour le changer.</div>
+      <progress id="progression" max="100" value="0"></progress>
+    </section>
+
+    <button id="valider">Valider</button>
+    <div class="message" id="resultat"></div>
+  </div>
+</main>
+<script>
+const $ = (id) => document.getElementById(id);
+const r = new URLSearchParams(location.search).get("r") || "";
+const url = (chemin, extra = "") => `${chemin}?r=${encodeURIComponent(r)}${extra}`;
+async function api(chemin, options, extra) {
+  const rep = await fetch(url(chemin, extra), options);
+  const data = await rep.json().catch(() => ({}));
+  if (!rep.ok) throw new Error(data.erreur || "Erreur, réessaie.");
+  return data;
+}
+const taille = (n) => n >= 1048576 ? `${(n / 1048576).toFixed(1).replace(".", ",")} Mo` : `${Math.max(1, Math.round(n / 1024))} Ko`;
+const quand = (iso) => new Date(iso).toLocaleString("fr-FR", { weekday: "long", day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" });
+const FORMAT = /\.(pptx|pdf|jpe?g|png)$/i;
+let moi = null;
+let fichiers = [];
+
+// tous les textes passent par textContent (jamais d'innerHTML avec un nom de fichier)
+function element(balise, classe, texte) {
+  const e = document.createElement(balise);
+  if (classe) e.className = classe;
+  if (texte !== undefined) e.textContent = texte;
+  return e;
+}
+
+function afficher() {
+  $("titre").textContent = `Bonjour ${moi.prenom}`;
+  $("sous-titre").textContent = `Réseaux sociaux pour la réunion du ${moi.vendredi_libelle}.`;
+  $("limite").textContent = `Limite : ${moi.limite}`;
+  const d = moi.depot;
+  $("deja-bloc").hidden = !d;
+  $("deja-liste").replaceChildren();
+  if (d) {
+    $("deja").textContent = `✓ Validé le ${quand(d.valide_le)}` + (moi.sur_la_presentation ? ` · sur la présentation (${moi.sur_la_presentation.slides} slide(s))` : "");
+    for (const f of d.fichiers) $("deja-liste").append(element("li", "", `${f.nom} (${taille(f.taille)})`));
+  }
+  if (moi.ferme) {
+    $("valider").disabled = true;
+    const m = $("message"); m.className = "message ko";
+    m.textContent = `Dépôt fermé depuis ${moi.limite} pour la réunion du ${moi.vendredi_libelle}. Tu pourras déposer pour la réunion suivante dès vendredi midi.`;
+  }
+}
+
+function dessinerListe() {
+  const ol = $("liste");
+  ol.replaceChildren();
+  fichiers.forEach((f, i) => {
+    const li = element("li");
+    const ligne = element("div", "ligne");
+    ligne.append(element("span", "nom", f.name), element("span", "poids", taille(f.size)));
+    for (const [texte, action, titre] of [["↑", -1, "Monter"], ["↓", 1, "Descendre"], ["✕", 0, "Retirer"]]) {
+      const b = element("button", "mini", texte);
+      b.type = "button"; b.title = titre;
+      b.addEventListener("click", () => {
+        if (action === 0) fichiers.splice(i, 1);
+        else { const j = i + action; if (j < 0 || j >= fichiers.length) return; [fichiers[i], fichiers[j]] = [fichiers[j], fichiers[i]]; }
+        dessinerListe();
+      });
+      ligne.append(b);
+    }
+    li.append(ligne);
+    ol.append(li);
+  });
+  $("aide-ordre").hidden = fichiers.length < 2;
+}
+
+function ajouter(liste) {
+  const res = $("resultat");
+  res.className = "message";
+  for (const f of liste) {
+    if (!FORMAT.test(f.name)) { res.className = "message ko"; res.textContent = `« ${f.name} » : format non accepté. PowerPoint (.pptx), PDF, JPG ou PNG.`; continue; }
+    if (fichiers.length >= moi.fichiers_max) { res.className = "message ko"; res.textContent = `${moi.fichiers_max} fichiers au maximum.`; break; }
+    fichiers.push(f);
+  }
+  const total = fichiers.reduce((t, f) => t + f.size, 0);
+  if (total > moi.taille_max) { res.className = "message ko"; res.textContent = `Trop lourd (${taille(total)}, ${taille(moi.taille_max)} max au total) : exporte en PDF ou réduis les images.`; }
+  dessinerListe();
+}
+
+async function envoyer() {
+  const e = await api("/api/reseaux/envoi", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ fichiers: fichiers.map((f) => ({ nom: f.name, taille: f.size })) }) });
+  const barre = $("progression");
+  barre.style.display = "block";
+  const total = e.fichiers.reduce((t, f) => t + f.morceaux, 0);
+  let faits = 0;
+  for (let i = 0; i < e.fichiers.length; i += 1) {
+    const { envoi, morceaux } = e.fichiers[i];
+    const f = fichiers[i];
+    for (let n = 0; n < morceaux; n += 1) {
+      const morceau = f.slice(n * e.taille_morceau, Math.min(f.size, (n + 1) * e.taille_morceau));
+      for (let essai = 1; ; essai += 1) {
+        try {
+          await api("/api/reseaux/morceau", { method: "PUT", headers: { "Content-Type": "application/octet-stream" }, body: morceau }, `&envoi=${encodeURIComponent(envoi)}&n=${n}`);
+          break;
+        } catch (err) {
+          // un fichier refusé (mauvais format) ne sert à rien de renvoyer
+          if (essai >= 3 || /vrai fichier/.test(err.message)) throw err;
+          await new Promise((ok) => setTimeout(ok, 2000 * essai));
+        }
+      }
+      faits += 1;
+      barre.value = Math.round((faits / total) * 100);
+    }
+  }
+  return e.brouillon;
+}
+
+async function charger() {
+  try {
+    moi = await api("/api/reseaux/moi");
+    $("contenu").style.display = "block";
+    afficher();
+  } catch (e) {
+    const m = $("message"); m.className = "message ko"; m.textContent = e.message;
+  }
+}
+
+$("choix").addEventListener("change", (e) => { ajouter([...e.target.files]); e.target.value = ""; });
+const zone = $("depose");
+zone.addEventListener("dragover", (e) => { e.preventDefault(); zone.classList.add("survol"); });
+zone.addEventListener("dragleave", () => zone.classList.remove("survol"));
+zone.addEventListener("drop", (e) => { e.preventDefault(); zone.classList.remove("survol"); ajouter([...e.dataTransfer.files]); });
+
+$("valider").addEventListener("click", async () => {
+  const res = $("resultat");
+  if (!fichiers.length) { res.className = "message ko"; res.textContent = "Choisis d'abord au moins un fichier."; return; }
+  if (fichiers.reduce((t, f) => t + f.size, 0) > moi.taille_max) { res.className = "message ko"; res.textContent = `Trop lourd : ${taille(moi.taille_max)} max au total.`; return; }
+  const b = $("valider");
+  b.disabled = true;
+  try {
+    const brouillon = await envoyer();
+    await api("/api/reseaux/valider", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ brouillon }) });
+    fichiers = [];
+    dessinerListe();
+    res.className = "message ok";
+    res.textContent = "Merci, c'est validé ! Tes fichiers seront ajoutés à la présentation.";
+    moi = await api("/api/reseaux/moi");
+    afficher();
+  } catch (e) {
+    res.className = "message ko"; res.textContent = e.message;
+  } finally {
+    b.disabled = Boolean(moi && moi.ferme);
+    $("progression").style.display = "none";
+  }
+});
+
+charger();
+</script>
+</body>
+</html>

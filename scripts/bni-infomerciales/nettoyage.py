@@ -11,6 +11,11 @@ renvoie pas. Les slides où un dépôt de la nouvelle semaine est déjà posé
 (plan du worker : « preserver ») ne sont pas touchées. Les slides de la
 conférence de la réunion passée (posées par conference.py) sont retirées ;
 celles d'une réunion à venir restent (plan : « conference_jusqu_au »).
+Idem pour les slides « Réseaux sociaux » (reseaux.py, plan :
+« reseaux_jusqu_au »), plus un retrait unique de slides posées à la main
+(plan : « reseaux_retrait_unique », appliqué seulement le reseaux.RETRAIT_UNIQUE_JOUR,
+date de Paris ; l'essai à blanc l'affiche quel que soit le jour) :
+une slide qui ne passe pas les garde-fous reste, et le rapport le dit.
 
 Sûreté :
 - copie datée du deck à côté de l'original (copie côté OneDrive, sans
@@ -36,6 +41,7 @@ from zoneinfo import ZoneInfo
 import requests
 
 import deck
+import reseaux
 from job import (ESSAIS, GRAPH, PAUSE_ESSAI, Conflit, Worker, attendre_calme, element, envoyer_deck,
                  jeton_microsoft, metadonnees, telecharger)
 
@@ -146,9 +152,11 @@ def un_passage(worker, ms, plan, dossier, essai):
     etag = telecharger(acces, ms, source)
     sortie = Path(dossier) / "sortie.pptx"
     rapport = deck.nettoyer(source, sortie, preserver=plan.get("preserver", []), essai=essai,
-                            conference_jusqu_au=plan.get("conference_jusqu_au"))
+                            conference_jusqu_au=plan.get("conference_jusqu_au"),
+                            reseaux_jusqu_au=plan.get("reseaux_jusqu_au"),
+                            reseaux_retrait_unique=plan.get("reseaux_retrait_unique") or [])
     rapport["sauvegarde"] = ""
-    if (rapport["nettoyees"] or rapport["conference"]) and not essai:
+    if (rapport["nettoyees"] or rapport["conference"] or rapport["reseaux"]) and not essai:
         rapport["sauvegarde"] = sauvegarder(acces, ms, etag, plan["semaine"])
         envoyer_deck(acces, ms, sortie, etag)
     return rapport
@@ -157,7 +165,11 @@ def un_passage(worker, ms, plan, dossier, essai):
 def resume(rapport):
     return (f"{len(rapport['nettoyees'])} slide(s) vidée(s), {len(rapport['deja_vides'])} déjà vide(s), "
             f"{len(rapport['preservees'])} gardée(s), {rapport['non_reconnues']} non reconnue(s) laissée(s), "
-            f"{rapport['conference']} slide(s) de conférence retirée(s)")
+            f"{rapport['conference']} slide(s) de conférence retirée(s), "
+            f"{rapport.get('reseaux', 0)} slide(s) réseaux sociaux retirée(s)"
+            + (f", {len(rapport['reseaux_laissees'])} slide(s) du retrait unique laissée(s) "
+               f"({', '.join(str(l['slide_id']) + ' : ' + l['motif'] for l in rapport['reseaux_laissees'])})"
+               if rapport.get("reseaux_laissees") else ""))
 
 
 def main(args):
@@ -175,6 +187,9 @@ def main(args):
     if not ms or not (ms.get("refresh_token") or ms.get("rclone_token")) or not ms.get("item_id"):
         print("OneDrive non connecté : lancer connexion_microsoft.py une fois.")
         return 1
+    if plan.get("reseaux_retrait_unique") and not essai and maintenant.date().isoformat() != reseaux.RETRAIT_UNIQUE_JOUR:
+        print(f"Retrait unique des slides réseaux sociaux ignoré : seulement le {reseaux.RETRAIT_UNIQUE_JOUR}.")
+        plan["reseaux_retrait_unique"] = []
     print(f"Nettoyage de la semaine du {plan['semaine']} (coupure {plan['coupure']}, heure de Paris)"
           + (" — ESSAI À BLANC, rien ne sera écrit." if essai else "."))
     erreur = None
@@ -185,6 +200,11 @@ def main(args):
             for s in rapport["nettoyees"]:
                 quoi = " + ".join(filter(None, [f"{s['photos']} photo(s)" if s["photos"] else "", "demande" if s["texte"] else ""]))
                 print(f"  slide {s['numero']} : {quoi}" + (" serai(en)t effacée(s)" if essai else " effacée(s)"))
+            for s in rapport["reseaux_retirees"]:
+                print(f"  slide {s['numero']} (id {s['slide_id']}, réseaux sociaux, {s['quoi']})"
+                      + (" serait retirée" if essai else " retirée"))
+            for s in rapport["reseaux_laissees"]:
+                print(f"  slide id {s['slide_id']} du retrait unique laissée : {s['motif']}")
             print(("Essai : " if essai else "OK : ") + resume(rapport) + ".")
             if essai:
                 return 0
@@ -193,6 +213,7 @@ def main(args):
                 "nettoyees": rapport["nettoyees"], "deja_vides": rapport["deja_vides"],
                 "preservees": rapport["preservees"], "non_reconnues": rapport["non_reconnues"],
                 "conference": rapport["conference"],
+                "reseaux": rapport["reseaux"],
                 "sauvegarde": rapport["sauvegarde"],
             })
             return 0

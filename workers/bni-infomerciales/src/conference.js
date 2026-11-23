@@ -97,9 +97,26 @@ export async function nommerSecretaire(env, corps, maintenant, origine) {
 
 // ---------- désignation du conférencier ----------
 
-async function supprimerFichiers(env, envoi, morceaux) {
+// Fichiers déposés par morceaux : helpers partagés avec reseaux.js (préfixe de clé KV en paramètre).
+export async function supprimerFichiers(env, envoi, morceaux, prefixe = 'conf_morceau') {
   if (!envoi) return;
-  for (let n = 0; n < (morceaux || 0); n += 1) await env.KV.delete(`conf_morceau:${envoi}:${n}`);
+  for (let n = 0; n < (morceaux || 0); n += 1) await env.KV.delete(`${prefixe}:${envoi}:${n}`);
+}
+
+// Reconstitue un fichier { envoi, morceaux, taille } en flux, pour l'admin.
+export function reponseMorceaux(env, prefixe, f, contentType, nomFichier) {
+  let n = 0;
+  const flux = new ReadableStream({
+    async pull(controleur) {
+      if (n >= f.morceaux) { controleur.close(); return; }
+      const morceau = await env.KV.get(`${prefixe}:${f.envoi}:${n}`, 'arrayBuffer');
+      n += 1;
+      if (morceau === null) { controleur.error(new Error('morceau manquant')); return; }
+      controleur.enqueue(new Uint8Array(morceau));
+    },
+  });
+  const nom = encodeURIComponent(nomFichier);
+  return new Response(flux, { headers: { 'Content-Type': contentType, 'Content-Length': String(f.taille), 'Content-Disposition': `attachment; filename*=UTF-8''${nom}`, 'Cache-Control': 'no-store' } });
 }
 
 export async function designer(env, vendredi, slideId, par, maintenant) {
@@ -415,19 +432,8 @@ export async function fichierConference(env, vendredi) {
   const conf = await lire(env, `conference:${vendredi}`, null);
   const d = conf?.depot;
   if (!d || d.fichier_efface) return erreur('Pas de fichier déposé (ou effacé après la réunion).', 404);
-  let n = 0;
-  const flux = new ReadableStream({
-    async pull(controleur) {
-      if (n >= d.morceaux) { controleur.close(); return; }
-      const morceau = await env.KV.get(`conf_morceau:${d.envoi}:${n}`, 'arrayBuffer');
-      n += 1;
-      if (morceau === null) { controleur.error(new Error('morceau manquant')); return; }
-      controleur.enqueue(new Uint8Array(morceau));
-    },
-  });
   const type = d.type === 'pdf' ? 'application/pdf' : 'application/vnd.openxmlformats-officedocument.presentationml.presentation';
-  const nom = encodeURIComponent(d.nom_fichier);
-  return new Response(flux, { headers: { 'Content-Type': type, 'Content-Length': String(d.taille), 'Content-Disposition': `attachment; filename*=UTF-8''${nom}`, 'Cache-Control': 'no-store' } });
+  return reponseMorceaux(env, 'conf_morceau', d, type, d.nom_fichier);
 }
 
 // ---------- job ----------
@@ -441,8 +447,8 @@ export async function conferenceAPoser(env, maintenant) {
   return { vendredi: conf.vendredi, type: d.type, taille: d.taille, morceaux: d.morceaux, envoi: d.envoi, valide_le: d.valide_le };
 }
 
-export async function morceauPourJob(env, envoi, n) {
-  const morceau = await env.KV.get(`conf_morceau:${envoi}:${n}`, 'arrayBuffer');
+export async function morceauPourJob(env, envoi, n, prefixe = 'conf_morceau') {
+  const morceau = await env.KV.get(`${prefixe}:${envoi}:${n}`, 'arrayBuffer');
   return morceau ? new Response(morceau, { headers: { 'Content-Type': 'application/octet-stream' } }) : erreur('Morceau introuvable.', 404);
 }
 

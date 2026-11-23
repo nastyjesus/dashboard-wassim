@@ -15,8 +15,9 @@ from pptx import Presentation
 from pptx.enum.shapes import MSO_SHAPE_TYPE, PP_PLACEHOLDER
 
 import conference
+import reseaux
 
-LAYOUT_MEMBRE = "Infomerciale_30s"
+LAYOUT_MEMBRE = reseaux.LAYOUT_MEMBRE  # « Infomerciale_30s »
 
 # Zone de la photo de la semaine, en fraction de la slide (x, y, largeur, hauteur).
 # Reprise de l'espace réservé image de la disposition « Infomerciale_30s ».
@@ -84,9 +85,9 @@ def _est_photo_semaine(sh, slide):
 
 
 def _est_slide_membre(slide):
-    # une slide de conférence recopiée d'un deck BNI peut avoir la même
-    # disposition : elle n'est jamais une slide membre
-    return slide.slide_layout.name == LAYOUT_MEMBRE and not conference.est_conference(slide)
+    # une slide de conférence ou de réseaux sociaux recopiée d'un deck BNI peut
+    # avoir la même disposition : elle n'est jamais une slide membre
+    return slide.slide_layout.name == LAYOUT_MEMBRE and not conference.est_systeme(slide)
 
 
 def lister_membres(chemin_deck):
@@ -227,7 +228,8 @@ def _vider_slide(slide):
     return len(photos), bandeau is not None
 
 
-def nettoyer(chemin_source, chemin_sortie=None, preserver=(), essai=False, conference_jusqu_au=None):
+def nettoyer(chemin_source, chemin_sortie=None, preserver=(), essai=False, conference_jusqu_au=None,
+             reseaux_jusqu_au=None, reseaux_retrait_unique=()):
     """Vide la photo et la demande de la semaine de chaque slide membre reconnue.
 
     Slide reconnue : disposition « Infomerciale_30s » avec un nom (comme
@@ -237,12 +239,17 @@ def nettoyer(chemin_source, chemin_sortie=None, preserver=(), essai=False, confe
     conference_jusqu_au : vendredi (AAAA-MM-JJ) ; les slides de conférence
     posées par le module pour cette réunion ou une plus ancienne sont retirées
     (celles d'une réunion à venir restent).
+    reseaux_jusqu_au : idem pour les slides « Réseaux sociaux » (reseaux.py) ;
+    reseaux_retrait_unique : slide_id posées à la main à retirer une fois, avec
+    garde-fous (reseaux.nettoyer) ; celles qui ne passent pas restent et sont
+    listées dans « reseaux_laissees ».
     essai : rien n'est écrit, le rapport dit ce qui serait effacé.
     Le deck n'est enregistré (chemin_sortie) que si une slide a changé.
     """
     prs = Presentation(chemin_source)
     preserver = set(preserver)
-    rapport = {"nettoyees": [], "deja_vides": [], "preservees": [], "non_reconnues": 0, "conference": 0}
+    rapport = {"nettoyees": [], "deja_vides": [], "preservees": [], "non_reconnues": 0, "conference": 0,
+               "reseaux": 0, "reseaux_retirees": [], "reseaux_laissees": []}
     for numero, slide in enumerate(prs.slides, 1):
         if not _est_slide_membre(slide):
             continue
@@ -264,6 +271,10 @@ def nettoyer(chemin_source, chemin_sortie=None, preserver=(), essai=False, confe
             rapport["deja_vides"].append(slide.slide_id)
     if conference_jusqu_au:
         rapport["conference"] = conference.retirer(prs, jusqu_au=conference_jusqu_au, essai=essai)
-    if (rapport["nettoyees"] or rapport["conference"]) and not essai and chemin_sortie:
+    if reseaux_jusqu_au or reseaux_retrait_unique:
+        r = reseaux.nettoyer(prs, reseaux_jusqu_au, reseaux_retrait_unique or (), essai=essai)
+        rapport["reseaux"] = len(r["retirees"])
+        rapport["reseaux_retirees"], rapport["reseaux_laissees"] = r["retirees"], r["laissees"]
+    if (rapport["nettoyees"] or rapport["conference"] or rapport["reseaux"]) and not essai and chemin_sortie:
         prs.save(chemin_sortie)
     return rapport

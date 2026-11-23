@@ -4,6 +4,7 @@ import io
 import posixpath
 import tempfile
 import unittest
+import zipfile
 from pathlib import Path
 from unittest import mock
 
@@ -89,7 +90,11 @@ def pptx(slides=2, layout_membre=False):
 
 def verifier_integrite(test, chemin):
     """Chaque r:id de chaque partie XML pointe vers une relation existante, et
-    les identifiants de masques / dispositions / slides sont uniques."""
+    les identifiants de masques / dispositions / slides sont uniques, ainsi
+    que les noms des parties dans le zip (un doublon écrase une slide)."""
+    with zipfile.ZipFile(chemin) as z:
+        noms = z.namelist()
+    test.assertEqual(len(noms), len(set(noms)), "parties en double dans le zip")
     prs = Presentation(chemin)
     for partie in prs.part.package.iter_parts():
         if not partie.content_type.endswith("+xml"):
@@ -165,6 +170,15 @@ class TestInsertion(unittest.TestCase):
         prs = verifier_integrite(self, self.dossier / "b.pptx")
         self.assertEqual(sum(conference.est_conference(s) for s in prs.slides), 2)
         self.assertEqual(len(prs.slide_masters), 1)  # masque recopié retiré avec ses slides
+
+    def test_redepot_plus_long_au_milieu_du_deck(self):
+        # PDF plus long que la conférence retirée, avec des slides après elle :
+        # le nom de partie choisi par python-pptx existait déjà
+        conference.inserer(self.cible, self.dossier / "a.pptx", VENDREDI, "pptx", pptx(2))
+        r = conference.inserer(self.dossier / "a.pptx", self.dossier / "b.pptx", VENDREDI, "pdf", pdf(4))
+        self.assertEqual((r["slides"], r["retirees"]), (4, 2))
+        prs = verifier_integrite(self, self.dossier / "b.pptx")
+        self.assertEqual([s.shapes.title.text for s in prs.slides if s.slide_layout.name == "Title and Content"], ["TAT express"])
 
     def test_sans_sections(self):
         construire_cible(self.cible, sections=False)

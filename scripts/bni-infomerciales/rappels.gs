@@ -11,6 +11,11 @@
 //   toutes les 15 min : mail au conférencier dès sa désignation, et mail à toi
 //                 (adresse de ce compte Gmail) dès qu'il a validé son dépôt.
 //
+// Réseaux sociaux (responsable désigné dans l'admin) :
+//   mercredi 9h   invitation à déposer les contenus de la réunion (limite jeudi 12h) ;
+//   jeudi 9h      relance, seulement si rien n'est encore validé pour ce vendredi.
+//   Pas de responsable ou pas d'email : aucun mail (le recap du journal le dit).
+//
 // Après toute modification de ce fichier : le recoller à la main dans Apps Script.
 // La liste, les liens perso et le texte viennent du serveur (/api/admin/rappels,
 // /api/admin/conference/notifications) : ce script ne fait qu'envoyer.
@@ -31,6 +36,8 @@ const ATTENTE_LONGUE = 5 * 60 * 1000;
 function rappelSecretaireVendredi() { envoyer_('secretaire_vendredi', ATTENTE_LONGUE); }
 function rappelSecretaireLundi() { envoyer_('secretaire_lundi', ATTENTE_LONGUE); }
 function rappelConferencierMercredi() { envoyer_('conferencier_mercredi', ATTENTE_LONGUE); }
+function rappelReseauxMercredi() { envoyer_('reseaux_mercredi', ATTENTE_LONGUE); }
+function rappelReseauxJeudi() { envoyer_('reseaux_jeudi', ATTENTE_LONGUE); }
 
 // Aperçus sans envoi : affichent dans le journal qui recevrait quoi.
 // (n'envoient rien : à utiliser plutôt que les fonctions rappel… pour vérifier)
@@ -39,6 +46,8 @@ function apercuMercredi() { Logger.log(JSON.stringify(liste_('mercredi'), null, 
 function apercuSecretaireVendredi() { Logger.log(JSON.stringify(liste_('secretaire_vendredi'), null, 1)); }
 function apercuSecretaireLundi() { Logger.log(JSON.stringify(liste_('secretaire_lundi'), null, 1)); }
 function apercuConferencierMercredi() { Logger.log(JSON.stringify(liste_('conferencier_mercredi'), null, 1)); }
+function apercuReseauxMercredi() { Logger.log(JSON.stringify(liste_('reseaux_mercredi'), null, 1)); }
+function apercuReseauxJeudi() { Logger.log(JSON.stringify(liste_('reseaux_jeudi'), null, 1)); }
 function apercuNotificationsConference() { Logger.log(JSON.stringify(appel_('get', '/api/admin/conference/notifications'), null, 1)); }
 
 function appel_(methode, chemin, corps) {
@@ -153,6 +162,8 @@ function installerDeclencheurs() {
   ScriptApp.newTrigger('rappelSecretaireVendredi').timeBased().onWeekDay(ScriptApp.WeekDay.FRIDAY).atHour(14).nearMinute(0).inTimezone(ZONE).create();
   ScriptApp.newTrigger('rappelSecretaireLundi').timeBased().onWeekDay(ScriptApp.WeekDay.MONDAY).atHour(9).nearMinute(0).inTimezone(ZONE).create();
   ScriptApp.newTrigger('rappelConferencierMercredi').timeBased().onWeekDay(ScriptApp.WeekDay.WEDNESDAY).atHour(14).nearMinute(0).inTimezone(ZONE).create();
+  ScriptApp.newTrigger('rappelReseauxMercredi').timeBased().onWeekDay(ScriptApp.WeekDay.WEDNESDAY).atHour(9).nearMinute(0).inTimezone(ZONE).create();
+  ScriptApp.newTrigger('rappelReseauxJeudi').timeBased().onWeekDay(ScriptApp.WeekDay.THURSDAY).atHour(9).nearMinute(0).inTimezone(ZONE).create();
   ScriptApp.newTrigger('notificationsConference').timeBased().everyMinutes(15).create();
-  console.log('Déclencheurs installés : lundi vers 9h, mercredi vers 14h, vendredi vers 14h (heure de Paris), et toutes les 15 minutes.');
+  console.log('Déclencheurs installés (8) : lundi vers 9h, mercredi vers 9h et 14h, jeudi vers 9h, vendredi vers 14h (heure de Paris), et toutes les 15 minutes.');
 }

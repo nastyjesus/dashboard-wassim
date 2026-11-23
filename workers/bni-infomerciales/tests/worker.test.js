@@ -200,11 +200,12 @@ describe('rappels hebdo', () => {
 
   it('mercredi : seulement ceux qui n’ont rien envoyé depuis lundi', async () => {
     const m = await lienDe('Paul MARTIN');
-    await appel(`/api/depot?m=${m}`, { methode: 'POST', corps: { recherche: 'Ma demande' } });
+    // dépôt daté du mardi de la semaine simulée (horloge figée : le test ne dépend plus du jour réel)
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2026-11-17T10:00:00Z'));
+    try { await appel(`/api/depot?m=${m}`, { methode: 'POST', corps: { recherche: 'Ma demande' } }); } finally { vi.useRealTimers(); }
     const { body } = await appel(`/api/admin/rappels?type=mercredi&maintenant=${MERCREDI}`, { admin: ADMIN });
-    // le dépôt du test est daté d'aujourd'hui (réel) : il compte pour la semaine du test seulement s'il est après le lundi simulé
-    const attendu = new Date().toISOString().slice(0, 10) >= '2026-11-16' ? ['celine@exemple.fr'] : ['paul@exemple.fr', 'celine@exemple.fr'];
-    expect(body.mails.map((x) => x.email)).toEqual(attendu);
+    expect(body.mails.map((x) => x.email)).toEqual(['celine@exemple.fr']);
     expect(body.mails.at(-1).texte).toContain('ce soir, mercredi 19h');
   });
 

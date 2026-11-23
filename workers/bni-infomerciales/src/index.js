@@ -19,18 +19,25 @@
 //                    perso : jamais dans le dépôt public, chargées par l'admin)
 //   secretaires, genres, conference:<vendredi>, jetons_conference, conf_morceau:*
 //                    conférencier de la semaine (voir conference.js)
+//   reseaux_responsables, reseaux:<vendredi>, reseaux_morceau:*
+//                    contenus réseaux sociaux de la semaine (voir reseaux.js)
 
 import PAGE_MEMBRE from './membre.html';
 import PAGE_ADMIN from './admin.html';
 import PAGE_ADDIN from './addin.html';
 import PAGE_SECRETAIRE from './secretaire.html';
 import PAGE_CONFERENCE from './conference.html';
+import PAGE_RESEAUX from './reseaux.html';
 import ICONE_ADDIN from './icone.js';
 import { routesNettoyage } from './nettoyage.js';
 import {
   routesPubliques, etatConference, nommerSecretaire, designer, vendrediCible, listeRappelsConference,
   notificationsAEnvoyer, accuserNotifications, fichierConference, conferenceAPoser, morceauPourJob, enregistrerPose,
 } from './conference.js';
+import {
+  routesReseaux, nommerResponsable, listeRappelsReseaux, etatReseaux, fichierReseaux, reseauxAPoser,
+  morceauReseauxPourJob, enregistrerPoseReseaux,
+} from './reseaux.js';
 
 const PHOTO_MAX = 5 * 1024 * 1024;
 const RECHERCHE_MAX = 160;
@@ -215,6 +222,7 @@ async function etatAdmin(env, origine, maintenant = new Date()) {
     passages_job: (await lire(env, 'passages', [])).filter((x) => x.source === 'job').slice(0, 2),
     dernier_nettoyage: dernierNettoyage,
     conference: await etatConference(env, origine, maintenant),
+    reseaux: await etatReseaux(env, origine, maintenant),
   };
 }
 
@@ -335,6 +343,7 @@ async function recevoirResultat(env, corps) {
     await env.KV.put('jetons', JSON.stringify(jetons));
   }
   if (corps.conference) await enregistrerPose(env, corps.conference, new Date());
+  if (corps.reseaux) await enregistrerPoseReseaux(env, corps.reseaux, new Date());
   const run = { date: new Date().toISOString(), ok: Boolean(corps.ok), message: String(corps.message ?? ''), mis_a_jour: (corps.appliques ?? []).filter((a) => !a.orphelin).length };
   await env.KV.put('dernier_run', JSON.stringify(run));
   await noterPassage(env, run, corps);
@@ -487,7 +496,8 @@ async function routesAdmin(request, env, url) {
     if (['secretaire_vendredi', 'secretaire_lundi', 'conferencier_mercredi'].includes(type)) {
       return json(await listeRappelsConference(env, url.origin, type, maintenant));
     }
-    if (!['lundi', 'mercredi'].includes(type)) return erreur('type=lundi, mercredi, secretaire_vendredi, secretaire_lundi ou conferencier_mercredi requis.');
+    if (['reseaux_mercredi', 'reseaux_jeudi'].includes(type)) return json(await listeRappelsReseaux(env, url.origin, type, maintenant));
+    if (!['lundi', 'mercredi'].includes(type)) return erreur('type=lundi, mercredi, secretaire_vendredi, secretaire_lundi, conferencier_mercredi, reseaux_mercredi ou reseaux_jeudi requis.');
     return json(await listeRappels(env, url.origin, type, maintenant));
   }
   if (p === '/api/admin/secretaire' && m === 'PUT') {
@@ -518,6 +528,14 @@ async function routesAdmin(request, env, url) {
     if (!corps) return erreur('Requête illisible.');
     return json(await accuserNotifications(env, corps.ids, maintenant));
   }
+  if (p === '/api/admin/reseaux/responsable' && m === 'PUT') {
+    const corps = await corpsJson();
+    if (!corps) return erreur('Requête illisible.');
+    return nommerResponsable(env, corps, maintenant, url.origin);
+  }
+  if (p === '/api/admin/reseaux/fichier' && m === 'GET') {
+    return fichierReseaux(env, String(url.searchParams.get('vendredi') ?? ''), String(url.searchParams.get('envoi') ?? ''));
+  }
   if (p === '/api/admin/suppleants' && m === 'PUT') {
     let corps;
     try { corps = await request.json(); } catch { return erreur('Requête illisible.'); }
@@ -541,8 +559,13 @@ async function routesAdmin(request, env, url) {
     const ms = await lire(env, 'ms', null);
     const { keys } = await env.KV.list({ prefix: 'depot:' });
     const depots = (await Promise.all(keys.map((k) => lire(env, k.name, null)))).filter(Boolean);
-    return json({ ms, depots, membres, passages: await lire(env, 'passages', []), conference: await conferenceAPoser(env, maintenant) });
+    return json({
+      ms, depots, membres, passages: await lire(env, 'passages', []),
+      conference: await conferenceAPoser(env, maintenant), reseaux: await reseauxAPoser(env, maintenant),
+    });
   }
+  const morceauRs = p.match(/^\/api\/job\/reseaux\/morceau\/([\w-]+)\/(\d+)$/);
+  if (morceauRs && m === 'GET') return morceauReseauxPourJob(env, morceauRs[1], Number(morceauRs[2]));
   const morceau = p.match(/^\/api\/job\/conference\/morceau\/([\w-]+)\/(\d+)$/);
   if (morceau && m === 'GET') return morceauPourJob(env, morceau[1], Number(morceau[2]));
   if (p === '/api/job/ms' && m === 'PUT') {
@@ -576,6 +599,7 @@ export default {
       if (p === '/admin' && request.method === 'GET') return html(PAGE_ADMIN);
       if (p === '/secretaire' && request.method === 'GET') return html(PAGE_SECRETAIRE);
       if (p === '/conference' && request.method === 'GET') return html(PAGE_CONFERENCE);
+      if (p === '/reseaux' && request.method === 'GET') return html(PAGE_RESEAUX);
       if (p === '/health') return json({ ok: true });
       if (p === '/addin' && request.method === 'GET') return html(PAGE_ADDIN);
       if (p === '/addin/manifest.xml') {
@@ -586,6 +610,7 @@ export default {
       }
       if (p.startsWith('/api/admin/') || p.startsWith('/api/job/')) return await routesAdmin(request, env, url);
       if (p.startsWith('/api/secretaire/') || p.startsWith('/api/conference/')) return await routesPubliques(request, env, url);
+      if (p.startsWith('/api/reseaux/')) return await routesReseaux(request, env, url);
       if (p.startsWith('/api/')) return await routesMembre(request, env, url);
       return erreur('Introuvable.', 404);
     } catch (e) {

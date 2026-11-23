@@ -19,6 +19,11 @@ déposées par le conférencier sont insérées dans la partie « Conférence »
 deck. Une conférence impossible à poser (fichier illisible…) n'empêche pas la
 pose des infomerciales : l'erreur est remontée à l'admin.
 
+Réseaux sociaux de la semaine (reseaux.py) : aux mêmes passages, après les
+infomerciales et la conférence, les fichiers déposés par le responsable
+réseaux sociaux sont posés juste après la slide repère « RÉSEAUX SOCIAUX ».
+Une erreur ici ne bloque ni les infomerciales ni la conférence.
+
 Le dépôt GitHub est public : ce script n'affiche jamais de nom, seulement des compteurs.
 
 `python job.py nettoyage [--essai] [--forcer]` : nettoyage du samedi (nettoyage.py).
@@ -41,6 +46,7 @@ from urllib3.util.retry import Retry
 
 import conference
 import deck
+import reseaux
 
 LOGIN = os.environ.get("MS_LOGIN_URL", "https://login.microsoftonline.com/consumers/oauth2/v2.0")
 GRAPH = os.environ.get("MS_GRAPH_URL", "https://graph.microsoft.com/v1.0")
@@ -307,6 +313,41 @@ def poser_conference(chemin, sortie, conf):
     return sortie, {**ident, "ok": True, "slides": r["slides"], "message": r["avertissement"]}
 
 
+def preparer_reseaux(worker, res):
+    """Télécharge, morceau par morceau, les fichiers du dépôt réseaux sociaux.
+    Renvoie le dépôt avec les octets de chaque fichier, ou None (rien à poser /
+    échec réseau : on réessaiera au passage suivant)."""
+    if not res or not res.get("fichiers"):
+        return None
+    fichiers = []
+    for k, f in enumerate(res["fichiers"], 1):
+        morceaux = []
+        for n in range(f["morceaux"]):
+            r = worker.s.get(f"{worker.url}/api/job/reseaux/morceau/{f['envoi']}/{n}", timeout=120)
+            if r.status_code != 200:
+                print(f"Réseaux sociaux : fichier {k} indisponible (HTTP {r.status_code}), pas posé ce passage-ci.")
+                return None
+            morceaux.append(r.content)
+        octets = b"".join(morceaux)
+        if len(octets) != f["taille"]:
+            print(f"Réseaux sociaux : fichier {k} incomplet, pas posé ce passage-ci.")
+            return None
+        fichiers.append({"type": f["type"], "octets": octets})
+    return {**res, "fichiers": fichiers}
+
+
+def poser_reseaux(chemin, sortie, res):
+    """Pose le dépôt réseaux sociaux ; renvoie (chemin du deck à jour ou None, résultat pour le worker)."""
+    ident = {"vendredi": res["vendredi"], "valide_le": res["valide_le"]}
+    try:
+        r = reseaux.inserer(chemin, sortie, res["vendredi"], res["fichiers"])
+    except reseaux.ReseauxImpossible as e:
+        return None, {**ident, "ok": False, "message": str(e)}
+    except Exception as e:  # noqa: BLE001 — ne bloque ni les infomerciales ni la conférence
+        return None, {**ident, "ok": False, "message": f"erreur inattendue ({type(e).__name__})"}
+    return sortie, {**ident, "ok": True, "slides": r["slides"], "message": r["avertissement"]}
+
+
 def normaliser_nom(nom):
     sans_accents = "".join(c for c in unicodedata.normalize("NFD", nom) if unicodedata.category(c) != "Mn")
     return " ".join(sans_accents.lower().split())
@@ -335,12 +376,12 @@ def recibler(depots, anciens_membres, membres_deck):
     return resultat
 
 
-def un_passage(worker, ms, depots, anciens_membres, dossier, conf=None):
+def un_passage(worker, ms, depots, anciens_membres, dossier, conf=None, res=None):
     """Renvoie (membres, dépôts traités, nb de slides membres mises à jour,
-    résultat de la conférence ou None)."""
+    résultat de la conférence ou None, résultat réseaux sociaux ou None)."""
     acces = jeton_microsoft(worker, ms)
     source = Path(dossier) / "source.pptx"
-    if depots or conf:
+    if depots or conf or res:
         attendre_calme(acces, ms)
     etag = telecharger(acces, ms, source)
     membres = deck.lister_membres(source)
@@ -348,17 +389,21 @@ def un_passage(worker, ms, depots, anciens_membres, dossier, conf=None):
     # membre sorti du deck : son dépôt est marqué traité pour être purgé
     orphelins = [d for d in depots if d["cible"] is None]
     a_faire = [d for d in depots if d["cible"] is not None and (d.get("photo") or d.get("recherche"))]
-    courant, faits, resultat_conf = None, set(), None
+    courant, faits, resultat_conf, resultat_res = None, set(), None, None
     if a_faire:
         courant = Path(dossier) / "sortie.pptx"
         faits = set(deck.appliquer(source, courant, [{**d, "slide_id": d["cible"]} for d in a_faire]))
     if conf:
         pose, resultat_conf = poser_conference(courant or source, Path(dossier) / "conference.pptx", conf)
         courant = pose or courant
+    if res:
+        pose, resultat_res = poser_reseaux(courant or source, Path(dossier) / "reseaux.pptx", res)
+        courant = pose or courant
     if courant is None:
-        return membres, orphelins, 0, resultat_conf
+        return membres, orphelins, 0, resultat_conf, resultat_res
     envoyer_deck(acces, ms, courant, etag)
-    return deck.lister_membres(courant), orphelins + [d for d in a_faire if d["cible"] in faits], len(faits), resultat_conf
+    return (deck.lister_membres(courant), orphelins + [d for d in a_faire if d["cible"] in faits], len(faits),
+            resultat_conf, resultat_res)
 
 
 def decrire(e):
@@ -388,24 +433,33 @@ def main(worker=None, maintenant=None, environ=os.environ):
         return 1
     depots = preparer_depots(worker, entree["depots"])
     conf = preparer_conference(worker, entree.get("conference"))
-    print(f"{len(depots)} dépôt(s) à traiter" + (", et une conférence à poser." if conf else "."))
+    res = preparer_reseaux(worker, entree.get("reseaux"))
+    print(f"{len(depots)} dépôt(s) à traiter" + (", une conférence à poser" if conf else "")
+          + (f", {len(res['fichiers'])} fichier(s) réseaux sociaux à poser" if res else "") + ".")
     trace = {"source": "job", "creneau": creneau}
     erreur = None
     for essai in range(1, ESSAIS + 1):
         try:
             with tempfile.TemporaryDirectory() as dossier:
-                membres, appliques, nb, resultat_conf = un_passage(worker, ms, depots, entree.get("membres", []), dossier, conf)
+                membres, appliques, nb, resultat_conf, resultat_res = un_passage(
+                    worker, ms, depots, entree.get("membres", []), dossier, conf, res)
             message = f"{nb} slide(s) mise(s) à jour" if nb else "aucun nouveau dépôt, liste des membres synchronisée"
             if resultat_conf:
                 message += (f" ; conférence : {resultat_conf['slides']} slide(s) posée(s)" if resultat_conf["ok"]
                             else f" ; conférence non posée : {resultat_conf['message']}")
                 print(f"Conférence : {'posée, ' + str(resultat_conf['slides']) + ' slide(s)' if resultat_conf['ok'] else 'non posée (' + resultat_conf['message'] + ')'}.")
+            if resultat_res:
+                message += (f" ; réseaux sociaux : {resultat_res['slides']} slide(s) posée(s)" if resultat_res["ok"]
+                            else f" ; réseaux sociaux non posés : {resultat_res['message']}")
+                print(f"Réseaux sociaux : {'posés, ' + str(resultat_res['slides']) + ' slide(s)' if resultat_res['ok'] else 'non posés (' + resultat_res['message'] + ')'}.")
             worker.envoyer("POST", "/api/job/resultat", {
                 **trace,
                 "ok": True,
                 "message": message[:300],
                 # vendredi, valide_le, ok, slides, message : jamais de contacts
                 "conference": resultat_conf,
+                # vendredi, valide_le, ok, slides, message
+                "reseaux": resultat_res,
                 "membres": membres,
                 # orphelin : slide du membre introuvable, dépôt purgé sans être posé
                 "appliques": [{"slide_id": d["slide_id"], "date": d["date"], "orphelin": d["cible"] is None}
