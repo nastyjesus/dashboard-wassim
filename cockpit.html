@@ -37,7 +37,7 @@
 const { useState, useEffect } = React;
 
 /* ================= VERSION : force le rechargement si une version plus récente est en ligne ================= */
-const BUILD = "2026-11-06-sans-perdus";
+const BUILD = "2026-11-23-crm-sans-bni";
 (async () => {
   try {
     const r = await fetch(location.pathname + "?check=" + Date.now(), { cache: "no-store" });
@@ -1322,7 +1322,9 @@ function BandeauRelances({ dues, sansDate, filtre, setFiltre }) {
   );
 }
 
-function CRM({ prospects, setFProspect, bougerEtape, marquerPerdu, relancer, pipePondere, pipeBrut }) {
+function CRM({ prospects: tousProspects, setFProspect, bougerEtape, marquerPerdu, relancer, pipePondere, pipeBrut }) {
+  /* les commissions BNI en attente (futurs membres) se suivent dans l'onglet BNI, pas dans le CRM agence */
+  const prospects = tousProspects.filter((p) => p.type !== "bni");
   const colonnes = ETAPES.filter((e) => e.id !== "perdu");
   const today = aujourdhui();
   const [filtre, setFiltre] = useState(false);   /* n'afficher que ce qui est à relancer */
