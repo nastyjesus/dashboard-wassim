@@ -335,9 +335,11 @@ function texteDepot(conf, genre, origine) {
 // Rappels programmés : même forme de réponse que les rappels infomerciales.
 export async function listeRappelsConference(env, origine, type, maintenant) {
   const vendredi = vendrediCible(maintenant);
-  const [sec, conf, genres] = await Promise.all([
-    secretaireActuel(env, maintenant), lire(env, `conference:${vendredi}`, null), lire(env, 'genres', {}),
+  const [sec, confLue, genres, emails] = await Promise.all([
+    secretaireActuel(env, maintenant), lire(env, `conference:${vendredi}`, null), lire(env, 'genres', {}), lire(env, 'emails', {}),
   ]);
+  // email repris de la liste s'il a été ajouté après la désignation
+  const conf = confLue && { ...confLue, email: confLue.email || emails[confLue.slide_id] || '' };
   const recap = { vendredi, a_envoyer: 0 };
   const mails = [];
   if (type === 'secretaire_vendredi' || type === 'secretaire_lundi') {
@@ -370,10 +372,12 @@ async function conferencesRecentes(env, maintenant, nombre = 6) {
 // les quarts d'heure par le script. « a: moi » = le compte Gmail qui exécute
 // le script (Wassim) : son adresse n'est jamais stockée ici.
 export async function notificationsAEnvoyer(env, origine, maintenant) {
-  const genres = await lire(env, 'genres', {});
+  const [genres, emails] = await Promise.all([lire(env, 'genres', {}), lire(env, 'emails', {})]);
   const mails = [];
   const sansEmail = [];
-  for (const conf of await conferencesRecentes(env, maintenant, 2)) {
+  for (const lue of await conferencesRecentes(env, maintenant, 2)) {
+    // email repris de la liste s'il a été ajouté après la désignation
+    const conf = { ...lue, email: lue.email || emails[lue.slide_id] || '' };
     if (heureParis(maintenant) >= `${conf.vendredi} 12:00`) continue; // réunion passée
     const genre = genres[conf.slide_id];
     if (!conf.mail_designation) {

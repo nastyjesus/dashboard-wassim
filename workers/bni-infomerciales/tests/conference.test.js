@@ -270,6 +270,17 @@ describe('mails', () => {
     expect(body).toMatchObject({ mails: [], sans_email: ['Alex PETIT'] });
   });
 
+  it('email ajouté après la désignation : la désignation et la relance partent quand même', async () => {
+    await designerParSecretaire(303);
+    await admin('/api/admin/emails', { methode: 'PUT', corps: { emails: { ...EMAILS, 303: 'alex@exemple.test' } } });
+    const { body } = await admin('/api/admin/conference/notifications');
+    expect(body.sans_email).toEqual([]);
+    expect(body.mails).toHaveLength(1);
+    expect(body.mails[0]).toMatchObject({ a: 'email', email: 'alex@exemple.test' });
+    const relance = (await admin('/api/admin/rappels?type=conferencier_mercredi&maintenant=2026-11-18T13:00:00Z')).body;
+    expect(relance.mails.map((m) => m.email)).toEqual(['alex@exemple.test']);
+  });
+
   it('dépôt validé : mail à Wassim (« moi ») avec les demandes spécifiques', async () => {
     await designerParSecretaire(202);
     await deposer(await lienConferencier(), pdf(10), 'conf.pdf', ['Jeanne TEST – DRH – Exemple SA', 'Marc ESSAI – Gérant – Démo SARL']);
