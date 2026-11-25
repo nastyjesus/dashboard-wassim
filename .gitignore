@@ -34,3 +34,4 @@ prospect/apports.json
 prospect/myefarm/
 prospect/__pycache__/
 data/prospection/
+prospect/*.db-*

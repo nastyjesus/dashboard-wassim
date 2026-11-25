@@ -40,7 +40,7 @@ CACHE_MX = os.path.join(RACINE, "cache", "mx.json")
 CACHE_ETAT = os.path.join(RACINE, "cache", "etat_sirene.json")
 
 SECTIONS = ["bruz_entreprises_actuelles.csv", "bruz_lot2.csv", "zone_sud.csv",
-            "bruz_lot4.csv", "demandes_membres.csv", "vague5.csv", "vague6.csv", "vague6b.csv"]
+            "bruz_lot4.csv", "demandes_membres.csv", "vague5.csv", "vague6.csv", "vague6b.csv", "vague8.csv"]
 
 SYNTAXE = re.compile(r"^[a-z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-z0-9](?:[a-z0-9-]*[a-z0-9])?"
                      r"(?:\.[a-z0-9](?:[a-z0-9-]*[a-z0-9])?)+$")
@@ -192,6 +192,7 @@ VAGUE2 = set(_charger(os.path.join(RACINE, "cache", "vague2_emails.json"), []))
 VAGUE2 |= set(_charger(os.path.join(RACINE, "cache", "vague5_emails.json"), []))
 VAGUE2 |= set(_charger(os.path.join(RACINE, "cache", "vague6_emails.json"), []))
 VAGUE2 |= set(_charger(os.path.join(RACINE, "cache", "vague6b_emails.json"), []))
+VAGUE2 |= set(_charger(os.path.join(RACINE, "cache", "vague8_emails.json"), []))
 
 
 def statut(email, ligne, ctl, partages):

@@ -1323,5 +1323,101 @@
    "airbnb"
   ],
   "note": "Vague 6 complement (10/11/2026). Preuve exigee ; plateformes nationales sans gerant local exclues."
+ },
+ "laveur-vitres": {
+  "libelle": "Laveur de vitres",
+  "naf": [
+   "81.22Z",
+   "81.21Z",
+   "81.29B"
+  ],
+  "mots_activite": [
+   "vitre",
+   "vitrerie",
+   "vitrage",
+   "lavage de vitres",
+   "laveur"
+  ],
+  "note": "Vague 8 (24/11/2026). Codes du nettoyage : preuve vitrerie exigee (nom, BODACC)."
+ },
+ "pac-climatisation": {
+  "libelle": "Chauffagiste PAC / climatisation",
+  "naf": [
+   "43.22B",
+   "43.22A",
+   "33.12Z"
+  ],
+  "mots_activite": [
+   "pompe a chaleur",
+   "climatisation",
+   "frigorifique",
+   "aerothermie",
+   "geothermie",
+   "froid"
+  ],
+  "note": "Vague 8 (24/11/2026). Preuve PAC ou climatisation exigee : un plombier seul n'entre pas."
+ },
+ "carreleur": {
+  "libelle": "Carreleur",
+  "naf": [
+   "43.33Z"
+  ],
+  "mots_activite": [
+   "carrelage",
+   "carreleur",
+   "faience",
+   "mosaique"
+  ],
+  "note": "Vague 8 (24/11/2026). 43.33Z couvre aussi parquet et sols souples : preuve carrelage exigee."
+ },
+ "avocat-droit-travail": {
+  "libelle": "Avocat en droit du travail",
+  "naf": [
+   "69.10Z"
+  ],
+  "raffiner": [
+   [
+    "notai|notarial",
+    "__exclure__"
+   ],
+   [
+    "huissier|commissaire de justice",
+    "__exclure__"
+   ],
+   [
+    "avocat|barreau|aarpi|selarl|scp",
+    "Avocat"
+   ]
+  ],
+  "mots_activite": [
+   "avocat",
+   "droit du travail",
+   "droit social"
+  ],
+  "note": "Vague 8 (24/11/2026). Preuve : certificat de specialisation droit du travail / droit social (annuaire de l'Ordre de Rennes) ou mention dans le nom."
+ },
+ "paie-rh": {
+  "libelle": "Paie / RH externalisees",
+  "naf": [
+   "82.11Z",
+   "70.22Z",
+   "78.30Z",
+   "74.90B"
+  ],
+  "mot_cle_obligatoire": true,
+  "raffiner": [
+   [
+    "paie|payroll|\brh\b|ressources humaines|gestion sociale|social",
+    "Paie / RH externalisees"
+   ]
+  ],
+  "mots_activite": [
+   "paie",
+   "payroll",
+   "gestion sociale",
+   "ressources humaines",
+   "administration du personnel"
+  ],
+  "note": "Vague 8 (24/11/2026). Experts-comptables (69.20Z) exclus : place prise."
  }
 }
