@@ -150,7 +150,7 @@ describe('routes', () => {
     expect(appels[0].corps).toEqual({ ref: 'branche' });
   });
 
-  it('l'essai du jeton lance un nettoyage à blanc', async () => {
+  it('l\'essai du jeton lance un nettoyage à blanc', async () => {
     const res = await worker.fetch(new Request('https://bni.test/api/admin/essai-jeton', { method: 'POST', headers: { 'X-Wassim-Auth': 'admin-secret' } }), env);
     expect(res.status).toBe(200);
     expect(appels[0].url).toContain('/workflows/nettoyage.yml/dispatches');
