@@ -22,7 +22,7 @@
 //   reseaux_responsables, reseaux:<vendredi>, reseaux_morceau:*
 //                    contenus réseaux sociaux de la semaine (voir reseaux.js)
 
-import { lancerWorkflow, declencherPlanifie } from './declenchement.js';
+import { lancerWorkflow, declencherSiDu } from './declenchement.js';
 import PAGE_MEMBRE from './membre.html';
 import PAGE_ADMIN from './admin.html';
 import PAGE_ADDIN from './addin.html';
@@ -515,7 +515,13 @@ async function routesAdmin(request, env, url) {
     return designer(env, vendrediCible(maintenant), corps.slide_id, 'admin', maintenant);
   }
   if (p === '/api/admin/conference/fichier' && m === 'GET') return fichierConference(env, String(url.searchParams.get('vendredi') ?? ''));
-  if (p === '/api/admin/conference/notifications' && m === 'GET') return json(await notificationsAEnvoyer(env, url.origin, maintenant));
+  if (p === '/api/admin/conference/notifications' && m === 'GET') {
+    // appelé toutes les 15 min par le script Gmail, à l'heure : on en profite
+    // pour lancer à temps le passage du deck dû (src/declenchement.js).
+    // Heure réelle ; un essai daté (?maintenant=) ne lance jamais rien.
+    if (!url.searchParams.has('maintenant')) await declencherSiDu(env, new Date());
+    return json(await notificationsAEnvoyer(env, url.origin, maintenant));
+  }
   if (p === '/api/admin/conference/notifications' && m === 'POST') {
     const corps = await corpsJson();
     if (!corps) return erreur('Requête illisible.');
@@ -610,10 +616,5 @@ export default {
       console.error('erreur', e && e.message);
       return erreur('Erreur interne.', 500);
     }
-  },
-
-  // crons Cloudflare (wrangler.toml) : lance les passages à l'heure de Paris
-  async scheduled(controller, env, ctx) {
-    ctx.waitUntil(declencherPlanifie(env, new Date(controller.scheduledTime)));
   },
 };

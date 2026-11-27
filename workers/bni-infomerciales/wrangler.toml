@@ -24,8 +24,8 @@ GITHUB_WORKFLOW_NETTOYAGE = "bni-infomerciales-nettoyage.yml"
 
 # Pas de cron Cloudflare ici : le compte a déjà atteint la limite du plan
 # gratuit (5 crons par compte, refus « code 10072 » au déploiement du 27/11).
-# Le lancement ponctuel des passages (src/declenchement.js) attend un autre
-# déclencheur.
+# Le lancement à l'heure des passages (src/declenchement.js) est porté par
+# l'appel que le script Gmail fait toutes les 15 min (conference/notifications).
 
 # Namespace KV : créé/injecté par le workflow de déploiement.
 [[kv_namespaces]]
