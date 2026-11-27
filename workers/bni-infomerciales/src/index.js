@@ -474,6 +474,12 @@ async function routesAdmin(request, env, url) {
 
   if (p === '/api/admin/etat' && m === 'GET') return json(await etatAdmin(env, url.origin, maintenant));
   if (p === '/api/admin/appliquer' && m === 'POST') return declencherJob(env);
+  // vérifie le jeton GitHub sans toucher au deck : nettoyage à blanc (liste, n'écrit rien)
+  if (p === '/api/admin/essai-jeton' && m === 'POST') {
+    if (!env.GH_DISPATCH_TOKEN) return erreur('Jeton GitHub absent (GH_DISPATCH_TOKEN).', 501);
+    const r = await lancerWorkflow(env, 'nettoyage', { mode: 'essai' });
+    return r.ok ? json({ ok: true }) : erreur(`GitHub a refusé le lancement (${r.statut}).`, 502);
+  }
   if (p === '/api/admin/emails' && m === 'PUT') {
     let corps;
     try { corps = await request.json(); } catch { return erreur('Requête illisible.'); }
