@@ -22,6 +22,7 @@
 //   reseaux_responsables, reseaux:<vendredi>, reseaux_morceau:*
 //                    contenus réseaux sociaux de la semaine (voir reseaux.js)
 
+import { lancerWorkflow, declencherPlanifie } from './declenchement.js';
 import PAGE_MEMBRE from './membre.html';
 import PAGE_ADMIN from './admin.html';
 import PAGE_ADDIN from './addin.html';
@@ -221,6 +222,7 @@ async function etatAdmin(env, origine, maintenant = new Date()) {
     dernier_run: dernierRun,
     passages_job: (await lire(env, 'passages', [])).filter((x) => x.source === 'job').slice(0, 2),
     dernier_nettoyage: dernierNettoyage,
+    declenchements: (await lire(env, 'declenchements', [])).slice(0, 5),
     conference: await etatConference(env, origine, maintenant),
     reseaux: await etatReseaux(env, origine, maintenant),
   };
@@ -228,17 +230,8 @@ async function etatAdmin(env, origine, maintenant = new Date()) {
 
 async function declencherJob(env) {
   if (!env.GH_DISPATCH_TOKEN) return erreur('Bouton non configuré : lance le workflow « BNI infomerciales » depuis GitHub.', 501);
-  const r = await fetch(`https://api.github.com/repos/${env.GITHUB_REPO}/actions/workflows/${env.GITHUB_WORKFLOW}/dispatches`, {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${env.GH_DISPATCH_TOKEN}`,
-      Accept: 'application/vnd.github+json',
-      'User-Agent': 'bni-infomerciales-worker',
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({ ref: env.GITHUB_REF }),
-  });
-  if (r.status !== 204) return erreur(`GitHub a refusé le lancement (${r.status}).`, 502);
+  const r = await lancerWorkflow(env, 'job');
+  if (!r.ok) return erreur(`GitHub a refusé le lancement (${r.statut}).`, 502);
   return json({ ok: true });
 }
 
@@ -617,5 +610,10 @@ export default {
       console.error('erreur', e && e.message);
       return erreur('Erreur interne.', 500);
     }
+  },
+
+  // crons Cloudflare (wrangler.toml) : lance les passages à l'heure de Paris
+  async scheduled(controller, env, ctx) {
+    ctx.waitUntil(declencherPlanifie(env, new Date(controller.scheduledTime)));
   },
 };

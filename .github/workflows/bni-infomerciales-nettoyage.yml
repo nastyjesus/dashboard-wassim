@@ -18,9 +18,9 @@ on:
   workflow_dispatch:
     inputs:
       mode:
-        description: "essai = liste ce qui serait effacé sans rien écrire ; forcer = nettoie maintenant, même hors créneau ou déjà fait"
+        description: "essai = liste ce qui serait effacé sans rien écrire ; forcer = nettoie maintenant, même hors créneau ou déjà fait ; auto = comme le cron (utilisé par le worker)"
         type: choice
-        options: [essai, forcer]
+        options: [essai, forcer, auto]
         default: essai
 
 # même groupe que le job du mercredi : jamais deux écritures du deck en même temps

@@ -18,6 +18,14 @@ on:
     - cron: "0 11 * * 4"
     - cron: "0 12 * * 4"
   workflow_dispatch:
+    inputs:
+      cron:
+        # rempli par le worker Cloudflare (lancement à l'heure de Paris) :
+        # le passage est alors noté comme le créneau du jour, et les crons
+        # GitHub en retard voient qu'il est déjà fait
+        description: "vide = passage manuel immédiat ; un cron de publication = passage programmé"
+        type: string
+        default: ""
 
 concurrency:
   group: bni-infomerciales
@@ -52,5 +60,5 @@ jobs:
           WORKER_URL: https://bni-infomerciales.loumiwassim.workers.dev
           WASSIM_AUTH_TOKEN: ${{ secrets.WASSIM_AUTH_TOKEN }}
           # vide pour un lancement manuel : pas de contrôle de créneau
-          CRON: ${{ github.event.schedule }}
+          CRON: ${{ github.event.schedule || inputs.cron }}
         run: python job.py

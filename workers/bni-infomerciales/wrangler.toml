@@ -20,6 +20,18 @@ fallthrough = false
 GITHUB_REPO = "nastyjesus/dashboard-wassim"
 GITHUB_WORKFLOW = "bni-infomerciales-job.yml"
 GITHUB_REF = "claude/side-hustle-brainstorm-ykikf8"
+GITHUB_WORKFLOW_NETTOYAGE = "bni-infomerciales-nettoyage.yml"
+
+# Les crons GitHub partent avec des heures de retard : le worker lance lui-même
+# les passages (src/declenchement.js) : mercredi 19:05, jeudi 12:05 (mise à
+# jour du deck), samedi 07:05 (nettoyage), heure de Paris.
+# UN SEUL cron (plan gratuit : 5 crons pour tout le compte) qui tombe à :05 aux
+# heures UTC utiles été comme hiver ; passageDu() ne garde que la bonne heure de
+# Paris, les autres réveils ne font rien. Jours en lettres : chez Cloudflare,
+# 1 = dimanche (pas lundi comme dans les crons GitHub).
+# Nécessite le secret GH_DISPATCH_TOKEN (sinon : rien, crons GitHub seuls).
+[triggers]
+crons = ["5 5,6,10,11,17,18 * * WED,THU,SAT"]
 
 # Namespace KV : créé/injecté par le workflow de déploiement.
 [[kv_namespaces]]
@@ -28,7 +40,8 @@ id = "REPLACE_WITH_KV_ID"
 
 # Secrets à provisionner via `wrangler secret put` (fait par le workflow) :
 #   WASSIM_AUTH_TOKEN   (header X-Wassim-Auth : admin + job)
-#   GH_DISPATCH_TOKEN   (optionnel : jeton GitHub « Actions: write » pour le bouton)
+#   GH_DISPATCH_TOKEN   (optionnel : jeton GitHub « Actions: write » pour le bouton
+#                        et le lancement ponctuel des passages)
 
 [observability]
 enabled = true
