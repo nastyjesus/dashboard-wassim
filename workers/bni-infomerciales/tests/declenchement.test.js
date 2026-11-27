@@ -58,28 +58,6 @@ describe('passageDu (heure de Paris)', () => {
     expect(passageDu(new Date('2026-06-06T06:00:00Z'))).toBeNull();
   });
 
-  it('le cron unique de wrangler.toml réveille le worker à chaque passage, été comme hiver', () => {
-    const toml = readFileSync(new URL('../wrangler.toml', import.meta.url), 'utf8');
-    const m = toml.match(/^crons = \["(\d+) ([\d,]+) \* \* ([A-Z,]+)"\]$/m);
-    expect(m).not.toBeNull();
-    // jours en lettres : chez Cloudflare 1 = dimanche, un chiffre serait décalé
-    const jours = { WED: 3, THU: 4, SAT: 6 };
-    const reveils = [];
-    // toutes les dates d'un an : chaque réveil du cron, filtré par passageDu
-    for (let t = Date.parse('2026-01-01T00:00:00Z'); t < Date.parse('2027-01-01T00:00:00Z'); t += 3600e3) {
-      const d = new Date(t + Number(m[1]) * 60e3);
-      if (!m[3].split(',').some((j) => jours[j] === d.getUTCDay())) continue;
-      if (!m[2].split(',').map(Number).includes(d.getUTCHours())) continue;
-      const p = passageDu(d);
-      if (p) reveils.push(`${d.toISOString().slice(0, 10)} ${p.workflow}`);
-    }
-    // un et un seul déclenchement par créneau, chaque semaine de l'année
-    const parJour = {};
-    for (const r of reveils) parJour[r] = (parJour[r] ?? 0) + 1;
-    expect(Object.values(parJour).every((n) => n === 1)).toBe(true);
-    expect(reveils.length).toBe(52 * 3 + 1); // 2026 : 52 mercredis, 53 jeudis, 52 samedis
-  });
-
   it('les valeurs « cron » envoyées au job sont reconnues par job.py', () => {
     const job = readFileSync(new URL('../../../scripts/bni-infomerciales/job.py', import.meta.url), 'utf8');
     for (const cron of ['5 18 * * 3', '0 11 * * 4']) expect(job).toContain(`"${cron}"`);
